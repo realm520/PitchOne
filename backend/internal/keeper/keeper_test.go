@@ -260,4 +260,133 @@ func TestKeeperGracefulShutdown(t *testing.T) {
 		// Should return error due to timeout (depending on implementation)
 		// This test verifies timeout handling
 	})
+
+	t.Run("shutdown when keeper is running", func(t *testing.T) {
+		if !isDatabaseAvailable() {
+			t.Skip("Database not available, skipping test")
+		}
+
+		cfg := &Config{
+			ChainID:          31337,
+			RPCEndpoint:      "http://localhost:8545",
+			PrivateKey:       "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+			GasLimit:         500000,
+			MaxGasPrice:      "100",
+			TaskInterval:     60,
+			LockLeadTime:     300,
+			FinalizeDelay:    7200,
+			MaxConcurrent:    10,
+			RetryAttempts:    3,
+			RetryDelay:       5,
+			DatabaseURL:      "postgresql://p1:p1@localhost/p1?sslmode=disable",
+			HealthCheckPort:  8081,
+			MetricsPort:      9091,
+			AlertsEnabled:    false,
+		}
+
+		keeper, err := NewKeeper(cfg)
+		require.NoError(t, err)
+
+		// Start the keeper
+		go keeper.Start(context.Background())
+
+		// Wait a bit for it to start
+		time.Sleep(100 * time.Millisecond)
+
+		// Shutdown with proper timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err = keeper.Shutdown(ctx)
+		assert.NoError(t, err, "Shutdown should complete successfully")
+	})
+
+	t.Run("shutdown twice returns no error", func(t *testing.T) {
+		if !isDatabaseAvailable() {
+			t.Skip("Database not available, skipping test")
+		}
+
+		cfg := &Config{
+			ChainID:          31337,
+			RPCEndpoint:      "http://localhost:8545",
+			PrivateKey:       "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+			GasLimit:         500000,
+			MaxGasPrice:      "100",
+			TaskInterval:     60,
+			LockLeadTime:     300,
+			FinalizeDelay:    7200,
+			MaxConcurrent:    10,
+			RetryAttempts:    3,
+			RetryDelay:       5,
+			DatabaseURL:      "postgresql://p1:p1@localhost/p1?sslmode=disable",
+			HealthCheckPort:  8081,
+			MetricsPort:      9091,
+			AlertsEnabled:    false,
+		}
+
+		keeper, err := NewKeeper(cfg)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// First shutdown
+		err = keeper.Shutdown(ctx)
+		assert.NoError(t, err)
+
+		// Second shutdown should also succeed (idempotent)
+		err = keeper.Shutdown(ctx)
+		assert.NoError(t, err, "Second shutdown should be idempotent")
+	})
+}
+
+// TestConfig_String tests Config.String() method
+func TestConfig_String(t *testing.T) {
+	t.Run("formats config correctly", func(t *testing.T) {
+		cfg := &Config{
+			ChainID:          31337,
+			RPCEndpoint:      "http://localhost:8545",
+			PrivateKey:       "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+			GasLimit:         500000,
+			MaxGasPrice:      "100",
+			TaskInterval:     60,
+			LockLeadTime:     300,
+			FinalizeDelay:    7200,
+			MaxConcurrent:    10,
+			RetryAttempts:    3,
+			RetryDelay:       5,
+			DatabaseURL:      "postgresql://user:password@localhost/testdb",
+			HealthCheckPort:  8081,
+			MetricsPort:      9091,
+			AlertsEnabled:    false,
+		}
+
+		str := cfg.String()
+
+		// Check that output contains expected fields
+		assert.Contains(t, str, "ChainID: 31337")
+		assert.Contains(t, str, "RPC: http://localhost:8545")
+		assert.Contains(t, str, "GasLimit: 500000")
+		assert.Contains(t, str, "MaxGasPrice: 100")
+		assert.Contains(t, str, "TaskInterval: 60s")
+
+		// Check that password is masked
+		assert.Contains(t, str, "***")
+		assert.NotContains(t, str, "password", "Password should be masked")
+	})
+
+	t.Run("handles empty database URL", func(t *testing.T) {
+		cfg := &Config{
+			ChainID:      31337,
+			RPCEndpoint:  "http://localhost:8545",
+			GasLimit:     500000,
+			MaxGasPrice:  "100",
+			TaskInterval: 60,
+			DatabaseURL:  "",
+		}
+
+		str := cfg.String()
+		assert.NotEmpty(t, str, "String should not be empty")
+		assert.Contains(t, str, "ChainID: 31337")
+	})
 }
