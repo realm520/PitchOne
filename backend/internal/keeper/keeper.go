@@ -125,12 +125,12 @@ func (k *Keeper) Start(ctx context.Context) error {
 
 	// Start health check server (async)
 	k.wg.Add(1)
-	go k.runHealthCheckServer()
+	go k.runHealthCheckServer(ctx)
 
 	// Start metrics server if enabled (async)
 	if k.config.MetricsPort > 0 {
 		k.wg.Add(1)
-		go k.runMetricsServer()
+		go k.runMetricsServer(ctx)
 	}
 
 	// Start task scheduler
@@ -163,18 +163,21 @@ func (k *Keeper) Shutdown(ctx context.Context) error {
 	isRunning := k.running
 	k.runningMutex.RUnlock()
 
-	if isRunning {
-		// Signal all goroutines to stop
-		close(k.stopChan)
+	if !isRunning {
+		k.logger.Info("keeper not running, nothing to shutdown")
+		return nil
+	}
 
-		// Wait for shutdown with timeout
-		select {
-		case <-k.doneChan:
-			k.logger.Info("graceful shutdown completed")
-		case <-ctx.Done():
-			k.logger.Warn("shutdown timeout reached, forcing shutdown")
-			return fmt.Errorf("shutdown timeout")
-		}
+	// Signal all goroutines to stop
+	close(k.stopChan)
+
+	// Wait for shutdown with timeout
+	select {
+	case <-k.doneChan:
+		k.logger.Info("graceful shutdown completed")
+	case <-ctx.Done():
+		k.logger.Warn("shutdown timeout reached, forcing shutdown")
+		return fmt.Errorf("shutdown timeout")
 	}
 
 	// Close connections
@@ -223,7 +226,7 @@ func (k *Keeper) HealthCheck() *HealthStatus {
 }
 
 // runHealthCheckServer runs the health check HTTP server
-func (k *Keeper) runHealthCheckServer() {
+func (k *Keeper) runHealthCheckServer(ctx context.Context) {
 	defer k.wg.Done()
 
 	k.logger.Info("health check server started",
@@ -232,12 +235,17 @@ func (k *Keeper) runHealthCheckServer() {
 
 	// TODO: Implement actual HTTP server
 	// For now, just simulate running
-	<-k.stopChan
+	select {
+	case <-ctx.Done():
+		k.logger.Info("health check server stopping (context done)")
+	case <-k.stopChan:
+		k.logger.Info("health check server stopping (stop signal)")
+	}
 	k.logger.Info("health check server stopped")
 }
 
 // runMetricsServer runs the Prometheus metrics HTTP server
-func (k *Keeper) runMetricsServer() {
+func (k *Keeper) runMetricsServer(ctx context.Context) {
 	defer k.wg.Done()
 
 	k.logger.Info("metrics server started",
@@ -246,7 +254,12 @@ func (k *Keeper) runMetricsServer() {
 
 	// TODO: Implement actual HTTP server with Prometheus metrics
 	// For now, just simulate running
-	<-k.stopChan
+	select {
+	case <-ctx.Done():
+		k.logger.Info("metrics server stopping (context done)")
+	case <-k.stopChan:
+		k.logger.Info("metrics server stopping (stop signal)")
+	}
 	k.logger.Info("metrics server stopped")
 }
 
