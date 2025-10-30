@@ -1,0 +1,114 @@
+# PitchOne Backend Configuration
+# Week 3-4: Indexer, Keeper, Rewards Services
+
+# Indexer Configuration
+indexer:
+  # Ethereum RPC endpoints
+  rpc_url: "http://localhost:8545"  # HTTP endpoint for queries
+  ws_url: "ws://localhost:8545"      # WebSocket endpoint for subscriptions
+
+  # Contract addresses (update after deployment)
+  contracts:
+    market_base: "0x5FbDB2315678afecb367f032d93F642f64180aa3"  # Example: first Anvil address
+    wdl_template: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    fee_router: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+    mock_oracle: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+
+  # Indexing configuration
+  start_block: 0                     # Block to start indexing from (0 = from genesis)
+  batch_size: 100                    # Number of blocks to process per batch
+  finality_blocks: 12                # Wait N blocks for finality (prevent reorg issues)
+  polling_interval: 5s               # Fallback polling interval if WebSocket fails
+
+  # Performance tuning
+  max_concurrent_requests: 10        # Max concurrent RPC requests
+  retry_attempts: 3                  # Max retry attempts for failed requests
+  retry_backoff: 2s                  # Initial backoff duration for retries
+
+# Keeper Configuration
+keeper:
+  # Task scheduling
+  check_lock_interval: "*/5 * * * *"      # Every 5 minutes (cron format)
+  check_resolve_interval: "0 * * * *"     # Every hour
+  check_finalize_interval: "0 * * * *"    # Every hour
+
+  # Task configuration
+  lock_advance_time: 5m              # Lock market N minutes before kickoff
+  resolve_delay_time: 2h             # Wait N hours after kickoff to resolve
+  finalize_delay_time: 2h            # Wait N hours after resolve to finalize
+
+  # Transaction configuration
+  gas_limit: 300000                  # Default gas limit for transactions
+  max_gas_price: 100                 # Max gas price in Gwei
+  private_key_path: ""               # Path to private key file (or use env var)
+
+  # Alert configuration
+  alert_telegram_enabled: false
+  alert_telegram_bot_token: ""       # Telegram bot token (from env var)
+  alert_telegram_chat_id: ""         # Telegram chat ID
+  alert_webhook_url: ""              # Webhook URL for alerts
+
+# Rewards Builder Configuration
+rewards:
+  # Schedule
+  build_interval: "0 0 * * 1"        # Every Monday at midnight (weekly)
+
+  # Merkle tree configuration
+  tree_output_dir: "./data/merkle"   # Directory to store Merkle trees
+  proof_output_dir: "./data/proofs"  # Directory to store proofs
+
+  # Reward types
+  referral_reward_rate: 0.10         # 10% referral reward rate
+  campaign_reward_enabled: true
+  quest_reward_enabled: true
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  user: "p1"
+  password: "PitchOne2025"           # Use env var DATABASE_PASSWORD in production
+  dbname: "p1"
+  sslmode: "disable"                 # Use "require" in production
+
+  # Connection pool
+  max_open_conns: 20
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+  # Query timeout
+  query_timeout: 30s
+
+# Logging Configuration
+logging:
+  level: "info"                      # debug, info, warn, error
+  format: "json"                     # json or console
+  output: "stdout"                   # stdout, stderr, or file path
+  file_path: "./logs/app.log"
+  max_size: 100                      # Max log file size in MB
+  max_backups: 3
+  max_age: 28                        # Max age in days
+  compress: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  port: 9090                         # Prometheus metrics endpoint port
+  path: "/metrics"
+
+# Health Check Configuration
+health:
+  enabled: true
+  port: 8080
+  path: "/health"
+
+# Development/Production Mode
+environment: "development"           # development, staging, production
+
+# Feature Flags
+features:
+  enable_websocket_subscription: true
+  enable_http_fallback: true
+  enable_reorg_handling: true
+  enable_prometheus_metrics: true
+  enable_health_check: true
