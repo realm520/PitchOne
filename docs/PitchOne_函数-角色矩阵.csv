@@ -1,0 +1,37 @@
+﻿模块,函数/能力,USER/LP,KEEPER,ORACLE,REWARDS_PUBLISHER,PAUSER,SAFE_MULTISIG,GOVERNOR,TIMELOCK,备注
+MarketBase,quoteBuy/quote,R,,,,,,,,只读报价
+MarketBase,"buy(outcome,stake,...)",C,,,,,,,,
+MarketBase,"sell(outcome,shares,...)",C,,,,,,,,
+MarketBase,"claim(outcomes,shares,to)",C,,,,,,,,
+MarketBase,lock(),R,C,,,,,,,赛前锁盘
+MarketBase,resolve(MatchFacts),R,,C,,,,,,乐观式预言机最终态
+MarketBase,pause()/unpause(),R,,,,C,C,,,只读暂停；不影响claim
+MarketFactory,"createMarket(templateId,matchId,...)",C,,,,,,,,可选白名单/押注限制
+Parlay/Basket,"quote(basket,stake)",R,,,,,,,,
+Parlay/Basket,"purchase(basket,stake,minOut)",C,,,,,,,,
+CorrelationGuard,setPenaltyMatrix/Policy,R,,,,,,queue,apply,参数通过 ParamController
+ResultOracle,"propose(marketId,facts,bond)",R,,C,,,,,,
+ResultOracle,dispute(marketId),R,,C,,,,,,
+ResultOracle,finalize(marketId),R,,C,,,,,,
+FeeRouter,"route(marketId,amount)",R,,,,,,,,仅 Market 调用；外部无权限修改
+FeeRouter,"setSplits(lp,promo,insurance,treasury)",R,,,,,,queue,apply,分账权重变更
+Vault(ERC-4626),deposit(amount),C,,,,,,,,
+Vault(ERC-4626),withdraw(shares),C,,,,,,,,
+RewardsDistributor,"publish(week,root,scaleBps)",R,,,C,,,,,CI/多签地址执行
+RewardsDistributor,"claim(week,amount,proof)",C,,,,,,,,
+ReferralRegistry,"bind(referrer,campaignId)",C,,,,,,,,
+ReferralRegistry,getReferrer(user),R,,,,,,,,
+Campaign/Quest,"create(id,ruleHash,budgetCap,...)",R,,,C,,,queue,apply,规则哈希/预算上限可由治理限制
+ParamController,"queue(key,value,eta)",R,,,,,,C,,仅 Governor 可 queue
+ParamController,apply(key),R,,,,,,,C,Timelock 到点执行
+ParamController,get(key),R,,,,,,,,
+Governance,propose/vote,C,,,,,,,,veP1 持仓用户
+Timelock,execute,R,,,,,,,C,
+P1(ERC20),mint/burn,R,,,,,A,queue,apply,国库铸销需治理+多签保管
+veP1(ERC721),create_lock/increase/merge/split,C,,,,,,,,
+GaugeController,voteForGauge,C,,,,,,,,veP1 持仓者
+EmissionsController,distribute(gauge)/setWeeklyEmission,R,,,,,,queue,apply,
+Gauge,notifyReward/getReward,C,,,C,,,,,notify 通常由 EmissionsController/多签
+Bribe(Optional),notifyBribe/claimBribe,C,,,,,,,,代币白名单由治理设置
+Buyback,buyback/burn,R,,,,,C,queue,apply,由国库多签执行；参数经治理
+FeatureFlag,"set(flagId,enabled,allowlist)",R,,,,,,queue,apply,灰度开关
