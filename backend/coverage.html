@@ -1,0 +1,1611 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>keeper: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/pitchone/sportsbook/internal/keeper/config.go (86.7%)</option>
+				
+				<option value="file1">github.com/pitchone/sportsbook/internal/keeper/keeper.go (71.0%)</option>
+				
+				<option value="file2">github.com/pitchone/sportsbook/internal/keeper/lock_task.go (64.8%)</option>
+				
+				<option value="file3">github.com/pitchone/sportsbook/internal/keeper/scheduler.go (68.9%)</option>
+				
+				<option value="file4">github.com/pitchone/sportsbook/internal/keeper/settle_task.go (60.0%)</option>
+				
+				<option value="file5">github.com/pitchone/sportsbook/internal/keeper/web3.go (73.8%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package keeper
+
+import (
+        "errors"
+        "fmt"
+)
+
+// Config holds Keeper service configuration
+type Config struct {
+        // Blockchain settings
+        ChainID     int64  `mapstructure:"chain_id"`
+        RPCEndpoint string `mapstructure:"rpc_endpoint"`
+        PrivateKey  string `mapstructure:"private_key"`
+
+        // Gas settings
+        GasLimit    uint64 `mapstructure:"gas_limit"`
+        MaxGasPrice string `mapstructure:"max_gas_price"` // In Gwei
+
+        // Task settings
+        TaskInterval  int `mapstructure:"task_interval"`   // Seconds between task runs
+        LockLeadTime  int `mapstructure:"lock_lead_time"`  // Seconds before match to lock
+        FinalizeDelay int `mapstructure:"finalize_delay"`  // Seconds to wait after resolution
+        MaxConcurrent int `mapstructure:"max_concurrent"`  // Max concurrent tasks
+        RetryAttempts int `mapstructure:"retry_attempts"`  // Max retry attempts
+        RetryDelay    int `mapstructure:"retry_delay"`     // Seconds between retries
+
+        // Database
+        DatabaseURL string `mapstructure:"database_url"`
+
+        // Monitoring
+        HealthCheckPort int  `mapstructure:"health_check_port"`
+        MetricsPort     int  `mapstructure:"metrics_port"`
+        AlertsEnabled   bool `mapstructure:"alerts_enabled"`
+
+        // Telegram alerts (optional)
+        TelegramBotToken string `mapstructure:"telegram_bot_token"`
+        TelegramChatID   string `mapstructure:"telegram_chat_id"`
+
+        // Webhook alerts (optional)
+        WebhookURL string `mapstructure:"webhook_url"`
+}
+
+// Validate validates the configuration
+func (c *Config) Validate() error <span class="cov5" title="26">{
+        if c.ChainID == 0 </span><span class="cov0" title="0">{
+                return errors.New("chain_id is required")
+        }</span>
+
+        <span class="cov5" title="26">if c.RPCEndpoint == "" </span><span class="cov1" title="1">{
+                return errors.New("rpc_endpoint is required")
+        }</span>
+
+        <span class="cov5" title="25">if c.PrivateKey == "" </span><span class="cov0" title="0">{
+                return errors.New("private_key is required")
+        }</span>
+
+        <span class="cov5" title="25">if c.GasLimit == 0 </span><span class="cov1" title="2">{
+                c.GasLimit = 500000 // Default gas limit
+        }</span>
+
+        <span class="cov5" title="25">if c.MaxGasPrice == "" </span><span class="cov1" title="2">{
+                c.MaxGasPrice = "100" // Default 100 Gwei
+        }</span>
+
+        <span class="cov5" title="25">if c.TaskInterval == 0 </span><span class="cov1" title="2">{
+                c.TaskInterval = 60 // Default 60 seconds
+        }</span>
+
+        <span class="cov5" title="25">if c.LockLeadTime == 0 </span><span class="cov1" title="2">{
+                c.LockLeadTime = 300 // Default 5 minutes
+        }</span>
+
+        <span class="cov5" title="25">if c.FinalizeDelay == 0 </span><span class="cov1" title="2">{
+                c.FinalizeDelay = 7200 // Default 2 hours
+        }</span>
+
+        <span class="cov5" title="25">if c.MaxConcurrent == 0 </span><span class="cov1" title="2">{
+                c.MaxConcurrent = 10 // Default 10 concurrent tasks
+        }</span>
+
+        <span class="cov5" title="25">if c.RetryAttempts == 0 </span><span class="cov1" title="2">{
+                c.RetryAttempts = 3 // Default 3 retries
+        }</span>
+
+        <span class="cov5" title="25">if c.RetryDelay == 0 </span><span class="cov1" title="2">{
+                c.RetryDelay = 5 // Default 5 seconds
+        }</span>
+
+        <span class="cov5" title="25">if c.DatabaseURL == "" </span><span class="cov1" title="2">{
+                return errors.New("database_url is required")
+        }</span>
+
+        <span class="cov5" title="23">if c.HealthCheckPort == 0 </span><span class="cov0" title="0">{
+                c.HealthCheckPort = 8081 // Default port
+        }</span>
+
+        <span class="cov5" title="23">if c.MetricsPort == 0 </span><span class="cov0" title="0">{
+                c.MetricsPort = 9091 // Default port
+        }</span>
+
+        <span class="cov5" title="23">return nil</span>
+}
+
+// String returns a sanitized string representation of the config
+// (hides sensitive fields like private key)
+func (c *Config) String() string <span class="cov0" title="0">{
+        return fmt.Sprintf(
+                "Config{ChainID: %d, RPC: %s, GasLimit: %d, MaxGasPrice: %s, TaskInterval: %ds, DatabaseURL: %s}",
+                c.ChainID,
+                c.RPCEndpoint,
+                c.GasLimit,
+                c.MaxGasPrice,
+                c.TaskInterval,
+                maskDatabaseURL(c.DatabaseURL),
+        )
+}</span>
+
+// maskDatabaseURL masks the password in database URL
+func maskDatabaseURL(url string) string <span class="cov5" title="23">{
+        // Simple masking for display purposes
+        // Example: "postgresql://user:password@host/db" -&gt; "postgresql://user:***@host/db"
+        if url == "" </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+
+        // Find password section (between : and @)
+        <span class="cov5" title="23">var masked string
+        inPassword := false
+        for i, c := range url </span><span class="cov10" title="1081">{
+                if c == ':' &amp;&amp; i &gt; 0 &amp;&amp; url[i-1] != '/' </span><span class="cov5" title="46">{
+                        inPassword = true
+                        masked += string(c)
+                        continue</span>
+                }
+                <span class="cov9" title="1035">if c == '@' </span><span class="cov5" title="23">{
+                        inPassword = false
+                }</span>
+                <span class="cov9" title="1035">if inPassword </span><span class="cov7" title="138">{
+                        masked += "*"
+                }</span> else<span class="cov9" title="897"> {
+                        masked += string(c)
+                }</span>
+        }
+
+        <span class="cov5" title="23">return masked</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package keeper
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "math/big"
+        "sync"
+        "time"
+
+        _ "github.com/lib/pq" // PostgreSQL driver
+        "go.uber.org/zap"
+)
+
+const version = "0.1.0"
+
+// Keeper manages automated tasks for the sportsbook
+type Keeper struct {
+        config      *Config
+        web3Client  *Web3Client
+        db          *sql.DB
+        logger      *zap.Logger
+        chainID     int64
+        maxGasPrice *big.Int
+
+        // Internal state
+        running      bool
+        runningMutex sync.RWMutex
+        stopChan     chan struct{}
+        doneChan     chan struct{}
+        wg           sync.WaitGroup
+}
+
+// HealthStatus represents the health status of the Keeper
+type HealthStatus struct {
+        Healthy  bool   `json:"healthy"`
+        Version  string `json:"version"`
+        Database string `json:"database"`
+        Web3     string `json:"web3"`
+        Uptime   string `json:"uptime"`
+}
+
+// NewKeeper creates a new Keeper instance
+func NewKeeper(cfg *Config) (*Keeper, error) <span class="cov10" title="26">{
+        // Validate configuration
+        if err := cfg.Validate(); err != nil </span><span class="cov4" title="3">{
+                return nil, fmt.Errorf("invalid configuration: %w", err)
+        }</span>
+
+        // Initialize logger
+        <span class="cov9" title="23">logger, err := zap.NewProduction()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to initialize logger: %w", err)
+        }</span>
+
+        <span class="cov9" title="23">logger.Info("initializing Keeper service", zap.String("version", version))
+
+        // Parse max gas price (convert Gwei to Wei)
+        maxGasPriceGwei, ok := new(big.Int).SetString(cfg.MaxGasPrice, 10)
+        if !ok </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid max gas price: %s", cfg.MaxGasPrice)
+        }</span>
+        <span class="cov9" title="23">maxGasPrice := new(big.Int).Mul(maxGasPriceGwei, big.NewInt(1e9)) // Convert Gwei to Wei
+
+        // Initialize Web3 client
+        web3Client, err := NewWeb3Client(
+                cfg.RPCEndpoint,
+                cfg.PrivateKey,
+                big.NewInt(cfg.ChainID),
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to initialize Web3 client: %w", err)
+        }</span>
+
+        <span class="cov9" title="23">logger.Info("Web3 client initialized",
+                zap.String("account", web3Client.GetAccount().Hex()),
+                zap.Int64("chainID", cfg.ChainID),
+        )
+
+        // Initialize database connection
+        db, err := sql.Open("postgres", cfg.DatabaseURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to open database: %w", err)
+        }</span>
+
+        // Test database connection
+        <span class="cov9" title="23">if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to ping database: %w", err)
+        }</span>
+
+        // Configure connection pool
+        <span class="cov9" title="23">db.SetMaxOpenConns(25)
+        db.SetMaxIdleConns(5)
+        db.SetConnMaxLifetime(5 * time.Minute)
+
+        logger.Info("database connected",
+                zap.String("url", maskDatabaseURL(cfg.DatabaseURL)),
+        )
+
+        keeper := &amp;Keeper{
+                config:      cfg,
+                web3Client:  web3Client,
+                db:          db,
+                logger:      logger,
+                chainID:     cfg.ChainID,
+                maxGasPrice: maxGasPrice,
+                stopChan:    make(chan struct{}),
+                doneChan:    make(chan struct{}),
+        }
+
+        return keeper, nil</span>
+}
+
+// Start starts the Keeper service
+func (k *Keeper) Start(ctx context.Context) error <span class="cov1" title="1">{
+        k.runningMutex.Lock()
+        if k.running </span><span class="cov0" title="0">{
+                k.runningMutex.Unlock()
+                return fmt.Errorf("keeper is already running")
+        }</span>
+        <span class="cov1" title="1">k.running = true
+        k.runningMutex.Unlock()
+
+        k.logger.Info("starting Keeper service")
+
+        // Start health check server (async)
+        k.wg.Add(1)
+        go k.runHealthCheckServer(ctx)
+
+        // Start metrics server if enabled (async)
+        if k.config.MetricsPort &gt; 0 </span><span class="cov1" title="1">{
+                k.wg.Add(1)
+                go k.runMetricsServer(ctx)
+        }</span>
+
+        // Start task scheduler
+        <span class="cov1" title="1">k.wg.Add(1)
+        go k.runTaskScheduler(ctx)
+
+        // Wait for shutdown signal
+        select </span>{
+        case &lt;-ctx.Done():<span class="cov1" title="1">
+                k.logger.Info("received shutdown signal")</span>
+        case &lt;-k.stopChan:<span class="cov0" title="0">
+                k.logger.Info("received stop signal")</span>
+        }
+
+        // Wait for all goroutines to finish
+        <span class="cov1" title="1">k.wg.Wait()
+
+        close(k.doneChan)
+        k.logger.Info("Keeper service stopped")
+
+        return nil</span>
+}
+
+// Shutdown gracefully shuts down the Keeper service
+func (k *Keeper) Shutdown(ctx context.Context) error <span class="cov9" title="21">{
+        k.logger.Info("shutting down Keeper service")
+
+        // Check if keeper is running
+        k.runningMutex.RLock()
+        isRunning := k.running
+        k.runningMutex.RUnlock()
+
+        if !isRunning </span><span class="cov9" title="21">{
+                k.logger.Info("keeper not running, nothing to shutdown")
+                return nil
+        }</span>
+
+        // Signal all goroutines to stop
+        <span class="cov0" title="0">close(k.stopChan)
+
+        // Wait for shutdown with timeout
+        select </span>{
+        case &lt;-k.doneChan:<span class="cov0" title="0">
+                k.logger.Info("graceful shutdown completed")</span>
+        case &lt;-ctx.Done():<span class="cov0" title="0">
+                k.logger.Warn("shutdown timeout reached, forcing shutdown")
+                return fmt.Errorf("shutdown timeout")</span>
+        }
+
+        // Close connections
+        <span class="cov0" title="0">if k.web3Client != nil </span><span class="cov0" title="0">{
+                k.web3Client.Close()
+        }</span>
+
+        <span class="cov0" title="0">if k.db != nil </span><span class="cov0" title="0">{
+                k.db.Close()
+        }</span>
+
+        <span class="cov0" title="0">if k.logger != nil </span><span class="cov0" title="0">{
+                k.logger.Sync()
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// HealthCheck returns the current health status
+func (k *Keeper) HealthCheck() *HealthStatus <span class="cov1" title="1">{
+        status := &amp;HealthStatus{
+                Healthy: true,
+                Version: version,
+        }
+
+        // Check database
+        if err := k.db.Ping(); err != nil </span><span class="cov0" title="0">{
+                status.Database = "error: " + err.Error()
+                status.Healthy = false
+        }</span> else<span class="cov1" title="1"> {
+                status.Database = "ok"
+        }</span>
+
+        // Check Web3 connection
+        <span class="cov1" title="1">ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+
+        if _, err := k.web3Client.GetBlockNumber(ctx); err != nil </span><span class="cov0" title="0">{
+                status.Web3 = "error: " + err.Error()
+                status.Healthy = false
+        }</span> else<span class="cov1" title="1"> {
+                status.Web3 = "ok"
+        }</span>
+
+        <span class="cov1" title="1">return status</span>
+}
+
+// runHealthCheckServer runs the health check HTTP server
+func (k *Keeper) runHealthCheckServer(ctx context.Context) <span class="cov1" title="1">{
+        defer k.wg.Done()
+
+        k.logger.Info("health check server started",
+                zap.Int("port", k.config.HealthCheckPort),
+        )
+
+        // TODO: Implement actual HTTP server
+        // For now, just simulate running
+        select </span>{
+        case &lt;-ctx.Done():<span class="cov1" title="1">
+                k.logger.Info("health check server stopping (context done)")</span>
+        case &lt;-k.stopChan:<span class="cov0" title="0">
+                k.logger.Info("health check server stopping (stop signal)")</span>
+        }
+        <span class="cov1" title="1">k.logger.Info("health check server stopped")</span>
+}
+
+// runMetricsServer runs the Prometheus metrics HTTP server
+func (k *Keeper) runMetricsServer(ctx context.Context) <span class="cov1" title="1">{
+        defer k.wg.Done()
+
+        k.logger.Info("metrics server started",
+                zap.Int("port", k.config.MetricsPort),
+        )
+
+        // TODO: Implement actual HTTP server with Prometheus metrics
+        // For now, just simulate running
+        select </span>{
+        case &lt;-ctx.Done():<span class="cov1" title="1">
+                k.logger.Info("metrics server stopping (context done)")</span>
+        case &lt;-k.stopChan:<span class="cov0" title="0">
+                k.logger.Info("metrics server stopping (stop signal)")</span>
+        }
+        <span class="cov1" title="1">k.logger.Info("metrics server stopped")</span>
+}
+
+// runTaskScheduler runs the main task scheduling loop
+func (k *Keeper) runTaskScheduler(ctx context.Context) <span class="cov1" title="1">{
+        defer k.wg.Done()
+
+        k.logger.Info("task scheduler started",
+                zap.Int("interval", k.config.TaskInterval),
+        )
+
+        ticker := time.NewTicker(time.Duration(k.config.TaskInterval) * time.Second)
+        defer ticker.Stop()
+
+        for </span><span class="cov1" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov1" title="1">
+                        k.logger.Info("task scheduler stopping (context done)")
+                        return</span>
+                case &lt;-k.stopChan:<span class="cov0" title="0">
+                        k.logger.Info("task scheduler stopping (stop signal)")
+                        return</span>
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        k.logger.Debug("running scheduled tasks")</span>
+                        // TODO: Implement actual task execution
+                        // This will be implemented in lock_task.go and settle_task.go
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package keeper
+
+import (
+        "context"
+        "fmt"
+        "math/big"
+        "time"
+
+        "github.com/ethereum/go-ethereum/accounts/abi/bind"
+        "github.com/ethereum/go-ethereum/common"
+        "github.com/ethereum/go-ethereum/core/types"
+        "github.com/pitchone/sportsbook/pkg/bindings"
+        "go.uber.org/zap"
+)
+
+// LockTask handles the task of locking markets before match start
+type LockTask struct {
+        keeper *Keeper
+}
+
+// MarketToLock represents a market that needs to be locked
+type MarketToLock struct {
+        MarketAddress common.Address
+        EventID       string
+        LockTime      time.Time
+        MatchStart    time.Time
+}
+
+// NewLockTask creates a new LockTask instance
+func NewLockTask(keeper *Keeper) *LockTask <span class="cov8" title="6">{
+        return &amp;LockTask{
+                keeper: keeper,
+        }
+}</span>
+
+// Execute runs the lock task
+func (t *LockTask) Execute(ctx context.Context) error <span class="cov9" title="8">{
+        t.keeper.logger.Info("executing lock task")
+
+        // Get markets that need locking
+        markets, err := t.getMarketsToLock(ctx)
+        if err != nil </span><span class="cov3" title="2">{
+                t.keeper.logger.Error("failed to get markets to lock", zap.Error(err))
+                return fmt.Errorf("failed to get markets to lock: %w", err)
+        }</span>
+
+        <span class="cov8" title="6">if len(markets) == 0 </span><span class="cov8" title="6">{
+                t.keeper.logger.Debug("no markets to lock")
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">t.keeper.logger.Info("found markets to lock", zap.Int("count", len(markets)))
+
+        // Process each market
+        for _, market := range markets </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        t.keeper.logger.Info("lock task cancelled")
+                        return ctx.Err()</span>
+                default:<span class="cov0" title="0">
+                        // Lock the market
+                        if err := t.lockMarket(ctx, market.MarketAddress); err != nil </span><span class="cov0" title="0">{
+                                t.keeper.logger.Error("failed to lock market",
+                                        zap.String("market", market.MarketAddress.Hex()),
+                                        zap.String("eventID", market.EventID),
+                                        zap.Error(err),
+                                )
+                                // Continue with other markets even if one fails
+                                continue</span>
+                        }
+
+                        <span class="cov0" title="0">t.keeper.logger.Info("successfully locked market",
+                                zap.String("market", market.MarketAddress.Hex()),
+                                zap.String("eventID", market.EventID),
+                        )</span>
+                }
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// getMarketsToLock queries the database for markets that need locking
+func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error) <span class="cov10" title="9">{
+        // Calculate lock window: current time + lock lead time (Unix timestamp)
+        now := time.Now().Unix()
+        lockTime := now + int64(t.keeper.config.LockLeadTime)
+
+        query := `
+                SELECT
+                        market_address,
+                        event_id,
+                        lock_time,
+                        match_start
+                FROM markets
+                WHERE status = 'Open'
+                AND lock_time &lt;= $1
+                AND lock_time &gt; $2
+                ORDER BY lock_time ASC
+        `
+
+        rows, err := t.keeper.db.QueryContext(ctx, query, lockTime, now)
+        if err != nil </span><span class="cov1" title="1">{
+                return nil, fmt.Errorf("failed to query markets: %w", err)
+        }</span>
+        <span class="cov9" title="8">defer rows.Close()
+
+        markets := make([]*MarketToLock, 0)
+        for rows.Next() </span><span class="cov0" title="0">{
+                var market MarketToLock
+                var marketAddrHex string
+                var lockTimeUnix, matchStartUnix int64
+
+                err := rows.Scan(&amp;marketAddrHex, &amp;market.EventID, &amp;lockTimeUnix, &amp;matchStartUnix)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to scan market row: %w", err)
+                }</span>
+
+                // Parse market address
+                <span class="cov0" title="0">market.MarketAddress = common.HexToAddress(marketAddrHex)
+
+                // Convert Unix timestamps to time.Time
+                market.LockTime = time.Unix(lockTimeUnix, 0)
+                market.MatchStart = time.Unix(matchStartUnix, 0)
+
+                markets = append(markets, &amp;market)</span>
+        }
+
+        <span class="cov9" title="8">if err := rows.Err(); err != nil </span><span class="cov1" title="1">{
+                return nil, fmt.Errorf("error iterating market rows: %w", err)
+        }</span>
+
+        <span class="cov8" title="7">return markets, nil</span>
+}
+
+// lockMarket calls the contract's lock() method
+func (t *LockTask) lockMarket(ctx context.Context, marketAddr common.Address) error <span class="cov3" title="2">{
+        // Validate market address
+        if marketAddr == (common.Address{}) </span><span class="cov1" title="1">{
+                return fmt.Errorf("invalid market address: zero address")
+        }</span>
+
+        // Create market contract instance
+        <span class="cov1" title="1">market, err := bindings.NewMarketBase(marketAddr, t.keeper.web3Client.client)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create market contract instance: %w", err)
+        }</span>
+
+        // Get current gas price
+        <span class="cov1" title="1">gasPrice, err := t.keeper.web3Client.CalculateGasPrice(ctx, t.keeper.maxGasPrice)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to calculate gas price: %w", err)
+        }</span>
+
+        // Get nonce
+        <span class="cov1" title="1">nonce, err := t.keeper.web3Client.GetNonce(ctx, t.keeper.web3Client.account)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get nonce: %w", err)
+        }</span>
+
+        // Build transaction opts
+        <span class="cov1" title="1">auth := &amp;bind.TransactOpts{
+                From:     t.keeper.web3Client.account,
+                Nonce:    big.NewInt(int64(nonce)),
+                Signer:   t.createSigner(),
+                Value:    big.NewInt(0),
+                GasPrice: gasPrice,
+                GasLimit: t.keeper.config.GasLimit,
+                Context:  ctx,
+        }
+
+        // Call lock() method
+        tx, err := market.Lock(auth)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to send lock transaction: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">t.keeper.logger.Info("lock transaction sent",
+                zap.String("market", marketAddr.Hex()),
+                zap.String("txHash", tx.Hash().Hex()),
+                zap.Uint64("nonce", nonce),
+                zap.String("gasPrice", gasPrice.String()),
+        )
+
+        // Wait for transaction to be mined (with timeout)
+        receiptCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+        defer cancel()
+
+        receipt, err := t.waitForTransaction(receiptCtx, tx.Hash())
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to wait for transaction: %w", err)
+        }</span>
+
+        // Check transaction status
+        <span class="cov1" title="1">if receipt.Status != types.ReceiptStatusSuccessful </span><span class="cov0" title="0">{
+                return fmt.Errorf("lock transaction failed: status %d", receipt.Status)
+        }</span>
+
+        <span class="cov1" title="1">t.keeper.logger.Info("lock transaction confirmed",
+                zap.String("market", marketAddr.Hex()),
+                zap.String("txHash", tx.Hash().Hex()),
+                zap.Uint64("blockNumber", receipt.BlockNumber.Uint64()),
+                zap.Uint64("gasUsed", receipt.GasUsed),
+        )
+
+        // Update market status in database
+        if err := t.updateMarketStatus(ctx, marketAddr, "Locked", tx.Hash()); err != nil </span><span class="cov1" title="1">{
+                t.keeper.logger.Error("failed to update market status in database",
+                        zap.String("market", marketAddr.Hex()),
+                        zap.Error(err),
+                )
+                // Don't return error as the on-chain lock succeeded
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+// createSigner creates a transaction signer function
+func (t *LockTask) createSigner() bind.SignerFn <span class="cov1" title="1">{
+        return func(address common.Address, tx *types.Transaction) (*types.Transaction, error) </span><span class="cov1" title="1">{
+                return t.keeper.web3Client.SignTransaction(tx)
+        }</span>
+}
+
+// waitForTransaction waits for a transaction to be mined
+func (t *LockTask) waitForTransaction(ctx context.Context, txHash common.Hash) (*types.Receipt, error) <span class="cov1" title="1">{
+        ticker := time.NewTicker(2 * time.Second)
+        defer ticker.Stop()
+
+        for </span><span class="cov1" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return nil, ctx.Err()</span>
+                case &lt;-ticker.C:<span class="cov1" title="1">
+                        receipt, err := t.keeper.web3Client.WaitForTransaction(ctx, txHash)
+                        if err != nil </span><span class="cov0" title="0">{
+                                // Transaction not mined yet, continue waiting
+                                continue</span>
+                        }
+                        <span class="cov1" title="1">return receipt, nil</span>
+                }
+        }
+}
+
+// updateMarketStatus updates the market status in the database
+func (t *LockTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash) error <span class="cov3" title="2">{
+        now := time.Now().Unix()
+
+        query := `
+                UPDATE markets
+                SET
+                        status = $1,
+                        lock_tx_hash = $2,
+                        locked_at = $3,
+                        updated_at = $4
+                WHERE market_address = $5
+        `
+
+        result, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), now, now, marketAddr.Hex())
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to update market status: %w", err)
+        }</span>
+
+        <span class="cov3" title="2">rowsAffected, err := result.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get rows affected: %w", err)
+        }</span>
+
+        <span class="cov3" title="2">if rowsAffected == 0 </span><span class="cov3" title="2">{
+                return fmt.Errorf("no market found with address %s", marketAddr.Hex())
+        }</span>
+
+        <span class="cov0" title="0">t.keeper.logger.Debug("updated market status in database",
+                zap.String("market", marketAddr.Hex()),
+                zap.String("status", status),
+                zap.String("txHash", txHash.Hex()),
+        )
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package keeper
+
+import (
+        "context"
+        "fmt"
+        "sync"
+        "time"
+
+        "go.uber.org/zap"
+)
+
+// Task represents a scheduled task
+type Task interface {
+        Execute(ctx context.Context) error
+}
+
+// ScheduledTask wraps a task with scheduling information
+type ScheduledTask struct {
+        Name     string
+        Task     Task
+        Interval time.Duration
+        ticker   *time.Ticker
+        stopChan chan struct{}
+}
+
+// Scheduler manages scheduled tasks
+type Scheduler struct {
+        keeper  *Keeper
+        tasks   map[string]*ScheduledTask
+        mu      sync.RWMutex
+        wg      sync.WaitGroup
+        stopped bool
+}
+
+// NewScheduler creates a new Scheduler instance
+func NewScheduler(keeper *Keeper) *Scheduler <span class="cov9" title="6">{
+        return &amp;Scheduler{
+                keeper: keeper,
+                tasks:  make(map[string]*ScheduledTask),
+        }
+}</span>
+
+// RegisterTask registers a new task with the scheduler
+func (s *Scheduler) RegisterTask(name string, task Task, interval time.Duration) <span class="cov9" title="6">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+
+        s.keeper.logger.Info("registering task",
+                zap.String("name", name),
+                zap.Duration("interval", interval),
+        )
+
+        s.tasks[name] = &amp;ScheduledTask{
+                Name:     name,
+                Task:     task,
+                Interval: interval,
+                stopChan: make(chan struct{}),
+        }
+}</span>
+
+// Start starts the scheduler and all registered tasks
+func (s *Scheduler) Start(ctx context.Context) error <span class="cov6" title="3">{
+        s.keeper.logger.Info("starting scheduler",
+                zap.Int("tasks", len(s.tasks)),
+        )
+
+        // Start all tasks
+        s.mu.RLock()
+        for _, task := range s.tasks </span><span class="cov6" title="3">{
+                s.wg.Add(1)
+                go s.runTask(ctx, task)
+        }</span>
+        <span class="cov6" title="3">s.mu.RUnlock()
+
+        // Wait for context cancellation
+        &lt;-ctx.Done()
+        s.keeper.logger.Info("scheduler context cancelled")
+
+        // Stop all tasks
+        s.Stop()
+
+        // Wait for all tasks to finish
+        s.wg.Wait()
+
+        s.keeper.logger.Info("scheduler stopped")
+        return nil</span>
+}
+
+// Stop stops all running tasks
+func (s *Scheduler) Stop() <span class="cov6" title="3">{
+        s.keeper.logger.Info("stopping scheduler")
+
+        s.mu.Lock()
+        defer s.mu.Unlock()
+
+        // Prevent multiple stops
+        if s.stopped </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov6" title="3">s.stopped = true
+
+        for _, task := range s.tasks </span><span class="cov6" title="3">{
+                close(task.stopChan)
+                if task.ticker != nil </span><span class="cov6" title="3">{
+                        task.ticker.Stop()
+                }</span>
+        }
+}
+
+// runTask runs a single task on its schedule
+func (s *Scheduler) runTask(ctx context.Context, task *ScheduledTask) <span class="cov6" title="3">{
+        defer s.wg.Done()
+
+        s.keeper.logger.Info("starting task",
+                zap.String("name", task.Name),
+                zap.Duration("interval", task.Interval),
+        )
+
+        // Create ticker for this task
+        task.ticker = time.NewTicker(task.Interval)
+        defer task.ticker.Stop()
+
+        // Run task immediately on start
+        s.executeTask(ctx, task)
+
+        // Run task on interval
+        for </span><span class="cov10" title="7">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov1" title="1">
+                        s.keeper.logger.Info("task context cancelled",
+                                zap.String("name", task.Name),
+                        )
+                        return</span>
+                case &lt;-task.stopChan:<span class="cov4" title="2">
+                        s.keeper.logger.Info("task stop signal received",
+                                zap.String("name", task.Name),
+                        )
+                        return</span>
+                case &lt;-task.ticker.C:<span class="cov7" title="4">
+                        s.executeTask(ctx, task)</span>
+                }
+        }
+}
+
+// executeTask executes a task with retry logic
+func (s *Scheduler) executeTask(ctx context.Context, task *ScheduledTask) <span class="cov10" title="7">{
+        s.keeper.logger.Debug("executing task",
+                zap.String("name", task.Name),
+        )
+
+        startTime := time.Now()
+
+        // Execute with retries
+        var lastErr error
+        for attempt := 1; attempt &lt;= s.keeper.config.RetryAttempts; attempt++ </span><span class="cov10" title="7">{
+                err := task.Task.Execute(ctx)
+                if err == nil </span><span class="cov8" title="5">{
+                        // Success
+                        duration := time.Since(startTime)
+                        s.keeper.logger.Info("task executed successfully",
+                                zap.String("name", task.Name),
+                                zap.Duration("duration", duration),
+                        )
+                        return
+                }</span>
+
+                <span class="cov4" title="2">lastErr = err
+                s.keeper.logger.Warn("task execution failed",
+                        zap.String("name", task.Name),
+                        zap.Int("attempt", attempt),
+                        zap.Int("maxAttempts", s.keeper.config.RetryAttempts),
+                        zap.Error(err),
+                )
+
+                // Don't retry if context cancelled
+                if ctx.Err() != nil </span><span class="cov4" title="2">{
+                        return
+                }</span>
+
+                // Wait before retry (except on last attempt)
+                <span class="cov0" title="0">if attempt &lt; s.keeper.config.RetryAttempts </span><span class="cov0" title="0">{
+                        retryDelay := time.Duration(s.keeper.config.RetryDelay) * time.Second
+                        s.keeper.logger.Info("retrying task",
+                                zap.String("name", task.Name),
+                                zap.Duration("delay", retryDelay),
+                        )
+
+                        // Use timer to allow context cancellation during sleep
+                        timer := time.NewTimer(retryDelay)
+                        select </span>{
+                        case &lt;-ctx.Done():<span class="cov0" title="0">
+                                timer.Stop()
+                                return</span>
+                        case &lt;-timer.C:<span class="cov0" title="0"></span>
+                                // Continue to next retry
+                        }
+                }
+        }
+
+        // All retries failed
+        <span class="cov0" title="0">duration := time.Since(startTime)
+        s.keeper.logger.Error("task failed after all retries",
+                zap.String("name", task.Name),
+                zap.Int("attempts", s.keeper.config.RetryAttempts),
+                zap.Duration("duration", duration),
+                zap.Error(lastErr),
+        )</span>
+
+        // TODO: Send alert
+}
+
+// GetTaskStatus returns the status of a task
+func (s *Scheduler) GetTaskStatus(name string) (map[string]interface{}, error) <span class="cov0" title="0">{
+        s.mu.RLock()
+        defer s.mu.RUnlock()
+
+        task, exists := s.tasks[name]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("task not found: %s", name)
+        }</span>
+
+        <span class="cov0" title="0">status := map[string]interface{}{
+                "name":     task.Name,
+                "interval": task.Interval.String(),
+                "running":  task.ticker != nil,
+        }
+
+        return status, nil</span>
+}
+
+// ListTasks returns a list of all registered tasks
+func (s *Scheduler) ListTasks() []string <span class="cov0" title="0">{
+        s.mu.RLock()
+        defer s.mu.RUnlock()
+
+        names := make([]string, 0, len(s.tasks))
+        for name := range s.tasks </span><span class="cov0" title="0">{
+                names = append(names, name)
+        }</span>
+
+        <span class="cov0" title="0">return names</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package keeper
+
+import (
+        "context"
+        "fmt"
+        "math/big"
+        "time"
+
+        "github.com/ethereum/go-ethereum/accounts/abi/bind"
+        "github.com/ethereum/go-ethereum/common"
+        "github.com/ethereum/go-ethereum/core/types"
+        "github.com/pitchone/sportsbook/pkg/bindings"
+        "go.uber.org/zap"
+)
+
+// SettleTask handles the task of settling markets after match completion
+type SettleTask struct {
+        keeper *Keeper
+}
+
+// MarketToSettle represents a market that needs to be settled
+type MarketToSettle struct {
+        MarketAddress common.Address
+        EventID       string
+        MatchStart    time.Time
+        MatchEnd      time.Time
+        OracleAddress common.Address
+}
+
+// MatchResult represents the result of a match
+type MatchResult struct {
+        HomeGoals uint8
+        AwayGoals uint8
+        ExtraTime bool
+        HomeWin   bool
+        AwayWin   bool
+        Draw      bool
+}
+
+// NewSettleTask creates a new SettleTask instance
+func NewSettleTask(keeper *Keeper) *SettleTask <span class="cov0" title="0">{
+        return &amp;SettleTask{
+                keeper: keeper,
+        }
+}</span>
+
+// Execute runs the settle task
+func (t *SettleTask) Execute(ctx context.Context) error <span class="cov1" title="1">{
+        t.keeper.logger.Info("executing settle task")
+
+        // Get markets that need settling
+        markets, err := t.getMarketsToSettle(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                t.keeper.logger.Error("failed to get markets to settle", zap.Error(err))
+                return fmt.Errorf("failed to get markets to settle: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">if len(markets) == 0 </span><span class="cov1" title="1">{
+                t.keeper.logger.Debug("no markets to settle")
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">t.keeper.logger.Info("found markets to settle", zap.Int("count", len(markets)))
+
+        // Process each market
+        for _, market := range markets </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        t.keeper.logger.Info("settle task cancelled")
+                        return ctx.Err()</span>
+                default:<span class="cov0" title="0">
+                        // Settle the market
+                        if err := t.settleMarket(ctx, market); err != nil </span><span class="cov0" title="0">{
+                                t.keeper.logger.Error("failed to settle market",
+                                        zap.String("market", market.MarketAddress.Hex()),
+                                        zap.String("eventID", market.EventID),
+                                        zap.Error(err),
+                                )
+                                // Continue with other markets even if one fails
+                                continue</span>
+                        }
+
+                        <span class="cov0" title="0">t.keeper.logger.Info("successfully settled market",
+                                zap.String("market", market.MarketAddress.Hex()),
+                                zap.String("eventID", market.EventID),
+                        )</span>
+                }
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// getMarketsToSettle queries the database for markets that need settling
+func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle, error) <span class="cov6" title="2">{
+        // Calculate settle window: match ended + finalize delay (Unix timestamp)
+        settleTime := time.Now().Unix() - int64(t.keeper.config.FinalizeDelay)
+
+        query := `
+                SELECT
+                        market_address,
+                        event_id,
+                        match_start,
+                        match_end,
+                        oracle_address
+                FROM markets
+                WHERE status = 'Locked'
+                AND match_end &lt;= $1
+                AND match_end IS NOT NULL
+                ORDER BY match_end ASC
+        `
+
+        rows, err := t.keeper.db.QueryContext(ctx, query, settleTime)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to query markets: %w", err)
+        }</span>
+        <span class="cov6" title="2">defer rows.Close()
+
+        markets := make([]*MarketToSettle, 0)
+        for rows.Next() </span><span class="cov0" title="0">{
+                var market MarketToSettle
+                var marketAddrHex, oracleAddrHex string
+                var matchStartUnix, matchEndUnix int64
+
+                err := rows.Scan(&amp;marketAddrHex, &amp;market.EventID, &amp;matchStartUnix, &amp;matchEndUnix, &amp;oracleAddrHex)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to scan market row: %w", err)
+                }</span>
+
+                // Parse addresses
+                <span class="cov0" title="0">market.MarketAddress = common.HexToAddress(marketAddrHex)
+                market.OracleAddress = common.HexToAddress(oracleAddrHex)
+
+                // Convert Unix timestamps to time.Time
+                market.MatchStart = time.Unix(matchStartUnix, 0)
+                market.MatchEnd = time.Unix(matchEndUnix, 0)
+
+                markets = append(markets, &amp;market)</span>
+        }
+
+        <span class="cov6" title="2">if err := rows.Err(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("error iterating market rows: %w", err)
+        }</span>
+
+        <span class="cov6" title="2">return markets, nil</span>
+}
+
+// settleMarket proposes the result to the oracle and settles the market
+func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) error <span class="cov10" title="3">{
+        // Validate addresses
+        if market.MarketAddress == (common.Address{}) </span><span class="cov1" title="1">{
+                return fmt.Errorf("invalid market address: zero address")
+        }</span>
+        <span class="cov6" title="2">if market.OracleAddress == (common.Address{}) </span><span class="cov1" title="1">{
+                return fmt.Errorf("invalid oracle address: zero address")
+        }</span>
+
+        // Get match result from data source
+        <span class="cov1" title="1">result, err := t.fetchMatchResult(ctx, market.EventID)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to fetch match result: %w", err)
+        }</span>
+
+        // Create oracle contract instance
+        <span class="cov1" title="1">oracle, err := bindings.NewMockOracle(market.OracleAddress, t.keeper.web3Client.client)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create oracle contract instance: %w", err)
+        }</span>
+
+        // Get current gas price
+        <span class="cov1" title="1">gasPrice, err := t.keeper.web3Client.CalculateGasPrice(ctx, t.keeper.maxGasPrice)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to calculate gas price: %w", err)
+        }</span>
+
+        // Get nonce
+        <span class="cov1" title="1">nonce, err := t.keeper.web3Client.GetNonce(ctx, t.keeper.web3Client.account)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get nonce: %w", err)
+        }</span>
+
+        // Build transaction opts
+        <span class="cov1" title="1">auth := &amp;bind.TransactOpts{
+                From:     t.keeper.web3Client.account,
+                Nonce:    big.NewInt(int64(nonce)),
+                Signer:   t.createSigner(),
+                Value:    big.NewInt(0),
+                GasPrice: gasPrice,
+                GasLimit: t.keeper.config.GasLimit,
+                Context:  ctx,
+        }
+
+        // Construct MatchFacts struct
+        var marketIdBytes [32]byte
+        copy(marketIdBytes[:], market.MarketAddress.Bytes())
+
+        // Convert scope string to bytes32
+        var scopeBytes [32]byte
+        scope := "FT_90" // Full Time 90 minutes
+        copy(scopeBytes[:], []byte(scope))
+
+        facts := bindings.IResultOracleMatchFacts{
+                Scope:         scopeBytes,
+                HomeGoals:     result.HomeGoals,
+                AwayGoals:     result.AwayGoals,
+                ExtraTime:     result.ExtraTime,
+                PenaltiesHome: 0,
+                PenaltiesAway: 0,
+                ReportedAt:    big.NewInt(time.Now().Unix()),
+        }
+
+        // Call proposeResult() method
+        tx, err := oracle.ProposeResult(auth, marketIdBytes, facts)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to send propose transaction: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">t.keeper.logger.Info("propose transaction sent",
+                zap.String("market", market.MarketAddress.Hex()),
+                zap.String("txHash", tx.Hash().Hex()),
+                zap.Uint64("nonce", nonce),
+                zap.String("gasPrice", gasPrice.String()),
+        )
+
+        // Wait for transaction to be mined (with timeout)
+        receiptCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+        defer cancel()
+
+        receipt, err := t.waitForTransaction(receiptCtx, tx.Hash())
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to wait for transaction: %w", err)
+        }</span>
+
+        // Check transaction status
+        <span class="cov1" title="1">if receipt.Status != types.ReceiptStatusSuccessful </span><span class="cov0" title="0">{
+                return fmt.Errorf("propose transaction failed: status %d", receipt.Status)
+        }</span>
+
+        <span class="cov1" title="1">t.keeper.logger.Info("propose transaction confirmed",
+                zap.String("market", market.MarketAddress.Hex()),
+                zap.String("txHash", tx.Hash().Hex()),
+                zap.Uint64("blockNumber", receipt.BlockNumber.Uint64()),
+                zap.Uint64("gasUsed", receipt.GasUsed),
+        )
+
+        // Update market status in database
+        if err := t.updateMarketStatus(ctx, market.MarketAddress, "Proposed", tx.Hash(), result); err != nil </span><span class="cov1" title="1">{
+                t.keeper.logger.Error("failed to update market status in database",
+                        zap.String("market", market.MarketAddress.Hex()),
+                        zap.Error(err),
+                )
+                // Don't return error as the on-chain propose succeeded
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+// fetchMatchResult fetches the match result from external data source
+// In a real implementation, this would call a sports data API
+func (t *SettleTask) fetchMatchResult(ctx context.Context, eventID string) (*MatchResult, error) <span class="cov6" title="2">{
+        // TODO: Implement real data source integration
+        // For now, return mock data
+        t.keeper.logger.Debug("fetching match result",
+                zap.String("eventID", eventID),
+        )
+
+        // Mock result: simulate fetching from API
+        result := &amp;MatchResult{
+                HomeGoals: 2,
+                AwayGoals: 1,
+                ExtraTime: false,
+                HomeWin:   true,
+                AwayWin:   false,
+                Draw:      false,
+        }
+
+        return result, nil
+}</span>
+
+// createSigner creates a transaction signer function
+func (t *SettleTask) createSigner() bind.SignerFn <span class="cov1" title="1">{
+        return func(address common.Address, tx *types.Transaction) (*types.Transaction, error) </span><span class="cov1" title="1">{
+                return t.keeper.web3Client.SignTransaction(tx)
+        }</span>
+}
+
+// waitForTransaction waits for a transaction to be mined
+func (t *SettleTask) waitForTransaction(ctx context.Context, txHash common.Hash) (*types.Receipt, error) <span class="cov1" title="1">{
+        ticker := time.NewTicker(2 * time.Second)
+        defer ticker.Stop()
+
+        for </span><span class="cov1" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return nil, ctx.Err()</span>
+                case &lt;-ticker.C:<span class="cov1" title="1">
+                        receipt, err := t.keeper.web3Client.WaitForTransaction(ctx, txHash)
+                        if err != nil </span><span class="cov0" title="0">{
+                                // Transaction not mined yet, continue waiting
+                                continue</span>
+                        }
+                        <span class="cov1" title="1">return receipt, nil</span>
+                }
+        }
+}
+
+// updateMarketStatus updates the market status in the database
+func (t *SettleTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash, result *MatchResult) error <span class="cov6" title="2">{
+        now := time.Now().Unix()
+
+        query := `
+                UPDATE markets
+                SET
+                        status = $1,
+                        settle_tx_hash = $2,
+                        home_goals = $3,
+                        away_goals = $4,
+                        settled_at = $5,
+                        updated_at = $6
+                WHERE market_address = $7
+        `
+
+        execResult, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), result.HomeGoals, result.AwayGoals, now, now, marketAddr.Hex())
+        if err != nil </span><span class="cov6" title="2">{
+                return fmt.Errorf("failed to update market status: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">rowsAffected, err := execResult.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get rows affected: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if rowsAffected == 0 </span><span class="cov0" title="0">{
+                return fmt.Errorf("no market found with address %s", marketAddr.Hex())
+        }</span>
+
+        <span class="cov0" title="0">t.keeper.logger.Debug("updated market status in database",
+                zap.String("market", marketAddr.Hex()),
+                zap.String("status", status),
+                zap.String("txHash", txHash.Hex()),
+        )
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package keeper
+
+import (
+        "context"
+        "crypto/ecdsa"
+        "errors"
+        "fmt"
+        "math/big"
+
+        "github.com/ethereum/go-ethereum"
+        "github.com/ethereum/go-ethereum/common"
+        "github.com/ethereum/go-ethereum/core/types"
+        "github.com/ethereum/go-ethereum/crypto"
+        "github.com/ethereum/go-ethereum/ethclient"
+)
+
+// Web3Client handles Ethereum blockchain interactions
+type Web3Client struct {
+        client     *ethclient.Client
+        privateKey *ecdsa.PrivateKey
+        account    common.Address
+        chainID    *big.Int
+}
+
+// NewWeb3Client creates a new Web3 client
+func NewWeb3Client(rpcURL string, privateKeyHex string, chainID *big.Int) (*Web3Client, error) <span class="cov10" title="35">{
+        // Validate inputs
+        if rpcURL == "" </span><span class="cov0" title="0">{
+                return nil, errors.New("RPC URL is required")
+        }</span>
+
+        <span class="cov10" title="35">if privateKeyHex == "" </span><span class="cov1" title="1">{
+                return nil, errors.New("private key is required")
+        }</span>
+
+        // Connect to Ethereum node
+        <span class="cov9" title="34">client, err := ethclient.Dial(rpcURL)
+        if err != nil </span><span class="cov1" title="1">{
+                return nil, fmt.Errorf("failed to connect to Ethereum node: %w", err)
+        }</span>
+
+        // Parse private key
+        <span class="cov9" title="33">privateKey, err := crypto.HexToECDSA(stripHexPrefix(privateKeyHex))
+        if err != nil </span><span class="cov1" title="1">{
+                return nil, fmt.Errorf("invalid private key: %w", err)
+        }</span>
+
+        // Derive public key and address
+        <span class="cov9" title="32">publicKey := privateKey.Public()
+        publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+        if !ok </span><span class="cov0" title="0">{
+                return nil, errors.New("failed to cast public key to ECDSA")
+        }</span>
+
+        <span class="cov9" title="32">account := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+        return &amp;Web3Client{
+                client:     client,
+                privateKey: privateKey,
+                account:    account,
+                chainID:    chainID,
+        }, nil</span>
+}
+
+// GetAccount returns the keeper's Ethereum address
+func (w *Web3Client) GetAccount() common.Address <span class="cov9" title="26">{
+        return w.account
+}</span>
+
+// GetBalance returns the balance of an address
+func (w *Web3Client) GetBalance(ctx context.Context, address common.Address) (*big.Int, error) <span class="cov1" title="1">{
+        balance, err := w.client.BalanceAt(ctx, address, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get balance: %w", err)
+        }</span>
+        <span class="cov1" title="1">return balance, nil</span>
+}
+
+// GetBlockNumber returns the current block number
+func (w *Web3Client) GetBlockNumber(ctx context.Context) (*big.Int, error) <span class="cov2" title="2">{
+        blockNumber, err := w.client.BlockNumber(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get block number: %w", err)
+        }</span>
+        <span class="cov2" title="2">return big.NewInt(int64(blockNumber)), nil</span>
+}
+
+// GetGasPrice returns the current gas price
+func (w *Web3Client) GetGasPrice(ctx context.Context) (*big.Int, error) <span class="cov5" title="5">{
+        gasPrice, err := w.client.SuggestGasPrice(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get gas price: %w", err)
+        }</span>
+        <span class="cov5" title="5">return gasPrice, nil</span>
+}
+
+// CalculateGasPrice returns the gas price, capped at maxGasPrice
+func (w *Web3Client) CalculateGasPrice(ctx context.Context, maxGasPrice *big.Int) (*big.Int, error) <span class="cov4" title="4">{
+        currentGasPrice, err := w.GetGasPrice(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Cap gas price
+        <span class="cov4" title="4">if currentGasPrice.Cmp(maxGasPrice) &gt; 0 </span><span class="cov1" title="1">{
+                return maxGasPrice, nil
+        }</span>
+
+        <span class="cov3" title="3">return currentGasPrice, nil</span>
+}
+
+// EstimateGas estimates the gas required for a transaction
+func (w *Web3Client) EstimateGas(ctx context.Context, to common.Address, value *big.Int, data []byte) (uint64, error) <span class="cov1" title="1">{
+        msg := ethereum.CallMsg{
+                From:  w.account,
+                To:    &amp;to,
+                Value: value,
+                Data:  data,
+        }
+
+        gasLimit, err := w.client.EstimateGas(ctx, msg)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("failed to estimate gas: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">return gasLimit, nil</span>
+}
+
+// GetNonce returns the next nonce for the account
+func (w *Web3Client) GetNonce(ctx context.Context, address common.Address) (uint64, error) <span class="cov3" title="3">{
+        nonce, err := w.client.PendingNonceAt(ctx, address)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("failed to get nonce: %w", err)
+        }</span>
+        <span class="cov3" title="3">return nonce, nil</span>
+}
+
+// SendTransaction sends a signed transaction to the network
+func (w *Web3Client) SendTransaction(ctx context.Context, tx *types.Transaction) error <span class="cov0" title="0">{
+        err := w.client.SendTransaction(ctx, tx)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to send transaction: %w", err)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// WaitForTransaction waits for a transaction to be mined
+func (w *Web3Client) WaitForTransaction(ctx context.Context, txHash common.Hash) (*types.Receipt, error) <span class="cov2" title="2">{
+        receipt, err := w.client.TransactionReceipt(ctx, txHash)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get transaction receipt: %w", err)
+        }</span>
+        <span class="cov2" title="2">return receipt, nil</span>
+}
+
+// SignTransaction signs a transaction with the keeper's private key
+func (w *Web3Client) SignTransaction(tx *types.Transaction) (*types.Transaction, error) <span class="cov2" title="2">{
+        signedTx, err := types.SignTx(tx, types.NewEIP155Signer(w.chainID), w.privateKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to sign transaction: %w", err)
+        }</span>
+        <span class="cov2" title="2">return signedTx, nil</span>
+}
+
+// Close closes the Ethereum client connection
+func (w *Web3Client) Close() <span class="cov0" title="0">{
+        if w.client != nil </span><span class="cov0" title="0">{
+                w.client.Close()
+        }</span>
+}
+
+// stripHexPrefix removes "0x" prefix from hex string
+func stripHexPrefix(hexStr string) string <span class="cov9" title="33">{
+        if len(hexStr) &gt;= 2 &amp;&amp; hexStr[0:2] == "0x" </span><span class="cov9" title="32">{
+                return hexStr[2:]
+        }</span>
+        <span class="cov1" title="1">return hexStr</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

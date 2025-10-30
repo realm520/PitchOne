@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS markets (
     match_end BIGINT,                          -- 比赛结束时间
     lock_tx_hash VARCHAR(66),                  -- 锁盘交易哈希
     settle_tx_hash VARCHAR(66),                -- 结算交易哈希
+    locked_at BIGINT,                          -- 实际锁盘时间
+    settled_at BIGINT,                         -- 实际结算时间
     home_goals SMALLINT,                       -- 主队进球数 (比赛结果)
     away_goals SMALLINT,                       -- 客队进球数 (比赛结果)
     updated_at BIGINT,                         -- 最后更新时间

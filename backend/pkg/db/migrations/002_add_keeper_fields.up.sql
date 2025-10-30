@@ -20,6 +20,8 @@ ALTER TABLE markets
   -- Transaction tracking
   ADD COLUMN IF NOT EXISTS lock_tx_hash VARCHAR(66),       -- Lock transaction hash
   ADD COLUMN IF NOT EXISTS settle_tx_hash VARCHAR(66),     -- Settle transaction hash
+  ADD COLUMN IF NOT EXISTS locked_at BIGINT,               -- Actual lock timestamp
+  ADD COLUMN IF NOT EXISTS settled_at BIGINT,              -- Actual settlement timestamp
 
   -- Match results
   ADD COLUMN IF NOT EXISTS home_goals SMALLINT,            -- Home team goals

@@ -37,7 +37,9 @@ func TestSettleTask_GetMarketsToSettle(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -77,7 +79,9 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -117,7 +121,9 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -157,7 +163,9 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -203,7 +211,9 @@ func TestSettleTask_Execute(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -243,7 +253,9 @@ func TestSettleTask_FetchMatchResult(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -287,7 +299,9 @@ func TestSettleTask_UpdateMarketStatus(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := NewSettleTask(keeper)
 
@@ -303,11 +317,9 @@ func TestSettleTask_UpdateMarketStatus(t *testing.T) {
 			Draw:      false,
 		}
 
-		// This will fail if markets table doesn't exist, which is expected
+		// This will fail since the market doesn't exist in database
 		err = task.updateMarketStatus(ctx, marketAddr, "Proposed", txHash, result)
-		// We accept error here as table might not exist
-		if err != nil {
-			assert.Contains(t, err.Error(), "relation", "Error should be about missing table")
-		}
+		assert.Error(t, err, "Should fail when market doesn't exist in database")
+		assert.Contains(t, err.Error(), "no market found", "Error should be about market not found")
 	})
 }

@@ -19,6 +19,8 @@ ALTER TABLE markets
   DROP COLUMN IF EXISTS updated_at,
   DROP COLUMN IF EXISTS away_goals,
   DROP COLUMN IF EXISTS home_goals,
+  DROP COLUMN IF EXISTS settled_at,
+  DROP COLUMN IF EXISTS locked_at,
   DROP COLUMN IF EXISTS settle_tx_hash,
   DROP COLUMN IF EXISTS lock_tx_hash,
   DROP COLUMN IF EXISTS match_end,

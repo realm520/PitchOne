@@ -62,7 +62,9 @@ func TestNewKeeper(t *testing.T) {
 		assert.Equal(t, cfg.ChainID, keeper.chainID, "Chain ID should match")
 
 		// Cleanup
-		keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 	})
 
 	t.Run("invalid RPC endpoint", func(t *testing.T) {

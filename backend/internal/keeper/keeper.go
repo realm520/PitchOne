@@ -148,6 +148,11 @@ func (k *Keeper) Start(ctx context.Context) error {
 	// Wait for all goroutines to finish
 	k.wg.Wait()
 
+	// Reset running flag
+	k.runningMutex.Lock()
+	k.running = false
+	k.runningMutex.Unlock()
+
 	close(k.doneChan)
 	k.logger.Info("Keeper service stopped")
 
@@ -168,8 +173,13 @@ func (k *Keeper) Shutdown(ctx context.Context) error {
 		return nil
 	}
 
-	// Signal all goroutines to stop
-	close(k.stopChan)
+	// Signal all goroutines to stop (use select to avoid panic if already closed)
+	select {
+	case <-k.stopChan:
+		// Already closed
+	default:
+		close(k.stopChan)
+	}
 
 	// Wait for shutdown with timeout
 	select {

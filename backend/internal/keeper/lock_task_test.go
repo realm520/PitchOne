@@ -37,7 +37,9 @@ func TestLockTask_GetMarketsToLock(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := &LockTask{
 			keeper: keeper,
@@ -79,7 +81,9 @@ func TestLockTask_LockMarket(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := &LockTask{
 			keeper: keeper,
@@ -117,7 +121,9 @@ func TestLockTask_LockMarket(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := &LockTask{
 			keeper: keeper,
@@ -161,7 +167,9 @@ func TestLockTask_Execute(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := &LockTask{
 			keeper: keeper,
@@ -203,7 +211,9 @@ func TestLockTask_UpdateMarketStatus(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		task := &LockTask{
 			keeper: keeper,

@@ -36,7 +36,9 @@ func TestScheduler_NewScheduler(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 		assert.NotNil(t, scheduler)
@@ -72,7 +74,9 @@ func TestScheduler_RegisterTask(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -109,7 +113,9 @@ func TestScheduler_RegisterTask(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -152,7 +158,9 @@ func TestScheduler_Start(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -209,7 +217,9 @@ func TestScheduler_Start(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -252,7 +262,9 @@ func TestScheduler_Stop(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -312,7 +324,9 @@ func TestScheduler_GetTaskStatus(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
@@ -361,7 +375,9 @@ func TestScheduler_ListTasks(t *testing.T) {
 
 		keeper, err := NewKeeper(cfg)
 		require.NoError(t, err)
-		defer keeper.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		defer keeper.Shutdown(shutdownCtx)
 
 		scheduler := NewScheduler(keeper)
 
