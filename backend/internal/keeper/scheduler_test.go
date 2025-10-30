@@ -284,3 +284,104 @@ func TestScheduler_Stop(t *testing.T) {
 		}
 	})
 }
+
+// TestScheduler_GetTaskStatus tests task status retrieval
+func TestScheduler_GetTaskStatus(t *testing.T) {
+	t.Run("returns task status", func(t *testing.T) {
+		if !isDatabaseAvailable() {
+			t.Skip("Database not available, skipping test")
+		}
+
+		cfg := &Config{
+			ChainID:          31337,
+			RPCEndpoint:      "http://localhost:8545",
+			PrivateKey:       "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+			GasLimit:         500000,
+			MaxGasPrice:      "100",
+			TaskInterval:     60,
+			LockLeadTime:     300,
+			FinalizeDelay:    7200,
+			MaxConcurrent:    10,
+			RetryAttempts:    3,
+			RetryDelay:       5,
+			DatabaseURL:      "postgresql://p1:p1@localhost/p1?sslmode=disable",
+			HealthCheckPort:  8081,
+			MetricsPort:      9091,
+			AlertsEnabled:    false,
+		}
+
+		keeper, err := NewKeeper(cfg)
+		require.NoError(t, err)
+		defer keeper.Shutdown(context.Background())
+
+		scheduler := NewScheduler(keeper)
+
+		// Register a task
+		lockTask := NewLockTask(keeper)
+		scheduler.RegisterTask("lock", lockTask, time.Hour)
+
+		// Get task status
+		status, err := scheduler.GetTaskStatus("lock")
+		require.NoError(t, err)
+		assert.NotNil(t, status)
+		assert.Equal(t, "lock", status["name"])
+		assert.False(t, status["running"].(bool))
+
+		// Get non-existent task status
+		status, err = scheduler.GetTaskStatus("non-existent")
+		assert.Error(t, err)
+		assert.Nil(t, status)
+	})
+}
+
+// TestScheduler_ListTasks tests task listing
+func TestScheduler_ListTasks(t *testing.T) {
+	t.Run("lists all registered tasks", func(t *testing.T) {
+		if !isDatabaseAvailable() {
+			t.Skip("Database not available, skipping test")
+		}
+
+		cfg := &Config{
+			ChainID:          31337,
+			RPCEndpoint:      "http://localhost:8545",
+			PrivateKey:       "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+			GasLimit:         500000,
+			MaxGasPrice:      "100",
+			TaskInterval:     60,
+			LockLeadTime:     300,
+			FinalizeDelay:    7200,
+			MaxConcurrent:    10,
+			RetryAttempts:    3,
+			RetryDelay:       5,
+			DatabaseURL:      "postgresql://p1:p1@localhost/p1?sslmode=disable",
+			HealthCheckPort:  8081,
+			MetricsPort:      9091,
+			AlertsEnabled:    false,
+		}
+
+		keeper, err := NewKeeper(cfg)
+		require.NoError(t, err)
+		defer keeper.Shutdown(context.Background())
+
+		scheduler := NewScheduler(keeper)
+
+		// Initially should be empty
+		tasks := scheduler.ListTasks()
+		assert.Empty(t, tasks)
+
+		// Register tasks
+		lockTask := NewLockTask(keeper)
+		settleTask := NewSettleTask(keeper)
+
+		scheduler.RegisterTask("lock", lockTask, time.Hour)
+		scheduler.RegisterTask("settle", settleTask, 2*time.Hour)
+
+		// Should list both tasks
+		tasks = scheduler.ListTasks()
+		assert.Len(t, tasks, 2)
+
+		// Check task names
+		assert.Contains(t, tasks, "lock")
+		assert.Contains(t, tasks, "settle")
+	})
+}

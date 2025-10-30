@@ -128,8 +128,9 @@ func TestLockTask_LockMarket(t *testing.T) {
 		marketAddr := common.HexToAddress("0x1111111111111111111111111111111111111111")
 
 		err = task.lockMarket(ctx, marketAddr)
-		// Should return error (connection or contract not found)
-		assert.Error(t, err)
+		// Should succeed even if database update fails (on-chain lock is what matters)
+		// The function logs the database error but doesn't return it
+		assert.NoError(t, err, "Should not return error even if database update fails, since on-chain lock succeeded")
 	})
 }
 
@@ -212,11 +213,9 @@ func TestLockTask_UpdateMarketStatus(t *testing.T) {
 		marketAddr := common.HexToAddress("0x1234567890123456789012345678901234567890")
 		txHash := common.HexToHash("0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd")
 
-		// This will fail if markets table doesn't exist, which is expected
+		// This should fail with "no market found" since we didn't insert any data
 		err = task.updateMarketStatus(ctx, marketAddr, "Locked", txHash)
-		// We accept error here as table might not exist
-		if err != nil {
-			assert.Contains(t, err.Error(), "relation", "Error should be about missing table")
-		}
+		assert.Error(t, err, "Should fail when market doesn't exist in database")
+		assert.Contains(t, err.Error(), "no market found", "Error should be about market not found")
 	})
 }

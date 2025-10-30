@@ -92,8 +92,8 @@ func (t *SettleTask) Execute(ctx context.Context) error {
 
 // getMarketsToSettle queries the database for markets that need settling
 func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle, error) {
-	// Calculate settle window: match ended + finalize delay
-	settleTime := time.Now().Add(-time.Duration(t.keeper.config.FinalizeDelay) * time.Second)
+	// Calculate settle window: match ended + finalize delay (Unix timestamp)
+	settleTime := time.Now().Unix() - int64(t.keeper.config.FinalizeDelay)
 
 	query := `
 		SELECT
@@ -115,13 +115,13 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 	}
 	defer rows.Close()
 
-	var markets []*MarketToSettle
+	markets := make([]*MarketToSettle, 0)
 	for rows.Next() {
 		var market MarketToSettle
 		var marketAddrHex, oracleAddrHex string
-		var matchStartStr, matchEndStr string
+		var matchStartUnix, matchEndUnix int64
 
-		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartStr, &matchEndStr, &oracleAddrHex)
+		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan market row: %w", err)
 		}
@@ -130,16 +130,9 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 		market.MarketAddress = common.HexToAddress(marketAddrHex)
 		market.OracleAddress = common.HexToAddress(oracleAddrHex)
 
-		// Parse timestamps
-		market.MatchStart, err = time.Parse(time.RFC3339, matchStartStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse match_start: %w", err)
-		}
-
-		market.MatchEnd, err = time.Parse(time.RFC3339, matchEndStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse match_end: %w", err)
-		}
+		// Convert Unix timestamps to time.Time
+		market.MatchStart = time.Unix(matchStartUnix, 0)
+		market.MatchEnd = time.Unix(matchEndUnix, 0)
 
 		markets = append(markets, &market)
 	}
@@ -312,6 +305,8 @@ func (t *SettleTask) waitForTransaction(ctx context.Context, txHash common.Hash)
 
 // updateMarketStatus updates the market status in the database
 func (t *SettleTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash, result *MatchResult) error {
+	now := time.Now().Unix()
+
 	query := `
 		UPDATE markets
 		SET
@@ -319,12 +314,12 @@ func (t *SettleTask) updateMarketStatus(ctx context.Context, marketAddr common.A
 			settle_tx_hash = $2,
 			home_goals = $3,
 			away_goals = $4,
-			settled_at = NOW(),
-			updated_at = NOW()
-		WHERE market_address = $5
+			settled_at = $5,
+			updated_at = $6
+		WHERE market_address = $7
 	`
 
-	execResult, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), result.HomeGoals, result.AwayGoals, marketAddr.Hex())
+	execResult, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), result.HomeGoals, result.AwayGoals, now, now, marketAddr.Hex())
 	if err != nil {
 		return fmt.Errorf("failed to update market status: %w", err)
 	}

@@ -81,8 +81,9 @@ func (t *LockTask) Execute(ctx context.Context) error {
 
 // getMarketsToLock queries the database for markets that need locking
 func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error) {
-	// Calculate lock window: current time + lock lead time
-	lockTime := time.Now().Add(time.Duration(t.keeper.config.LockLeadTime) * time.Second)
+	// Calculate lock window: current time + lock lead time (Unix timestamp)
+	now := time.Now().Unix()
+	lockTime := now + int64(t.keeper.config.LockLeadTime)
 
 	query := `
 		SELECT
@@ -93,23 +94,23 @@ func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error
 		FROM markets
 		WHERE status = 'Open'
 		AND lock_time <= $1
-		AND lock_time > NOW()
+		AND lock_time > $2
 		ORDER BY lock_time ASC
 	`
 
-	rows, err := t.keeper.db.QueryContext(ctx, query, lockTime)
+	rows, err := t.keeper.db.QueryContext(ctx, query, lockTime, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query markets: %w", err)
 	}
 	defer rows.Close()
 
-	var markets []*MarketToLock
+	markets := make([]*MarketToLock, 0)
 	for rows.Next() {
 		var market MarketToLock
 		var marketAddrHex string
-		var lockTimeStr, matchStartStr string
+		var lockTimeUnix, matchStartUnix int64
 
-		err := rows.Scan(&marketAddrHex, &market.EventID, &lockTimeStr, &matchStartStr)
+		err := rows.Scan(&marketAddrHex, &market.EventID, &lockTimeUnix, &matchStartUnix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan market row: %w", err)
 		}
@@ -117,16 +118,9 @@ func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error
 		// Parse market address
 		market.MarketAddress = common.HexToAddress(marketAddrHex)
 
-		// Parse timestamps
-		market.LockTime, err = time.Parse(time.RFC3339, lockTimeStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse lock_time: %w", err)
-		}
-
-		market.MatchStart, err = time.Parse(time.RFC3339, matchStartStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse match_start: %w", err)
-		}
+		// Convert Unix timestamps to time.Time
+		market.LockTime = time.Unix(lockTimeUnix, 0)
+		market.MatchStart = time.Unix(matchStartUnix, 0)
 
 		markets = append(markets, &market)
 	}
@@ -249,17 +243,19 @@ func (t *LockTask) waitForTransaction(ctx context.Context, txHash common.Hash) (
 
 // updateMarketStatus updates the market status in the database
 func (t *LockTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash) error {
+	now := time.Now().Unix()
+
 	query := `
 		UPDATE markets
 		SET
 			status = $1,
 			lock_tx_hash = $2,
-			locked_at = NOW(),
-			updated_at = NOW()
-		WHERE market_address = $3
+			locked_at = $3,
+			updated_at = $4
+		WHERE market_address = $5
 	`
 
-	result, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), marketAddr.Hex())
+	result, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), now, now, marketAddr.Hex())
 	if err != nil {
 		return fmt.Errorf("failed to update market status: %w", err)
 	}

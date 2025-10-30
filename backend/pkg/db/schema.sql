@@ -19,6 +19,20 @@ CREATE TABLE IF NOT EXISTS markets (
     created_block BIGINT NOT NULL,             -- 创建区块号
     tx_hash VARCHAR(66) NOT NULL,              -- 创建交易哈希
     log_index INT NOT NULL,                    -- 日志索引
+
+    -- Keeper service fields (added in migration 002)
+    market_address VARCHAR(42),                -- 市场合约地址 (Ethereum address)
+    event_id VARCHAR(100),                     -- 外部赛事ID (用于获取比赛结果)
+    oracle_address VARCHAR(42),                -- 预言机合约地址
+    lock_time BIGINT,                          -- 计划锁盘时间 (开赛前N分钟)
+    match_start BIGINT,                        -- 比赛开始时间
+    match_end BIGINT,                          -- 比赛结束时间
+    lock_tx_hash VARCHAR(66),                  -- 锁盘交易哈希
+    settle_tx_hash VARCHAR(66),                -- 结算交易哈希
+    home_goals SMALLINT,                       -- 主队进球数 (比赛结果)
+    away_goals SMALLINT,                       -- 客队进球数 (比赛结果)
+    updated_at BIGINT,                         -- 最后更新时间
+
     UNIQUE(tx_hash, log_index)                 -- 防重复插入
 );
 
@@ -26,6 +40,12 @@ CREATE TABLE IF NOT EXISTS markets (
 CREATE INDEX idx_markets_status ON markets(status);
 CREATE INDEX idx_markets_kickoff ON markets(kickoff_time);
 CREATE INDEX idx_markets_created_block ON markets(created_block);
+
+-- Keeper service indexes (added in migration 002)
+CREATE INDEX idx_markets_market_address ON markets(market_address);
+CREATE INDEX idx_markets_lock_time ON markets(lock_time) WHERE status = 'Open';
+CREATE INDEX idx_markets_match_end ON markets(match_end) WHERE status = 'Locked';
+CREATE INDEX idx_markets_oracle ON markets(oracle_address);
 
 -- Orders table - 下注订单记录
 CREATE TABLE IF NOT EXISTS orders (
@@ -132,7 +152,7 @@ CREATE TABLE IF NOT EXISTS alert_logs (
 CREATE INDEX idx_alert_logs_level ON alert_logs(level);
 CREATE INDEX idx_alert_logs_created ON alert_logs(created_at DESC);
 
--- 创建更新时间触发器函数
+-- 创建更新时间触发器函数 (通用版本)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -141,11 +161,26 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- markets 表 updated_at 触发器函数 (BIGINT 版本)
+CREATE OR REPLACE FUNCTION update_markets_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 为 keeper_tasks 表添加自动更新触发器
 CREATE TRIGGER update_keeper_tasks_updated_at
     BEFORE UPDATE ON keeper_tasks
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- 为 markets 表添加自动更新触发器 (added in migration 002)
+CREATE TRIGGER trigger_update_markets_updated_at
+    BEFORE UPDATE ON markets
+    FOR EACH ROW
+    EXECUTE FUNCTION update_markets_updated_at();
 
 -- 数据库版本信息
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -155,7 +190,9 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 INSERT INTO schema_version (version, description)
-VALUES (1, 'Initial schema - Week 3-4 core tables')
+VALUES
+    (1, 'Initial schema - Week 3-4 core tables'),
+    (2, 'Add Keeper required fields: market_address, timestamps, oracle, match results')
 ON CONFLICT (version) DO NOTHING;
 
 -- 添加有用的视图
