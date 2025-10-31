@@ -387,7 +387,7 @@ func TestScheduler_ListTasks(t *testing.T) {
 
 		// Register tasks
 		lockTask := NewLockTask(keeper)
-		settleTask := NewSettleTask(keeper)
+		settleTask := NewSettleTask(keeper, keeper.dataSource)
 
 		scheduler.RegisterTask("lock", lockTask, time.Hour)
 		scheduler.RegisterTask("settle", settleTask, 2*time.Hour)

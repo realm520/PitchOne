@@ -41,7 +41,7 @@ func TestSettleTask_GetMarketsToSettle(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		markets, err := task.getMarketsToSettle(ctx)
@@ -83,7 +83,7 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		market := &MarketToSettle{
@@ -125,7 +125,7 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		market := &MarketToSettle{
@@ -167,7 +167,7 @@ func TestSettleTask_SettleMarket(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		// Use valid address formats but non-existent contracts
@@ -215,7 +215,7 @@ func TestSettleTask_Execute(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -257,7 +257,7 @@ func TestSettleTask_FetchMatchResult(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		result, err := task.fetchMatchResult(ctx, "test-event-123")
@@ -303,7 +303,7 @@ func TestSettleTask_UpdateMarketStatus(t *testing.T) {
 		defer shutdownCancel()
 		defer keeper.Shutdown(shutdownCtx)
 
-		task := NewSettleTask(keeper)
+		task := NewSettleTask(keeper, keeper.dataSource)
 
 		ctx := context.Background()
 		marketAddr := common.HexToAddress("0x1234567890123456789012345678901234567890")

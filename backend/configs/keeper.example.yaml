@@ -1,0 +1,187 @@
+# Keeper Service Configuration Example
+#
+# This file provides configuration examples for different deployment environments.
+# Copy this file to keeper.yaml and customize for your environment.
+
+# =============================================================================
+# DEVELOPMENT CONFIGURATION (using Mock data source)
+# =============================================================================
+development:
+  # Blockchain Configuration
+  chain_id: 31337  # Anvil local testnet
+  rpc_endpoint: "http://localhost:8545"
+  private_key: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"  # Anvil test account #0
+
+  # Database Configuration
+  database_url: "postgresql://p1:p1@localhost:5432/p1?sslmode=disable"
+
+  # Gas Configuration
+  gas_limit: 500000
+  max_gas_price: "100"  # Gwei
+
+  # Task Scheduling
+  task_interval: 60        # Seconds between task executions
+  lock_lead_time: 300      # Lock markets 5 minutes before match start
+  finalize_delay: 300      # Settle 5 minutes after match end (for testing)
+
+  # Concurrency & Performance
+  max_concurrent: 3        # Maximum concurrent settlement operations
+  retry_attempts: 3        # Number of retries for failed operations
+  retry_delay: 5           # Seconds between retries
+
+  # Monitoring
+  health_check_port: 8081
+  metrics_port: 9091
+  alerts_enabled: false
+
+  # Data Source: Mock (no API key needed)
+  # Set SPORTRADAR_API_KEY environment variable to use real data
+
+# =============================================================================
+# STAGING CONFIGURATION (using Sportradar Trial API)
+# =============================================================================
+staging:
+  # Blockchain Configuration
+  chain_id: 11155111  # Sepolia testnet
+  rpc_endpoint: "${RPC_URL}"  # Load from environment
+  private_key: "${KEEPER_PRIVATE_KEY}"
+
+  # Database Configuration
+  database_url: "${DATABASE_URL}"
+
+  # Gas Configuration
+  gas_limit: 500000
+  max_gas_price: "50"  # Gwei - conservative for testnet
+
+  # Task Scheduling
+  task_interval: 60
+  lock_lead_time: 600      # 10 minutes before match start
+  finalize_delay: 3600     # 1 hour after match end
+
+  # Concurrency & Performance
+  max_concurrent: 5        # Moderate concurrency for staging
+  retry_attempts: 5
+  retry_delay: 10
+
+  # Monitoring
+  health_check_port: 8081
+  metrics_port: 9091
+  alerts_enabled: true
+
+  # Data Source: Sportradar Trial API (1 req/s limit)
+  # Required environment variables:
+  #   SPORTRADAR_API_KEY=your_trial_api_key
+  #   SPORTRADAR_BASE_URL=https://api.sportradar.com/soccer/trial/v4/en (optional)
+
+# =============================================================================
+# PRODUCTION CONFIGURATION (using Sportradar Production API)
+# =============================================================================
+production:
+  # Blockchain Configuration
+  chain_id: 1  # Ethereum Mainnet
+  rpc_endpoint: "${RPC_URL}"
+  private_key: "${KEEPER_PRIVATE_KEY}"
+
+  # Database Configuration
+  database_url: "${DATABASE_URL}"
+
+  # Gas Configuration
+  gas_limit: 500000
+  max_gas_price: "50"  # Gwei - adjust based on network conditions
+
+  # Task Scheduling
+  task_interval: 60
+  lock_lead_time: 600      # 10 minutes before match start
+  finalize_delay: 7200     # 2 hours after match end (standard)
+
+  # Concurrency & Performance
+  max_concurrent: 10       # Higher concurrency with production API
+  retry_attempts: 5
+  retry_delay: 10
+
+  # Monitoring
+  health_check_port: 8081
+  metrics_port: 9091
+  alerts_enabled: true
+
+  # Data Source: Sportradar Production API
+  # Required environment variables:
+  #   SPORTRADAR_API_KEY=your_production_api_key
+  #   SPORTRADAR_BASE_URL=https://api.sportradar.com/soccer/production/v4/en (optional)
+
+# =============================================================================
+# ENVIRONMENT VARIABLES REFERENCE
+# =============================================================================
+#
+# Required:
+#   RPC_URL                 - Ethereum RPC endpoint (e.g., Infura, Alchemy)
+#   KEEPER_PRIVATE_KEY      - Private key for keeper account (0x-prefixed)
+#   DATABASE_URL            - PostgreSQL connection string
+#
+# Optional (Data Source):
+#   SPORTRADAR_API_KEY      - If set, uses Sportradar; otherwise uses Mock
+#   SPORTRADAR_BASE_URL     - Custom Sportradar API base URL (defaults to trial)
+#
+# Optional (Monitoring):
+#   LOG_LEVEL               - Logging level (debug, info, warn, error)
+#   SENTRY_DSN              - Sentry error tracking DSN
+#   DATADOG_API_KEY         - Datadog APM API key
+#
+# =============================================================================
+# CONFIGURATION NOTES
+# =============================================================================
+#
+# 1. Data Source Selection:
+#    - If SPORTRADAR_API_KEY is set: Uses Sportradar API
+#    - Otherwise: Uses Mock provider (for development/testing)
+#
+# 2. Concurrency Guidelines:
+#    - Development: 3 (avoid overwhelming local database)
+#    - Staging: 5 (test concurrent behavior)
+#    - Production: 10 (maximize throughput)
+#
+#    Constraints:
+#    - Must be <= database connection pool size
+#    - Consider Sportradar rate limits (free: 1 req/s, paid: higher)
+#    - Consider RPC node rate limits
+#
+# 3. Finalize Delay:
+#    - Development: 300s (5 min) - fast iteration
+#    - Staging: 3600s (1 hour) - realistic testing
+#    - Production: 7200s (2 hours) - allow time for official results
+#
+# 4. Gas Price Strategy:
+#    - Set max_gas_price based on:
+#      * Network congestion patterns
+#      * Settlement urgency requirements
+#      * Cost tolerance
+#    - Monitor actual gas usage and adjust accordingly
+#
+# 5. Retry Strategy:
+#    - retry_attempts: Balance between persistence and avoiding stuck operations
+#    - retry_delay: Exponential backoff implemented in code
+#
+# 6. Database Connection Pool:
+#    - Ensure max_open_conns >= max_concurrent + buffer (e.g., 25 for max_concurrent=10)
+#    - Set max_idle_conns to ~20% of max_open_conns
+#    - Set conn_max_lifetime to 5-10 minutes
+#
+# =============================================================================
+# QUICK START
+# =============================================================================
+#
+# 1. Copy this file:
+#    cp keeper.example.yaml keeper.yaml
+#
+# 2. Choose your environment section (development/staging/production)
+#
+# 3. Set required environment variables:
+#    export RPC_URL="https://mainnet.infura.io/v3/YOUR_KEY"
+#    export KEEPER_PRIVATE_KEY="0x..."
+#    export DATABASE_URL="postgresql://..."
+#    export SPORTRADAR_API_KEY="your_api_key"  # Optional
+#
+# 4. Run keeper:
+#    ./bin/keeper --config keeper.yaml --env production
+#
+# =============================================================================

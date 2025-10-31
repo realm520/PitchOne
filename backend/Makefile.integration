@@ -1,0 +1,88 @@
+# Integration Test Makefile for Keeper Service
+# Usage: make -f Makefile.integration [target]
+
+.PHONY: help test-integration test-integration-lock test-integration-settle test-integration-error test-integration-all test-integration-coverage
+
+# Default target
+help:
+	@echo "Keeper Integration Test Targets"
+	@echo "================================"
+	@echo ""
+	@echo "Prerequisites:"
+	@echo "  - Anvil running on port 8545 (make chain)"
+	@echo "  - PostgreSQL database accessible (make up)"
+	@echo "  - Default contracts deployed"
+	@echo ""
+	@echo "Targets:"
+	@echo "  test-integration         Run all integration tests"
+	@echo "  test-integration-lock    Run lock flow tests only"
+	@echo "  test-integration-settle  Run settle flow tests only"
+	@echo "  test-integration-error   Run error recovery tests only"
+	@echo "  test-integration-coverage Run tests with coverage report"
+	@echo "  test-integration-verbose Run tests with verbose output"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.integration test-integration-lock"
+	@echo "  make -f Makefile.integration test-integration-coverage"
+
+# Run all integration tests
+test-integration:
+	@echo "Running all Keeper integration tests..."
+	@go test -v -timeout 15m ./internal/keeper -run TestIntegration
+
+# Run lock flow tests only
+test-integration-lock:
+	@echo "Running lock flow integration tests..."
+	@go test -v -timeout 10m ./internal/keeper -run TestIntegration_LockFlow
+
+# Run settle flow tests only
+test-integration-settle:
+	@echo "Running settle flow integration tests..."
+	@go test -v -timeout 10m ./internal/keeper -run TestIntegration_SettleFlow
+
+# Run error recovery tests only
+test-integration-error:
+	@echo "Running error recovery integration tests..."
+	@go test -v -timeout 5m ./internal/keeper -run TestIntegration_ErrorRecovery
+
+# Run all integration tests with coverage
+test-integration-coverage:
+	@echo "Running integration tests with coverage..."
+	@go test -v -timeout 15m -coverprofile=coverage_integration.out -covermode=atomic ./internal/keeper -run TestIntegration
+	@go tool cover -html=coverage_integration.out -o coverage_integration.html
+	@echo "Coverage report generated: coverage_integration.html"
+
+# Run tests with extra verbose output
+test-integration-verbose:
+	@echo "Running integration tests (verbose)..."
+	@go test -v -timeout 15m ./internal/keeper -run TestIntegration 2>&1 | tee integration_test.log
+	@echo "Test log saved to: integration_test.log"
+
+# Quick check: compile tests without running
+test-integration-compile:
+	@echo "Compiling integration tests..."
+	@go test -c ./internal/keeper -o /tmp/keeper_integration_tests
+	@echo "✅ Tests compiled successfully"
+
+# Clean test artifacts
+test-integration-clean:
+	@echo "Cleaning test artifacts..."
+	@rm -f coverage_integration.out coverage_integration.html
+	@rm -f integration_test.log
+	@rm -f /tmp/keeper_integration_tests
+	@echo "✅ Cleaned"
+
+# Full test cycle: compile → run → coverage
+test-integration-full: test-integration-compile test-integration-coverage
+	@echo "✅ Full test cycle completed"
+
+# Pre-flight checks
+test-integration-preflight:
+	@echo "Running pre-flight checks..."
+	@echo -n "Checking Anvil... "
+	@curl -s -X POST -H "Content-Type: application/json" \
+		--data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+		http://localhost:8545 > /dev/null 2>&1 && echo "✅" || (echo "❌ Not running" && exit 1)
+	@echo -n "Checking database... "
+	@psql "postgresql://p1:p1@localhost/p1?sslmode=disable" -c "SELECT 1" > /dev/null 2>&1 && echo "✅" || (echo "❌ Not accessible" && exit 1)
+	@echo "✅ All pre-flight checks passed"

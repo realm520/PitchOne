@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -16,9 +16,10 @@ import "../interfaces/IResultOracle.sol";
  * @title MarketBase
  * @notice 市场合约基类，实现核心状态机和下注/赎回逻辑
  * @dev 使用 ERC-1155 管理 position tokens，每个 outcomeId 对应一个 token ID
+ *      继承 ERC1155Supply 以支持 totalSupply 追踪
  *      支持 Phase 1 折扣接口预留（Phase 0 设为 address(0)）
  */
-abstract contract MarketBase is IMarket, ERC1155, Ownable, Pausable, ReentrancyGuard {
+abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ 状态变量 ============
@@ -217,9 +218,10 @@ abstract contract MarketBase is IMarket, ERC1155, Ownable, Pausable, ReentrancyG
      * @param outcomeId 结果ID
      * @param shares 赎回份额
      * @return payout 赔付金额
-     * @dev 1. 仅在 Finalized 状态
+     * @dev 1. 仅在 Resolved/Finalized 状态
      *      2. 只有获胜 outcome 可赎回
-     *      3. 赔付比例 = shares / totalWinningShares * totalLiquidity
+     *      3. 赔付比例 = shares / totalSupply(outcomeId) * totalLiquidity
+     *      4. 按比例分配，防止早赎回耗尽流动性
      */
     function redeem(uint256 outcomeId, uint256 shares)
         external
@@ -235,9 +237,15 @@ abstract contract MarketBase is IMarket, ERC1155, Ownable, Pausable, ReentrancyG
             "MarketBase: Insufficient balance"
         );
 
-        // 1. 计算赔付（1:1 赔付，简化版）
-        // TODO: 后续可改为按 totalSupply 比例分配
-        payout = shares;
+        // 1. 计算赔付（按比例分配）
+        // payout = shares * totalLiquidity / totalSupply(winningOutcome)
+        // 使用 ERC1155 内置的 totalSupply 追踪
+        uint256 totalWinningShares = totalSupply(winningOutcome);
+        require(totalWinningShares > 0, "MarketBase: No winning shares");
+
+        // 防止除法精度损失，先乘后除
+        payout = (shares * totalLiquidity) / totalWinningShares;
+        require(payout > 0, "MarketBase: Zero payout");
         require(payout <= totalLiquidity, "MarketBase: Insufficient liquidity");
 
         // 2. 更新状态（遵循 CEI 模式）
