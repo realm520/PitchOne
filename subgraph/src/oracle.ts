@@ -18,8 +18,19 @@ import { toDecimal, ZERO_BI } from "./helpers";
 
 export function handleResultProposed(event: ResultProposedEvent): void {
   const marketId = event.params.marketId;
+  const facts = event.params.facts;
+  const factsHash = event.params.factsHash;
   const proposer = event.params.proposer;
-  const result = event.params.result.toI32();
+
+  // 计算简单的结果：比较进球数
+  const homeGoals = facts.homeGoals;
+  const awayGoals = facts.awayGoals;
+  let result = 1; // 默认平局
+  if (homeGoals > awayGoals) {
+    result = 0; // 主队胜
+  } else if (awayGoals > homeGoals) {
+    result = 2; // 客队胜
+  }
 
   // 生成提案 ID
   const proposalId = event.address
@@ -27,12 +38,12 @@ export function handleResultProposed(event: ResultProposedEvent): void {
     .concat("-")
     .concat(marketId.toHexString())
     .concat("-")
-    .concat(event.transaction.hash.toHexString());
+    .concat(factsHash.toHexString());
 
   // 创建提案实体
   let proposal = new OracleProposal(proposalId);
   proposal.oracle = event.address;
-  proposal.market = marketId.toHexString(); // 假设 marketId 是市场地址
+  proposal.market = marketId.toHexString();
   proposal.proposer = proposer;
   proposal.result = result;
   proposal.bond = toDecimal(ZERO_BI); // TODO: 从合约中获取质押金额
@@ -59,21 +70,17 @@ export function handleResultProposed(event: ResultProposedEvent): void {
 
 export function handleResultDisputed(event: ResultDisputedEvent): void {
   const marketId = event.params.marketId;
+  const factsHash = event.params.factsHash;
   const disputer = event.params.disputer;
+  const reason = event.params.reason;
 
-  // 查找对应的提案
-  // 注意：这里需要遍历所有提案找到匹配的，或者维护更好的索引
-  // 简化处理：使用 marketId 作为查找依据
-
-  // TODO: 实现更高效的查找逻辑
-  // 暂时创建一个新的争议记录
-
+  // 使用 marketId 和 factsHash 查找提案
   const proposalId = event.address
     .toHexString()
     .concat("-")
     .concat(marketId.toHexString())
-    .concat("-dispute-")
-    .concat(event.transaction.hash.toHexString());
+    .concat("-")
+    .concat(factsHash.toHexString());
 
   let proposal = OracleProposal.load(proposalId);
   if (proposal === null) {
@@ -99,26 +106,25 @@ export function handleResultDisputed(event: ResultDisputedEvent): void {
 
 export function handleResultFinalized(event: ResultFinalizedEvent): void {
   const marketId = event.params.marketId;
-  const finalResult = event.params.result.toI32();
+  const factsHash = event.params.factsHash;
+  const accepted = event.params.accepted;
 
-  // 查找对应的提案
-  // 简化处理：使用 marketId 查找最近的提案
-
+  // 使用 marketId 和 factsHash 查找提案
   const proposalId = event.address
     .toHexString()
     .concat("-")
     .concat(marketId.toHexString())
     .concat("-")
-    .concat(event.transaction.hash.toHexString());
+    .concat(factsHash.toHexString());
 
   let proposal = OracleProposal.load(proposalId);
   if (proposal === null) {
-    // 创建占位符
+    // 创建占位符（理论上不应该发生）
     proposal = new OracleProposal(proposalId);
     proposal.oracle = event.address;
     proposal.market = marketId.toHexString();
     proposal.proposer = event.address;
-    proposal.result = finalResult;
+    proposal.result = 0;
     proposal.bond = toDecimal(ZERO_BI);
     proposal.proposedAt = event.block.timestamp;
     proposal.disputed = false;
@@ -128,15 +134,17 @@ export function handleResultFinalized(event: ResultFinalizedEvent): void {
 
   proposal.finalized = true;
   proposal.finalizedAt = event.block.timestamp;
-  proposal.finalResult = finalResult;
+  proposal.finalResult = accepted ? proposal.result : null;
   proposal.save();
 
-  // 更新市场状态（如果还未更新）
-  let market = Market.load(marketId.toHexString());
-  if (market !== null && market.state === "Locked") {
-    market.state = "Resolved";
-    market.resolvedAt = event.block.timestamp;
-    market.winnerOutcome = finalResult;
-    market.save();
+  // 如果接受提案，更新市场状态
+  if (accepted) {
+    let market = Market.load(marketId.toHexString());
+    if (market !== null && market.state === "Locked") {
+      market.state = "Resolved";
+      market.resolvedAt = event.block.timestamp;
+      market.winnerOutcome = proposal.result;
+      market.save();
+    }
   }
 }

@@ -3,7 +3,7 @@
  * 处理市场生命周期事件：下注、锁盘、结算、兑付等
  */
 
-import { BigInt, Address } from "@graphprotocol/graph-ts";
+import { BigInt, Address, Bytes, BigDecimal } from "@graphprotocol/graph-ts";
 import {
   BetPlaced as BetPlacedEvent,
   Locked as LockedEvent,
@@ -40,9 +40,10 @@ import {
 export function handleBetPlaced(event: BetPlacedEvent): void {
   const marketAddress = event.address;
   const userAddress = event.params.user;
-  const outcome = event.params.outcome.toI32();
+  const outcome = event.params.outcomeId.toI32();
   const amount = event.params.amount;
   const shares = event.params.shares;
+  const feeParam = event.params.fee;
 
   // 加载或创建市场实体
   let market = Market.load(marketAddress.toHexString());
@@ -50,9 +51,9 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
     // 市场应该已经在 MarketCreated 事件中创建
     // 如果不存在，创建一个临时的
     market = new Market(marketAddress.toHexString());
-    market.templateId = new Uint8Array(0);
-    market.matchId = new Uint8Array(0);
-    market.ruleVer = new Uint8Array(0);
+    market.templateId = Bytes.empty();
+    market.matchId = Bytes.empty();
+    market.ruleVer = Bytes.empty();
     market.state = "Open";
     market.createdAt = event.block.timestamp;
     market.totalVolume = ZERO_BD;
@@ -66,10 +67,9 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   // 加载或创建用户
   let user = loadOrCreateUser(userAddress);
 
-  // 计算手续费（假设 2% 费率）
-  const feeRate = 0.02;
+  // 使用事件中的费用参数
   const amountDecimal = toDecimal(amount);
-  const fee = amountDecimal.times(BigDecimal.fromString(feeRate.toString()));
+  const fee = toDecimal(feeParam);
   const netAmount = amountDecimal.minus(fee);
 
   // 创建订单记录
@@ -137,7 +137,7 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
 
 export function handleLocked(event: LockedEvent): void {
   const marketAddress = event.address;
-  const lockTime = event.params.lockTime;
+  const timestamp = event.params.timestamp;
 
   let market = Market.load(marketAddress.toHexString());
   if (market === null) {
@@ -145,7 +145,7 @@ export function handleLocked(event: LockedEvent): void {
   }
 
   market.state = "Locked";
-  market.lockedAt = lockTime;
+  market.lockedAt = timestamp;
   market.save();
 
   // 更新全局统计
@@ -161,8 +161,8 @@ export function handleLocked(event: LockedEvent): void {
 
 export function handleResolved(event: ResolvedEvent): void {
   const marketAddress = event.address;
-  const resolveTime = event.params.resolveTime;
-  const winnerOutcome = event.params.winnerOutcome.toI32();
+  const winnerOutcome = event.params.winningOutcome.toI32();
+  const timestamp = event.params.timestamp;
 
   let market = Market.load(marketAddress.toHexString());
   if (market === null) {
@@ -170,7 +170,7 @@ export function handleResolved(event: ResolvedEvent): void {
   }
 
   market.state = "Resolved";
-  market.resolvedAt = resolveTime;
+  market.resolvedAt = timestamp;
   market.winnerOutcome = winnerOutcome;
   market.save();
 }
@@ -181,7 +181,7 @@ export function handleResolved(event: ResolvedEvent): void {
 
 export function handleFinalized(event: FinalizedEvent): void {
   const marketAddress = event.address;
-  const finalizeTime = event.params.finalizeTime;
+  const timestamp = event.params.timestamp;
 
   let market = Market.load(marketAddress.toHexString());
   if (market === null) {
@@ -189,7 +189,7 @@ export function handleFinalized(event: FinalizedEvent): void {
   }
 
   market.state = "Finalized";
-  market.finalizedAt = finalizeTime;
+  market.finalizedAt = timestamp;
   market.save();
 
   // 更新全局统计
@@ -206,7 +206,7 @@ export function handleFinalized(event: FinalizedEvent): void {
 export function handleRedeemed(event: RedeemedEvent): void {
   const marketAddress = event.address;
   const userAddress = event.params.user;
-  const outcome = event.params.outcome.toI32();
+  const outcome = event.params.outcomeId.toI32();
   const shares = event.params.shares;
   const payout = event.params.payout;
 

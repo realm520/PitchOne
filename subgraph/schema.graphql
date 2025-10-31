@@ -384,9 +384,6 @@ type Template @entity {
 
   "注册时间"
   registeredAt: BigInt!
-
-  "创建的市场"
-  markets: [Market!]! @derivedFrom(field: "templateId")
 }
 
 # ============================================================================

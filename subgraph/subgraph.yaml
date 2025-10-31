@@ -28,9 +28,9 @@ dataSources:
         - name: MarketBase
           file: ../contracts/out/MarketBase.sol/MarketBase.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed bytes32,bytes32,bytes32)
+        - event: MarketCreated(indexed address,indexed bytes32,indexed address)
           handler: handleMarketCreated
-        - event: TemplateRegistered(indexed bytes32,address)
+        - event: TemplateRegistered(indexed bytes32,indexed address,string,string)
           handler: handleTemplateRegistered
         - event: TemplateActiveStatusUpdated(indexed bytes32,bool)
           handler: handleTemplateActiveStatusUpdated
@@ -66,7 +66,7 @@ dataSources:
           handler: handleBetPlaced
         - event: Locked(uint256)
           handler: handleLocked
-        - event: Resolved(uint256,uint256)
+        - event: Resolved(indexed uint256,uint256)
           handler: handleResolved
         - event: Finalized(uint256)
           handler: handleFinalized
@@ -95,11 +95,11 @@ dataSources:
         - name: MockOracle
           file: ../contracts/out/MockOracle.sol/MockOracle.json
       eventHandlers:
-        - event: ResultProposed(indexed bytes32,indexed address,uint256)
+        - event: ResultProposed(indexed bytes32,(bytes32,uint8,uint8,bool,uint8,uint8,uint256),indexed bytes32,indexed address)
           handler: handleResultProposed
-        - event: ResultDisputed(indexed bytes32,indexed address)
+        - event: ResultDisputed(indexed bytes32,indexed bytes32,indexed address,string)
           handler: handleResultDisputed
-        - event: ResultFinalized(indexed bytes32,uint256)
+        - event: ResultFinalized(indexed bytes32,indexed bytes32,bool)
           handler: handleResultFinalized
       file: ./src/oracle.ts
 
@@ -157,7 +157,7 @@ templates:
           handler: handleBetPlaced
         - event: Locked(uint256)
           handler: handleLocked
-        - event: Resolved(uint256,uint256)
+        - event: Resolved(indexed uint256,uint256)
           handler: handleResolved
         - event: Finalized(uint256)
           handler: handleFinalized

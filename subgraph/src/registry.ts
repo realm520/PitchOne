@@ -3,7 +3,7 @@
  * 处理市场模板注册和市场创建事件
  */
 
-import { BigInt } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import {
   MarketCreated as MarketCreatedEvent,
   TemplateRegistered as TemplateRegisteredEvent,
@@ -23,14 +23,13 @@ import {
 export function handleMarketCreated(event: MarketCreatedEvent): void {
   const marketAddress = event.params.market;
   const templateId = event.params.templateId;
-  const matchId = event.params.matchId;
-  const ruleVer = event.params.ruleVer;
+  const creator = event.params.creator;
 
   // 创建市场实体
   let market = new Market(marketAddress.toHexString());
   market.templateId = templateId;
-  market.matchId = matchId;
-  market.ruleVer = ruleVer;
+  market.matchId = Bytes.empty(); // TODO: 从链下数据源获取
+  market.ruleVer = Bytes.empty(); // TODO: 从链下数据源获取
   market.state = "Open";
   market.createdAt = event.block.timestamp;
   market.lockedAt = null;
@@ -60,12 +59,14 @@ export function handleMarketCreated(event: MarketCreatedEvent): void {
 
 export function handleTemplateRegistered(event: TemplateRegisteredEvent): void {
   const templateId = event.params.templateId;
-  const templateAddress = event.params.templateAddress;
+  const implementation = event.params.implementation;
+  const name = event.params.name;
+  const version = event.params.version;
 
   // 创建模板实体
-  let template = new Template(templateAddress.toHexString());
+  let template = new Template(implementation.toHexString());
   template.templateId = templateId;
-  template.name = null; // 可以从链下数据源获取
+  template.name = name;
   template.active = true;
   template.registeredAt = event.block.timestamp;
   template.save();
