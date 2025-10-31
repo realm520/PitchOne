@@ -1,3 +1,170 @@
 specVersion: 0.0.6
+description: PitchOne Decentralized Sportsbook Subgraph
+repository: https://github.com/pitchone/pitchone
 schema:
   file: ./schema.graphql
+dataSources:
+  # ============================================================================
+  # MarketTemplateRegistry - 市场创建和模板管理
+  # ============================================================================
+  - kind: ethereum/contract
+    name: MarketTemplateRegistry
+    network: localhost
+    source:
+      address: "0x0000000000000000000000000000000000000000" # 部署后更新
+      abi: MarketTemplateRegistry
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Template
+        - GlobalStats
+      abis:
+        - name: MarketTemplateRegistry
+          file: ../contracts/out/MarketTemplateRegistry.sol/MarketTemplateRegistry.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: MarketCreated(indexed address,indexed bytes32,bytes32,bytes32)
+          handler: handleMarketCreated
+        - event: TemplateRegistered(indexed bytes32,address)
+          handler: handleTemplateRegistered
+        - event: TemplateActiveStatusUpdated(indexed bytes32,bool)
+          handler: handleTemplateActiveStatusUpdated
+      file: ./src/registry.ts
+
+  # ============================================================================
+  # WDL_Template - 胜平负市场（主要事件源）
+  # ============================================================================
+  - kind: ethereum/contract
+    name: WDL_Template
+    network: localhost
+    source:
+      address: "0x0000000000000000000000000000000000000000" # 部署后更新
+      abi: WDL_Template
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - User
+        - GlobalStats
+      abis:
+        - name: WDL_Template
+          file: ../contracts/out/WDL_Template.sol/WDL_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+      file: ./src/market.ts
+
+  # ============================================================================
+  # MockOracle - 预言机事件
+  # ============================================================================
+  - kind: ethereum/contract
+    name: MockOracle
+    network: localhost
+    source:
+      address: "0x0000000000000000000000000000000000000000" # 部署后更新
+      abi: MockOracle
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - OracleProposal
+        - Market
+      abis:
+        - name: MockOracle
+          file: ../contracts/out/MockOracle.sol/MockOracle.json
+      eventHandlers:
+        - event: ResultProposed(indexed bytes32,indexed address,uint256)
+          handler: handleResultProposed
+        - event: ResultDisputed(indexed bytes32,indexed address)
+          handler: handleResultDisputed
+        - event: ResultFinalized(indexed bytes32,uint256)
+          handler: handleResultFinalized
+      file: ./src/oracle.ts
+
+  # ============================================================================
+  # FeeRouter - 费用分发事件
+  # ============================================================================
+  - kind: ethereum/contract
+    name: FeeRouter
+    network: localhost
+    source:
+      address: "0x0000000000000000000000000000000000000000" # 部署后更新
+      abi: FeeRouter
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - FeeDistribution
+        - GlobalStats
+      abis:
+        - name: FeeRouter
+          file: ../contracts/out/FeeRouter.sol/FeeRouter.json
+      eventHandlers:
+        - event: FeeReceived(indexed address,indexed address,uint256)
+          handler: handleFeeReceived
+        - event: FeeDistributed(indexed address,indexed address,uint256,string)
+          handler: handleFeeDistributed
+      file: ./src/fee.ts
+
+# ============================================================================
+# 模板配置（用于动态市场索引 - 可选）
+# ============================================================================
+templates:
+  - kind: ethereum/contract
+    name: MarketBase
+    network: localhost
+    source:
+      abi: MarketBase
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+      abis:
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts

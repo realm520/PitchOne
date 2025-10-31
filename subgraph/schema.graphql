@@ -1,1 +1,427 @@
-type Market @entity { id: ID! }
+# PitchOne Subgraph Schema
+# 定义所有实体和关系以支持完整的数据查询
+
+# ============================================================================
+# 市场实体
+# ============================================================================
+
+"""
+Market - 博彩市场实体
+代表一个特定赛事的博彩市场（如某场比赛的胜平负）
+"""
+type Market @entity {
+  "市场地址（合约地址）"
+  id: ID!
+
+  "模板 ID（WDL, OU, AH 等）"
+  templateId: Bytes!
+
+  "赛事 ID（链下数据源提供）"
+  matchId: Bytes!
+
+  "规则版本"
+  ruleVer: Bytes!
+
+  "市场状态: Open, Locked, Resolved, Finalized"
+  state: MarketState!
+
+  "创建时间戳"
+  createdAt: BigInt!
+
+  "锁盘时间戳"
+  lockedAt: BigInt
+
+  "结算时间戳"
+  resolvedAt: BigInt
+
+  "最终确认时间戳"
+  finalizedAt: BigInt
+
+  "获胜结果（0=主队胜/大, 1=平局, 2=客队胜/小）"
+  winnerOutcome: Int
+
+  "市场参数（编码后的 bytes）"
+  params: Bytes
+
+  "总交易量（USDC）"
+  totalVolume: BigDecimal!
+
+  "累计手续费（USDC）"
+  feeAccrued: BigDecimal!
+
+  "LP 流动性（USDC）"
+  lpLiquidity: BigDecimal!
+
+  "唯一下注用户数"
+  uniqueBettors: Int!
+
+  "预言机地址"
+  oracle: Bytes
+
+  "定价引擎地址"
+  pricingEngine: Bytes
+
+  "关联的订单"
+  orders: [Order!]! @derivedFrom(field: "market")
+
+  "关联的头寸"
+  positions: [Position!]! @derivedFrom(field: "market")
+
+  "关联的赎回记录"
+  redemptions: [Redemption!]! @derivedFrom(field: "market")
+}
+
+enum MarketState {
+  Open
+  Locked
+  Resolved
+  Finalized
+}
+
+# ============================================================================
+# 用户实体
+# ============================================================================
+
+"""
+User - 用户实体
+代表一个参与博彩的地址
+"""
+type User @entity {
+  "用户地址"
+  id: ID!
+
+  "总下注金额（USDC）"
+  totalBetAmount: BigDecimal!
+
+  "总赎回金额（USDC）"
+  totalRedeemed: BigDecimal!
+
+  "净盈亏（赎回 - 下注）"
+  netProfit: BigDecimal!
+
+  "下注次数"
+  totalBets: Int!
+
+  "参与的市场数"
+  marketsParticipated: Int!
+
+  "首次下注时间"
+  firstBetAt: BigInt
+
+  "最后下注时间"
+  lastBetAt: BigInt
+
+  "推荐人地址"
+  referrer: Bytes
+
+  "下单记录"
+  orders: [Order!]! @derivedFrom(field: "user")
+
+  "持仓记录"
+  positions: [Position!]! @derivedFrom(field: "owner")
+
+  "赎回记录"
+  redemptions: [Redemption!]! @derivedFrom(field: "user")
+
+  "领取的奖励"
+  rewardsClaimed: [RewardClaim!]! @derivedFrom(field: "user")
+}
+
+# ============================================================================
+# 订单实体
+# ============================================================================
+
+"""
+Order - 下注订单
+代表一次下注操作
+"""
+type Order @entity {
+  "订单 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属市场"
+  market: Market!
+
+  "下注用户"
+  user: User!
+
+  "下注方向（0=主队胜/大, 1=平局, 2=客队胜/小）"
+  outcome: Int!
+
+  "下注金额（USDC）"
+  amount: BigDecimal!
+
+  "获得的份额（Position Token 数量）"
+  shares: BigInt!
+
+  "手续费（USDC）"
+  fee: BigDecimal!
+
+  "推荐人地址（如有）"
+  referrer: Bytes
+
+  "下注时的赔率（隐含概率）"
+  price: BigDecimal!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# 头寸实体
+# ============================================================================
+
+"""
+Position - 用户在某市场的头寸
+代表用户持有的 ERC-1155 Position Token
+"""
+type Position @entity {
+  "头寸 ID（market-user-outcome）"
+  id: ID!
+
+  "所属市场"
+  market: Market!
+
+  "持有人"
+  owner: User!
+
+  "头寸方向（0=主队胜/大, 1=平局, 2=客队胜/小）"
+  outcome: Int!
+
+  "持有份额"
+  balance: BigInt!
+
+  "平均成本（USDC per share）"
+  averageCost: BigDecimal!
+
+  "累计投入（USDC）"
+  totalInvested: BigDecimal!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
+
+# ============================================================================
+# 赎回实体
+# ============================================================================
+
+"""
+Redemption - 赎回记录
+用户兑付赢得的头寸
+"""
+type Redemption @entity {
+  "赎回 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属市场"
+  market: Market!
+
+  "赎回用户"
+  user: User!
+
+  "赎回的方向"
+  outcome: Int!
+
+  "赎回的份额"
+  shares: BigInt!
+
+  "获得的金额（USDC）"
+  payout: BigDecimal!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# 预言机相关实体
+# ============================================================================
+
+"""
+OracleProposal - 预言机提案
+结算结果的提案和争议记录
+"""
+type OracleProposal @entity {
+  "提案 ID（oracle-marketId-proposalId）"
+  id: ID!
+
+  "预言机地址"
+  oracle: Bytes!
+
+  "关联市场"
+  market: Market
+
+  "提案者地址"
+  proposer: Bytes!
+
+  "提案结果"
+  result: Int!
+
+  "质押金额"
+  bond: BigDecimal!
+
+  "提案时间"
+  proposedAt: BigInt!
+
+  "是否被争议"
+  disputed: Boolean!
+
+  "争议者地址"
+  disputer: Bytes
+
+  "争议时间"
+  disputedAt: BigInt
+
+  "是否已最终确认"
+  finalized: Boolean!
+
+  "最终确认时间"
+  finalizedAt: BigInt
+
+  "最终结果（可能与提案不同）"
+  finalResult: Int
+}
+
+# ============================================================================
+# 奖励相关实体
+# ============================================================================
+
+"""
+RewardClaim - 奖励领取记录
+用户领取 Merkle 奖励的记录
+"""
+type RewardClaim @entity {
+  "领取 ID（txHash-logIndex）"
+  id: ID!
+
+  "领取用户"
+  user: User!
+
+  "周期编号"
+  week: BigInt!
+
+  "领取金额"
+  amount: BigDecimal!
+
+  "奖励类型（referral, campaign, quest 等）"
+  rewardType: String
+
+  "领取时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# 费用相关实体
+# ============================================================================
+
+"""
+FeeDistribution - 费用分发记录
+记录手续费的分配情况
+"""
+type FeeDistribution @entity {
+  "分发 ID（txHash-logIndex）"
+  id: ID!
+
+  "代币地址"
+  token: Bytes!
+
+  "接收方地址"
+  recipient: Bytes!
+
+  "分发金额"
+  amount: BigDecimal!
+
+  "分类（lp, promo, insurance, treasury）"
+  category: String!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# 模板注册实体
+# ============================================================================
+
+"""
+Template - 市场模板
+记录已注册的市场模板（WDL, OU, AH 等）
+"""
+type Template @entity {
+  "模板地址"
+  id: ID!
+
+  "模板 ID（bytes32）"
+  templateId: Bytes!
+
+  "模板名称"
+  name: String
+
+  "是否激活"
+  active: Boolean!
+
+  "注册时间"
+  registeredAt: BigInt!
+
+  "创建的市场"
+  markets: [Market!]! @derivedFrom(field: "templateId")
+}
+
+# ============================================================================
+# 全局统计实体
+# ============================================================================
+
+"""
+GlobalStats - 全局统计
+整个平台的聚合数据
+"""
+type GlobalStats @entity {
+  "固定 ID: 'global'"
+  id: ID!
+
+  "总市场数"
+  totalMarkets: Int!
+
+  "总用户数"
+  totalUsers: Int!
+
+  "总交易量（USDC）"
+  totalVolume: BigDecimal!
+
+  "总手续费（USDC）"
+  totalFees: BigDecimal!
+
+  "总赎回金额（USDC）"
+  totalRedeemed: BigDecimal!
+
+  "活跃市场数"
+  activeMarkets: Int!
+
+  "已结算市场数"
+  resolvedMarkets: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
