@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/pitchone/sportsbook/internal/datasource"
 	"go.uber.org/zap"
 )
 
@@ -16,12 +18,14 @@ const version = "0.1.0"
 
 // Keeper manages automated tasks for the sportsbook
 type Keeper struct {
-	config      *Config
-	web3Client  *Web3Client
-	db          *sql.DB
-	logger      *zap.Logger
-	chainID     int64
-	maxGasPrice *big.Int
+	config       *Config
+	web3Client   *Web3Client
+	db           *sql.DB
+	logger       *zap.Logger
+	chainID      int64
+	maxGasPrice  *big.Int
+	dataSource   datasource.ResultProvider
+	alertManager *AlertManager
 
 	// Internal state
 	running      bool
@@ -97,15 +101,38 @@ func NewKeeper(cfg *Config) (*Keeper, error) {
 		zap.String("url", maskDatabaseURL(cfg.DatabaseURL)),
 	)
 
+	// Initialize data source (Sportradar or Mock)
+	var dataSource datasource.ResultProvider
+	sportsAPIKey := os.Getenv("SPORTRADAR_API_KEY")
+	if sportsAPIKey != "" {
+		// Use Sportradar for production
+		logger.Info("initializing Sportradar data source")
+		dataSource = datasource.NewSportradarClient(datasource.SportradarConfig{
+			APIKey:        sportsAPIKey,
+			BaseURL:       os.Getenv("SPORTRADAR_BASE_URL"), // Optional, uses default if empty
+			Timeout:       10 * time.Second,
+			RequestsPerSec: 1.0, // Free tier rate limit
+		}, logger)
+	} else {
+		// Use Mock for development/testing
+		logger.Warn("SPORTRADAR_API_KEY not set, using mock data source")
+		dataSource = datasource.NewMockResultProvider()
+	}
+
+	// Initialize alert manager with notifiers from environment
+	alertManager := NewAlertManagerFromEnv(logger)
+
 	keeper := &Keeper{
-		config:      cfg,
-		web3Client:  web3Client,
-		db:          db,
-		logger:      logger,
-		chainID:     cfg.ChainID,
-		maxGasPrice: maxGasPrice,
-		stopChan:    make(chan struct{}),
-		doneChan:    make(chan struct{}),
+		config:       cfg,
+		web3Client:   web3Client,
+		db:           db,
+		logger:       logger,
+		chainID:      cfg.ChainID,
+		maxGasPrice:  maxGasPrice,
+		dataSource:   dataSource,
+		alertManager: alertManager,
+		stopChan:     make(chan struct{}),
+		doneChan:     make(chan struct{}),
 	}
 
 	return keeper, nil
@@ -191,6 +218,12 @@ func (k *Keeper) Shutdown(ctx context.Context) error {
 	}
 
 	// Close connections
+	if k.alertManager != nil {
+		if err := k.alertManager.Close(); err != nil {
+			k.logger.Error("failed to close alert manager", zap.Error(err))
+		}
+	}
+
 	if k.web3Client != nil {
 		k.web3Client.Close()
 	}
@@ -281,21 +314,27 @@ func (k *Keeper) runTaskScheduler(ctx context.Context) {
 		zap.Int("interval", k.config.TaskInterval),
 	)
 
-	ticker := time.NewTicker(time.Duration(k.config.TaskInterval) * time.Second)
-	defer ticker.Stop()
+	// Create scheduler
+	scheduler := NewScheduler(k)
 
-	for {
-		select {
-		case <-ctx.Done():
-			k.logger.Info("task scheduler stopping (context done)")
-			return
-		case <-k.stopChan:
-			k.logger.Info("task scheduler stopping (stop signal)")
-			return
-		case <-ticker.C:
-			k.logger.Debug("running scheduled tasks")
-			// TODO: Implement actual task execution
-			// This will be implemented in lock_task.go and settle_task.go
-		}
+	// Register LockTask
+	lockTask := NewLockTask(k)
+	scheduler.RegisterTask("lock", lockTask, time.Duration(k.config.TaskInterval)*time.Second)
+
+	// Register SettleTask
+	settleTask := NewSettleTask(k, k.dataSource)
+	scheduler.RegisterTask("settle", settleTask, time.Duration(k.config.TaskInterval)*time.Second)
+
+	// Start scheduler
+	if err := scheduler.Start(ctx); err != nil {
+		k.logger.Error("scheduler failed to start", zap.Error(err))
+		return
 	}
+
+	// Wait for cancellation
+	<-ctx.Done()
+	k.logger.Info("task scheduler stopping")
+
+	// Stop scheduler gracefully
+	scheduler.Stop()
 }

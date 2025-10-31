@@ -4,18 +4,21 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pitchone/sportsbook/internal/datasource"
 	"github.com/pitchone/sportsbook/pkg/bindings"
 	"go.uber.org/zap"
 )
 
 // SettleTask handles the task of settling markets after match completion
 type SettleTask struct {
-	keeper *Keeper
+	keeper     *Keeper
+	dataSource datasource.ResultProvider
 }
 
 // MarketToSettle represents a market that needs to be settled
@@ -38,9 +41,10 @@ type MatchResult struct {
 }
 
 // NewSettleTask creates a new SettleTask instance
-func NewSettleTask(keeper *Keeper) *SettleTask {
+func NewSettleTask(keeper *Keeper, dataSource datasource.ResultProvider) *SettleTask {
 	return &SettleTask{
-		keeper: keeper,
+		keeper:     keeper,
+		dataSource: dataSource,
 	}
 }
 
@@ -62,29 +66,10 @@ func (t *SettleTask) Execute(ctx context.Context) error {
 
 	t.keeper.logger.Info("found markets to settle", zap.Int("count", len(markets)))
 
-	// Process each market
-	for _, market := range markets {
-		select {
-		case <-ctx.Done():
-			t.keeper.logger.Info("settle task cancelled")
-			return ctx.Err()
-		default:
-			// Settle the market
-			if err := t.settleMarket(ctx, market); err != nil {
-				t.keeper.logger.Error("failed to settle market",
-					zap.String("market", market.MarketAddress.Hex()),
-					zap.String("eventID", market.EventID),
-					zap.Error(err),
-				)
-				// Continue with other markets even if one fails
-				continue
-			}
-
-			t.keeper.logger.Info("successfully settled market",
-				zap.String("market", market.MarketAddress.Hex()),
-				zap.String("eventID", market.EventID),
-			)
-		}
+	// Process markets using worker pool for parallel execution
+	if err := t.processMarketsParallel(ctx, markets); err != nil {
+		t.keeper.logger.Error("parallel settlement completed with errors", zap.Error(err))
+		// Don't return error - parallel processing already logged individual failures
 	}
 
 	return nil
@@ -255,23 +240,37 @@ func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) e
 }
 
 // fetchMatchResult fetches the match result from external data source
-// In a real implementation, this would call a sports data API
 func (t *SettleTask) fetchMatchResult(ctx context.Context, eventID string) (*MatchResult, error) {
-	// TODO: Implement real data source integration
-	// For now, return mock data
+	startTime := time.Now()
+
 	t.keeper.logger.Debug("fetching match result",
 		zap.String("eventID", eventID),
 	)
 
-	// Mock result: simulate fetching from API
-	result := &MatchResult{
-		HomeGoals: 2,
-		AwayGoals: 1,
-		ExtraTime: false,
-		HomeWin:   true,
-		AwayWin:   false,
-		Draw:      false,
+	// Call data source provider (Sportradar or Mock)
+	dsResult, err := t.dataSource.GetMatchResult(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("data source error: %w", err)
 	}
+
+	duration := time.Since(startTime)
+
+	// Convert datasource.MatchResult to keeper.MatchResult
+	result := &MatchResult{
+		HomeGoals: dsResult.HomeGoals,
+		AwayGoals: dsResult.AwayGoals,
+		ExtraTime: dsResult.ExtraTime,
+		HomeWin:   dsResult.HomeWin,
+		AwayWin:   dsResult.AwayWin,
+		Draw:      dsResult.Draw,
+	}
+
+	t.keeper.logger.Info("match result fetched",
+		zap.String("eventID", eventID),
+		zap.Uint8("home_goals", result.HomeGoals),
+		zap.Uint8("away_goals", result.AwayGoals),
+		zap.Duration("fetch_duration", duration),
+	)
 
 	return result, nil
 }
@@ -340,4 +339,158 @@ func (t *SettleTask) updateMarketStatus(ctx context.Context, marketAddr common.A
 	)
 
 	return nil
+}
+
+// ======================================
+// Worker Pool Implementation
+// ======================================
+
+// SettleJob represents a single settle operation job
+type SettleJob struct {
+	Market *MarketToSettle
+	Result chan error
+}
+
+// SettleWorkerPool manages concurrent settlement operations
+type SettleWorkerPool struct {
+	jobs       chan *SettleJob
+	numWorkers int
+	wg         *sync.WaitGroup
+	task       *SettleTask
+}
+
+// processMarketsParallel processes multiple markets using a worker pool
+func (t *SettleTask) processMarketsParallel(ctx context.Context, markets []*MarketToSettle) error {
+	if len(markets) == 0 {
+		return nil
+	}
+
+	// Determine number of workers (min of config.MaxConcurrent and number of markets)
+	numWorkers := t.keeper.config.MaxConcurrent
+	if numWorkers <= 0 {
+		numWorkers = 3 // Default to 3 workers
+	}
+	if len(markets) < numWorkers {
+		numWorkers = len(markets)
+	}
+
+	t.keeper.logger.Info("starting worker pool for parallel settlement",
+		zap.Int("num_workers", numWorkers),
+		zap.Int("num_markets", len(markets)),
+	)
+
+	// Create worker pool
+	pool := &SettleWorkerPool{
+		jobs:       make(chan *SettleJob, len(markets)),
+		numWorkers: numWorkers,
+		wg:         &sync.WaitGroup{},
+		task:       t,
+	}
+
+	// Start workers
+	for i := 0; i < numWorkers; i++ {
+		pool.wg.Add(1)
+		go pool.worker(ctx, i)
+	}
+
+	// Create jobs and collect results
+	resultChan := make(chan error, len(markets))
+	for _, market := range markets {
+		job := &SettleJob{
+			Market: market,
+			Result: make(chan error, 1),
+		}
+
+		// Send job to worker pool
+		select {
+		case pool.jobs <- job:
+			// Job sent successfully, start result collector
+			go func(j *SettleJob) {
+				err := <-j.Result
+				resultChan <- err
+			}(job)
+		case <-ctx.Done():
+			close(pool.jobs)
+			pool.wg.Wait()
+			return ctx.Err()
+		}
+	}
+
+	// Close jobs channel (no more jobs)
+	close(pool.jobs)
+
+	// Wait for all workers to finish
+	pool.wg.Wait()
+
+	// Collect all results
+	var errors []error
+	for i := 0; i < len(markets); i++ {
+		if err := <-resultChan; err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	t.keeper.logger.Info("worker pool completed",
+		zap.Int("total_markets", len(markets)),
+		zap.Int("failed", len(errors)),
+		zap.Int("succeeded", len(markets)-len(errors)),
+	)
+
+	// Return first error if any (or could aggregate all errors)
+	if len(errors) > 0 {
+		return fmt.Errorf("settlement failed for %d markets (first error: %w)", len(errors), errors[0])
+	}
+
+	return nil
+}
+
+// worker processes settle jobs from the job channel
+func (p *SettleWorkerPool) worker(ctx context.Context, workerID int) {
+	defer p.wg.Done()
+
+	p.task.keeper.logger.Debug("worker started",
+		zap.Int("worker_id", workerID),
+	)
+
+	processed := 0
+	for job := range p.jobs {
+		select {
+		case <-ctx.Done():
+			job.Result <- ctx.Err()
+			p.task.keeper.logger.Warn("worker cancelled",
+				zap.Int("worker_id", workerID),
+				zap.Int("processed", processed),
+			)
+			return
+		default:
+			p.task.keeper.logger.Debug("worker processing market",
+				zap.Int("worker_id", workerID),
+				zap.String("market", job.Market.MarketAddress.Hex()),
+				zap.String("event_id", job.Market.EventID),
+			)
+
+			// Process the settlement
+			err := p.task.settleMarket(ctx, job.Market)
+			job.Result <- err
+			processed++
+
+			if err != nil {
+				p.task.keeper.logger.Error("worker settlement failed",
+					zap.Int("worker_id", workerID),
+					zap.String("market", job.Market.MarketAddress.Hex()),
+					zap.Error(err),
+				)
+			} else {
+				p.task.keeper.logger.Info("worker settlement succeeded",
+					zap.Int("worker_id", workerID),
+					zap.String("market", job.Market.MarketAddress.Hex()),
+				)
+			}
+		}
+	}
+
+	p.task.keeper.logger.Debug("worker finished",
+		zap.Int("worker_id", workerID),
+		zap.Int("processed", processed),
+	)
 }

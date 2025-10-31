@@ -10,4 +10,28 @@ foundry.lock
 contracts/foundry.lock
 
 # Dependencies
-backend/go.sum
+# Note: go.sum should be committed for reproducible builds
+
+# 环境配置 (敏感信息)
+.env
+.env.*
+!.env.example
+
+# Foundry部署日志
+contracts/broadcast/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+
+# IDE配置
+.vscode/
+.idea/
+
+# 测试输出
+/tmp/
+
+# 日志
+*.log
+logs/
