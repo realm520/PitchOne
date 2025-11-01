@@ -40,7 +40,6 @@ func DeployMarketViaScript(kickoffTime int64) (marketAddr, oracleAddr common.Add
 		"script/DeployNewMarket.s.sol",
 		"--rpc-url", "http://localhost:8545",
 		"--broadcast",
-		"--silent",
 	)
 	cmd.Dir = contractsDir
 	cmd.Env = append(os.Environ(), fmt.Sprintf("KICKOFF_TIME=%d", kickoffTime))

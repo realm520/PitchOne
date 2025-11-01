@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"github.com/pitchone/sportsbook/internal/datasource"
 	"github.com/pitchone/sportsbook/internal/keeper"
 )
 
@@ -41,6 +42,15 @@ func main() {
 	}
 	defer k.Shutdown(context.Background())
 
+	// 创建 ResultProvider (Sportradar API)
+	sportradarConfig := datasource.SportradarConfig{
+		APIKey:         viper.GetString("sportradar.api_key"),
+		BaseURL:        viper.GetString("sportradar.base_url"),
+		Timeout:        time.Duration(viper.GetInt("sportradar.timeout")) * time.Second,
+		RequestsPerSec: viper.GetFloat64("sportradar.requests_per_sec"),
+	}
+	resultProvider := datasource.NewSportradarClient(sportradarConfig, logger)
+
 	// 创建调度器
 	scheduler := keeper.NewScheduler(k)
 
@@ -52,7 +62,7 @@ func main() {
 	scheduler.RegisterTask("lock", lockTask, taskInterval)
 
 	// 注册结算任务
-	settleTask := keeper.NewSettleTask(k)
+	settleTask := keeper.NewSettleTask(k, resultProvider)
 	scheduler.RegisterTask("settle", settleTask, taskInterval)
 
 	logger.Info("keeper initialized successfully",

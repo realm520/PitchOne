@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "./mocks/MockERC20.sol";
 import "../src/core/FeeRouter.sol";
+import "../src/core/ReferralRegistry.sol";
 import "../src/pricing/SimpleCPMM.sol";
 
 /**
@@ -21,6 +22,7 @@ contract BaseTest is Test {
 
     // Mock contracts
     MockERC20 public usdc;
+    ReferralRegistry public referralRegistry;
     FeeRouter public feeRouter;
     SimpleCPMM public cpmm;
 
@@ -41,8 +43,17 @@ contract BaseTest is Test {
         // Deploy mock USDC (6 decimals)
         usdc = new MockERC20("USD Coin", "USDC", 6);
 
-        // Deploy FeeRouter
-        feeRouter = new FeeRouter(treasury);
+        // Deploy ReferralRegistry
+        referralRegistry = new ReferralRegistry(owner);
+
+        // Deploy FeeRouter with proper initialization
+        FeeRouter.FeeRecipients memory recipients = FeeRouter.FeeRecipients({
+            lpVault: treasury,        // 使用 treasury 作为所有接收地址
+            promoPool: treasury,
+            insuranceFund: treasury,
+            treasury: treasury
+        });
+        feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
         // Deploy SimpleCPMM
         cpmm = new SimpleCPMM();
@@ -60,6 +71,7 @@ contract BaseTest is Test {
         vm.label(keeper, "Keeper");
         vm.label(treasury, "Treasury");
         vm.label(address(usdc), "USDC");
+        vm.label(address(referralRegistry), "ReferralRegistry");
         vm.label(address(feeRouter), "FeeRouter");
         vm.label(address(cpmm), "CPMM");
     }

@@ -19,16 +19,51 @@ type AnvilProcess struct {
 }
 
 // StartAnvil starts an Anvil instance on the default port (8545)
-// It returns an AnvilProcess that can be used to stop the instance
+// If Anvil is already running on the port, it returns a handle to the existing instance
 func StartAnvil(ctx context.Context) (*AnvilProcess, error) {
 	return StartAnvilOnPort(ctx, 8545)
 }
 
+// ConnectToExistingAnvil connects to an existing Anvil instance without starting a new one
+// This is useful for integration tests when Anvil is already running
+func ConnectToExistingAnvil(ctx context.Context, port int) (*AnvilProcess, error) {
+	// Check if port is in use (Anvil should be running)
+	if !isPortInUse(port) {
+		return nil, fmt.Errorf("no Anvil instance found on port %d", port)
+	}
+
+	// Verify it's actually an Anvil instance by connecting
+	rpcURL := fmt.Sprintf("http://localhost:%d", port)
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("port %d is in use but not responding to RPC: %w", port, err)
+	}
+
+	// Verify we can get chain ID
+	_, err = client.ChainID(context.Background())
+	client.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify Anvil on port %d: %w", port, err)
+	}
+
+	// Create a dummy context that won't actually control the process
+	anvilCtx, cancel := context.WithCancel(ctx)
+
+	return &AnvilProcess{
+		Cmd:    nil, // No command since we didn't start it
+		Port:   port,
+		ctx:    anvilCtx,
+		cancel: cancel,
+	}, nil
+}
+
 // StartAnvilOnPort starts an Anvil instance on the specified port
+// If port is already in use, it attempts to connect to the existing instance
 func StartAnvilOnPort(ctx context.Context, port int) (*AnvilProcess, error) {
 	// Check if port is already in use
 	if isPortInUse(port) {
-		return nil, fmt.Errorf("port %d is already in use", port)
+		// Try to connect to existing Anvil instance
+		return ConnectToExistingAnvil(ctx, port)
 	}
 
 	anvilCtx, cancel := context.WithCancel(ctx)
@@ -57,12 +92,21 @@ func StartAnvilOnPort(ctx context.Context, port int) (*AnvilProcess, error) {
 }
 
 // Stop stops the Anvil instance
+// If this is a connection to an existing instance (Cmd is nil), it only cancels the context
 func (ap *AnvilProcess) Stop() error {
-	if ap == nil || ap.Cmd == nil || ap.Cmd.Process == nil {
+	if ap == nil {
 		return nil
 	}
 
-	ap.cancel()
+	// Cancel the context
+	if ap.cancel != nil {
+		ap.cancel()
+	}
+
+	// Only kill the process if we started it (Cmd is not nil)
+	if ap.Cmd == nil || ap.Cmd.Process == nil {
+		return nil
+	}
 
 	// Give it a moment to shut down gracefully
 	time.Sleep(500 * time.Millisecond)

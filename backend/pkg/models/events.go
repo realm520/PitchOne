@@ -25,6 +25,11 @@ type MarketCreatedEvent struct {
 	HomeTeam      string
 	AwayTeam      string
 	KickoffTime   uint64
+
+	// 模板特定参数 (用于 OU/AH 等模板)
+	// 将被序列化为 JSONB 存入 market_params 字段
+	TemplateType  string                 // "WDL" / "OU" / "AH"
+	MarketParams  map[string]interface{} // 模板参数 (如 OU 的 line, isHalfLine)
 }
 
 // BetPlacedEvent 下注事件

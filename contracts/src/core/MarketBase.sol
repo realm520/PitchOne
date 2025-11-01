@@ -222,9 +222,11 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
      *      2. 只有获胜 outcome 可赎回
      *      3. 赔付比例 = shares / totalSupply(outcomeId) * totalLiquidity
      *      4. 按比例分配，防止早赎回耗尽流动性
+     *      5. 可被子合约重写以处理特殊场景(如 OU/AH 的 Push 退款)
      */
     function redeem(uint256 outcomeId, uint256 shares)
         external
+        virtual
         override
         onlyStatusIn(MarketStatus.Resolved, MarketStatus.Finalized)
         nonReentrant

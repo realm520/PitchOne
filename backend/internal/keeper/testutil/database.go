@@ -70,25 +70,31 @@ func CleanupTestData(db *sql.DB) error {
 func InsertTestMarket(db *sql.DB, market *TestMarket) (int64, error) {
 	query := `
 		INSERT INTO markets (
-			id, market_address, event_id, status,
-			lock_time, match_start, match_end, oracle_address,
+			id, template_id, match_id, market_address, event_id, status,
+			lock_time, match_start, match_end, oracle_address, kickoff_time,
 			created_at, created_block, tx_hash, log_index
 		) VALUES (
-			$1, $2, $3, $4,
-			$5, $6, $7, $8,
-			$9, 0, $10, 0
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10, $11,
+			$12, 0, $13, $14
 		)
-		RETURNING id
 	`
 
 	marketID := market.Address
-	createdAt := time.Now().Unix()
-	txHash := "0x0000000000000000000000000000000000000000000000000000000000000000" // Placeholder
+	templateID := "0x0000000000000000000000000000000000000000000000000000000000000001" // WDL template placeholder
+	matchID := market.EventID
+	now := time.Now()
+	createdAt := now.Unix()
+	// Generate unique tx_hash using timestamp with nanosecond precision
+	uniqueID := now.UnixNano()
+	txHash := fmt.Sprintf("0x%064x", uniqueID) // Unique based on nanosecond timestamp
+	logIndex := int(uniqueID % 10000)           // Use nanosecond timestamp for unique log index
 
-	var id int64
-	err := db.QueryRow(
+	_, err := db.Exec(
 		query,
 		marketID,
+		templateID,
+		matchID,
 		market.Address,
 		market.EventID,
 		market.Status,
@@ -96,15 +102,17 @@ func InsertTestMarket(db *sql.DB, market *TestMarket) (int64, error) {
 		market.MatchStart,
 		market.MatchEnd,
 		market.OracleAddr,
+		market.LockTime, // Use lock_time as kickoff_time for testing
 		createdAt,
 		txHash,
-	).Scan(&id)
+		logIndex,
+	)
 
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert test market: %w", err)
 	}
 
-	return id, nil
+	return createdAt, nil // Return timestamp as a unique ID
 }
 
 // GetMarketStatus returns the status of a market by address

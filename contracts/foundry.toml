@@ -10,3 +10,9 @@ remappings = [
     '@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/',
     'forge-std/=lib/forge-std/src/'
 ]
+
+# Coverage configuration
+[profile.default.coverage]
+exclude = [
+    'lib/openzeppelin-contracts/certora/**/*'
+]

@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"sync"
@@ -28,6 +29,7 @@ type MarketToSettle struct {
 	MatchStart    time.Time
 	MatchEnd      time.Time
 	OracleAddress common.Address
+	MarketParams  map[string]interface{} // OU/AH 模板参数 (从 JSONB 解析)
 }
 
 // MatchResult represents the result of a match
@@ -86,7 +88,8 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 			event_id,
 			match_start,
 			match_end,
-			oracle_address
+			oracle_address,
+			COALESCE(market_params, '{}'::jsonb)
 		FROM markets
 		WHERE status = 'Locked'
 		AND match_end <= $1
@@ -105,8 +108,9 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 		var market MarketToSettle
 		var marketAddrHex, oracleAddrHex string
 		var matchStartUnix, matchEndUnix int64
+		var paramsJSON []byte
 
-		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex)
+		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex, &paramsJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan market row: %w", err)
 		}
@@ -118,6 +122,17 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 		// Convert Unix timestamps to time.Time
 		market.MatchStart = time.Unix(matchStartUnix, 0)
 		market.MatchEnd = time.Unix(matchEndUnix, 0)
+
+		// Parse market_params JSONB
+		market.MarketParams = make(map[string]interface{})
+		if len(paramsJSON) > 0 && string(paramsJSON) != "{}" {
+			if err := json.Unmarshal(paramsJSON, &market.MarketParams); err != nil {
+				t.keeper.logger.Warn("failed to parse market_params, using empty map",
+					zap.String("market", marketAddrHex),
+					zap.Error(err),
+				)
+			}
+		}
 
 		markets = append(markets, &market)
 	}
@@ -143,6 +158,34 @@ func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) e
 	result, err := t.fetchMatchResult(ctx, market.EventID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch match result: %w", err)
+	}
+
+	// Check if this is an OU market and calculate outcome
+	var ouOutcome *uint8
+	if marketType, ok := market.MarketParams["type"].(string); ok && marketType == "OU" {
+		line, isHalfLine, err := parseOUParams(market.MarketParams)
+		if err != nil {
+			t.keeper.logger.Warn("failed to parse OU params, treating as WDL",
+				zap.String("market", market.MarketAddress.Hex()),
+				zap.Error(err),
+			)
+		} else {
+			outcome, err := calculateOUOutcome(result.HomeGoals, result.AwayGoals, line, isHalfLine)
+			if err != nil {
+				return fmt.Errorf("failed to calculate OU outcome: %w", err)
+			}
+			ouOutcome = &outcome
+
+			t.keeper.logger.Info("calculated OU outcome",
+				zap.String("market", market.MarketAddress.Hex()),
+				zap.Uint8("home_goals", result.HomeGoals),
+				zap.Uint8("away_goals", result.AwayGoals),
+				zap.Float64("line", line),
+				zap.Bool("is_half_line", isHalfLine),
+				zap.Uint8("outcome", outcome),
+				zap.String("outcome_name", []string{"Over", "Under", "Push"}[outcome]),
+			)
+		}
 	}
 
 	// Create oracle contract instance
@@ -442,6 +485,73 @@ func (t *SettleTask) processMarketsParallel(ctx context.Context, markets []*Mark
 	}
 
 	return nil
+}
+
+// ========================================
+// OU Market Settlement Helpers
+// ========================================
+
+// calculateOUOutcome calculates the winning outcome for OU (Over/Under) markets
+// Returns:
+// - 0 (Over): totalGoals > line
+// - 1 (Under): totalGoals < line
+// - 2 (Push): totalGoals == line (only for whole number lines like 2.0)
+func calculateOUOutcome(homeGoals, awayGoals uint8, line float64, isHalfLine bool) (uint8, error) {
+	totalGoals := float64(homeGoals + awayGoals)
+
+	// For half lines (e.g., 2.5), Push is impossible
+	if isHalfLine {
+		if totalGoals > line {
+			return 0, nil // Over
+		}
+		return 1, nil // Under
+	}
+
+	// For whole number lines (e.g., 2.0), Push is possible
+	if totalGoals > line {
+		return 0, nil // Over
+	} else if totalGoals < line {
+		return 1, nil // Under
+	}
+	return 2, nil // Push
+}
+
+// parseOUParams extracts OU market parameters from market_params JSONB
+func parseOUParams(params map[string]interface{}) (line float64, isHalfLine bool, err error) {
+	// Check if this is an OU market
+	marketType, ok := params["type"].(string)
+	if !ok || marketType != "OU" {
+		return 0, false, fmt.Errorf("not an OU market")
+	}
+
+	// Parse line (千分位表示，如 2500 = 2.5)
+	lineValue, ok := params["line"]
+	if !ok {
+		return 0, false, fmt.Errorf("missing 'line' parameter")
+	}
+
+	// Handle both float64 and int representations
+	switch v := lineValue.(type) {
+	case float64:
+		line = v / 1000.0 // 2500 -> 2.5
+	case int:
+		line = float64(v) / 1000.0
+	default:
+		return 0, false, fmt.Errorf("invalid 'line' type: %T", lineValue)
+	}
+
+	// Parse isHalfLine
+	isHalfLineValue, ok := params["isHalfLine"]
+	if !ok {
+		return 0, false, fmt.Errorf("missing 'isHalfLine' parameter")
+	}
+
+	isHalfLine, ok = isHalfLineValue.(bool)
+	if !ok {
+		return 0, false, fmt.Errorf("invalid 'isHalfLine' type: %T", isHalfLineValue)
+	}
+
+	return line, isHalfLine, nil
 }
 
 // worker processes settle jobs from the job channel

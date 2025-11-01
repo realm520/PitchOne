@@ -76,6 +76,13 @@ func NewKeeper(cfg *Config) (*Keeper, error) {
 		return nil, fmt.Errorf("failed to initialize Web3 client: %w", err)
 	}
 
+	// Verify RPC connection is working
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := web3Client.GetBlockNumber(ctx); err != nil {
+		return nil, fmt.Errorf("failed to verify RPC connection: %w", err)
+	}
+
 	logger.Info("Web3 client initialized",
 		zap.String("account", web3Client.GetAccount().Hex()),
 		zap.Int64("chainID", cfg.ChainID),

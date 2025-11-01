@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/pitchone/sportsbook/pkg/models"
@@ -24,15 +25,27 @@ func NewRepository(client *Client, logger *zap.Logger) *Repository {
 
 // SaveMarket 保存市场数据
 func (r *Repository) SaveMarket(ctx context.Context, event *models.MarketCreatedEvent) error {
+	// 序列化 MarketParams 为 JSONB
+	var paramsJSON []byte
+	var err error
+	if event.MarketParams != nil && len(event.MarketParams) > 0 {
+		paramsJSON, err = json.Marshal(event.MarketParams)
+		if err != nil {
+			return fmt.Errorf("failed to marshal market_params: %w", err)
+		}
+	} else {
+		paramsJSON = []byte("{}") // 空 JSONB
+	}
+
 	query := `
 		INSERT INTO markets (
 			id, template_id, match_id, home_team, away_team,
-			kickoff_time, status, created_at, block_number, tx_hash, log_index
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			kickoff_time, status, market_params, created_at, block_number, tx_hash, log_index
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (tx_hash, log_index) DO NOTHING
 	`
 
-	_, err := r.client.DB().ExecContext(ctx, query,
+	_, err = r.client.DB().ExecContext(ctx, query,
 		event.MarketAddress.Hex(),
 		event.TemplateID.Hex(),
 		event.MatchID,
@@ -40,6 +53,7 @@ func (r *Repository) SaveMarket(ctx context.Context, event *models.MarketCreated
 		event.AwayTeam,
 		event.KickoffTime,
 		"open",
+		paramsJSON, // ← 新增 market_params
 		event.BlockTime,
 		event.BlockNumber,
 		event.TxHash,
@@ -53,6 +67,7 @@ func (r *Repository) SaveMarket(ctx context.Context, event *models.MarketCreated
 	r.logger.Debug("market saved",
 		zap.String("market", event.MarketAddress.Hex()),
 		zap.String("match_id", event.MatchID),
+		zap.String("template_type", event.TemplateType),
 	)
 
 	return nil

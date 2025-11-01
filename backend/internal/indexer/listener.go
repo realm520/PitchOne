@@ -57,6 +57,11 @@ func NewEventListener(cfg *Config, repo *db.Repository, logger *zap.Logger) (*Ev
 
 	// 预计算事件签名
 	eventSigs := map[string]common.Hash{
+		// 市场创建事件 (不同模板有不同签名)
+		"MarketCreatedWDL": crypto.Keccak256Hash([]byte("MarketCreated(string,string,string,uint256,address)")),
+		"MarketCreatedOU":  crypto.Keccak256Hash([]byte("MarketCreated(string,string,string,uint256,uint256,bool,address)")),
+
+		// 通用事件
 		"BetPlaced":          crypto.Keccak256Hash([]byte("BetPlaced(address,uint8,uint256,uint256,uint256)")),
 		"Locked":             crypto.Keccak256Hash([]byte("Locked(uint256)")),
 		"Resolved":           crypto.Keccak256Hash([]byte("Resolved(uint256,uint256)")),
@@ -224,6 +229,10 @@ func (l *EventListener) parseLog(ctx context.Context, vLog types.Log) (interface
 	}
 
 	switch eventSig {
+	case l.eventSigs["MarketCreatedWDL"]:
+		return l.parseMarketCreatedWDL(vLog, baseEvent)
+	case l.eventSigs["MarketCreatedOU"]:
+		return l.parseMarketCreatedOU(vLog, baseEvent)
 	case l.eventSigs["BetPlaced"]:
 		return l.parseBetPlaced(vLog, baseEvent)
 	case l.eventSigs["Locked"]:
@@ -440,6 +449,84 @@ func (l *EventListener) pollEvents(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// parseMarketCreatedWDL 解析 WDL 市场创建事件
+// event MarketCreated(string indexed matchId, string homeTeam, string awayTeam, uint256 kickoffTime, address pricingEngine)
+func (l *EventListener) parseMarketCreatedWDL(vLog types.Log, base models.Event) (*models.MarketCreatedEvent, error) {
+	if len(vLog.Topics) < 2 {
+		return nil, fmt.Errorf("invalid WDL MarketCreated log")
+	}
+
+	// matchId 是 indexed (topics[1])
+	matchIDHash := vLog.Topics[1]
+
+	// 解析 data (homeTeam, awayTeam, kickoffTime, pricingEngine)
+	// 注意: string 类型在 data 中的解码比较复杂，需要使用 ABI 解码
+	// 这里简化处理：假设 data 包含固定长度字段
+	if len(vLog.Data) < 128 {
+		return nil, fmt.Errorf("invalid WDL MarketCreated data length: %d", len(vLog.Data))
+	}
+
+	// 由于 string 解码复杂，这里使用简化版本
+	// 实际生产环境应该使用 abi.Unpack
+	kickoffTime := new(big.Int).SetBytes(vLog.Data[64:96]).Uint64()
+	pricingEngine := common.BytesToAddress(vLog.Data[108:128])
+
+	// 构建 MarketParams (WDL 没有特殊参数)
+	marketParams := map[string]interface{}{
+		"type":          "WDL", // 使用统一的 "type" 字段
+		"pricingEngine": pricingEngine.Hex(),
+	}
+
+	return &models.MarketCreatedEvent{
+		Event:         base,
+		MarketAddress: vLog.Address,
+		MatchID:       matchIDHash.Hex(), // 使用哈希作为临时 ID
+		KickoffTime:   kickoffTime,
+		TemplateType:  "WDL",
+		MarketParams:  marketParams,
+	}, nil
+}
+
+// parseMarketCreatedOU 解析 OU 市场创建事件
+// event MarketCreated(string indexed matchId, string homeTeam, string awayTeam, uint256 kickoffTime, uint256 line, bool isHalfLine, address pricingEngine)
+func (l *EventListener) parseMarketCreatedOU(vLog types.Log, base models.Event) (*models.MarketCreatedEvent, error) {
+	if len(vLog.Topics) < 2 {
+		return nil, fmt.Errorf("invalid OU MarketCreated log")
+	}
+
+	// matchId 是 indexed (topics[1])
+	matchIDHash := vLog.Topics[1]
+
+	// 解析 data (homeTeam, awayTeam, kickoffTime, line, isHalfLine, pricingEngine)
+	if len(vLog.Data) < 160 {
+		return nil, fmt.Errorf("invalid OU MarketCreated data length: %d", len(vLog.Data))
+	}
+
+	// 提取关键字段 (简化版本，跳过 string 解析)
+	kickoffTime := new(big.Int).SetBytes(vLog.Data[64:96]).Uint64()
+	line := new(big.Int).SetBytes(vLog.Data[96:128]).Uint64()
+	isHalfLine := vLog.Data[159] == 1 // bool 在最后一个字节
+	pricingEngine := common.BytesToAddress(vLog.Data[140:160])
+
+	// 构建 MarketParams (OU 特有参数)
+	// 注意: 字段名必须与 Keeper 的 parseOUParams 一致
+	marketParams := map[string]interface{}{
+		"type":         "OU",      // Keeper 使用 "type" 而非 "template_type"
+		"line":         line,       // 千分位表示，如 2500 = 2.5球
+		"isHalfLine":   isHalfLine, // Keeper 使用 "isHalfLine" 而非 "is_half_line"
+		"pricingEngine": pricingEngine.Hex(),
+	}
+
+	return &models.MarketCreatedEvent{
+		Event:         base,
+		MarketAddress: vLog.Address,
+		MatchID:       matchIDHash.Hex(), // 使用哈希作为临时 ID
+		KickoffTime:   kickoffTime,
+		TemplateType:  "OU",
+		MarketParams:  marketParams,
+	}, nil
 }
 
 // Close 关闭监听器

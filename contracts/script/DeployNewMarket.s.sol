@@ -64,7 +64,7 @@ contract DeployNewMarket is Script {
         );
 
         console.log("");
-        console.log("[OK] New WDL Market deployed at:", address(wdlMarket));
+        console.log("Market Address:", address(wdlMarket));
         console.log("");
 
         vm.stopBroadcast();
