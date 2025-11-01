@@ -10,7 +10,8 @@
     "create-local": "graph create --node http://localhost:8020/ pitchone-local",
     "remove-local": "graph remove --node http://localhost:8020/ pitchone-local",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-local",
-    "test": "graph test"
+    "test": "graph test",
+    "query": "curl -X POST -H 'Content-Type: application/json' http://localhost:8010/subgraphs/name/pitchone-local"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "^0.56.0",
