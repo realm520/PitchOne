@@ -35,3 +35,28 @@ contracts/broadcast/
 # 日志
 *.log
 logs/
+
+# macOS 资源分叉文件
+._*
+
+# Subgraph 构建产物
+subgraph/build/
+subgraph/generated/
+subgraph/node_modules/
+subgraph/package-lock.json
+
+# 测试覆盖率报告
+coverage.html
+coverage.txt
+lcov.info
+
+# 编译的二进制文件
+backend/keeper
+backend/rewards
+
+# Go 安装包
+*.tar.gz
+
+# Submodule untracked content (保持子模块干净)
+lib/forge-std/
+lib/openzeppelin-contracts/
