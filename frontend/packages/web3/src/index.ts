@@ -69,5 +69,7 @@ export {
   useMarketFullData,
   useMultipleMarketsData,
   useUserUSDCDataForMarkets,
+  useMarketOutcomes,
   type MarketFullData,
+  type OutcomeData,
 } from './multicall-hooks';

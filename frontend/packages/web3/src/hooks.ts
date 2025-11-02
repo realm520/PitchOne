@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient, MARKETS_QUERY, MARKET_QUERY, USER_POSITIONS_QUERY, USER_ORDERS_QUERY } from './graphql';
 

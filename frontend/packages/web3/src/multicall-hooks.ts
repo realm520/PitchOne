@@ -1,3 +1,5 @@
+'use client';
+
 import { useReadContracts } from 'wagmi';
 import { MarketBaseABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
@@ -263,4 +265,90 @@ export function useUserUSDCDataForMarkets(
     error,
     refetch,
   };
+}
+
+/**
+ * Outcome 数据接口
+ */
+export interface OutcomeData {
+  id: number;
+  name: string;
+  odds: string; // 格式化的赔率字符串，如 "2.15"
+  color: string; // 渐变色类名
+  liquidity: bigint; // 原始流动性
+  probability: number; // 隐含概率（0-1）
+}
+
+/**
+ * 获取格式化的 Outcome 数据（包括名称和实时赔率）
+ *
+ * @param marketAddress 市场合约地址
+ * @param templateType 市场模板类型（WDL, OU, AH等）
+ */
+export function useMarketOutcomes(marketAddress?: Address, templateType?: string) {
+  const { data: marketData, isLoading, error, refetch } = useMarketFullData(marketAddress);
+
+  if (!marketData || isLoading) {
+    return { data: null, isLoading, error, refetch };
+  }
+
+  const outcomeCount = Number(marketData.outcomeCount);
+  const outcomeLiquidity = marketData.outcomeLiquidity;
+  const totalLiquidity = marketData.totalLiquidity;
+
+  // 计算每个 outcome 的数据
+  const outcomes: OutcomeData[] = [];
+
+  for (let i = 0; i < outcomeCount; i++) {
+    const liquidity = outcomeLiquidity[i];
+
+    // 计算隐含概率（流动性占比）
+    const probability = totalLiquidity > 0n
+      ? Number(liquidity) / Number(totalLiquidity)
+      : 0;
+
+    // 计算赔率（1 / 概率，考虑手续费）
+    const feeRate = Number(marketData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）
+    const effectiveProbability = probability * (1 - feeRate);
+    const odds = effectiveProbability > 0 ? 1 / effectiveProbability : 99.99;
+
+    // 根据模板类型获取 outcome 名称
+    const name = getOutcomeName(i, templateType || 'WDL');
+
+    // 根据 outcome ID 设置颜色
+    const colors = [
+      'from-green-600 to-green-800',
+      'from-yellow-600 to-yellow-800',
+      'from-blue-600 to-blue-800',
+      'from-purple-600 to-purple-800',
+      'from-red-600 to-red-800',
+    ];
+    const color = colors[i] || 'from-gray-600 to-gray-800';
+
+    outcomes.push({
+      id: i,
+      name,
+      odds: odds.toFixed(2),
+      color,
+      liquidity,
+      probability,
+    });
+  }
+
+  return { data: outcomes, isLoading: false, error, refetch };
+}
+
+/**
+ * 根据模板类型和 outcome ID 获取名称
+ */
+function getOutcomeName(outcomeId: number, templateType: string): string {
+  const nameMap: Record<string, string[]> = {
+    WDL: ['主胜', '平局', '客胜'],
+    OU: ['大球', '小球'],
+    AH: ['主队让球', '客队让球'],
+    Score: [], // 精确比分需要特殊处理
+  };
+
+  const names = nameMap[templateType] || [];
+  return names[outcomeId] || `结果 ${outcomeId}`;
 }

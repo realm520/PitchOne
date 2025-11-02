@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { usePublicClient, useWatchContractEvent } from 'wagmi';
 import { MarketBaseABI } from '@pitchone/contracts';

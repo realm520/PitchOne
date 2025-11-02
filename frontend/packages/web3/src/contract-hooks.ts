@@ -1,3 +1,5 @@
+'use client';
+
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
 import { MarketBaseABI, ERC20ABI, getContractAddresses } from '@pitchone/contracts';
@@ -203,6 +205,28 @@ export function useOutcomeLiquidity(marketAddress?: Address, outcomeId?: number)
     args: outcomeId !== undefined ? [BigInt(outcomeId)] : undefined,
     query: {
       enabled: !!marketAddress && outcomeId !== undefined,
+    },
+  });
+}
+
+/**
+ * 获取下注报价（shares）
+ * @param marketAddress 市场合约地址
+ * @param outcomeId 结果 ID
+ * @param amount 下注金额（USDC，6 位小数）
+ */
+export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: string) {
+  const amountInWei = amount ? parseUnits(amount, 6) : BigInt(0);
+
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'getQuote',
+    args: outcomeId !== undefined && amount ? [BigInt(outcomeId), amountInWei] : undefined,
+    query: {
+      enabled: !!marketAddress && outcomeId !== undefined && !!amount && parseFloat(amount) > 0,
+      // 报价数据实时性要求高，缓存时间短
+      staleTime: 5000, // 5 秒
     },
   });
 }

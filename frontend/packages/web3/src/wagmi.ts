@@ -28,7 +28,7 @@ export const config = createConfig({
     [anvil.id]: http('http://127.0.0.1:8545'),
     [sepolia.id]: http(),
   },
-  ssr: true, // 支持 Next.js SSR
+  ssr: false, // dApp 应用禁用 SSR（依赖客户端 Web3 provider）
 });
 
 // 导出类型
