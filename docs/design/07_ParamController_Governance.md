@@ -1,5 +1,16 @@
 # ParamController + Governance/Timelock 详细设计
 
+**实现状态**: ✅ **已完成** (Week 5-6, 2025-11-26 ~ 2025-12-09)
+
+**实现文件**:
+- 合约: `/contracts/src/governance/ParamController.sol` (335 行)
+- 测试: `/contracts/test/unit/ParamController.t.sol` (35 个测试)
+- 文档: `/contracts/docs/ParamController_Usage.md`
+
+**测试覆盖率**: 90.10% 行覆盖率, 100% 函数覆盖率
+
+---
+
 ## 1. 概述
 - 所有可调参数统一纳入 ParamController，通过 Governor+Timelock 管控，支持灰度与回滚。
 

@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ReferralRegistry.sol";
 
 /**
@@ -15,8 +16,9 @@ import "./ReferralRegistry.sol";
  *      - 推荐返佣：集成 ReferralRegistry
  *      - 动态费率调整（治理控制）
  *      - 精确的基点计算（防止舍入误差）
+ *      - 重入保护：使用 ReentrancyGuard
  */
-contract FeeRouter is Ownable, Pausable {
+contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============================================================================
@@ -198,7 +200,7 @@ contract FeeRouter is Ownable, Pausable {
         address token,
         address from,
         uint256 amount
-    ) external whenNotPaused {
+    ) external whenNotPaused nonReentrant {
         if (amount == 0) return;
 
         // 接收代币
@@ -235,7 +237,7 @@ contract FeeRouter is Ownable, Pausable {
         address token,
         address[] calldata users,
         uint256[] calldata amounts
-    ) external whenNotPaused {
+    ) external whenNotPaused nonReentrant {
         require(users.length == amounts.length, "Length mismatch");
 
         uint256 totalAmount = 0;

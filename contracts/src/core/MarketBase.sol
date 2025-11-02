@@ -295,13 +295,13 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
             return (amount * feeRate) / 10000;
         }
 
-        // Phase 1: 应用折扣（优化为单次计算避免精度损失）
+        // Phase 1: 应用折扣（单次计算避免精度损失）
         uint256 discount = discountOracle.getDiscount(user);
         require(discount <= 2000, "MarketBase: Discount too high"); // 最大 20%
 
-        // 计算折扣后的有效费率
-        uint256 effectiveFeeRate = (feeRate * (10000 - discount)) / 10000;
-        return (amount * effectiveFeeRate) / 10000;
+        // 单次乘除避免精度损失：amount * feeRate * (1 - discount%) / 10000^2
+        // 等价于：amount * feeRate * (10000 - discount) / 100_000_000
+        return (amount * feeRate * (10000 - discount)) / 100_000_000;
     }
 
     // ============ 管理函数 ============

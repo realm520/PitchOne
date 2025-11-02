@@ -125,6 +125,15 @@ type User @entity {
 
   "领取的奖励"
   rewardsClaimed: [RewardClaim!]! @derivedFrom(field: "user")
+
+  "参与的活动"
+  campaignParticipations: [CampaignParticipation!]! @derivedFrom(field: "user")
+
+  "任务进度"
+  questProgresses: [QuestProgress!]! @derivedFrom(field: "user")
+
+  "领取的任务奖励"
+  questRewardsClaimed: [QuestRewardClaim!]! @derivedFrom(field: "user")
 }
 
 # ============================================================================
@@ -418,6 +427,467 @@ type GlobalStats @entity {
 
   "已结算市场数"
   resolvedMarkets: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
+
+# ============================================================================
+# Campaign 活动实体
+# ============================================================================
+
+"""
+Campaign - 营销活动
+代表一个营销活动（如首单奖励、推荐奖励等）
+"""
+type Campaign @entity {
+  "活动 ID（bytes32 campaign ID）"
+  id: ID!
+
+  "活动名称"
+  name: String!
+
+  "规则哈希（IPFS CID）"
+  ruleHash: Bytes!
+
+  "预算上限（USDC）"
+  budgetCap: BigDecimal!
+
+  "已支出金额（USDC）"
+  spentAmount: BigDecimal!
+
+  "剩余预算（USDC）"
+  remainingBudget: BigDecimal!
+
+  "开始时间"
+  startTime: BigInt!
+
+  "结束时间"
+  endTime: BigInt!
+
+  "活动状态: Active, Paused, Ended"
+  status: CampaignStatus!
+
+  "参与人数"
+  participantCount: Int!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "最后更新时间"
+  updatedAt: BigInt!
+
+  "创建者地址"
+  creator: Bytes!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "关联的任务"
+  quests: [Quest!]! @derivedFrom(field: "campaign")
+
+  "参与记录"
+  participations: [CampaignParticipation!]! @derivedFrom(field: "campaign")
+
+  "预算变更记录"
+  budgetChanges: [CampaignBudgetChange!]! @derivedFrom(field: "campaign")
+
+  "状态变更记录"
+  statusChanges: [CampaignStatusChange!]! @derivedFrom(field: "campaign")
+}
+
+enum CampaignStatus {
+  Active
+  Paused
+  Ended
+}
+
+"""
+CampaignParticipation - 活动参与记录
+用户参与活动的记录
+"""
+type CampaignParticipation @entity {
+  "参与 ID（campaignId-userAddress）"
+  id: ID!
+
+  "所属活动"
+  campaign: Campaign!
+
+  "参与用户"
+  user: User!
+
+  "参与时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+CampaignBudgetChange - 活动预算变更记录
+记录活动预算的增加或支出
+"""
+type CampaignBudgetChange @entity {
+  "变更 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属活动"
+  campaign: Campaign!
+
+  "变更类型: Spent, Increased"
+  changeType: BudgetChangeType!
+
+  "变更金额"
+  amount: BigDecimal!
+
+  "变更前的预算/支出"
+  oldValue: BigDecimal!
+
+  "变更后的预算/支出"
+  newValue: BigDecimal!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+enum BudgetChangeType {
+  Spent
+  Increased
+}
+
+"""
+CampaignStatusChange - 活动状态变更记录
+记录活动状态的变化（Active/Paused/Ended）
+"""
+type CampaignStatusChange @entity {
+  "变更 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属活动"
+  campaign: Campaign!
+
+  "旧状态"
+  oldStatus: CampaignStatus!
+
+  "新状态"
+  newStatus: CampaignStatus!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# Quest 任务实体
+# ============================================================================
+
+"""
+Quest - 任务
+代表一个用户任务（如首次下注、连续下注、推荐任务等）
+"""
+type Quest @entity {
+  "任务 ID（bytes32 quest ID）"
+  id: ID!
+
+  "关联的活动"
+  campaign: Campaign!
+
+  "任务类型: FIRST_BET, CONSECUTIVE_BETS, REFERRAL, VOLUME, WIN_STREAK"
+  questType: QuestType!
+
+  "任务名称"
+  name: String!
+
+  "奖励金额（USDC）"
+  rewardAmount: BigDecimal!
+
+  "目标值（根据任务类型而定：次数、金额等）"
+  targetValue: BigDecimal!
+
+  "开始时间"
+  startTime: BigInt!
+
+  "结束时间"
+  endTime: BigInt!
+
+  "任务状态: Active, Paused, Ended"
+  status: QuestStatus!
+
+  "完成人数"
+  completionCount: Int!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "最后更新时间"
+  updatedAt: BigInt!
+
+  "创建者地址"
+  creator: Bytes!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "用户进度记录"
+  progresses: [QuestProgress!]! @derivedFrom(field: "quest")
+
+  "奖励领取记录"
+  rewardClaims: [QuestRewardClaim!]! @derivedFrom(field: "quest")
+
+  "状态变更记录"
+  statusChanges: [QuestStatusChange!]! @derivedFrom(field: "quest")
+}
+
+enum QuestType {
+  FIRST_BET
+  CONSECUTIVE_BETS
+  REFERRAL
+  VOLUME
+  WIN_STREAK
+}
+
+enum QuestStatus {
+  Active
+  Paused
+  Ended
+}
+
+"""
+QuestProgress - 用户任务进度
+记录用户完成任务的进度
+"""
+type QuestProgress @entity {
+  "进度 ID（questId-userAddress）"
+  id: ID!
+
+  "所属任务"
+  quest: Quest!
+
+  "用户"
+  user: User!
+
+  "当前进度值"
+  currentValue: BigDecimal!
+
+  "目标值（与 quest.targetValue 相同，方便查询）"
+  targetValue: BigDecimal!
+
+  "完成百分比（currentValue / targetValue * 100）"
+  completionPercentage: BigDecimal!
+
+  "是否已完成"
+  completed: Boolean!
+
+  "完成时间"
+  completedAt: BigInt
+
+  "是否已领取奖励"
+  rewardClaimed: Boolean!
+
+  "奖励领取时间"
+  rewardClaimedAt: BigInt
+
+  "最后更新时间"
+  lastUpdateTime: BigInt!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "进度更新记录"
+  updates: [QuestProgressUpdate!]! @derivedFrom(field: "progress")
+}
+
+"""
+QuestProgressUpdate - 任务进度更新记录
+记录每次进度更新的详细信息
+"""
+type QuestProgressUpdate @entity {
+  "更新 ID（txHash-logIndex）"
+  id: ID!
+
+  "关联的进度记录"
+  progress: QuestProgress!
+
+  "任务"
+  quest: Quest!
+
+  "用户"
+  user: User!
+
+  "增加的进度值"
+  incrementValue: BigDecimal!
+
+  "更新前的进度"
+  oldValue: BigDecimal!
+
+  "更新后的进度"
+  newValue: BigDecimal!
+
+  "是否在此次更新中完成"
+  completedInThisUpdate: Boolean!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+QuestRewardClaim - 任务奖励领取记录
+记录用户领取任务奖励的详细信息
+"""
+type QuestRewardClaim @entity {
+  "领取 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属任务"
+  quest: Quest!
+
+  "领取用户"
+  user: User!
+
+  "奖励金额"
+  rewardAmount: BigDecimal!
+
+  "领取时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+QuestStatusChange - 任务状态变更记录
+记录任务状态的变化（Active/Paused/Ended）
+"""
+type QuestStatusChange @entity {
+  "变更 ID（txHash-logIndex）"
+  id: ID!
+
+  "所属任务"
+  quest: Quest!
+
+  "旧状态"
+  oldStatus: QuestStatus!
+
+  "新状态"
+  newStatus: QuestStatus!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# 全局统计扩展（Campaign/Quest）
+# ============================================================================
+
+"""
+CampaignStats - Campaign 全局统计
+整个平台的活动统计数据
+"""
+type CampaignStats @entity {
+  "固定 ID: 'campaign-stats'"
+  id: ID!
+
+  "总活动数"
+  totalCampaigns: Int!
+
+  "活跃活动数"
+  activeCampaigns: Int!
+
+  "已暂停活动数"
+  pausedCampaigns: Int!
+
+  "已结束活动数"
+  endedCampaigns: Int!
+
+  "总预算（所有活动的预算上限之和）"
+  totalBudget: BigDecimal!
+
+  "已支出总额"
+  totalSpent: BigDecimal!
+
+  "总参与人次"
+  totalParticipations: Int!
+
+  "唯一参与用户数"
+  uniqueParticipants: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
+
+"""
+QuestStats - Quest 全局统计
+整个平台的任务统计数据
+"""
+type QuestStats @entity {
+  "固定 ID: 'quest-stats'"
+  id: ID!
+
+  "总任务数"
+  totalQuests: Int!
+
+  "活跃任务数"
+  activeQuests: Int!
+
+  "已暂停任务数"
+  pausedQuests: Int!
+
+  "已结束任务数"
+  endedQuests: Int!
+
+  "总奖励金额（所有任务的奖励总和）"
+  totalRewards: BigDecimal!
+
+  "已发放奖励总额"
+  totalRewardsClaimed: BigDecimal!
+
+  "总完成人次"
+  totalCompletions: Int!
+
+  "唯一完成用户数"
+  uniqueCompletors: Int!
+
+  "各类型任务统计"
+  firstBetQuests: Int!
+  consecutiveBetsQuests: Int!
+  referralQuests: Int!
+  volumeQuests: Int!
+  winStreakQuests: Int!
 
   "最后更新时间"
   lastUpdatedAt: BigInt!

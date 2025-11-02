@@ -1,8 +1,19 @@
 # ResultOracle（乐观式预言机/UMA OO 适配）详细设计
 
+## 🎯 实现状态
+
+**MockOracle**: ✅ 已实现（src/oracle/MockOracle.sol，19个单元测试 + 9个集成测试）
+**UMAOptimisticOracleAdapter**: ✅ 已实现（src/oracle/UMAOptimisticOracleAdapter.sol，410行，24个单元测试 + 4个E2E测试）
+**Go Keeper 集成**: ✅ 已完成（settle_task_uma.go，308行，支持 UMA 断言提交）
+
+**当前可用**: 完整的乐观式预言机流程（Propose → Liveness → Settle → Resolve）
+
+---
+
 ## 1. 概述
 - 以乐观式流程采集比赛事实（MatchFacts）：`propose → dispute → resolve`；
 - 市场读取最终事实进行结算，避免中心化人工判定。
+- **✅ 已实现完整的 UMA Optimistic Oracle V3 集成**
 
 ## 2. 数据与状态
 - `bond`（质押）、`liveness`（争议窗口 Δ2）、`sourceBundleHash`（事实来源证明）

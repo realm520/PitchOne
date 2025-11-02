@@ -68,9 +68,9 @@ contract MarketTemplateRegistryTest is BaseTest {
         mockTemplate1 = makeAddr("mockTemplate1");
         mockTemplate2 = makeAddr("mockTemplate2");
 
-        // Calculate template IDs
-        wdlTemplateId = keccak256(abi.encodePacked("WDL", "1.0.0"));
-        ouTemplateId = keccak256(abi.encodePacked("OU", "1.0.0"));
+        // Calculate template IDs (使用 abi.encode 避免哈希碰撞)
+        wdlTemplateId = keccak256(abi.encode("WDL", "1.0.0"));
+        ouTemplateId = keccak256(abi.encode("OU", "1.0.0"));
 
         vm.label(address(registry), "Registry");
         vm.label(address(wdlTemplate), "WDL_Template");
@@ -321,7 +321,7 @@ contract MarketTemplateRegistryTest is BaseTest {
     }
 
     function test_CalculateTemplateId() public view {
-        bytes32 expectedId = keccak256(abi.encodePacked("WDL", "1.0.0"));
+        bytes32 expectedId = keccak256(abi.encode("WDL", "1.0.0"));
         bytes32 calculatedId = registry.calculateTemplateId("WDL", "1.0.0");
 
         assertEq(calculatedId, expectedId, "Template ID calculation mismatch");

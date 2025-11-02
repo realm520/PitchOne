@@ -140,8 +140,8 @@ contract MarketTemplateRegistry is Ownable, Pausable {
         require(implementation != address(0), "Invalid implementation address");
         require(!isRegistered[implementation], "Implementation already registered");
 
-        // 生成模板ID
-        templateId = keccak256(abi.encodePacked(name, version));
+        // 生成模板ID（使用 abi.encode 避免哈希碰撞）
+        templateId = keccak256(abi.encode(name, version));
         require(templates[templateId].implementation == address(0), "Template already registered");
 
         // 保存模板信息
@@ -349,6 +349,6 @@ contract MarketTemplateRegistry is Ownable, Pausable {
         pure
         returns (bytes32 templateId)
     {
-        return keccak256(abi.encodePacked(name, version));
+        return keccak256(abi.encode(name, version));
     }
 }

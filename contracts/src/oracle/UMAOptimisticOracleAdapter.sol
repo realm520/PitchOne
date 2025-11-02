@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IResultOracle} from "../interfaces/IResultOracle.sol";
 import {IOptimisticOracleV3} from "../interfaces/IOptimisticOracleV3.sol";
 
@@ -15,6 +16,7 @@ import {IOptimisticOracleV3} from "../interfaces/IOptimisticOracleV3.sol";
  *      2. 管理质押和争议流程
  *      3. 提供统一的结果查询接口
  *      4. 支持自动化结算和回调
+ *      5. 重入保护：使用 ReentrancyGuard
  *
  * 乐观式流程：
  *   Propose → Liveness Period (争议窗口) → Settle → Finalize
@@ -24,7 +26,7 @@ import {IOptimisticOracleV3} from "../interfaces/IOptimisticOracleV3.sol";
  *
  * @author PitchOne Team
  */
-contract UMAOptimisticOracleAdapter is IResultOracle, Ownable {
+contract UMAOptimisticOracleAdapter is IResultOracle, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -138,6 +140,7 @@ contract UMAOptimisticOracleAdapter is IResultOracle, Ownable {
     function proposeResult(bytes32 marketId, MatchFacts calldata facts)
         external
         override
+        nonReentrant
     {
         // 1. 检查是否已存在断言
         if (marketAssertions[marketId] != bytes32(0)) {

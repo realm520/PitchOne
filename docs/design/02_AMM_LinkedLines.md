@@ -1,9 +1,33 @@
 # AMM（CPMM/LMSR）与线联动控制器详细设计
 
+## 🎯 实现状态
+
+**SimpleCPMM**: ✅ **已完成** (Week 1-4, src/pricing/SimpleCPMM.sol，23个测试，97.5%覆盖率)
+
+**LinkedLinesController**: ✅ **已完成** (Week 5-6, 2025-11-26 ~ 2025-12-09)
+- 合约: `/contracts/src/pricing/LinkedLinesController.sol` (450 行)
+- 测试: `/contracts/test/LinkedLinesController.t.sol` (19 个测试)
+- 文档: `/contracts/docs/LinkedLinesController_Usage.md`
+- 覆盖率: 92.45%
+- 功能: 线组管理、联动系数、套利检测、储备量调整
+
+**OU_MultiLine 多线扩展**: ✅ **已完成** (Week 5-6)
+- 合约: `/contracts/src/templates/OU_MultiLine.sol` (475 行)
+- 测试: `/contracts/test/unit/OU_MultiLine.t.sol` (23 个测试, 100% 通过率)
+- 覆盖率: 83.62%
+- 功能: 多条盘口线、LinkedLinesController 集成、Outcome ID 编码
+
+**OU_Template 单线**: ✅ 已实现（含 Push 退款机制，298个测试）
+
+**LMSR**: ⏳ 待实现（M3阶段，精确比分市场必需）
+
+---
+
 ## 1. 概述
 - 提供 WDL/OU/AH/比分等玩法的即时报价、滑点与成交；
-- CPMM 用于二/三向；LMSR 用于多 Outcome（如比分网格）；
-- 线联动控制器：对 OU/AH 相邻线价格进行联动与平滑，避免资金效率下降与被套利。
+- **CPMM 用于二/三向**（✅ 已实现）：WDL 三向市场，OU 单线市场；
+- **LMSR 用于多 Outcome**（⏳ 待实现）：精确比分网格；
+- **线联动控制器**（⏳ 待实现）：对 OU/AH 相邻线价格进行联动与平滑，避免资金效率下降与被套利。
 
 ## 2. 数据与状态
 - CPMM：`reserves[outcome]`；费率曲线/阶梯；

@@ -309,15 +309,19 @@ contract RewardsDistributor is Ownable, Pausable {
             revert InvalidProof();
         }
 
-        // 计算实际领取金额（应用缩放比例）
-        claimedAmount = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
-
-        // 处理线性释放
+        // 计算实际领取金额（应用缩放比例 + 线性释放，单次计算避免精度损失）
         if (vestingConfig.enabled) {
             uint256 elapsed = block.timestamp - weekReward.publishedAt;
             if (elapsed < vestingConfig.vestingDuration) {
-                claimedAmount = (claimedAmount * elapsed) / vestingConfig.vestingDuration;
+                // 单次计算：amount * scaleBps * elapsed / (BPS_DENOMINATOR * vestingDuration)
+                claimedAmount = (amount * weekReward.scaleBps * elapsed) / (BPS_DENOMINATOR * vestingConfig.vestingDuration);
+            } else {
+                // 完全释放
+                claimedAmount = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
             }
+        } else {
+            // 无线性释放
+            claimedAmount = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
         }
 
         // 检查合约余额
@@ -373,15 +377,19 @@ contract RewardsDistributor is Ownable, Pausable {
             return (0, false);
         }
 
-        // 计算可领取金额
-        claimable = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
-
-        // 处理线性释放
+        // 计算可领取金额（应用缩放比例 + 线性释放，单次计算避免精度损失）
         if (vestingConfig.enabled) {
             uint256 elapsed = block.timestamp - weekReward.publishedAt;
             if (elapsed < vestingConfig.vestingDuration) {
-                claimable = (claimable * elapsed) / vestingConfig.vestingDuration;
+                // 单次计算：amount * scaleBps * elapsed / (BPS_DENOMINATOR * vestingDuration)
+                claimable = (amount * weekReward.scaleBps * elapsed) / (BPS_DENOMINATOR * vestingConfig.vestingDuration);
+            } else {
+                // 完全释放
+                claimable = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
             }
+        } else {
+            // 无线性释放
+            claimable = (amount * weekReward.scaleBps) / BPS_DENOMINATOR;
         }
 
         return (claimable, false);
