@@ -240,6 +240,11 @@ export default function AdminDashboard() {
                   市场管理
                 </Button>
               </Link>
+              <Link href="/oracles">
+                <Button variant="outline">
+                  Oracle 提案
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

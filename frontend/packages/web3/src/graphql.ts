@@ -166,3 +166,66 @@ export const DAILY_VOLUME_QUERY = `
     }
   }
 `;
+
+// ============================================
+// Oracle 提案查询
+// ============================================
+
+export const ORACLE_PROPOSALS_QUERY = `
+  query OracleProposals($first: Int, $skip: Int) {
+    oracleProposals(
+      first: $first
+      skip: $skip
+      orderBy: proposedAt
+      orderDirection: desc
+    ) {
+      id
+      oracle
+      market {
+        id
+        event
+        homeTeam
+        awayTeam
+        status
+      }
+      proposer
+      result
+      bond
+      proposedAt
+      disputed
+      disputer
+      disputedAt
+      finalized
+      finalizedAt
+      finalResult
+    }
+  }
+`;
+
+export const ORACLE_PROPOSAL_QUERY = `
+  query OracleProposal($id: ID!) {
+    oracleProposal(id: $id) {
+      id
+      oracle
+      market {
+        id
+        event
+        homeTeam
+        awayTeam
+        status
+        kickoffTime
+        createdAt
+      }
+      proposer
+      result
+      bond
+      proposedAt
+      disputed
+      disputer
+      disputedAt
+      finalized
+      finalizedAt
+      finalResult
+    }
+  }
+`;
