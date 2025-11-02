@@ -229,3 +229,100 @@ export const ORACLE_PROPOSAL_QUERY = `
     }
   }
 `;
+
+// ============================================
+// Campaign/Quest 查询
+// ============================================
+
+export const CAMPAIGNS_QUERY = `
+  query Campaigns($first: Int, $skip: Int) {
+    campaigns(
+      first: $first
+      skip: $skip
+      orderBy: createdAt
+      orderDirection: desc
+    ) {
+      id
+      name
+      ruleHash
+      budgetCap
+      spentAmount
+      remainingBudget
+      startTime
+      endTime
+      status
+      participantCount
+      createdAt
+      updatedAt
+      creator
+    }
+  }
+`;
+
+export const QUESTS_QUERY = `
+  query Quests($first: Int, $skip: Int) {
+    quests(
+      first: $first
+      skip: $skip
+      orderBy: createdAt
+      orderDirection: desc
+    ) {
+      id
+      campaign {
+        id
+        name
+        status
+      }
+      questType
+      name
+      rewardAmount
+      targetValue
+      startTime
+      endTime
+      status
+      completionCount
+      createdAt
+      updatedAt
+      creator
+    }
+  }
+`;
+
+export const CAMPAIGN_STATS_QUERY = `
+  query CampaignStats {
+    campaignStats(id: "campaign-stats") {
+      id
+      totalCampaigns
+      activeCampaigns
+      pausedCampaigns
+      endedCampaigns
+      totalBudget
+      totalSpent
+      totalParticipations
+      uniqueParticipants
+      lastUpdatedAt
+    }
+  }
+`;
+
+export const QUEST_STATS_QUERY = `
+  query QuestStats {
+    questStats(id: "quest-stats") {
+      id
+      totalQuests
+      activeQuests
+      pausedQuests
+      endedQuests
+      totalRewards
+      totalRewardsClaimed
+      totalCompletions
+      uniqueCompletors
+      firstBetQuests
+      consecutiveBetsQuests
+      referralQuests
+      volumeQuests
+      winStreakQuests
+      lastUpdatedAt
+    }
+  }
+`;

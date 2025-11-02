@@ -250,6 +250,11 @@ export default function AdminDashboard() {
                   参数配置
                 </Button>
               </Link>
+              <Link href="/campaigns">
+                <Button variant="outline">
+                  活动任务
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
