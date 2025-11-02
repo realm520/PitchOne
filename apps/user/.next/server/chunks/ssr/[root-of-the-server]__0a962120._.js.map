@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"","debugId":null}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["file:///home/harry/code/PitchOne/apps/user/src/app/page.tsx"],"sourcesContent":["export default function HomePage() {\n  return (\n    <main className=\"flex min-h-screen flex-col items-center justify-center p-24\">\n      <div className=\"z-10 w-full max-w-5xl items-center justify-between font-mono text-sm\">\n        <h1 className=\"text-4xl font-bold text-center mb-8\">\n          PitchOne ⚽\n        </h1>\n        <p className=\"text-center text-lg text-gray-600 dark:text-gray-400\">\n          去中心化链上足球博彩平台\n        </p>\n        <div className=\"mt-8 text-center\">\n          <p className=\"text-sm\">用户端应用初始化成功 ✓</p>\n        </div>\n      </div>\n    </main>\n  );\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,6WAAC;QAAK,WAAU;kBACd,cAAA,6WAAC;YAAI,WAAU;;8BACb,6WAAC;oBAAG,WAAU;8BAAsC;;;;;;8BAGpD,6WAAC;oBAAE,WAAU;8BAAuD;;;;;;8BAGpE,6WAAC;oBAAI,WAAU;8BACb,cAAA,6WAAC;wBAAE,WAAU;kCAAU;;;;;;;;;;;;;;;;;;;;;;AAKjC","debugId":null}}]
-}

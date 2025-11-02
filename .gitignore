@@ -1,62 +1,81 @@
-# Go build artifacts
+# ============================================
+# 前端 (已在 frontend/.gitignore 中定义详细规则)
+# ============================================
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/dist/
+frontend/build/
+frontend/out/
+frontend/*.tsbuildinfo
+frontend/.env*.local
+
+# ============================================
+# 后端 Go 服务
+# ============================================
 backend/bin/
 backend/indexer
+backend/keeper
+backend/rewards
+backend/tmp/
 
-# Forge build artifacts  
+# ============================================
+# 智能合约 Solidity
+# ============================================
 contracts/out/
 contracts/cache/
 contracts/.serena/
+contracts/broadcast/
 foundry.lock
 contracts/foundry.lock
 
-# Dependencies
-# Note: go.sum should be committed for reproducible builds
+# ============================================
+# Subgraph
+# ============================================
+subgraph/build/
+subgraph/generated/
+subgraph/node_modules/
+subgraph/package-lock.json
 
-# 环境配置 (敏感信息)
+# ============================================
+# 通用忽略
+# ============================================
+# 环境变量
 .env
 .env.*
 !.env.example
 
-# Foundry部署日志
-contracts/broadcast/
-
 # 临时文件
 *.tmp
 *.temp
-.DS_Store
-
-# IDE配置
-.vscode/
-.idea/
-
-# 测试输出
 /tmp/
 
 # 日志
 *.log
 logs/
 
-# macOS 资源分叉文件
-._*
-
-# Subgraph 构建产物
-subgraph/build/
-subgraph/generated/
-subgraph/node_modules/
-subgraph/package-lock.json
-
-# 测试覆盖率报告
+# 测试覆盖率
 coverage.html
 coverage.txt
 lcov.info
 
-# 编译的二进制文件
-backend/keeper
-backend/rewards
+# IDE
+.vscode/
+.idea/
 
-# Go 安装包
+# OS
+.DS_Store
+Thumbs.db
+._*
+
+# 编译产物
 *.tar.gz
 
-# Submodule untracked content (保持子模块干净)
+# 子模块
 lib/forge-std/
 lib/openzeppelin-contracts/
+
+# 根目录 node_modules (不应存在)
+/node_modules/
+/pnpm-lock.yaml
+/package.json
