@@ -2,10 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY } from '@pitchone/web3';
-import { Card, LoadingSpinner, ErrorState } from '@pitchone/ui';
+import { Card, LoadingSpinner, ErrorState, Button } from '@pitchone/ui';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import Link from 'next/link';
 
 // 统计卡片组件
 function StatCard({ title, value, subtitle, trend }: {
@@ -224,12 +225,23 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            运营数据看板
-          </h1>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            实时监控平台运营数据和市场状态
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                运营数据看板
+              </h1>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                实时监控平台运营数据和市场状态
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/markets">
+                <Button variant="outline">
+                  市场管理
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
