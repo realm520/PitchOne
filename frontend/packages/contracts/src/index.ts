@@ -1,7 +1,7 @@
 // 合约 ABI 导出
-export * as MarketBaseABI from './abis/MarketBase';
-export * as BasketABI from './abis/Basket';
-export * as WDL_TemplateABI from './abis/WDL_Template';
+export { default as MarketBaseABI } from './abis/MarketBase';
+export { default as WDL_TemplateABI } from './abis/WDL_Template';
+export { default as ERC20ABI } from './abis/ERC20';
 
 // 合约地址导出
 export * from './addresses';
