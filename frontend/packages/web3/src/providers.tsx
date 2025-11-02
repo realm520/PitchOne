@@ -16,8 +16,13 @@ export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 分钟
-        refetchOnWindowFocus: false,
+        // 默认缓存配置
+        staleTime: 30 * 1000, // 30 秒 - 数据多久后被视为陈旧
+        gcTime: 5 * 60 * 1000, // 5 分钟 - 未使用的缓存保留时间
+        refetchOnWindowFocus: false, // 窗口聚焦时不自动重新获取
+        refetchOnReconnect: true, // 网络重连时重新获取
+        retry: 2, // 失败重试 2 次
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // 指数退避
       },
     },
   }));
