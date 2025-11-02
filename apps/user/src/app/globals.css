@@ -2,26 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Web3 科技感主题 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --neon-blue: #00D4FF;
+  --neon-purple: #A855F7;
+  --neon-green: #10B981;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Inter, Arial, Helvetica, sans-serif;
+  font-smooth: antialiased;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* 霓虹文字效果 */
 @layer utilities {
+  .text-neon {
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+
+  .text-neon-purple {
+    color: var(--neon-purple);
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  }
+
+  .text-neon-green {
+    color: var(--neon-green);
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  }
+
+  .border-neon {
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+  }
+
+  .bg-glass {
+    background: rgba(26, 26, 26, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(42, 42, 42, 0.5);
+  }
+
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* 按钮悬停效果 */
+@layer components {
+  .btn-neon {
+    @apply px-6 py-3 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white font-semibold;
+    @apply transition-all duration-300 hover:shadow-neon hover:scale-105;
+  }
+
+  .card-neon {
+    @apply bg-dark-card border border-dark-border rounded-xl p-6;
+    @apply transition-all duration-300 hover:border-neon-blue hover:shadow-neon-sm;
   }
 }
