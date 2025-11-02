@@ -36,3 +36,38 @@ export {
   type Position,
   type Order,
 } from './hooks';
+
+// Contract Interaction Hooks
+export {
+  useApproveUSDC,
+  useUSDCAllowance,
+  useUSDCBalance,
+  usePlaceBet,
+  useRedeem,
+  usePositionBalance,
+  useMarketStatus,
+  useOutcomeCount,
+  useOutcomeLiquidity,
+} from './contract-hooks';
+
+// Event Listening Hooks
+export {
+  useWatchBetPlaced,
+  useWatchMarketLocked,
+  useWatchResultProposed,
+  useWatchPositionRedeemed,
+  useMarketEvents,
+  useAutoRefresh,
+  type BetPlacedEvent,
+  type MarketLockedEvent,
+  type ResultProposedEvent,
+  type PositionRedeemedEvent,
+} from './event-hooks';
+
+// Multicall Optimization Hooks
+export {
+  useMarketFullData,
+  useMultipleMarketsData,
+  useUserUSDCDataForMarkets,
+  type MarketFullData,
+} from './multicall-hooks';
