@@ -1,0 +1,208 @@
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from 'wagmi';
+import { parseUnits, type Address } from 'viem';
+import { MarketBaseABI, ERC20ABI, getContractAddresses } from '@pitchone/contracts';
+
+/**
+ * 使用 USDC Approve hook
+ * @param spender 被授权地址（通常是市场合约地址）
+ * @param amount 授权金额（USDC，6 位小数）
+ */
+export function useApproveUSDC() {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
+
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const approve = async (spender: Address, amount: string) => {
+    if (!addresses) throw new Error('Chain not supported');
+
+    const amountInWei = parseUnits(amount, 6); // USDC 使用 6 位小数
+
+    return writeContract({
+      address: addresses.usdc,
+      abi: ERC20ABI,
+      functionName: 'approve',
+      args: [spender, amountInWei],
+    });
+  };
+
+  return {
+    approve,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+    hash,
+  };
+}
+
+/**
+ * 检查 USDC 授权额度
+ * @param owner 代币所有者地址
+ * @param spender 被授权地址
+ */
+export function useUSDCAllowance(owner?: Address, spender?: Address) {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
+
+  return useReadContract({
+    address: addresses?.usdc,
+    abi: ERC20ABI,
+    functionName: 'allowance',
+    args: owner && spender ? [owner, spender] : undefined,
+    query: {
+      enabled: !!owner && !!spender && !!addresses,
+    },
+  });
+}
+
+/**
+ * 查询 USDC 余额
+ * @param address 用户地址
+ */
+export function useUSDCBalance(address?: Address) {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
+
+  return useReadContract({
+    address: addresses?.usdc,
+    abi: ERC20ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!addresses,
+    },
+  });
+}
+
+/**
+ * 下注 hook
+ * @param marketAddress 市场合约地址
+ */
+export function usePlaceBet(marketAddress?: Address) {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const placeBet = async (outcomeId: number, amount: string) => {
+    if (!marketAddress) throw new Error('Market address required');
+
+    const amountInWei = parseUnits(amount, 6); // USDC 使用 6 位小数
+
+    return writeContract({
+      address: marketAddress,
+      abi: MarketBaseABI,
+      functionName: 'placeBet',
+      args: [BigInt(outcomeId), amountInWei],
+    });
+  };
+
+  return {
+    placeBet,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+    hash,
+  };
+}
+
+/**
+ * 赎回赢得的份额 hook
+ * @param marketAddress 市场合约地址
+ */
+export function useRedeem(marketAddress?: Address) {
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const redeem = async (outcomeId: number, shares: string) => {
+    if (!marketAddress) throw new Error('Market address required');
+
+    const sharesInWei = parseUnits(shares, 18); // ERC-1155 份额使用 18 位小数
+
+    return writeContract({
+      address: marketAddress,
+      abi: MarketBaseABI,
+      functionName: 'redeem',
+      args: [BigInt(outcomeId), sharesInWei],
+    });
+  };
+
+  return {
+    redeem,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+    hash,
+  };
+}
+
+/**
+ * 查询用户在特定市场的头寸余额
+ * @param marketAddress 市场合约地址
+ * @param userAddress 用户地址
+ * @param outcomeId 结果 ID
+ */
+export function usePositionBalance(
+  marketAddress?: Address,
+  userAddress?: Address,
+  outcomeId?: number
+) {
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'balanceOf',
+    args: userAddress && outcomeId !== undefined ? [userAddress, BigInt(outcomeId)] : undefined,
+    query: {
+      enabled: !!marketAddress && !!userAddress && outcomeId !== undefined,
+    },
+  });
+}
+
+/**
+ * 查询市场状态
+ * @param marketAddress 市场合约地址
+ */
+export function useMarketStatus(marketAddress?: Address) {
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'status',
+    query: {
+      enabled: !!marketAddress,
+    },
+  });
+}
+
+/**
+ * 查询市场结果数量
+ * @param marketAddress 市场合约地址
+ */
+export function useOutcomeCount(marketAddress?: Address) {
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'outcomeCount',
+    query: {
+      enabled: !!marketAddress,
+    },
+  });
+}
+
+/**
+ * 查询市场流动性
+ * @param marketAddress 市场合约地址
+ * @param outcomeId 结果 ID
+ */
+export function useOutcomeLiquidity(marketAddress?: Address, outcomeId?: number) {
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'outcomeLiquidity',
+    args: outcomeId !== undefined ? [BigInt(outcomeId)] : undefined,
+    query: {
+      enabled: !!marketAddress && outcomeId !== undefined,
+    },
+  });
+}
