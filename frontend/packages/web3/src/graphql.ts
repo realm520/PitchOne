@@ -100,3 +100,69 @@ export const USER_ORDERS_QUERY = `
     }
   }
 `;
+
+// ============================================
+// 管理端查询（Dashboard Statistics）
+// ============================================
+
+export const GLOBAL_STATS_QUERY = `
+  query GlobalStats {
+    globalStats(id: "global") {
+      id
+      totalMarkets
+      totalOrders
+      totalUsers
+      totalVolume
+      totalFees
+      updatedAt
+    }
+  }
+`;
+
+export const RECENT_ORDERS_QUERY = `
+  query RecentOrders($first: Int) {
+    orders(
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      user
+      market {
+        id
+        event
+        homeTeam
+        awayTeam
+      }
+      outcome
+      amount
+      shares
+      timestamp
+      transactionHash
+    }
+  }
+`;
+
+export const MARKET_STATS_QUERY = `
+  query MarketStats {
+    markets(first: 1000, orderBy: createdAt, orderDirection: desc) {
+      id
+      status
+      totalVolume
+      createdAt
+    }
+  }
+`;
+
+export const DAILY_VOLUME_QUERY = `
+  query DailyVolume($startTime: BigInt!) {
+    orders(
+      where: { timestamp_gte: $startTime }
+      orderBy: timestamp
+      orderDirection: asc
+    ) {
+      amount
+      timestamp
+    }
+  }
+`;
