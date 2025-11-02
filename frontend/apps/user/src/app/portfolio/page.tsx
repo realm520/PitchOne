@@ -51,10 +51,10 @@ export default function PortfolioPage() {
 
   const filteredPositions = positions?.filter((pos) => {
     if (activeTab === 'active') {
-      return pos.market.status === MarketStatus.Open || pos.market.status === MarketStatus.Locked;
+      return pos.market.state === MarketStatus.Open || pos.market.state === MarketStatus.Locked;
     }
     if (activeTab === 'settled') {
-      return pos.market.status === MarketStatus.Resolved || pos.market.status === MarketStatus.Finalized;
+      return pos.market.state === MarketStatus.Resolved || pos.market.state === MarketStatus.Finalized;
     }
     return true;
   });
@@ -180,12 +180,12 @@ export default function PortfolioPage() {
                         href={`/markets/${position.market.id}`}
                         className="text-xl font-bold text-white hover:text-neon-blue transition-colors"
                       >
-                        {position.market.event}
+                        市场 {position.market.matchId.slice(0, 20)}...
                       </Link>
-                      {getStatusBadge(position.market.status)}
+                      {getStatusBadge(position.market.state)}
                     </div>
                     <p className="text-gray-400 text-sm mb-3">
-                      开赛时间: {formatDate(position.market.kickoffTime)}
+                      市场 ID: {position.market.id.slice(0, 20)}...
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -216,13 +216,13 @@ export default function PortfolioPage() {
 
                   {/* Actions */}
                   <div className="ml-6 flex flex-col gap-2">
-                    {position.market.status === MarketStatus.Resolved && (
+                    {position.market.state === MarketStatus.Resolved && (
                       <Button variant="neon" size="sm">
                         兑付
                       </Button>
                     )}
-                    {(position.market.status === MarketStatus.Open ||
-                      position.market.status === MarketStatus.Locked) && (
+                    {(position.market.state === MarketStatus.Open ||
+                      position.market.state === MarketStatus.Locked) && (
                       <Button variant="secondary" size="sm">
                         卖出
                       </Button>

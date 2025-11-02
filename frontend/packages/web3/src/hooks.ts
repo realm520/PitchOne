@@ -12,33 +12,39 @@ export enum MarketStatus {
 // 类型定义
 export interface Market {
   id: string;
-  event: string;
-  homeTeam: string;
-  awayTeam: string;
-  kickoffTime: string;
-  status: MarketStatus;
-  template: {
-    type: string;
-  };
+  matchId: string;
+  templateId: string;
+  state: MarketStatus;
   totalVolume: string;
+  feeAccrued: string;
+  lpLiquidity: string;
+  uniqueBettors: number;
   createdAt: string;
-  winningOutcome?: number;
-  outcomeCount?: number;
+  lockedAt?: string;
   resolvedAt?: string;
+  finalizedAt?: string;
+  winnerOutcome?: number;
+  // 辅助字段用于显示
+  _displayInfo?: {
+    homeTeam: string;
+    awayTeam: string;
+    league: string;
+    templateType: string;
+  };
 }
 
 export interface Position {
   id: string;
   market: {
     id: string;
-    event: string;
-    homeTeam: string;
-    awayTeam: string;
-    status: MarketStatus;
-    winningOutcome?: number;
+    matchId: string;
+    templateId: string;
+    state: MarketStatus;
+    winnerOutcome?: number;
   };
   outcome: number;
   balance: string;
+  owner: string;
   createdAt: string;
 }
 
@@ -46,13 +52,55 @@ export interface Order {
   id: string;
   market: {
     id: string;
-    event: string;
+    matchId: string;
+    templateId: string;
   };
+  user: string;
   outcome: number;
   amount: string;
   shares: string;
   timestamp: string;
   transactionHash: string;
+}
+
+/**
+ * 解析 matchId 生成显示信息
+ */
+function parseMatchId(matchId: string, templateId: string): Market['_displayInfo'] {
+  // matchId 格式: "EPL_2024_MUN_vs_MCI" 或类似
+  const parts = matchId.split('_');
+
+  if (parts.length >= 4) {
+    const league = parts[0]; // EPL
+    const homeTeam = parts[2]; // MUN
+    const awayTeam = parts[4] || parts[parts.length - 1]; // MCI
+
+    // 模板类型映射
+    const templateTypeMap: Record<string, string> = {
+      WDL: '胜平负',
+      OU: '大小球',
+      AH: '让球',
+      Score: '精确比分',
+    };
+
+    // 从 templateId 中提取模板类型（如果可能）
+    const templateType = templateTypeMap[templateId.split('_')[0]] || '未知玩法';
+
+    return {
+      league,
+      homeTeam,
+      awayTeam,
+      templateType,
+    };
+  }
+
+  // 如果无法解析，返回默认值
+  return {
+    league: 'Unknown',
+    homeTeam: matchId.slice(0, 8) + '...',
+    awayTeam: matchId.slice(-8),
+    templateType: '未知玩法',
+  };
 }
 
 /**
@@ -66,7 +114,11 @@ export function useMarkets(status?: MarketStatus[], first = 20, skip = 0) {
         MARKETS_QUERY,
         { status, first, skip }
       );
-      return data.markets;
+      // 为每个市场添加显示信息
+      return data.markets.map(market => ({
+        ...market,
+        _displayInfo: parseMatchId(market.matchId, market.templateId),
+      }));
     },
     staleTime: 30 * 1000, // 30 秒
   });
@@ -84,7 +136,11 @@ export function useMarket(id: string | undefined) {
         MARKET_QUERY,
         { id }
       );
-      return data.market;
+      // 为市场添加显示信息
+      return {
+        ...data.market,
+        _displayInfo: parseMatchId(data.market.matchId, data.market.templateId),
+      };
     },
     enabled: !!id,
     staleTime: 10 * 1000, // 10 秒

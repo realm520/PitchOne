@@ -34,14 +34,14 @@ export default function MarketsPage() {
     });
   };
 
-  const getStatusBadge = (status: MarketStatus) => {
+  const getStatusBadge = (state: MarketStatus) => {
     const variants = {
       [MarketStatus.Open]: { variant: 'success' as const, label: '进行中' },
       [MarketStatus.Locked]: { variant: 'warning' as const, label: '已锁盘' },
       [MarketStatus.Resolved]: { variant: 'info' as const, label: '已结算' },
       [MarketStatus.Finalized]: { variant: 'default' as const, label: '已完成' },
     };
-    const config = variants[status];
+    const config = variants[state] || { variant: 'default' as const, label: '未知' };
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
   };
 
@@ -114,32 +114,45 @@ export default function MarketsPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-gray-500 uppercase">
-                        {market.event}
+                        {market._displayInfo?.league || 'Unknown League'}
                       </span>
-                      {getStatusBadge(market.status)}
+                      {getStatusBadge(market.state)}
                     </div>
                     <h3 className="text-xl font-bold text-white mb-1">
-                      {market.homeTeam} vs {market.awayTeam}
+                      {market._displayInfo?.homeTeam || 'Team A'} vs {market._displayInfo?.awayTeam || 'Team B'}
                     </h3>
                     <p className="text-sm text-gray-400">
-                      开赛时间: {formatDate(market.kickoffTime)}
+                      创建时间: {formatDate(market.createdAt)}
                     </p>
+                    {market.lockedAt && (
+                      <p className="text-xs text-orange-400 mt-1">
+                        锁盘: {formatDate(market.lockedAt)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Market Stats */}
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                    <span>交易量: {(Number(market.totalVolume) / 1e6).toFixed(2)} USDC</span>
+                    <span>{market.uniqueBettors} 人参与</span>
                   </div>
 
                   {/* Market Type */}
                   <div className="flex items-center justify-between pt-4 border-t border-dark-border">
                     <span className="text-sm text-gray-400">玩法类型</span>
-                    <Badge variant="neon" size="sm">WDL</Badge>
+                    <Badge variant="neon" size="sm">
+                      {market._displayInfo?.templateType || '未知'}
+                    </Badge>
                   </div>
 
                   {/* CTA */}
                   <div className="mt-4">
                     <Button
-                      variant={market.status === MarketStatus.Open ? 'neon' : 'secondary'}
+                      variant={market.state === MarketStatus.Open ? 'neon' : 'secondary'}
                       fullWidth
-                      disabled={market.status !== MarketStatus.Open}
+                      disabled={market.state !== MarketStatus.Open}
                     >
-                      {market.status === MarketStatus.Open ? '立即下注' : '查看详情'}
+                      {market.state === MarketStatus.Open ? '立即下注' : '查看详情'}
                     </Button>
                   </div>
                 </Card>

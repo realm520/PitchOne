@@ -110,31 +110,36 @@ export default function MarketDetailPage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-white">
-                  {market.homeTeam} vs {market.awayTeam}
+                  {market._displayInfo?.homeTeam || 'Team A'} vs {market._displayInfo?.awayTeam || 'Team B'}
                 </h1>
-                {getStatusBadge(market.status)}
+                {getStatusBadge(market.state)}
               </div>
-              <p className="text-gray-400">{market.event}</p>
+              <p className="text-gray-400">{market._displayInfo?.league || 'Unknown League'}</p>
               <p className="text-sm text-gray-500 mt-1">
-                开赛时间: {formatDate(market.kickoffTime)}
+                创建时间: {formatDate(market.createdAt)}
               </p>
+              {market.lockedAt && (
+                <p className="text-sm text-orange-400">
+                  锁盘时间: {formatDate(market.lockedAt)}
+                </p>
+              )}
             </div>
-            <Badge variant="neon" size="lg">WDL</Badge>
+            <Badge variant="neon" size="lg">{market._displayInfo?.templateType || '未知'}</Badge>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-dark-border">
             <div>
               <p className="text-sm text-gray-500 mb-1">总投注量</p>
-              <p className="text-xl font-bold text-neon-blue">12,450 USDC</p>
+              <p className="text-xl font-bold text-neon-blue">{(Number(market.totalVolume) / 1e6).toFixed(2)} USDC</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">流动性</p>
-              <p className="text-xl font-bold text-neon-green">50,000 USDC</p>
+              <p className="text-xl font-bold text-neon-green">{(Number(market.lpLiquidity) / 1e6).toFixed(2)} USDC</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-1">订单数</p>
-              <p className="text-xl font-bold text-neon-purple">342</p>
+              <p className="text-sm text-gray-500 mb-1">参与人数</p>
+              <p className="text-xl font-bold text-neon-purple">{market.uniqueBettors}</p>
             </div>
           </div>
         </Card>
@@ -151,7 +156,7 @@ export default function MarketDetailPage() {
                   variant={selectedOutcome === outcome.id ? 'neon' : 'default'}
                   padding="lg"
                   onClick={() => {
-                    if (market.status === MarketStatus.Open) {
+                    if (market.state === MarketStatus.Open) {
                       setSelectedOutcome(outcome.id);
                       setShowBetModal(true);
                     }
@@ -232,7 +237,7 @@ export default function MarketDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">状态</p>
-                  {getStatusBadge(market.status)}
+                  {getStatusBadge(market.state)}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">手续费率</p>
