@@ -245,6 +245,11 @@ export default function AdminDashboard() {
                   Oracle 提案
                 </Button>
               </Link>
+              <Link href="/params">
+                <Button variant="outline">
+                  参数配置
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
