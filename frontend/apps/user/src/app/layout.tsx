@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Providers, ConnectButton } from "@pitchone/web3";
 import { Header, Footer } from "@pitchone/ui";
+import { Toaster } from 'react-hot-toast';
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -50,6 +51,18 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <Toaster
+            position="top-right"
+            reverseOrder={false}
+            toastOptions={{
+              style: {
+                background: '#1a1a2e',
+                color: '#fff',
+                border: '1px solid #2a2a3e',
+                borderRadius: '8px',
+              },
+            }}
+          />
         </Providers>
       </body>
     </html>

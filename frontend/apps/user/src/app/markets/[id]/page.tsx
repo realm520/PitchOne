@@ -1,10 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { formatEther, parseEther } from 'viem';
+import { formatUnits } from 'viem';
 import { useAccount } from 'wagmi';
-import { useMarket, useUserOrders, MarketStatus } from '@pitchone/web3';
+import {
+  useMarket,
+  useUserOrders,
+  MarketStatus,
+  usePlaceBet,
+  useApproveUSDC,
+  useUSDCAllowance,
+  useUSDCBalance,
+  useAutoRefresh,
+  useWatchBetPlaced,
+} from '@pitchone/web3';
 import {
   Container,
   Card,
@@ -16,6 +26,8 @@ import {
   ErrorState,
   Modal,
 } from '@pitchone/ui';
+import { LiveActivity } from '@/components/LiveActivity';
+import { betNotifications, marketNotifications } from '@/lib/notifications';
 
 export default function MarketDetailPage() {
   const params = useParams();
@@ -25,10 +37,75 @@ export default function MarketDetailPage() {
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
-  const [isPlacingBet, setIsPlacingBet] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(false);
 
-  const { data: market, isLoading, error } = useMarket(marketId);
-  const { data: orders } = useUserOrders(address, marketId);
+  const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
+  const { data: orders, refetch: refetchOrders } = useUserOrders(address, marketId);
+
+  // 实时事件监听
+  const betPlacedEvents = useWatchBetPlaced(marketId as `0x${string}`);
+
+  // 监听新下注事件并通知
+  useEffect(() => {
+    if (betPlacedEvents.length > 0 && market) {
+      const latestBet = betPlacedEvents[0];
+      const outcomeName = outcomes[Number(latestBet.outcomeId)]?.name || `结果 ${latestBet.outcomeId}`;
+      const amount = formatUnits(latestBet.amount, 6);
+
+      // 排除自己的下注（已经有专门的通知）
+      if (latestBet.user.toLowerCase() !== address?.toLowerCase()) {
+        marketNotifications.newBet(amount, outcomeName);
+      }
+    }
+  }, [betPlacedEvents, address, market]);
+
+  // 自动刷新
+  useAutoRefresh(
+    () => {
+      refetchMarket();
+      if (address) {
+        refetchOrders();
+      }
+    },
+    marketId as `0x${string}`,
+    {
+      enabled: true,
+      pollInterval: 15000, // 15 秒轮询一次作为备选
+    }
+  );
+
+  // 合约交互 hooks
+  const { data: usdcBalance } = useUSDCBalance(address as `0x${string}`);
+  const { data: allowance, refetch: refetchAllowance } = useUSDCAllowance(
+    address as `0x${string}`,
+    marketId as `0x${string}`
+  );
+  const { approve, isPending: isApproving, isSuccess: isApproved } = useApproveUSDC();
+  const { placeBet, isPending: isBetting, isSuccess: isBetSuccess } = usePlaceBet(marketId as `0x${string}`);
+
+  // 检查是否需要 approve
+  useEffect(() => {
+    if (betAmount && allowance !== undefined) {
+      const amountInWei = BigInt(parseFloat(betAmount) * 1e6); // USDC 6 decimals
+      setNeedsApproval(allowance < amountInWei);
+    }
+  }, [betAmount, allowance]);
+
+  // 监听 approve 成功后刷新 allowance
+  useEffect(() => {
+    if (isApproved) {
+      refetchAllowance();
+    }
+  }, [isApproved, refetchAllowance]);
+
+  // 监听下注成功
+  useEffect(() => {
+    if (isBetSuccess) {
+      setShowBetModal(false);
+      setBetAmount('');
+      setSelectedOutcome(null);
+    }
+  }, [isBetSuccess]);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
@@ -66,22 +143,32 @@ export default function MarketDetailPage() {
     return (amount * odds).toFixed(2);
   };
 
+  const handleApprove = async () => {
+    if (!marketId || !betAmount) return;
+
+    const toastId = betNotifications.approvingUSDC();
+
+    try {
+      await approve(marketId as `0x${string}`, betAmount);
+      betNotifications.approvedUSDC(toastId);
+    } catch (error: any) {
+      console.error('Approve error:', error);
+      betNotifications.approveFailed(toastId, error?.message || '未知错误');
+    }
+  };
+
   const handlePlaceBet = async () => {
     if (!isConnected || selectedOutcome === null || !betAmount) return;
 
-    setIsPlacingBet(true);
+    const toastId = betNotifications.placingBet();
+
     try {
-      // TODO: Call contract placeBet function
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate transaction
-      alert(`下注成功！结果：${outcomes[selectedOutcome].name}，金额：${betAmount} USDC`);
-      setShowBetModal(false);
-      setBetAmount('');
-      setSelectedOutcome(null);
-    } catch (error) {
+      await placeBet(selectedOutcome, betAmount);
+      const outcomeName = outcomes[selectedOutcome]?.name || `结果 ${selectedOutcome}`;
+      betNotifications.betPlaced(toastId, betAmount, outcomeName);
+    } catch (error: any) {
       console.error('Place bet error:', error);
-      alert('下注失败，请重试');
-    } finally {
-      setIsPlacingBet(false);
+      betNotifications.betFailed(toastId, error?.message || '未知错误');
     }
   };
 
@@ -146,7 +233,7 @@ export default function MarketDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Outcomes */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-bold text-white mb-4">投注选项</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {outcomes.map((outcome) => (
@@ -173,8 +260,17 @@ export default function MarketDetailPage() {
               ))}
             </div>
 
+            {/* Live Activity */}
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-4">实时活动</h2>
+              <LiveActivity
+                events={betPlacedEvents}
+                outcomeNames={outcomes.map((o) => o.name)}
+              />
+            </div>
+
             {/* Orders History */}
-            <div className="mt-8">
+            <div>
               <h2 className="text-2xl font-bold text-white mb-4">我的订单</h2>
               {!isConnected ? (
                 <Card padding="lg">
@@ -214,8 +310,8 @@ export default function MarketDetailPage() {
                             <td className="px-6 py-4">
                               <Badge variant="info">结果 {order.outcome}</Badge>
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium text-white">{formatEther(BigInt(order.amount))} USDC</td>
-                            <td className="px-6 py-4 text-sm font-medium text-neon-green">+{formatEther(BigInt(order.payout || order.amount))} USDC</td>
+                            <td className="px-6 py-4 text-sm font-medium text-white">{formatUnits(BigInt(order.amount), 6)} USDC</td>
+                            <td className="px-6 py-4 text-sm font-medium text-neon-green">+{formatUnits(BigInt(order.shares), 18)} shares</td>
                           </tr>
                         ))}
                       </tbody>
@@ -278,6 +374,13 @@ export default function MarketDetailPage() {
               </div>
             </div>
 
+            {/* Balance Display */}
+            {usdcBalance !== undefined && (
+              <div className="text-sm text-gray-400">
+                余额: {formatUnits(usdcBalance, 6)} USDC
+              </div>
+            )}
+
             {/* Amount Input */}
             <Input
               type="number"
@@ -308,23 +411,42 @@ export default function MarketDetailPage() {
                   setShowBetModal(false);
                   setBetAmount('');
                 }}
-                disabled={isPlacingBet}
+                disabled={isApproving || isBetting}
               >
                 取消
               </Button>
-              <Button
-                variant="neon"
-                fullWidth
-                onClick={handlePlaceBet}
-                disabled={!betAmount || parseFloat(betAmount) < 1 || isPlacingBet}
-                isLoading={isPlacingBet}
-              >
-                {isPlacingBet ? '处理中...' : '确认下注'}
-              </Button>
+
+              {needsApproval ? (
+                <Button
+                  variant="neon"
+                  fullWidth
+                  onClick={handleApprove}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving}
+                  isLoading={isApproving}
+                >
+                  {isApproving ? '授权中...' : '授权 USDC'}
+                </Button>
+              ) : (
+                <Button
+                  variant="neon"
+                  fullWidth
+                  onClick={handlePlaceBet}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting}
+                  isLoading={isBetting}
+                >
+                  {isBetting ? '下注中...' : '确认下注'}
+                </Button>
+              )}
             </div>
 
             {!isConnected && (
               <p className="text-sm text-yellow-500 text-center">⚠️ 请先连接钱包</p>
+            )}
+
+            {needsApproval && (
+              <p className="text-sm text-blue-400 text-center">
+                💡 首次下注需要授权 USDC
+              </p>
             )}
           </div>
         )}
