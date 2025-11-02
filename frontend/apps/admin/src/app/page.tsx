@@ -38,72 +38,163 @@ function StatCard({ title, value, subtitle, trend }: {
 // 市场状态分布组件
 function MarketStatusChart({ markets }: { markets: any[] }) {
   const statusCounts = markets.reduce((acc, market) => {
-    acc[market.status] = (acc[market.status] || 0) + 1;
+    acc[market.state] = (acc[market.state] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const data = Object.entries(statusCounts).map(([status, count]) => ({
-    name: status === 'Open' ? '开盘中' : status === 'Locked' ? '已锁盘' : status === 'Resolved' ? '已结算' : status,
+  const STATUS_CONFIG = {
+    Open: { label: '开盘中', color: '#3b82f6' },
+    Locked: { label: '已锁盘', color: '#f59e0b' },
+    Resolved: { label: '已结算', color: '#10b981' },
+    Finalized: { label: '已完成', color: '#6b7280' },
+  };
+
+  const data = Object.entries(statusCounts).map(([state, count]) => ({
+    name: STATUS_CONFIG[state as keyof typeof STATUS_CONFIG]?.label || state,
     value: count,
+    state,
+    color: STATUS_CONFIG[state as keyof typeof STATUS_CONFIG]?.color || '#6b7280',
   }));
 
-  const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'];
+  const totalMarkets = markets.length;
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">市场状态分布</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip />
-        </PieChart>
-      </ResponsiveContainer>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        市场状态分布
+      </h3>
+      <div className="flex items-center gap-8">
+        {/* 饼图 */}
+        <div className="flex-shrink-0">
+          <ResponsiveContainer width={240} height={240}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 图例和统计 */}
+        <div className="flex-1 space-y-3">
+          {data.map((item, index) => (
+            <div key={index} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-4 h-4 rounded-sm"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {item.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {item.value} 个
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 w-12 text-right">
+                  {((item.value / totalMarkets) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          ))}
+          <div className="pt-3 border-t dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                市场总数
+              </span>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">
+                {totalMarkets}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
 
 // 交易量趋势图表组件
 function VolumeChart({ markets }: { markets: any[] }) {
-  // 按日期聚合交易量（最近7天）
+  // 按日期聚合交易量（最近14天）
+  const today = new Date();
+  const fourteenDaysAgo = new Date(today);
+  fourteenDaysAgo.setDate(today.getDate() - 13); // 包含今天共14天
+
+  // 生成最近14天的日期数组
+  const dateRange = Array.from({ length: 14 }, (_, i) => {
+    const date = new Date(fourteenDaysAgo);
+    date.setDate(fourteenDaysAgo.getDate() + i);
+    return date.toLocaleDateString('zh-CN');
+  });
+
+  // 按日期聚合交易量
   const volumeByDate = markets.reduce((acc, market) => {
     const date = new Date(Number(market.createdAt) * 1000).toLocaleDateString('zh-CN');
     acc[date] = (acc[date] || 0) + Number(market.totalVolume || 0);
     return acc;
   }, {} as Record<string, number>);
 
-  const data = Object.entries(volumeByDate)
-    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
-    .slice(-7) // 最近7天
-    .map(([date, volume]) => ({
-      date: date.split('/').slice(1).join('/'), // 去掉年份
-      volume: volume / 1e6, // 转换为 USDC（6 decimals）
-    }));
+  // 填充所有日期（包括没有数据的日期）
+  const data = dateRange.map((date) => ({
+    date: date.split('/').slice(1).join('/'), // 去掉年份，显示为 MM/DD
+    volume: (volumeByDate[date] || 0) / 1e6, // 转换为 USDC（6 decimals）
+    fullDate: date,
+  }));
+
+  // 计算趋势
+  const totalVolume = data.reduce((sum, item) => sum + item.volume, 0);
+  const avgVolume = totalVolume / data.length;
+  const lastWeekVolume = data.slice(-7).reduce((sum, item) => sum + item.volume, 0);
+  const prevWeekVolume = data.slice(0, 7).reduce((sum, item) => sum + item.volume, 0);
+  const weeklyTrend = prevWeekVolume > 0
+    ? ((lastWeekVolume - prevWeekVolume) / prevWeekVolume * 100).toFixed(1)
+    : '0';
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">交易量趋势（最近7天）</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          交易量趋势（最近14天）
+        </h3>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="text-gray-600 dark:text-gray-400">
+            日均: <span className="font-semibold text-gray-900 dark:text-white">{avgVolume.toFixed(2)} USDC</span>
+          </div>
+          <div className={`font-semibold ${Number(weeklyTrend) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            周环比: {Number(weeklyTrend) >= 0 ? '+' : ''}{weeklyTrend}%
+          </div>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+          <XAxis
+            dataKey="date"
+            className="text-xs text-gray-600 dark:text-gray-400"
+          />
+          <YAxis className="text-xs text-gray-600 dark:text-gray-400" />
           <Tooltip
             formatter={(value: number) => [`${value.toFixed(2)} USDC`, '交易量']}
+            contentStyle={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+            }}
           />
-          <Bar dataKey="volume" fill="#3b82f6" />
+          <Bar dataKey="volume" fill="#3b82f6" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
@@ -112,48 +203,89 @@ function VolumeChart({ markets }: { markets: any[] }) {
 
 // 最近订单列表组件
 function RecentOrdersList({ orders }: { orders: any[] }) {
+  if (!orders || orders.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="text-gray-400 dark:text-gray-500 mb-2">
+          <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">暂无订单数据</p>
+      </Card>
+    );
+  }
+
+  const totalAmount = orders.reduce((sum, order) => sum + Number(order.amount), 0);
+  const avgAmount = totalAmount / orders.length;
+
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">最近订单</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          最近订单
+        </h3>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="text-gray-600 dark:text-gray-400">
+            共 <span className="font-semibold text-gray-900 dark:text-white">{orders.length}</span> 笔
+          </div>
+          <div className="text-gray-600 dark:text-gray-400">
+            均值: <span className="font-semibold text-gray-900 dark:text-white">{(avgAmount / 1e6).toFixed(2)} USDC</span>
+          </div>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b dark:border-gray-700">
             <tr className="text-left">
-              <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">时间</th>
-              <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">市场</th>
-              <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">用户</th>
-              <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">金额</th>
-              <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">结果</th>
+              <th className="pb-3 px-2 font-medium text-xs text-gray-500 dark:text-gray-400 uppercase">时间</th>
+              <th className="pb-3 px-2 font-medium text-xs text-gray-500 dark:text-gray-400 uppercase">市场</th>
+              <th className="pb-3 px-2 font-medium text-xs text-gray-500 dark:text-gray-400 uppercase">用户</th>
+              <th className="pb-3 px-2 font-medium text-xs text-gray-500 dark:text-gray-400 uppercase text-right">金额</th>
+              <th className="pb-3 px-2 font-medium text-xs text-gray-500 dark:text-gray-400 uppercase">选择</th>
             </tr>
           </thead>
           <tbody className="divide-y dark:divide-gray-700">
-            {orders.map((order) => (
-              <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="py-3 text-gray-600 dark:text-gray-300">
-                  {formatDistanceToNow(new Date(Number(order.timestamp) * 1000), {
-                    addSuffix: true,
-                    locale: zhCN
-                  })}
-                </td>
-                <td className="py-3">
-                  <div className="text-gray-900 dark:text-white font-medium">
-                    {order.market.homeTeam} vs {order.market.awayTeam}
-                  </div>
-                  <div className="text-xs text-gray-500">{order.market.event}</div>
-                </td>
-                <td className="py-3 font-mono text-xs text-gray-600 dark:text-gray-300">
-                  {order.user.slice(0, 6)}...{order.user.slice(-4)}
-                </td>
-                <td className="py-3 font-semibold text-gray-900 dark:text-white">
-                  {(Number(order.amount) / 1e6).toFixed(2)} USDC
-                </td>
-                <td className="py-3">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    Outcome {order.outcome}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {orders.map((order) => {
+              const marketStateColor =
+                order.market.state === 'Open' ? 'text-blue-600 dark:text-blue-400' :
+                order.market.state === 'Locked' ? 'text-yellow-600 dark:text-yellow-400' :
+                order.market.state === 'Resolved' ? 'text-green-600 dark:text-green-400' :
+                'text-gray-600 dark:text-gray-400';
+
+              return (
+                <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="py-3 px-2 text-gray-600 dark:text-gray-300">
+                    {formatDistanceToNow(new Date(Number(order.timestamp) * 1000), {
+                      addSuffix: true,
+                      locale: zhCN
+                    })}
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="text-gray-900 dark:text-white font-medium">
+                      {order.market.id.slice(0, 8)}...
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      <span className={marketStateColor}>●</span> {order.market.state}
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 font-mono text-xs text-gray-600 dark:text-gray-300">
+                    {order.user.id.slice(0, 6)}...{order.user.id.slice(-4)}
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {(Number(order.amount) / 1e6).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">USDC</span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      #{order.outcome}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

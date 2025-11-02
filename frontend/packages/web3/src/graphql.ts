@@ -1,7 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 
 // Subgraph URL (本地开发环境)
-const SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || 'http://localhost:8000/subgraphs/name/pitchone';
+const SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || 'http://localhost:8010/subgraphs/name/pitchone-local';
 
 // 创建 GraphQL Client
 export const graphqlClient = new GraphQLClient(SUBGRAPH_URL, {
@@ -12,25 +12,24 @@ export const graphqlClient = new GraphQLClient(SUBGRAPH_URL, {
 
 // GraphQL 查询定义
 export const MARKETS_QUERY = `
-  query Markets($status: [MarketStatus!], $first: Int, $skip: Int) {
+  query Markets($first: Int, $skip: Int) {
     markets(
-      where: { status_in: $status }
       first: $first
       skip: $skip
-      orderBy: kickoffTime
+      orderBy: createdAt
       orderDirection: desc
     ) {
       id
-      event
-      homeTeam
-      awayTeam
-      kickoffTime
-      status
-      template {
-        type
-      }
+      templateId
+      matchId
+      state
       totalVolume
+      feeAccrued
+      lpLiquidity
+      uniqueBettors
       createdAt
+      lockedAt
+      resolvedAt
     }
   }
 `;
@@ -39,62 +38,72 @@ export const MARKET_QUERY = `
   query Market($id: ID!) {
     market(id: $id) {
       id
-      event
-      homeTeam
-      awayTeam
-      kickoffTime
-      status
-      template {
-        type
-      }
-      winningOutcome
+      templateId
+      matchId
+      state
+      winnerOutcome
       totalVolume
-      outcomeCount
+      feeAccrued
+      lpLiquidity
+      uniqueBettors
       createdAt
+      lockedAt
       resolvedAt
+      finalizedAt
     }
   }
 `;
 
 export const USER_POSITIONS_QUERY = `
-  query UserPositions($user: Bytes!) {
+  query UserPositions($userId: ID!) {
     positions(
-      where: { owner: $user, balance_gt: "0" }
-      orderBy: createdAt
+      where: { owner: $userId, balance_gt: "0" }
+      orderBy: lastUpdatedAt
       orderDirection: desc
     ) {
       id
+      owner {
+        id
+      }
       market {
         id
-        event
-        homeTeam
-        awayTeam
-        status
-        winningOutcome
+        templateId
+        matchId
+        state
+        winnerOutcome
       }
       outcome
       balance
-      createdAt
+      averageCost
+      totalInvested
+      lastUpdatedAt
     }
   }
 `;
 
 export const USER_ORDERS_QUERY = `
-  query UserOrders($user: Bytes!, $first: Int) {
+  query UserOrders($userId: ID!, $first: Int) {
     orders(
-      where: { user: $user }
+      where: { user: $userId }
       first: $first
       orderBy: timestamp
       orderDirection: desc
     ) {
       id
+      user {
+        id
+      }
       market {
         id
-        event
+        templateId
+        matchId
+        state
       }
       outcome
       amount
       shares
+      fee
+      price
       timestamp
       transactionHash
     }
@@ -110,11 +119,11 @@ export const GLOBAL_STATS_QUERY = `
     globalStats(id: "global") {
       id
       totalMarkets
-      totalOrders
       totalUsers
       totalVolume
       totalFees
-      updatedAt
+      totalRedeemed
+      activeMarkets
     }
   }
 `;
@@ -127,16 +136,20 @@ export const RECENT_ORDERS_QUERY = `
       orderDirection: desc
     ) {
       id
-      user
+      user {
+        id
+      }
       market {
         id
-        event
-        homeTeam
-        awayTeam
+        templateId
+        matchId
+        state
       }
       outcome
       amount
       shares
+      fee
+      price
       timestamp
       transactionHash
     }
@@ -147,7 +160,7 @@ export const MARKET_STATS_QUERY = `
   query MarketStats {
     markets(first: 1000, orderBy: createdAt, orderDirection: desc) {
       id
-      status
+      state
       totalVolume
       createdAt
     }
@@ -183,10 +196,9 @@ export const ORACLE_PROPOSALS_QUERY = `
       oracle
       market {
         id
-        event
-        homeTeam
-        awayTeam
-        status
+        templateId
+        matchId
+        state
       }
       proposer
       result
@@ -209,11 +221,9 @@ export const ORACLE_PROPOSAL_QUERY = `
       oracle
       market {
         id
-        event
-        homeTeam
-        awayTeam
-        status
-        kickoffTime
+        templateId
+        matchId
+        state
         createdAt
       }
       proposer

@@ -13,6 +13,7 @@ const STATUS_MAP = {
   Open: { label: '开盘中', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
   Locked: { label: '已锁盘', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
   Resolved: { label: '已结算', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  Finalized: { label: '已完成', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
 };
 
 // 玩法类型映射
@@ -70,14 +71,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const status = STATUS_MAP[market.status as keyof typeof STATUS_MAP] || {
-    label: market.status,
+  const status = STATUS_MAP[market.state as keyof typeof STATUS_MAP] || {
+    label: market.state,
     color: 'bg-gray-100 text-gray-800'
   };
 
-  const kickoffTime = new Date(Number(market.kickoffTime) * 1000);
   const createdAt = new Date(Number(market.createdAt) * 1000);
+  const lockedAt = market.lockedAt ? new Date(Number(market.lockedAt) * 1000) : null;
   const resolvedAt = market.resolvedAt ? new Date(Number(market.resolvedAt) * 1000) : null;
+  const finalizedAt = market.finalizedAt ? new Date(Number(market.finalizedAt) * 1000) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -88,14 +90,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {market.homeTeam} vs {market.awayTeam}
+                  市场 {market.id.slice(0, 8)}...
                 </h1>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
                   {status.label}
                 </span>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {market.event} · 市场 ID: {market.id.slice(0, 10)}...
+                Match: {market.matchId.slice(0, 10)}... · Template: {market.templateId.slice(0, 10)}...
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -104,7 +106,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   返回列表
                 </Button>
               </Link>
-              {market.status === 'Open' && (
+              {market.state === 'Open' && (
                 <Button variant="secondary" disabled>
                   锁盘
                   <span className="ml-2 text-xs">(需要 Web3)</span>
@@ -125,64 +127,63 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             subtitle="累计下注金额"
           />
           <InfoCard
-            title="玩法类型"
-            value={TEMPLATE_TYPE_MAP[market.template?.type] || market.template?.type || '未知'}
-            subtitle="市场模板"
+            title="手续费累计"
+            value={`${(Number(market.feeAccrued || 0) / 1e6).toFixed(2)} USDC`}
+            subtitle="已收取手续费"
           />
           <InfoCard
-            title="结果选项"
-            value={market.outcomeCount || '0'}
-            subtitle="可投注的结果数量"
+            title="LP 流动性"
+            value={`${(Number(market.lpLiquidity || 0) / 1e6).toFixed(2)} USDC`}
+            subtitle="流动性池规模"
           />
           <InfoCard
             title="胜出结果"
-            value={market.winningOutcome !== null && market.winningOutcome !== undefined ? `#${market.winningOutcome}` : '--'}
-            subtitle={market.status === 'Resolved' ? '已确定' : '待结算'}
+            value={market.winnerOutcome !== null && market.winnerOutcome !== undefined ? `#${market.winnerOutcome}` : '--'}
+            subtitle={market.state === 'Resolved' || market.state === 'Finalized' ? '已确定' : '待结算'}
           />
         </div>
 
         {/* 详细信息 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* 赛事信息 */}
+          {/* 市场信息 */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              赛事信息
+              市场信息
             </h2>
             <dl className="space-y-3">
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500 dark:text-gray-400">主队</dt>
-                <dd className="text-sm font-medium text-gray-900 dark:text-white">{market.homeTeam}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">市场 ID</dt>
+                <dd className="text-sm font-mono text-gray-900 dark:text-white">{market.id.slice(0, 16)}...</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500 dark:text-gray-400">客队</dt>
-                <dd className="text-sm font-medium text-gray-900 dark:text-white">{market.awayTeam}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Match ID</dt>
+                <dd className="text-sm font-mono text-gray-900 dark:text-white">{market.matchId.slice(0, 16)}...</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500 dark:text-gray-400">赛事</dt>
-                <dd className="text-sm font-medium text-gray-900 dark:text-white">{market.event}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Template ID</dt>
+                <dd className="text-sm font-mono text-gray-900 dark:text-white">{market.templateId.slice(0, 16)}...</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500 dark:text-gray-400">开赛时间</dt>
-                <dd className="text-sm font-medium text-gray-900 dark:text-white">
-                  {format(kickoffTime, 'PPP HH:mm', { locale: zhCN })}
-                </dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">独立下注者</dt>
+                <dd className="text-sm font-medium text-gray-900 dark:text-white">{market.uniqueBettors || 0} 人</dd>
               </div>
             </dl>
           </Card>
 
-          {/* 市场状态 */}
+          {/* 时间轴 */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              市场状态
+              时间轴
             </h2>
             <dl className="space-y-3">
               <div className="flex justify-between">
                 <dt className="text-sm text-gray-500 dark:text-gray-400">当前状态</dt>
                 <dd>
                   <Badge variant={
-                    market.status === 'Open' ? 'primary' :
-                    market.status === 'Locked' ? 'warning' :
-                    market.status === 'Resolved' ? 'success' :
+                    market.state === 'Open' ? 'primary' :
+                    market.state === 'Locked' ? 'warning' :
+                    market.state === 'Resolved' ? 'success' :
+                    market.state === 'Finalized' ? 'success' :
                     'secondary'
                   }>
                     {status.label}
@@ -195,6 +196,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   {format(createdAt, 'PPP HH:mm', { locale: zhCN })}
                 </dd>
               </div>
+              {lockedAt && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">锁盘时间</dt>
+                  <dd className="text-sm font-medium text-gray-900 dark:text-white">
+                    {format(lockedAt, 'PPP HH:mm', { locale: zhCN })}
+                  </dd>
+                </div>
+              )}
               {resolvedAt && (
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500 dark:text-gray-400">结算时间</dt>
@@ -203,12 +212,14 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </dd>
                 </div>
               )}
-              <div className="flex justify-between">
-                <dt className="text-sm text-gray-500 dark:text-gray-400">玩法模板</dt>
-                <dd className="text-sm font-medium text-gray-900 dark:text-white">
-                  {TEMPLATE_TYPE_MAP[market.template?.type] || market.template?.type || '未知'}
-                </dd>
-              </div>
+              {finalizedAt && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">完成时间</dt>
+                  <dd className="text-sm font-medium text-gray-900 dark:text-white">
+                    {format(finalizedAt, 'PPP HH:mm', { locale: zhCN })}
+                  </dd>
+                </div>
+              )}
             </dl>
           </Card>
         </div>

@@ -13,6 +13,7 @@ const STATUS_MAP = {
   Open: { label: '开盘中', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
   Locked: { label: '已锁盘', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
   Resolved: { label: '已结算', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  Finalized: { label: '已完成', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
 };
 
 // 玩法类型映射
@@ -25,13 +26,13 @@ const TEMPLATE_TYPE_MAP: Record<string, string> = {
 
 // 市场表格行组件
 function MarketRow({ market }: { market: any }) {
-  const status = STATUS_MAP[market.status as keyof typeof STATUS_MAP] || {
-    label: market.status,
+  const status = STATUS_MAP[market.state as keyof typeof STATUS_MAP] || {
+    label: market.state,
     color: 'bg-gray-100 text-gray-800'
   };
 
-  const kickoffTime = new Date(Number(market.kickoffTime) * 1000);
-  const isUpcoming = kickoffTime > new Date();
+  const createdTime = new Date(Number(market.createdAt) * 1000);
+  const lockedTime = market.lockedAt ? new Date(Number(market.lockedAt) * 1000) : null;
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b dark:border-gray-700">
@@ -41,10 +42,10 @@ function MarketRow({ market }: { market: any }) {
             href={`/markets/${market.id}`}
             className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
           >
-            {market.homeTeam} vs {market.awayTeam}
+            市场 {market.id.slice(0, 8)}...
           </Link>
           <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {market.event}
+            Match: {market.matchId.slice(0, 10)}... | Template: {market.templateId.slice(0, 10)}...
           </span>
         </div>
       </td>
@@ -55,22 +56,22 @@ function MarketRow({ market }: { market: any }) {
       </td>
       <td className="py-4 px-4">
         <Badge variant="secondary">
-          {TEMPLATE_TYPE_MAP[market.template?.type] || market.template?.type || '未知'}
+          模板 {market.templateId.slice(0, 8)}...
         </Badge>
       </td>
       <td className="py-4 px-4">
         <div className="flex flex-col">
           <span className="text-sm text-gray-900 dark:text-white">
-            {kickoffTime.toLocaleString('zh-CN', {
+            {createdTime.toLocaleString('zh-CN', {
               month: 'numeric',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
             })}
           </span>
-          {isUpcoming && (
+          {lockedTime && (
             <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {formatDistanceToNow(kickoffTime, { addSuffix: true, locale: zhCN })}
+              锁盘: {formatDistanceToNow(lockedTime, { addSuffix: true, locale: zhCN })}
             </span>
           )}
         </div>
@@ -177,13 +178,17 @@ export default function MarketsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [templateFilter, setTemplateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'createdAt' | 'totalVolume'>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const itemsPerPage = 20;
 
   // 获取市场列表
   const { data: markets, isLoading, error } = useQuery({
     queryKey: ['admin-markets'],
     queryFn: async () => {
       const data: any = await graphqlClient.request(MARKETS_QUERY, {
-        first: 100,
+        first: 1000,
         skip: 0,
       });
       return data.markets;
@@ -193,25 +198,55 @@ export default function MarketsPage() {
   // 客户端筛选
   const filteredMarkets = markets?.filter((market: any) => {
     // 状态筛选
-    if (statusFilter && market.status !== statusFilter) return false;
+    if (statusFilter && market.state !== statusFilter) return false;
 
-    // 玩法类型筛选
-    if (templateFilter && market.template?.type !== templateFilter) return false;
+    // 玩法类型筛选 (使用 templateId)
+    if (templateFilter && market.templateId !== templateFilter) return false;
 
-    // 搜索筛选
+    // 搜索筛选 (使用 market ID 和 matchId)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const homeTeam = market.homeTeam?.toLowerCase() || '';
-      const awayTeam = market.awayTeam?.toLowerCase() || '';
-      const event = market.event?.toLowerCase() || '';
+      const marketId = market.id?.toLowerCase() || '';
+      const matchId = market.matchId?.toLowerCase() || '';
 
-      if (!homeTeam.includes(query) && !awayTeam.includes(query) && !event.includes(query)) {
+      if (!marketId.includes(query) && !matchId.includes(query)) {
         return false;
       }
     }
 
     return true;
   });
+
+  // 排序
+  const sortedMarkets = filteredMarkets?.sort((a: any, b: any) => {
+    let aValue, bValue;
+
+    if (sortBy === 'totalVolume') {
+      aValue = Number(a.totalVolume || 0);
+      bValue = Number(b.totalVolume || 0);
+    } else {
+      aValue = Number(a.createdAt || 0);
+      bValue = Number(b.createdAt || 0);
+    }
+
+    if (sortDirection === 'asc') {
+      return aValue - bValue;
+    } else {
+      return bValue - aValue;
+    }
+  });
+
+  // 分页
+  const totalPages = Math.ceil((sortedMarkets?.length || 0) / itemsPerPage);
+  const paginatedMarkets = sortedMarkets?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // 重置分页当筛选条件变化时
+  const resetPagination = () => {
+    setCurrentPage(1);
+  };
 
   // 加载状态
   if (isLoading) {
@@ -269,25 +304,59 @@ export default function MarketsPage() {
         {/* 筛选栏 */}
         <FilterBar
           statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          setStatusFilter={(value) => {
+            setStatusFilter(value);
+            resetPagination();
+          }}
           templateFilter={templateFilter}
-          setTemplateFilter={setTemplateFilter}
+          setTemplateFilter={(value) => {
+            setTemplateFilter(value);
+            resetPagination();
+          }}
           searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
+          setSearchQuery={(value) => {
+            setSearchQuery(value);
+            resetPagination();
+          }}
         />
 
-        {/* 统计信息 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            显示 <span className="font-semibold text-gray-900 dark:text-white">{filteredMarkets?.length || 0}</span> 个市场
-            {markets && filteredMarkets && markets.length !== filteredMarkets.length && (
-              <span>（已筛选，共 {markets.length} 个）</span>
-            )}
+        {/* 排序控件 */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-700 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">排序方式：</span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as 'createdAt' | 'totalVolume');
+                  resetPagination();
+                }}
+                className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="createdAt">创建时间</option>
+                <option value="totalVolume">交易量</option>
+              </select>
+              <button
+                onClick={() => {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  resetPagination();
+                }}
+                className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {sortDirection === 'desc' ? '↓ 降序' : '↑ 升序'}
+              </button>
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              显示 <span className="font-semibold text-gray-900 dark:text-white">{paginatedMarkets?.length || 0}</span> / {sortedMarkets?.length || 0} 个市场
+              {markets && sortedMarkets && markets.length !== sortedMarkets.length && (
+                <span>（已筛选，共 {markets.length} 个）</span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* 市场列表 */}
-        {filteredMarkets && filteredMarkets.length > 0 ? (
+        {paginatedMarkets && paginatedMarkets.length > 0 ? (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -317,12 +386,77 @@ export default function MarketsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMarkets.map((market: any) => (
+                  {paginatedMarkets.map((market: any) => (
                     <MarketRow key={market.id} market={market} />
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {/* 分页控件 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t dark:border-gray-700">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  第 {currentPage} / {totalPages} 页
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    首页
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    上一页
+                  </button>
+                  {/* 页码按钮 */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    下一页
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    末页
+                  </button>
+                </div>
+              </div>
+            )}
           </Card>
         ) : (
           <Card className="p-12 text-center">

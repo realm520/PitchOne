@@ -3,7 +3,7 @@ import { anvil, sepolia } from 'wagmi/chains';
 import { injected, walletConnect } from 'wagmi/connectors';
 
 // WalletConnect Project ID (需要从 https://cloud.walletconnect.com 获取)
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID';
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '2358a087a431594e05bce10f23628441';
 
 // 配置支持的链
 export const chains = [anvil, sepolia] as const;
