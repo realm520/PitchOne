@@ -1,0 +1,21 @@
+{
+  "name": "pitchone-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PitchOne - 去中心化链上足球博彩平台",
+  "scripts": {
+    "dev:user": "pnpm --filter @pitchone/user dev",
+    "dev:admin": "pnpm --filter @pitchone/admin dev",
+    "dev": "pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
+    "build:user": "pnpm --filter @pitchone/user build",
+    "build:admin": "pnpm --filter @pitchone/admin build",
+    "build": "pnpm --filter @pitchone/user build && pnpm --filter @pitchone/admin build",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.14.2"
+}
