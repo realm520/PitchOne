@@ -77,6 +77,16 @@ interface IMarket {
         uint256 timestamp
     );
 
+    /// @notice 流动性添加事件
+    /// @param provider 流动性提供者地址
+    /// @param totalAmount 总金额
+    /// @param timestamp 添加时间
+    event LiquidityAdded(
+        address indexed provider,
+        uint256 totalAmount,
+        uint256 timestamp
+    );
+
     // ============ 只读函数 ============
 
     /// @notice 获取市场状态
@@ -121,4 +131,9 @@ interface IMarket {
     /// @param shares 份额
     /// @return payout 赔付金额
     function redeem(uint256 outcomeId, uint256 shares) external returns (uint256 payout);
+
+    /// @notice 添加流动性（仅 owner）
+    /// @param totalAmount 总金额（将按权重分配到各 outcome）
+    /// @param weights 每个 outcome 的权重（如果为空，则均分）
+    function addLiquidity(uint256 totalAmount, uint256[] calldata weights) external;
 }

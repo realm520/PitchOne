@@ -262,6 +262,79 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
         emit Redeemed(msg.sender, outcomeId, shares, payout);
     }
 
+    /**
+     * @notice 添加流动性（仅 owner，通常在市场创建时调用）
+     * @param totalAmount 总金额
+     * @param weights 每个 outcome 的权重数组（如果为空，则均分；权重为 0 表示跳过该 outcome）
+     * @dev 1. 按权重分配流动性到各个 outcome
+     *      2. 不铸造 position tokens（这是做市商流动性，不是下注）
+     *      3. 只能在 Open 状态下添加
+     *      4. 权重为 0 的 outcome 将被跳过（例如半球盘的"退款"选项）
+     */
+    function addLiquidity(uint256 totalAmount, uint256[] calldata weights)
+        external
+        override
+        onlyOwner
+        onlyStatus(MarketStatus.Open)
+        nonReentrant
+    {
+        require(totalAmount > 0, "MarketBase: Zero amount");
+
+        // 如果没有提供权重，则均分
+        uint256[] memory finalWeights = weights.length == outcomeCount ? weights : new uint256[](outcomeCount);
+        uint256 totalWeight = 0;
+
+        if (weights.length == outcomeCount) {
+            // 使用提供的权重（允许 0 权重）
+            for (uint256 i = 0; i < outcomeCount; i++) {
+                totalWeight += weights[i];
+            }
+            require(totalWeight > 0, "MarketBase: All weights are zero");
+        } else {
+            // 均分权重
+            for (uint256 i = 0; i < outcomeCount; i++) {
+                finalWeights[i] = 1;
+                totalWeight += 1;
+            }
+        }
+
+        // 从调用者转入代币
+        settlementToken.safeTransferFrom(msg.sender, address(this), totalAmount);
+
+        // 按权重分配到各 outcome
+        uint256 allocated = 0;
+        uint256 lastNonZeroIndex = 0;
+
+        // 找到最后一个非零权重的 outcome
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            if (finalWeights[i] > 0) {
+                lastNonZeroIndex = i;
+            }
+        }
+
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            if (finalWeights[i] == 0) {
+                // 跳过权重为 0 的 outcome（如半球盘的退款）
+                continue;
+            }
+
+            uint256 amount;
+            if (i == lastNonZeroIndex) {
+                // 最后一个非零权重的 outcome 获得剩余金额（避免精度损失）
+                amount = totalAmount - allocated;
+            } else {
+                amount = (totalAmount * finalWeights[i]) / totalWeight;
+                allocated += amount;
+            }
+
+            outcomeLiquidity[i] += amount;
+        }
+
+        totalLiquidity += totalAmount;
+
+        emit LiquidityAdded(msg.sender, totalAmount, block.timestamp);
+    }
+
     // ============ 只读函数 ============
 
     /**

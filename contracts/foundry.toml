@@ -12,6 +12,11 @@ remappings = [
     'forge-std/=lib/forge-std/src/'
 ]
 
+# 排除不需要编译的文件
+exclude = [
+    'lib/openzeppelin-contracts/certora/**/*'
+]
+
 # Coverage configuration
 [profile.default.coverage]
 exclude = [
