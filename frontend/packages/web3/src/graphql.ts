@@ -1,16 +1,82 @@
 import { GraphQLClient } from 'graphql-request';
 
-// Subgraph URL (本地开发环境)
-const SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || 'http://localhost:8010/subgraphs/name/pitchone-local';
+// Subgraph IPFS Hash（最新部署版本 v0.3.4-full）
+const SUBGRAPH_HASH = 'Qmf3vzEHR1X2SnEfDFkErjmc4r43Znowib6o2YNTxMSbGM';
 
-// 创建 GraphQL Client
-export const graphqlClient = new GraphQLClient(SUBGRAPH_URL, {
-  headers: {
-    'Content-Type': 'application/json',
-  },
+// 获取 Subgraph URL（支持环境检测）
+function getSubgraphURL(): string {
+  // 优先使用环境变量
+  if (process.env.NEXT_PUBLIC_SUBGRAPH_URL) {
+    return process.env.NEXT_PUBLIC_SUBGRAPH_URL;
+  }
+
+  // 浏览器环境：使用完整 URL 访问 Next.js 代理
+  if (typeof window !== 'undefined') {
+    const url = `${window.location.origin}/api/subgraph/subgraphs/id/${SUBGRAPH_HASH}`;
+    console.log('[GraphQL Client] 浏览器环境，使用代理 URL:', url);
+    return url;
+  }
+
+  // 服务端环境：直接访问 Graph Node（无 CORS 限制）
+  const url = `http://localhost:8010/subgraphs/id/${SUBGRAPH_HASH}`;
+  console.log('[GraphQL Client] 服务端环境，直接访问:', url);
+  return url;
+}
+
+// 创建 GraphQL Client（延迟初始化以确保在正确环境中获取 URL）
+let _client: GraphQLClient | null = null;
+
+function getGraphQLClient(): GraphQLClient {
+  if (!_client) {
+    const url = getSubgraphURL();
+    console.log('[GraphQL Client] 初始化 GraphQL Client，URL:', url);
+    _client = new GraphQLClient(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+  return _client;
+}
+
+// 导出 client（使用 getter 以支持延迟初始化）
+export const graphqlClient = new Proxy({} as GraphQLClient, {
+  get(target, prop) {
+    const client = getGraphQLClient();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
 });
 
-// GraphQL 查询定义
+// GraphQL 查询定义（带状态过滤）
+export const MARKETS_QUERY_FILTERED = `
+  query Markets($first: Int, $skip: Int, $status: [MarketState!]!) {
+    markets(
+      first: $first
+      skip: $skip
+      where: { state_in: $status }
+      orderBy: createdAt
+      orderDirection: desc
+    ) {
+      id
+      templateId
+      matchId
+      homeTeam
+      awayTeam
+      kickoffTime
+      state
+      totalVolume
+      feeAccrued
+      lpLiquidity
+      uniqueBettors
+      createdAt
+      lockedAt
+      resolvedAt
+    }
+  }
+`;
+
+// GraphQL 查询定义（不带状态过滤）
 export const MARKETS_QUERY = `
   query Markets($first: Int, $skip: Int) {
     markets(
@@ -22,6 +88,9 @@ export const MARKETS_QUERY = `
       id
       templateId
       matchId
+      homeTeam
+      awayTeam
+      kickoffTime
       state
       totalVolume
       feeAccrued
@@ -40,6 +109,9 @@ export const MARKET_QUERY = `
       id
       templateId
       matchId
+      homeTeam
+      awayTeam
+      kickoffTime
       state
       winnerOutcome
       totalVolume
@@ -85,6 +157,35 @@ export const USER_ORDERS_QUERY = `
   query UserOrders($userId: ID!, $first: Int) {
     orders(
       where: { user: $userId }
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      user {
+        id
+      }
+      market {
+        id
+        templateId
+        matchId
+        state
+      }
+      outcome
+      amount
+      shares
+      fee
+      price
+      timestamp
+      transactionHash
+    }
+  }
+`;
+
+export const MARKET_ORDERS_QUERY = `
+  query MarketOrders($userId: ID!, $marketId: ID!, $first: Int) {
+    orders(
+      where: { user: $userId, market: $marketId }
       first: $first
       orderBy: timestamp
       orderDirection: desc

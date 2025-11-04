@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  // 添加 rewrites 来代理 Subgraph 请求，解决 CORS 问题
+  async rewrites() {
+    return [
+      {
+        source: '/api/subgraph/:path*',
+        destination: 'http://localhost:8010/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
