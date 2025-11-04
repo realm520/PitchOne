@@ -4,6 +4,7 @@ import { useReadContracts } from 'wagmi';
 import { MarketBaseABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
 import { useAccount } from 'wagmi';
+import { useOutcomeCount } from './contract-hooks';
 
 /**
  * 市场完整数据接口
@@ -25,22 +26,23 @@ export interface MarketFullData {
  * @param userAddress 用户地址（可选，用于查询用户头寸）
  */
 export function useMarketFullData(marketAddress?: Address, userAddress?: Address) {
-  const { data: outcomeCount } = useReadContracts({
-    contracts: [
-      {
-        address: marketAddress,
-        abi: MarketBaseABI,
-        functionName: 'outcomeCount',
-      },
-    ],
-    query: {
-      enabled: !!marketAddress,
-      staleTime: 60000, // 1 分钟
-    },
-  });
+  console.log('[useMarketFullData] 开始查询:', { marketAddress, userAddress });
 
-  const count = outcomeCount?.[0]?.result as bigint | undefined;
+  const {
+    data: count,
+    isLoading: isLoadingOutcomeCount,
+    error: outcomeCountError
+  } = useOutcomeCount(marketAddress);
+
   const outcomeCountNumber = count ? Number(count) : 0;
+
+  console.log('[useMarketFullData] outcomeCount 查询结果:', {
+    isLoading: isLoadingOutcomeCount,
+    hasError: !!outcomeCountError,
+    error: outcomeCountError,
+    count,
+    outcomeCountNumber
+  });
 
   // 构建批量查询合约配置
   const contracts = [];
@@ -90,16 +92,34 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
     }
   }
 
+  console.log('[useMarketFullData] 构建的合约查询数组:', {
+    contractsLength: contracts.length,
+    enabled: !!marketAddress && outcomeCountNumber > 0
+  });
+
   const { data, isLoading, error, refetch } = useReadContracts({
     contracts: contracts as any,
+    chainId: 31337, // Anvil 本地链
     query: {
-      enabled: !!marketAddress && outcomeCountNumber > 0,
+      enabled: !!marketAddress && outcomeCountNumber > 0 && !isLoadingOutcomeCount,
       staleTime: 10000, // 10 秒
     },
   });
 
+  console.log('[useMarketFullData] 合约查询结果:', {
+    hasData: !!data,
+    dataLength: data?.length,
+    isLoading,
+    hasError: !!error,
+    error
+  });
+
   // 解析数据
   if (!data || !outcomeCountNumber) {
+    console.log('[useMarketFullData] 返回 null，原因:', {
+      hasData: !!data,
+      outcomeCountNumber
+    });
     return { data: null, isLoading, error, refetch };
   }
 
@@ -160,6 +180,7 @@ export function useMultipleMarketsData(marketAddresses: Address[]) {
 
   const { data, isLoading, error, refetch } = useReadContracts({
     contracts: contracts as any,
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: marketAddresses.length > 0,
       staleTime: 30000, // 30 秒
@@ -238,6 +259,7 @@ export function useUserUSDCDataForMarkets(
 
   const { data, isLoading, error, refetch } = useReadContracts({
     contracts: contracts as any,
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!userAddress && !!addresses && marketAddresses.length > 0,
       staleTime: 15000, // 15 秒
@@ -286,9 +308,21 @@ export interface OutcomeData {
  * @param templateType 市场模板类型（WDL, OU, AH等）
  */
 export function useMarketOutcomes(marketAddress?: Address, templateType?: string) {
+  console.log('[useMarketOutcomes] 开始查询:', { marketAddress, templateType });
+
   const { data: marketData, isLoading, error, refetch } = useMarketFullData(marketAddress);
 
+  console.log('[useMarketOutcomes] useMarketFullData 返回:', {
+    hasMarketData: !!marketData,
+    isLoading,
+    hasError: !!error
+  });
+
   if (!marketData || isLoading) {
+    console.log('[useMarketOutcomes] 返回 null，原因:', {
+      hasMarketData: !!marketData,
+      isLoading
+    });
     return { data: null, isLoading, error, refetch };
   }
 
@@ -301,6 +335,11 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
 
   for (let i = 0; i < outcomeCount; i++) {
     const liquidity = outcomeLiquidity[i];
+
+    // 跳过流动性为 0 的结果（如半球盘的退款、未注入流动性的选项）
+    if (liquidity === 0n) {
+      continue;
+    }
 
     // 计算隐含概率（流动性占比）
     const probability = totalLiquidity > 0n
@@ -335,6 +374,11 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
     });
   }
 
+  console.log('[useMarketOutcomes] 查询成功，返回 outcomes:', {
+    outcomeCount,
+    outcomes
+  });
+
   return { data: outcomes, isLoading: false, error, refetch };
 }
 
@@ -342,10 +386,26 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
  * 根据模板类型和 outcome ID 获取名称
  */
 function getOutcomeName(outcomeId: number, templateType: string): string {
+  // OU_MULTI 特殊处理：outcomeId = lineIndex * 2 + direction（仅半球盘）
+  if (templateType === 'OU_MULTI') {
+    const lineIndex = Math.floor(outcomeId / 2);
+    const direction = outcomeId % 2; // 0=OVER, 1=UNDER
+
+    // 常见的线配置（2.5, 3.5, 4.5）
+    const lines = [2.5, 3.5, 4.5];
+    const lineName = lines[lineIndex] || lineIndex;
+
+    const directionNames = ['大', '小'];
+    const directionName = directionNames[direction] || '?';
+
+    return `${lineName}球 ${directionName}`;
+  }
+
   const nameMap: Record<string, string[]> = {
     WDL: ['主胜', '平局', '客胜'],
     OU: ['大球', '小球'],
     AH: ['主队让球', '客队让球'],
+    OddEven: ['奇数', '偶数'],
     Score: [], // 精确比分需要特殊处理
   };
 

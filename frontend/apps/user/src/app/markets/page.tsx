@@ -141,7 +141,7 @@ export default function MarketsPage() {
                   <div className="flex items-center justify-between pt-4 border-t border-dark-border">
                     <span className="text-sm text-gray-400">玩法类型</span>
                     <Badge variant="neon" size="sm">
-                      {market._displayInfo?.templateType || '未知'}
+                      {market._displayInfo?.templateTypeDisplay || '未知'}
                     </Badge>
                   </div>
 

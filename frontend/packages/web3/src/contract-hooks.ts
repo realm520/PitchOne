@@ -156,6 +156,7 @@ export function usePositionBalance(
     abi: MarketBaseABI,
     functionName: 'balanceOf',
     args: userAddress && outcomeId !== undefined ? [userAddress, BigInt(outcomeId)] : undefined,
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress && !!userAddress && outcomeId !== undefined,
     },
@@ -171,6 +172,7 @@ export function useMarketStatus(marketAddress?: Address) {
     address: marketAddress,
     abi: MarketBaseABI,
     functionName: 'status',
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress,
     },
@@ -186,6 +188,7 @@ export function useOutcomeCount(marketAddress?: Address) {
     address: marketAddress,
     abi: MarketBaseABI,
     functionName: 'outcomeCount',
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress,
     },
@@ -203,6 +206,7 @@ export function useOutcomeLiquidity(marketAddress?: Address, outcomeId?: number)
     abi: MarketBaseABI,
     functionName: 'outcomeLiquidity',
     args: outcomeId !== undefined ? [BigInt(outcomeId)] : undefined,
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress && outcomeId !== undefined,
     },
@@ -223,6 +227,7 @@ export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: s
     abi: MarketBaseABI,
     functionName: 'getQuote',
     args: outcomeId !== undefined && amount ? [BigInt(outcomeId), amountInWei] : undefined,
+    chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress && outcomeId !== undefined && !!amount && parseFloat(amount) > 0,
       // 报价数据实时性要求高，缓存时间短

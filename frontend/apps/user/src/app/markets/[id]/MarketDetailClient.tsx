@@ -5,7 +5,7 @@ import { formatUnits } from 'viem';
 import {
   useAccount,
   useMarket,
-  useUserOrders,
+  useMarketOrders,
   MarketStatus,
   usePlaceBet,
   useApproveUSDC,
@@ -30,7 +30,7 @@ import { LiveActivity } from '@/components/LiveActivity';
 import { betNotifications, marketNotifications } from '@/lib/notifications';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
 
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState('');
@@ -38,13 +38,30 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const [needsApproval, setNeedsApproval] = useState(false);
 
   const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
-  const { data: orders, refetch: refetchOrders } = useUserOrders(address, marketId);
+  const { data: orders, refetch: refetchOrders } = useMarketOrders(address, marketId);
 
   // 获取真实的 outcome 数据（包括实时赔率）
   const { data: outcomes, isLoading: outcomesLoading, refetch: refetchOutcomes } = useMarketOutcomes(
     marketId as `0x${string}`,
     market?._displayInfo?.templateType || 'WDL'
   );
+
+  // 调试日志：显示所有关键状态
+  console.log('[MarketDetailClient] 组件状态:', {
+    marketId,
+    isConnected,
+    chainId: chain?.id,
+    chainName: chain?.name,
+    address,
+    hasMarket: !!market,
+    market,
+    hasOutcomes: !!outcomes,
+    outcomes,
+    isLoading,
+    outcomesLoading,
+    hasError: !!error,
+    error
+  });
 
   // 实时事件监听
   const betPlacedEvents = useWatchBetPlaced(marketId as `0x${string}`);
@@ -92,7 +109,21 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   useEffect(() => {
     if (betAmount && allowance !== undefined) {
       const amountInWei = BigInt(parseFloat(betAmount) * 1e6); // USDC 6 decimals
-      setNeedsApproval(allowance < amountInWei);
+      const needsApprove = allowance < amountInWei;
+      console.log('[MarketDetailClient] 授权检查:', {
+        betAmount,
+        amountInWei: amountInWei.toString(),
+        allowance: allowance.toString(),
+        needsApprove
+      });
+      setNeedsApproval(needsApprove);
+    } else if (betAmount && allowance === undefined) {
+      // allowance 还在加载中，默认假设需要授权
+      console.log('[MarketDetailClient] allowance 未加载，默认需要授权');
+      setNeedsApproval(true);
+    } else {
+      // 没有输入金额时，重置状态
+      setNeedsApproval(false);
     }
   }, [betAmount, allowance]);
 
@@ -170,6 +201,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   };
 
+  // 1. 加载状态（优先级最高）
   if (isLoading || outcomesLoading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
@@ -178,10 +210,29 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     );
   }
 
-  if (error || !market || !outcomes) {
+  // 2. 网络错误
+  if (error) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message="无法加载市场数据，市场可能不存在或网络连接有问题" />
+        <ErrorState message={`加载失败: ${(error as Error).message || '网络错误，请检查连接'}`} />
+      </div>
+    );
+  }
+
+  // 3. 市场不存在
+  if (!market) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <ErrorState message="市场不存在，可能已被删除或 ID 不正确" />
+      </div>
+    );
+  }
+
+  // 4. 合约数据加载失败
+  if (!outcomes) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <ErrorState message="无法加载市场赔率数据，请稍后重试" />
       </div>
     );
   }
@@ -209,18 +260,18 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 </p>
               )}
             </div>
-            <Badge variant="neon" size="lg">{market._displayInfo?.templateType || '未知'}</Badge>
+            <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || '未知'}</Badge>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-dark-border">
             <div>
               <p className="text-sm text-gray-500 mb-1">总投注量</p>
-              <p className="text-xl font-bold text-neon-blue">{(Number(market.totalVolume) / 1e6).toFixed(2)} USDC</p>
+              <p className="text-xl font-bold text-neon-blue">{Number(market.totalVolume).toFixed(2)} USDC</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">流动性</p>
-              <p className="text-xl font-bold text-neon-green">{(Number(market.lpLiquidity) / 1e6).toFixed(2)} USDC</p>
+              <p className="text-xl font-bold text-neon-green">{Number(market.lpLiquidity).toFixed(2)} USDC</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">参与人数</p>
@@ -419,20 +470,20 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   variant="neon"
                   fullWidth
                   onClick={handleApprove}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || allowance === undefined}
                   isLoading={isApproving}
                 >
-                  {isApproving ? '授权中...' : '授权 USDC'}
+                  {isApproving ? '授权中...' : allowance === undefined ? '检查授权...' : '授权 USDC'}
                 </Button>
               ) : (
                 <Button
                   variant="neon"
                   fullWidth
                   onClick={handlePlaceBet}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || allowance === undefined}
                   isLoading={isBetting}
                 >
-                  {isBetting ? '下注中...' : '确认下注'}
+                  {isBetting ? '下注中...' : allowance === undefined ? '加载中...' : '确认下注'}
                 </Button>
               )}
             </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { LoadingSpinner } from '@pitchone/ui';
 
@@ -15,6 +16,9 @@ const MarketDetailClient = dynamic(
   }
 );
 
-export default function MarketDetailContent({ marketId }: { marketId: string }) {
+export default function MarketDetailPage() {
+  const params = useParams();
+  const marketId = params.id as string;
+
   return <MarketDetailClient marketId={marketId} />;
 }
