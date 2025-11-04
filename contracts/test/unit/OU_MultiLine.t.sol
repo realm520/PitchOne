@@ -21,13 +21,12 @@ contract OU_MultiLineTest is BaseTest {
     string constant HOME_TEAM = "Manchester United";
     string constant AWAY_TEAM = "Manchester City";
     uint256 kickoffTime;
-    uint256[] private testLines; // 2.0, 2.5, 3.0 goals
+    uint256[] private testLines; // 2.5, 3.5, 4.5 goals (half lines only)
     string constant URI = "https://api.sportsbook.com/markets/{id}";
 
     // Outcomes
     uint256 constant OVER = 0;
     uint256 constant UNDER = 1;
-    uint256 constant PUSH = 2;
 
     event MarketCreated(
         string indexed matchId,
@@ -53,10 +52,10 @@ contract OU_MultiLineTest is BaseTest {
         // Set kickoff time to 2 hours from now
         kickoffTime = block.timestamp + 2 hours;
 
-        // Setup test lines: 2.0, 2.5, 3.0 goals
-        testLines.push(2000);
+        // Setup test lines: 2.5, 3.5, 4.5 goals (half lines only)
         testLines.push(2500);
-        testLines.push(3000);
+        testLines.push(3500);
+        testLines.push(4500);
 
         // Deploy ParamController
         paramController = new ParamController(owner, 2 days);
@@ -96,15 +95,15 @@ contract OU_MultiLineTest is BaseTest {
         assertEq(market.kickoffTime(), kickoffTime);
         assertEq(address(market.pricingEngine()), address(cpmm));
         assertEq(address(market.linkedLinesController()), address(linkedController));
-        assertEq(market.outcomeCount(), 9); // 3 lines * 3 outcomes
+        assertEq(market.outcomeCount(), 6); // 3 lines * 2 outcomes
         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Open));
 
         // Check lines
         uint256[] memory lines = market.getLines();
         assertEq(lines.length, 3);
-        assertEq(lines[0], 2000);
-        assertEq(lines[1], 2500);
-        assertEq(lines[2], 3000);
+        assertEq(lines[0], 2500);
+        assertEq(lines[1], 3500);
+        assertEq(lines[2], 4500);
     }
 
     function test_Constructor_EmitsEvent() public {
@@ -131,10 +130,29 @@ contract OU_MultiLineTest is BaseTest {
         new OU_MultiLine(params);
     }
 
-    function test_Constructor_CheckLineTypes() public {
-        assertFalse(market.isHalfLine(2000)); // 2.0 is integer line
-        assertTrue(market.isHalfLine(2500)); // 2.5 is half line
-        assertFalse(market.isHalfLine(3000)); // 3.0 is integer line
+    function testRevert_Constructor_IntegerLineNotAllowed() public {
+        uint256[] memory integerLines = new uint256[](3);
+        integerLines[0] = 2000; // Integer line - not allowed
+        integerLines[1] = 2500;
+        integerLines[2] = 3000; // Integer line - not allowed
+
+        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+            matchId: MATCH_ID,
+            homeTeam: HOME_TEAM,
+            awayTeam: AWAY_TEAM,
+            kickoffTime: kickoffTime,
+            lines: integerLines,
+            settlementToken: address(usdc),
+            feeRecipient: address(feeRouter),
+            feeRate: DEFAULT_FEE_RATE,
+            disputePeriod: DEFAULT_DISPUTE_PERIOD,
+            pricingEngine: address(cpmm),
+            linkedLinesController: address(linkedController),
+            uri: URI
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(OU_MultiLine.OnlyHalfLinesAllowed.selector, 2000));
+        new OU_MultiLine(params);
     }
 
     function testRevert_Constructor_NoLines() public {
@@ -162,9 +180,9 @@ contract OU_MultiLineTest is BaseTest {
 
     function testRevert_Constructor_LinesNotSorted() public {
         uint256[] memory unsortedLines = new uint256[](3);
-        unsortedLines[0] = 3000;
-        unsortedLines[1] = 2000; // Wrong order
-        unsortedLines[2] = 2500;
+        unsortedLines[0] = 3500;
+        unsortedLines[1] = 2500; // Wrong order
+        unsortedLines[2] = 4500;
 
         OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
             matchId: MATCH_ID,
@@ -188,23 +206,20 @@ contract OU_MultiLineTest is BaseTest {
     // ============ Outcome ID Encoding/Decoding Tests ============
 
     function test_EncodeDecodeOutcomeId() public {
-        // Line 0 (2.0 goals)
+        // Line 0 (2.5 goals)
         assertEq(market.encodeOutcomeId(0, OVER), 0);
         assertEq(market.encodeOutcomeId(0, UNDER), 1);
-        assertEq(market.encodeOutcomeId(0, PUSH), 2);
 
-        // Line 1 (2.5 goals)
-        assertEq(market.encodeOutcomeId(1, OVER), 3);
-        assertEq(market.encodeOutcomeId(1, UNDER), 4);
-        assertEq(market.encodeOutcomeId(1, PUSH), 5);
+        // Line 1 (3.5 goals)
+        assertEq(market.encodeOutcomeId(1, OVER), 2);
+        assertEq(market.encodeOutcomeId(1, UNDER), 3);
 
-        // Line 2 (3.0 goals)
-        assertEq(market.encodeOutcomeId(2, OVER), 6);
-        assertEq(market.encodeOutcomeId(2, UNDER), 7);
-        assertEq(market.encodeOutcomeId(2, PUSH), 8);
+        // Line 2 (4.5 goals)
+        assertEq(market.encodeOutcomeId(2, OVER), 4);
+        assertEq(market.encodeOutcomeId(2, UNDER), 5);
 
         // Decode test
-        (uint256 lineIndex, uint256 direction) = market.decodeOutcomeId(4);
+        (uint256 lineIndex, uint256 direction) = market.decodeOutcomeId(3);
         assertEq(lineIndex, 1);
         assertEq(direction, UNDER);
     }
@@ -213,7 +228,7 @@ contract OU_MultiLineTest is BaseTest {
 
     function test_PlaceBet_FirstLine_Over() public {
         uint256 betAmount = 100e6; // 100 USDC
-        uint256 outcomeId = market.encodeOutcomeId(0, OVER); // 2.0 OVER
+        uint256 outcomeId = market.encodeOutcomeId(0, OVER); // 2.5 OVER
 
         approveMarket(user1, address(market), betAmount);
 
@@ -227,7 +242,7 @@ contract OU_MultiLineTest is BaseTest {
 
     function test_PlaceBet_SecondLine_Under() public {
         uint256 betAmount = 200e6; // 200 USDC
-        uint256 outcomeId = market.encodeOutcomeId(1, UNDER); // 2.5 UNDER
+        uint256 outcomeId = market.encodeOutcomeId(1, UNDER); // 3.5 UNDER
 
         approveMarket(user1, address(market), betAmount);
 
@@ -239,7 +254,7 @@ contract OU_MultiLineTest is BaseTest {
 
     function test_PlaceBet_ThirdLine_Over() public {
         uint256 betAmount = 150e6; // 150 USDC
-        uint256 outcomeId = market.encodeOutcomeId(2, OVER); // 3.0 OVER
+        uint256 outcomeId = market.encodeOutcomeId(2, OVER); // 4.5 OVER
 
         approveMarket(user1, address(market), betAmount);
 
@@ -249,33 +264,33 @@ contract OU_MultiLineTest is BaseTest {
         assertGt(market.balanceOf(user1, outcomeId), 0);
     }
 
-    function testRevert_PlaceBet_OnPush() public {
+    function testRevert_PlaceBet_InvalidOutcome() public {
         uint256 betAmount = 100e6;
-        uint256 outcomeId = market.encodeOutcomeId(0, PUSH); // Cannot bet on PUSH
+        uint256 invalidOutcomeId = 100; // Invalid outcome ID (超出范围)
 
         approveMarket(user1, address(market), betAmount);
 
         vm.prank(user1);
-        vm.expectRevert(OU_MultiLine.CannotBetOnPush.selector);
-        market.placeBet(outcomeId, betAmount);
+        vm.expectRevert("MarketBase: Invalid outcome");
+        market.placeBet(invalidOutcomeId, betAmount);
     }
 
     function test_PlaceBet_MultipleLinesMultipleUsers() public {
         uint256 betAmount = 100e6;
 
-        // User1 bets on 2.0 OVER
+        // User1 bets on 2.5 OVER
         uint256 outcome1 = market.encodeOutcomeId(0, OVER);
         approveMarket(user1, address(market), betAmount);
         vm.prank(user1);
         market.placeBet(outcome1, betAmount);
 
-        // User2 bets on 2.5 UNDER
+        // User2 bets on 3.5 UNDER
         uint256 outcome2 = market.encodeOutcomeId(1, UNDER);
         approveMarket(user2, address(market), betAmount);
         vm.prank(user2);
         market.placeBet(outcome2, betAmount);
 
-        // User3 bets on 3.0 OVER
+        // User3 bets on 4.5 OVER
         uint256 outcome3 = market.encodeOutcomeId(2, OVER);
         approveMarket(user3, address(market), betAmount);
         vm.prank(user3);
@@ -341,7 +356,7 @@ contract OU_MultiLineTest is BaseTest {
         assertEq(_awayTeam, AWAY_TEAM);
         assertEq(_kickoffTime, kickoffTime);
         assertEq(_lines.length, 3);
-        assertEq(_lines[0], 2000);
+        assertEq(_lines[0], 2500);
         assertEq(uint256(_status), uint256(IMarket.MarketStatus.Open));
         assertTrue(_groupId != bytes32(0));
     }
@@ -349,9 +364,9 @@ contract OU_MultiLineTest is BaseTest {
     function test_GetLines() public {
         uint256[] memory lines = market.getLines();
         assertEq(lines.length, 3);
-        assertEq(lines[0], 2000);
-        assertEq(lines[1], 2500);
-        assertEq(lines[2], 3000);
+        assertEq(lines[0], 2500);
+        assertEq(lines[1], 3500);
+        assertEq(lines[2], 4500);
     }
 
     // ============ Locking Tests ============
@@ -414,8 +429,12 @@ contract OU_MultiLineTest is BaseTest {
     // 注意：当前版本使用 MarketBase 的标准兑付逻辑
     //      完整的多线独立结算将在 V2 实现
     //
+    // V2 设计说明：
+    // - 只支持半球盘（2.5, 3.5, 4.5 等）
+    // - 移除 Push 逻辑，简化结算
+    // - 每条线都有明确的赢/输结果
+    //
     // TODO: Add integration tests for V2:
     // - Full multi-line resolution and redemption
-    // - Integer line with PUSH refund
-    // - Edge cases
+    // - Edge cases for half-line markets
 }

@@ -9,43 +9,43 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OU_MultiLine
- * @notice 大小球（Over/Under）多线市场模板
- * @dev 支持同一场比赛的多条盘口线（如 2.0、2.5、3.0 球）
+ * @notice 大小球（Over/Under）多线市场模板 - 仅支持半球盘
+ * @dev 支持同一场比赛的多条半球盘盘口线（如 2.5、3.5、4.5 球）
  *      使用 LinkedLinesController 进行联动定价，防止套利
  *
  * 与单线版本的主要区别：
- * - 支持多条盘口线（lines[]）
+ * - 支持多条半球盘盘口线（lines[]）
  * - 每条线独立的 outcome IDs
  * - 集成 LinkedLinesController 进行价格联动
  * - 每条线独立结算，但共享流动性池
  *
- * Outcome ID 编码：
- * - outcomeId = lineIndex * 3 + direction
- * - direction: 0 = OVER, 1 = UNDER, 2 = PUSH
+ * 设计说明：
+ * - 只允许半球盘（如 2.5、3.5），避免 AMM 环境下的 Push 退款问题
+ * - 每个结果都有明确的赢/输，简化结算逻辑
  *
- * 示例（3条线：2.0、2.5、3.0）：
- * - outcomeId 0 = 2.0球 OVER
- * - outcomeId 1 = 2.0球 UNDER
- * - outcomeId 2 = 2.0球 PUSH
- * - outcomeId 3 = 2.5球 OVER
- * - outcomeId 4 = 2.5球 UNDER
- * - outcomeId 5 = 2.5球 PUSH (不可能)
- * - outcomeId 6 = 3.0球 OVER
- * - outcomeId 7 = 3.0球 UNDER
- * - outcomeId 8 = 3.0球 PUSH
+ * Outcome ID 编码：
+ * - outcomeId = lineIndex * 2 + direction
+ * - direction: 0 = OVER, 1 = UNDER
+ *
+ * 示例（3条半球盘线：2.5、3.5、4.5）：
+ * - outcomeId 0 = 2.5球 OVER
+ * - outcomeId 1 = 2.5球 UNDER
+ * - outcomeId 2 = 3.5球 OVER
+ * - outcomeId 3 = 3.5球 UNDER
+ * - outcomeId 4 = 4.5球 OVER
+ * - outcomeId 5 = 4.5球 UNDER
  */
 contract OU_MultiLine is MarketBase {
     using SafeERC20 for IERC20;
 
     // ============ 常量 ============
 
-    /// @notice 每条线的结果数量 (Over/Under/Push)
-    uint256 private constant OUTCOMES_PER_LINE = 3;
+    /// @notice 每条线的结果数量 (Over/Under)
+    uint256 private constant OUTCOMES_PER_LINE = 2;
 
     /// @notice Outcome 方向
     uint256 public constant OVER = 0;
     uint256 public constant UNDER = 1;
-    uint256 public constant PUSH = 2;
 
     /// @notice 盘口精度（千分位，例如 2.5 = 2500）
     uint256 private constant LINE_PRECISION = 1000;
@@ -73,9 +73,6 @@ contract OU_MultiLine is MarketBase {
     /// @notice 线索引映射（line => lineIndex）
     mapping(uint256 => uint256) public lineToIndex;
 
-    /// @notice 线是否为半球盘
-    mapping(uint256 => bool) public isHalfLine;
-
     // ============ 事件 ============
 
     event MarketCreated(
@@ -95,11 +92,11 @@ contract OU_MultiLine is MarketBase {
     // ============ 错误 ============
 
     error InvalidLineIndex(uint256 lineIndex);
-    error CannotBetOnPush();
     error InvalidLine(uint256 line);
     error LineNotFound(uint256 line);
     error NoLinesProvided();
     error LinesNotSorted();
+    error OnlyHalfLinesAllowed(uint256 line);
 
     // ============ 构造函数 ============
 
@@ -140,13 +137,21 @@ contract OU_MultiLine is MarketBase {
         require(params.pricingEngine != address(0), "OU_ML: Invalid pricing engine");
         require(params.linkedLinesController != address(0), "OU_ML: Invalid controller");
 
-        // 验证线数组从小到大排序
-        for (uint256 i = 1; i < params.lines.length; i++) {
-            if (params.lines[i] <= params.lines[i - 1]) {
-                revert LinesNotSorted();
+        // 验证线数组从小到大排序，并确保所有线都是半球盘
+        for (uint256 i = 0; i < params.lines.length; i++) {
+            // 检查是否为半球盘
+            if (params.lines[i] % LINE_PRECISION == 0) {
+                revert OnlyHalfLinesAllowed(params.lines[i]);
             }
+
+            // 检查有效范围
             if (params.lines[i] == 0 || params.lines[i] > 20000) {
                 revert InvalidLine(params.lines[i]);
+            }
+
+            // 检查排序（从第二个元素开始）
+            if (i > 0 && params.lines[i] <= params.lines[i - 1]) {
+                revert LinesNotSorted();
             }
         }
 
@@ -156,10 +161,9 @@ contract OU_MultiLine is MarketBase {
         kickoffTime = params.kickoffTime;
         lines = params.lines;
 
-        // 构建线索引映射和判断盘口类型
+        // 构建线索引映射
         for (uint256 i = 0; i < params.lines.length; i++) {
             lineToIndex[params.lines[i]] = i;
-            isHalfLine[params.lines[i]] = (params.lines[i] % LINE_PRECISION) != 0;
         }
 
         pricingEngine = IPricingEngine(params.pricingEngine);
@@ -184,7 +188,7 @@ contract OU_MultiLine is MarketBase {
 
     /**
      * @notice 计算份额（调用定价引擎）
-     * @param outcomeId 结果ID（编码为 lineIndex * 3 + direction）
+     * @param outcomeId 结果ID（编码为 lineIndex * 2 + direction）
      * @param amount 净金额（已扣除手续费）
      * @return shares 获得的份额
      */
@@ -201,10 +205,8 @@ contract OU_MultiLine is MarketBase {
             revert InvalidLineIndex(lineIndex);
         }
 
-        // Push 不允许下注
-        if (direction == PUSH) {
-            revert CannotBetOnPush();
-        }
+        // 验证方向（只允许 OVER 或 UNDER）
+        require(direction < 2, "OU_ML: Invalid direction");
 
         // 构建储备数组（仅包含 Over 和 Under）
         uint256 overOutcomeId = _encodeOutcomeId(lineIndex, OVER);
@@ -229,8 +231,8 @@ contract OU_MultiLine is MarketBase {
      * @notice 根据比赛结果计算获胜结果ID
      * @param facts 比赛结果数据（来自预言机）
      * @return winningOutcomeId 获胜结果ID
-     * @dev 多线市场可能有多个获胜结果（不同线的 OVER/UNDER/PUSH）
-     *      这里返回第一条线的获胜结果
+     * @dev 多线市场有多个获胜结果（不同线的 OVER/UNDER）
+     *      这里返回第一条线的获胜结果作为默认值
      *      实际结算时需要检查每条线的结果
      */
     function _calculateWinner(IResultOracle.MatchFacts memory facts)
@@ -239,14 +241,14 @@ contract OU_MultiLine is MarketBase {
         override
         returns (uint256 winningOutcomeId)
     {
-        // 计算总进球数
+        // 计算总进球数（千分位表示）
         uint256 totalGoals = uint256(facts.homeGoals) + uint256(facts.awayGoals);
         uint256 totalGoalsScaled = totalGoals * LINE_PRECISION;
 
-        // 返回第一条线的获胜结果（用于 winningOutcome 状态变量）
-        // 注意：多线市场中，每条线都需要单独判断
+        // 返回第一条线的获胜结果
+        // 半球盘：直接比较
         uint256 line = lines[0];
-        uint256 direction = _calculateLineWinner(line, totalGoalsScaled);
+        uint256 direction = (totalGoalsScaled > line) ? OVER : UNDER;
 
         return _encodeOutcomeId(0, direction);
     }
@@ -256,7 +258,7 @@ contract OU_MultiLine is MarketBase {
     /**
      * @notice 编码 outcomeId
      * @param lineIndex 线索引
-     * @param direction 方向（OVER/UNDER/PUSH）
+     * @param direction 方向（OVER/UNDER）
      * @return outcomeId 编码后的 outcome ID
      */
     function _encodeOutcomeId(uint256 lineIndex, uint256 direction) internal pure returns (uint256 outcomeId) {
@@ -267,7 +269,7 @@ contract OU_MultiLine is MarketBase {
      * @notice 解码 outcomeId
      * @param outcomeId 编码的 outcome ID
      * @return lineIndex 线索引
-     * @return direction 方向（OVER/UNDER/PUSH）
+     * @return direction 方向（OVER/UNDER）
      */
     function _decodeOutcomeId(uint256 outcomeId) internal pure returns (uint256 lineIndex, uint256 direction) {
         lineIndex = outcomeId / OUTCOMES_PER_LINE;
@@ -277,26 +279,13 @@ contract OU_MultiLine is MarketBase {
 
     /**
      * @notice 计算单条线的获胜结果
-     * @param line 盘口线
+     * @param line 盘口线（必须是半球盘）
      * @param totalGoalsScaled 总进球数（千分位表示）
-     * @return direction 获胜方向（OVER/UNDER/PUSH）
+     * @return direction 获胜方向（OVER/UNDER）
      */
-    function _calculateLineWinner(uint256 line, uint256 totalGoalsScaled) internal view returns (uint256 direction) {
-        bool _isHalfLine = isHalfLine[line];
-
+    function _calculateLineWinner(uint256 line, uint256 totalGoalsScaled) internal pure returns (uint256 direction) {
         // 半球盘：直接比较
-        if (_isHalfLine) {
-            return totalGoalsScaled > line ? OVER : UNDER;
-        }
-
-        // 整数盘：需要处理 Push
-        if (totalGoalsScaled > line) {
-            return OVER;
-        } else if (totalGoalsScaled < line) {
-            return UNDER;
-        } else {
-            return PUSH;
-        }
+        return totalGoalsScaled > line ? OVER : UNDER;
     }
 
     // ============ 只读函数 ============
@@ -312,7 +301,7 @@ contract OU_MultiLine is MarketBase {
         if (lineIndex >= lines.length) {
             revert InvalidLineIndex(lineIndex);
         }
-        require(direction < 2, "OU_ML: Push has no price");
+        require(direction < 2, "OU_ML: Invalid direction");
 
         // 构建储备数组
         uint256 overOutcomeId = _encodeOutcomeId(lineIndex, OVER);

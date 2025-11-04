@@ -23,7 +23,6 @@ contract OU_TemplateTest is BaseTest {
     // Outcomes
     uint256 constant OVER = 0;
     uint256 constant UNDER = 1;
-    uint256 constant PUSH = 2;
 
     event MarketCreated(
         string indexed matchId,
@@ -31,7 +30,6 @@ contract OU_TemplateTest is BaseTest {
         string awayTeam,
         uint256 kickoffTime,
         uint256 line,
-        bool isHalfLine,
         address pricingEngine
     );
 
@@ -80,15 +78,14 @@ contract OU_TemplateTest is BaseTest {
         assertEq(market.awayTeam(), AWAY_TEAM);
         assertEq(market.kickoffTime(), kickoffTime);
         assertEq(market.line(), LINE);
-        assertTrue(market.isHalfLine()); // 2.5 is half line
         assertEq(address(market.pricingEngine()), address(cpmm));
-        assertEq(market.outcomeCount(), 3); // Over, Under, Push
+        assertEq(market.outcomeCount(), 2); // Over, Under (half line only)
         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Open));
     }
 
     function test_Constructor_EmitsEvent() public {
         vm.expectEmit(true, false, false, true);
-        emit MarketCreated(MATCH_ID, HOME_TEAM, AWAY_TEAM, kickoffTime, LINE, true, address(cpmm));
+        emit MarketCreated(MATCH_ID, HOME_TEAM, AWAY_TEAM, kickoffTime, LINE, address(cpmm));
 
         new OU_Template(
             MATCH_ID,
@@ -105,9 +102,10 @@ contract OU_TemplateTest is BaseTest {
         );
     }
 
-    function test_Constructor_IntegerLine() public {
-        uint256 integerLine = 2000; // 2.0 goals
-        OU_Template intMarket = new OU_Template(
+    function testRevert_Constructor_IntegerLine() public {
+        uint256 integerLine = 2000; // 2.0 goals (integer line)
+        vm.expectRevert("OU: Only half lines allowed");
+        new OU_Template(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -120,9 +118,6 @@ contract OU_TemplateTest is BaseTest {
             address(cpmm),
             URI
         );
-
-        assertEq(intMarket.line(), integerLine);
-        assertFalse(intMarket.isHalfLine()); // 2.0 is integer line
     }
 
     function testRevert_Constructor_InvalidMatchId() public {
@@ -295,8 +290,8 @@ contract OU_TemplateTest is BaseTest {
         approveMarket(user1, address(market), betAmount);
 
         vm.prank(user1);
-        vm.expectRevert("OU: Cannot bet on Push");
-        market.placeBet(PUSH, betAmount); // Push 不允许下注
+        vm.expectRevert("MarketBase: Invalid outcome");
+        market.placeBet(2, betAmount); // Outcome 2 doesn't exist (only 0 and 1)
     }
 
     function testRevert_PlaceBet_ZeroAmount() public {
@@ -374,7 +369,6 @@ contract OU_TemplateTest is BaseTest {
             string memory _awayTeam,
             uint256 _kickoffTime,
             uint256 _line,
-            bool _isHalfLine,
             IMarket.MarketStatus _status
         ) = market.getMarketInfo();
 
@@ -383,7 +377,6 @@ contract OU_TemplateTest is BaseTest {
         assertEq(_awayTeam, AWAY_TEAM);
         assertEq(_kickoffTime, kickoffTime);
         assertEq(_line, LINE);
-        assertTrue(_isHalfLine);
         assertEq(uint256(_status), uint256(IMarket.MarketStatus.Open));
     }
 
@@ -391,26 +384,6 @@ contract OU_TemplateTest is BaseTest {
         (uint256 integer, uint256 decimal) = market.getLineDisplay();
         assertEq(integer, 2); // 2.5 → integer = 2
         assertEq(decimal, 500); // 2.5 → decimal = 500
-    }
-
-    function test_GetLineDisplay_IntegerLine() public {
-        OU_Template intMarket = new OU_Template(
-            MATCH_ID,
-            HOME_TEAM,
-            AWAY_TEAM,
-            kickoffTime,
-            3000, // 3.0 goals
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(cpmm),
-            URI
-        );
-
-        (uint256 integer, uint256 decimal) = intMarket.getLineDisplay();
-        assertEq(integer, 3); // 3.0 → integer = 3
-        assertEq(decimal, 0); // 3.0 → decimal = 0
     }
 
     // ============ Locking Tests ============
@@ -507,7 +480,7 @@ contract OU_TemplateTest is BaseTest {
         market.lock();
 
         vm.expectRevert("MarketBase: Invalid outcome");
-        market.resolve(3); // Outcome 3 doesn't exist (valid: 0, 1, 2)
+        market.resolve(2); // Outcome 2 doesn't exist (valid: 0, 1)
     }
 
     function testRevert_Resolve_NotOwner() public {
@@ -704,141 +677,20 @@ contract OU_TemplateTest is BaseTest {
         assertGt(payout, 0);
     }
 
-    // ============ Push 场景测试 ============
+    // ============ Half Line Only - No Push Scenarios ============
 
-    function test_Push_IntegerLine_Resolve() public {
-        // 创建整数盘市场 (2.0 球)
-        uint256 integerLine = 2000; // 2.0 goals
-        OU_Template intMarket = new OU_Template(
-            MATCH_ID,
-            HOME_TEAM,
-            AWAY_TEAM,
-            kickoffTime,
-            integerLine,
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(cpmm),
-            URI
-        );
-
-        // 确认是整数盘
-        assertFalse(intMarket.isHalfLine());
-
-        // 用户下注
-        uint256 betAmount = 1000e6;
-        approveMarket(user1, address(intMarket), betAmount);
-        vm.prank(user1);
-        uint256 overShares = intMarket.placeBet(OVER, betAmount);
-
-        approveMarket(user2, address(intMarket), betAmount);
-        vm.prank(user2);
-        uint256 underShares = intMarket.placeBet(UNDER, betAmount);
-
-        // 锁盘并结算为 Push (总进球 = 2)
-        intMarket.lock();
-        intMarket.resolve(PUSH);
-
-        assertEq(intMarket.winningOutcome(), PUSH);
-    }
-
-    function test_Push_FullLifecycle_RefundBothBettors() public {
-        // 创建整数盘市场 (3.0 球)
-        uint256 integerLine = 3000;
-        OU_Template intMarket = new OU_Template(
-            MATCH_ID,
-            HOME_TEAM,
-            AWAY_TEAM,
-            kickoffTime,
-            integerLine,
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(cpmm),
-            URI
-        );
-
-        // 两个用户下注
-        uint256 bet1 = 1000e6;
-        uint256 bet2 = 2000e6;
-
-        approveMarket(user1, address(intMarket), bet1);
-        vm.prank(user1);
-        uint256 overShares = intMarket.placeBet(OVER, bet1);
-
-        approveMarket(user2, address(intMarket), bet2);
-        vm.prank(user2);
-        uint256 underShares = intMarket.placeBet(UNDER, bet2);
-
-        // 记录下注后余额
-        uint256 user1BalanceBefore = usdc.balanceOf(user1);
-        uint256 user2BalanceBefore = usdc.balanceOf(user2);
-
-        // 完整生命周期: 锁盘 → Push 结算 → Finalize
-        intMarket.lock();
-        intMarket.resolve(PUSH);
-        skipTime(DEFAULT_DISPUTE_PERIOD + 1);
-        intMarket.finalize();
-
-        // 用户兑付 - Push 场景下用各自的 outcome token 兑付
-        vm.prank(user1);
-        uint256 payout1 = intMarket.redeem(OVER, overShares);
-
-        vm.prank(user2);
-        uint256 payout2 = intMarket.redeem(UNDER, underShares);
-
-        // 验证退款金额 (应该等于下注的份额,因为 Push 按 1:1 兑付)
-        assertGt(payout1, 0, "User1 should receive refund");
-        assertGt(payout2, 0, "User2 should receive refund");
-
-        // 验证最终余额
-        uint256 user1BalanceAfter = usdc.balanceOf(user1);
-        uint256 user2BalanceAfter = usdc.balanceOf(user2);
-
-        assertEq(user1BalanceAfter, user1BalanceBefore + payout1);
-        assertEq(user2BalanceAfter, user2BalanceBefore + payout2);
-    }
-
-    function testRevert_Push_CannotBetOnPush() public {
-        // 创建整数盘市场
-        uint256 integerLine = 2000;
-        OU_Template intMarket = new OU_Template(
-            MATCH_ID,
-            HOME_TEAM,
-            AWAY_TEAM,
-            kickoffTime,
-            integerLine,
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(cpmm),
-            URI
-        );
-
-        uint256 betAmount = 1000e6;
-        approveMarket(user1, address(intMarket), betAmount);
-
-        vm.prank(user1);
-        vm.expectRevert("OU: Cannot bet on Push");
-        intMarket.placeBet(PUSH, betAmount);
-    }
-
-    function testRevert_Push_GetCurrentPrice() public {
-        vm.expectRevert("OU: Push has no price");
-        market.getCurrentPrice(PUSH);
-    }
-
-    function test_Push_HalfLine_NeverOccurs() public {
-        // 半球盘 (2.5) 永远不会出现 Push
-        assertTrue(market.isHalfLine());
+    function test_HalfLine_OnlyOverOrUnder() public {
+        // 半球盘 (2.5) 只能结算为 Over 或 Under
 
         // 只能结算为 Over 或 Under
         market.lock();
         market.resolve(OVER); // 正常
 
         assertEq(market.winningOutcome(), OVER);
+    }
+
+    function testRevert_InvalidOutcome_GetCurrentPrice() public {
+        vm.expectRevert("OU: Invalid outcome");
+        market.getCurrentPrice(2); // Outcome 2 doesn't exist
     }
 }
