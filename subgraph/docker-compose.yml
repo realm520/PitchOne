@@ -8,17 +8,17 @@ services:
     image: postgres:14
     container_name: graph-postgres
     environment:
-      POSTGRES_USER: graph-node
-      POSTGRES_PASSWORD: let-me-in
-      POSTGRES_DB: graph-node
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       # Performance tuning for Graph Node
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
     ports:
-      - "5433:5432"
+      - "5433:${POSTGRES_PORT}"
     volumes:
       - graph_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U graph-node"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -36,7 +36,7 @@ services:
     image: ipfs/kubo:v0.22.0
     container_name: graph-ipfs
     ports:
-      - "5001:5001"  # API
+      - "${IPFS_API_PORT}:5001"  # API
       - "8080:8080"  # Gateway (optional)
     volumes:
       - ipfs_data:/data/ipfs
@@ -53,11 +53,11 @@ services:
     image: graphprotocol/graph-node:v0.34.1
     container_name: graph-node
     ports:
-      - "8000:8000"   # GraphQL HTTP server
-      - "8001:8001"   # GraphQL WebSocket server
-      - "8020:8020"   # JSON-RPC admin server
-      - "8030:8030"   # Subgraph indexing status server
-      - "8040:8040"   # Prometheus metrics
+      - "${GRAPH_NODE_HTTP_PORT}:8000"   # GraphQL HTTP server
+      - "${GRAPH_NODE_WS_PORT}:8001"   # GraphQL WebSocket server
+      - "${GRAPH_NODE_ADMIN_PORT}:8020"   # JSON-RPC admin server
+      - "${GRAPH_NODE_INDEX_PORT}:8030"   # Subgraph indexing status server
+      - "${GRAPH_NODE_METRICS_PORT}:8040"   # Prometheus metrics
     depends_on:
       graph-postgres:
         condition: service_healthy
@@ -66,17 +66,17 @@ services:
     environment:
       # PostgreSQL 连接配置
       postgres_host: graph-postgres
-      postgres_port: 5432
-      postgres_user: graph-node
-      postgres_pass: let-me-in
-      postgres_db: graph-node
+      postgres_port: ${POSTGRES_PORT}
+      postgres_user: ${POSTGRES_USER}
+      postgres_pass: ${POSTGRES_PASSWORD}
+      postgres_db: ${POSTGRES_DB}
 
       # IPFS 配置
       ipfs: 'ipfs:5001'
 
       # Ethereum 网络配置
-      # localhost 指向本地 Anvil (使用 host.docker.internal 访问宿主机)
-      ethereum: 'localhost:http://host.docker.internal:8545'
+      # localhost 指向本地 Anvil
+      ethereum: 'localhost:http://192.168.50.251:8545'
 
       # 日志级别
       GRAPH_LOG: debug
@@ -86,13 +86,6 @@ services:
 
       # Ethereum 轮询间隔（毫秒）
       ETHEREUM_POLLING_INTERVAL: 500
-
-      # 启用实验性功能
-      EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
-
-      # 索引节点 ID
-      node_role: index-node
-      node_id: index_node_0
 
       # 存储配置
       GRAPH_ETHEREUM_TARGET_TRIGGERS_PER_BLOCK_RANGE: 100

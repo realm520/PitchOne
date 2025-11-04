@@ -9,15 +9,24 @@
 Market - 博彩市场实体
 代表一个特定赛事的博彩市场（如某场比赛的胜平负）
 """
-type Market @entity {
+type Market @entity(immutable: false) {
   "市场地址（合约地址）"
   id: ID!
 
   "模板 ID（WDL, OU, AH 等）"
-  templateId: Bytes!
+  templateId: String!
 
-  "赛事 ID（链下数据源提供）"
-  matchId: Bytes!
+  "赛事 ID（如 EPL_2024_MUN_vs_MCI）"
+  matchId: String!
+
+  "主队名称"
+  homeTeam: String!
+
+  "客队名称"
+  awayTeam: String!
+
+  "开赛时间（Unix 时间戳）"
+  kickoffTime: BigInt!
 
   "规则版本"
   ruleVer: Bytes!
@@ -86,7 +95,7 @@ enum MarketState {
 User - 用户实体
 代表一个参与博彩的地址
 """
-type User @entity {
+type User @entity(immutable: false) {
   "用户地址"
   id: ID!
 
@@ -144,7 +153,7 @@ type User @entity {
 Order - 下注订单
 代表一次下注操作
 """
-type Order @entity {
+type Order @entity(immutable: false) {
   "订单 ID（txHash-logIndex）"
   id: ID!
 
@@ -190,7 +199,7 @@ type Order @entity {
 Position - 用户在某市场的头寸
 代表用户持有的 ERC-1155 Position Token
 """
-type Position @entity {
+type Position @entity(immutable: false) {
   "头寸 ID（market-user-outcome）"
   id: ID!
 
@@ -224,7 +233,7 @@ type Position @entity {
 Redemption - 赎回记录
 用户兑付赢得的头寸
 """
-type Redemption @entity {
+type Redemption @entity(immutable: false) {
   "赎回 ID（txHash-logIndex）"
   id: ID!
 
@@ -261,7 +270,7 @@ type Redemption @entity {
 OracleProposal - 预言机提案
 结算结果的提案和争议记录
 """
-type OracleProposal @entity {
+type OracleProposal @entity(immutable: false) {
   "提案 ID（oracle-marketId-proposalId）"
   id: ID!
 
@@ -310,7 +319,7 @@ type OracleProposal @entity {
 RewardClaim - 奖励领取记录
 用户领取 Merkle 奖励的记录
 """
-type RewardClaim @entity {
+type RewardClaim @entity(immutable: false) {
   "领取 ID（txHash-logIndex）"
   id: ID!
 
@@ -344,7 +353,7 @@ type RewardClaim @entity {
 FeeDistribution - 费用分发记录
 记录手续费的分配情况
 """
-type FeeDistribution @entity {
+type FeeDistribution @entity(immutable: false) {
   "分发 ID（txHash-logIndex）"
   id: ID!
 
@@ -378,7 +387,7 @@ type FeeDistribution @entity {
 Template - 市场模板
 记录已注册的市场模板（WDL, OU, AH 等）
 """
-type Template @entity {
+type Template @entity(immutable: false) {
   "模板地址"
   id: ID!
 
@@ -403,7 +412,7 @@ type Template @entity {
 GlobalStats - 全局统计
 整个平台的聚合数据
 """
-type GlobalStats @entity {
+type GlobalStats @entity(immutable: false) {
   "固定 ID: 'global'"
   id: ID!
 
@@ -440,7 +449,7 @@ type GlobalStats @entity {
 Campaign - 营销活动
 代表一个营销活动（如首单奖励、推荐奖励等）
 """
-type Campaign @entity {
+type Campaign @entity(immutable: false) {
   "活动 ID（bytes32 campaign ID）"
   id: ID!
 
@@ -509,7 +518,7 @@ enum CampaignStatus {
 CampaignParticipation - 活动参与记录
 用户参与活动的记录
 """
-type CampaignParticipation @entity {
+type CampaignParticipation @entity(immutable: false) {
   "参与 ID（campaignId-userAddress）"
   id: ID!
 
@@ -533,7 +542,7 @@ type CampaignParticipation @entity {
 CampaignBudgetChange - 活动预算变更记录
 记录活动预算的增加或支出
 """
-type CampaignBudgetChange @entity {
+type CampaignBudgetChange @entity(immutable: false) {
   "变更 ID（txHash-logIndex）"
   id: ID!
 
@@ -571,7 +580,7 @@ enum BudgetChangeType {
 CampaignStatusChange - 活动状态变更记录
 记录活动状态的变化（Active/Paused/Ended）
 """
-type CampaignStatusChange @entity {
+type CampaignStatusChange @entity(immutable: false) {
   "变更 ID（txHash-logIndex）"
   id: ID!
 
@@ -602,7 +611,7 @@ type CampaignStatusChange @entity {
 Quest - 任务
 代表一个用户任务（如首次下注、连续下注、推荐任务等）
 """
-type Quest @entity {
+type Quest @entity(immutable: false) {
   "任务 ID（bytes32 quest ID）"
   id: ID!
 
@@ -676,7 +685,7 @@ enum QuestStatus {
 QuestProgress - 用户任务进度
 记录用户完成任务的进度
 """
-type QuestProgress @entity {
+type QuestProgress @entity(immutable: false) {
   "进度 ID（questId-userAddress）"
   id: ID!
 
@@ -721,7 +730,7 @@ type QuestProgress @entity {
 QuestProgressUpdate - 任务进度更新记录
 记录每次进度更新的详细信息
 """
-type QuestProgressUpdate @entity {
+type QuestProgressUpdate @entity(immutable: false) {
   "更新 ID（txHash-logIndex）"
   id: ID!
 
@@ -760,7 +769,7 @@ type QuestProgressUpdate @entity {
 QuestRewardClaim - 任务奖励领取记录
 记录用户领取任务奖励的详细信息
 """
-type QuestRewardClaim @entity {
+type QuestRewardClaim @entity(immutable: false) {
   "领取 ID（txHash-logIndex）"
   id: ID!
 
@@ -787,7 +796,7 @@ type QuestRewardClaim @entity {
 QuestStatusChange - 任务状态变更记录
 记录任务状态的变化（Active/Paused/Ended）
 """
-type QuestStatusChange @entity {
+type QuestStatusChange @entity(immutable: false) {
   "变更 ID（txHash-logIndex）"
   id: ID!
 
@@ -818,7 +827,7 @@ type QuestStatusChange @entity {
 CampaignStats - Campaign 全局统计
 整个平台的活动统计数据
 """
-type CampaignStats @entity {
+type CampaignStats @entity(immutable: false) {
   "固定 ID: 'campaign-stats'"
   id: ID!
 
@@ -854,7 +863,7 @@ type CampaignStats @entity {
 QuestStats - Quest 全局统计
 整个平台的任务统计数据
 """
-type QuestStats @entity {
+type QuestStats @entity(immutable: false) {
   "固定 ID: 'quest-stats'"
   id: ID!
 

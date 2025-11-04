@@ -5,6 +5,7 @@
 
 import { BigInt, Address, Bytes, BigDecimal } from "@graphprotocol/graph-ts";
 import {
+  MarketCreated as MarketCreatedEvent,
   BetPlaced as BetPlacedEvent,
   Locked as LockedEvent,
   Resolved as ResolvedEvent,
@@ -12,7 +13,13 @@ import {
   Redeemed as RedeemedEvent,
   TransferSingle as TransferSingleEvent,
   TransferBatch as TransferBatchEvent,
-} from "../generated/WDL_Template/MarketBase";
+  WDL_Template,
+} from "../generated/WDL_Template/WDL_Template";
+import { OU_Template } from "../generated/templates/OUMarket/OU_Template";
+import { OddEven_Template } from "../generated/templates/OddEvenMarket/OddEven_Template";
+import {
+  LiquidityAdded as LiquidityAddedEvent,
+} from "../generated/OldMarket1_MUN_vs_MCI/MarketBase";
 import {
   Market,
   Order,
@@ -34,6 +41,187 @@ import {
 } from "./helpers";
 
 // ============================================================================
+// MarketCreated - 市场创建事件
+// ============================================================================
+
+export function handleMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const homeTeam = event.params.homeTeam;
+  const awayTeam = event.params.awayTeam;
+  const kickoffTime = event.params.kickoffTime;
+  const pricingEngine = event.params.pricingEngine;
+
+  // 检查市场是否已经由 Registry handler 创建
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    // Market 已由 Registry 创建，跳过
+    return;
+  }
+
+  // 从合约读取 matchId（因为 indexed string 在事件中是 keccak256 哈希）
+  let marketContract = WDL_Template.bind(event.address);
+
+  // 创建市场实体
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "WDL"; // WDL 模板
+  market.matchId = marketContract.matchId();
+  market.homeTeam = homeTeam;
+  market.awayTeam = awayTeam;
+  market.kickoffTime = kickoffTime;
+  market.ruleVer = Bytes.empty(); // 暂时使用空值
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = pricingEngine;
+  market.save();
+
+  // 更新全局统计
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+// OU_Template MarketCreated event
+// event MarketCreated(indexed string matchId, string homeTeam, string awayTeam, uint256 kickoffTime, uint256 line, bool isHalfLine, address pricingEngine)
+export function handleOUMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const homeTeam = event.params.homeTeam;
+  const awayTeam = event.params.awayTeam;
+  const kickoffTime = event.params.kickoffTime;
+  // Note: pricingEngine is the 7th parameter (index 6) in OU_Template event
+
+  // 检查市场是否已经由 Registry handler 创建
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    // Market 已由 Registry 创建，跳过
+    return;
+  }
+
+  // 从合约读取 matchId（因为 indexed string 在事件中是 keccak256 哈希）
+  let marketContract = OU_Template.bind(event.address);
+
+  // 创建市场实体
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "OU"; // OU 单线模板
+  market.matchId = marketContract.matchId();
+  market.homeTeam = homeTeam;
+  market.awayTeam = awayTeam;
+  market.kickoffTime = kickoffTime;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null; // Set to null for OU markets
+  market.save();
+
+  // 更新全局统计
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+// OU_MultiLine MarketCreated event
+// event MarketCreated(string matchId, string homeTeam, string awayTeam, uint256 kickoffTime, uint256[] lines, bytes32 groupId, address pricingEngine, address linkedLinesController)
+export function handleOUMultiLineMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const homeTeam = event.params.homeTeam;
+  const awayTeam = event.params.awayTeam;
+  const kickoffTime = event.params.kickoffTime;
+
+  // 检查市场是否已经由 Registry handler 创建
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    // Market 已由 Registry 创建，跳过
+    return;
+  }
+
+  // 从合约读取 matchId（因为 indexed string 在事件中是 keccak256 哈希）
+  let marketContract = OU_Template.bind(event.address);
+
+  // 创建市场实体
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "OU_MULTI"; // OU 多线模板
+  market.matchId = marketContract.matchId();
+  market.homeTeam = homeTeam;
+  market.awayTeam = awayTeam;
+  market.kickoffTime = kickoffTime;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null; // Set to null for OU Multi markets
+  market.save();
+
+  // 更新全局统计
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+// OddEven_Template MarketCreated event
+// event MarketCreated(indexed string matchId, string homeTeam, string awayTeam, uint256 kickoffTime, address pricingEngine)
+export function handleOddEvenMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const homeTeam = event.params.homeTeam;
+  const awayTeam = event.params.awayTeam;
+  const kickoffTime = event.params.kickoffTime;
+  const pricingEngine = event.params.pricingEngine;
+
+  // 检查市场是否已经由 Registry handler 创建
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    // Market 已由 Registry 创建，跳过
+    return;
+  }
+
+  // 从合约读取 matchId（因为 indexed string 在事件中是 keccak256 哈希）
+  let marketContract = OddEven_Template.bind(event.address);
+
+  // 创建市场实体
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "OddEven"; // OddEven 模板
+  market.matchId = marketContract.matchId();
+  market.homeTeam = homeTeam;
+  market.awayTeam = awayTeam;
+  market.kickoffTime = kickoffTime;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = pricingEngine;
+  market.save();
+
+  // 更新全局统计
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+// ============================================================================
 // BetPlaced - 下注事件
 // ============================================================================
 
@@ -51,8 +239,11 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
     // 市场应该已经在 MarketCreated 事件中创建
     // 如果不存在，创建一个临时的
     market = new Market(marketAddress.toHexString());
-    market.templateId = Bytes.empty();
-    market.matchId = Bytes.empty();
+    market.templateId = "WDL"; // 默认为 WDL 类型
+    market.matchId = "";  // 临时使用空字符串
+    market.homeTeam = "";
+    market.awayTeam = "";
+    market.kickoffTime = ZERO_BI;
     market.ruleVer = Bytes.empty();
     market.state = "Open";
     market.createdAt = event.block.timestamp;
@@ -318,4 +509,31 @@ export function handleTransferBatch(event: TransferBatchEvent): void {
     toPosition.lastUpdatedAt = event.block.timestamp;
     toPosition.save();
   }
+}
+
+// ============================================================================
+// LiquidityAdded - 流动性添加事件
+// ============================================================================
+
+export function handleLiquidityAdded(event: LiquidityAddedEvent): void {
+  const marketAddress = event.address;
+  const provider = event.params.provider;
+  const totalAmount = event.params.totalAmount;
+  const timestamp = event.params.timestamp;
+
+  // 加载市场实体
+  let market = Market.load(marketAddress.toHexString());
+  if (market === null) {
+    return; // 市场不存在，忽略
+  }
+
+  // 更新市场的 LP 流动性
+  const amountDecimal = toDecimal(totalAmount);
+  market.lpLiquidity = market.lpLiquidity.plus(amountDecimal);
+  market.save();
+
+  // 更新全局统计
+  let stats = loadOrCreateGlobalStats();
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
 }
