@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY } from '@pitchone/web3';
+import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY, ConnectButton } from '@pitchone/web3';
 import { Card, LoadingSpinner, ErrorState, Button } from '@pitchone/ui';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -150,7 +150,7 @@ function VolumeChart({ markets }: { markets: any[] }) {
   // 填充所有日期（包括没有数据的日期）
   const data = dateRange.map((date) => ({
     date: date.split('/').slice(1).join('/'), // 去掉年份，显示为 MM/DD
-    volume: (volumeByDate[date] || 0) / 1e6, // 转换为 USDC（6 decimals）
+    volume: volumeByDate[date] || 0, // USDC 数值已经转换过
     fullDate: date,
   }));
 
@@ -230,7 +230,7 @@ function RecentOrdersList({ orders }: { orders: any[] }) {
             共 <span className="font-semibold text-gray-900 dark:text-white">{orders.length}</span> 笔
           </div>
           <div className="text-gray-600 dark:text-gray-400">
-            均值: <span className="font-semibold text-gray-900 dark:text-white">{(avgAmount / 1e6).toFixed(2)} USDC</span>
+            均值: <span className="font-semibold text-gray-900 dark:text-white">{avgAmount.toFixed(2)} USDC</span>
           </div>
         </div>
       </div>
@@ -274,7 +274,7 @@ function RecentOrdersList({ orders }: { orders: any[] }) {
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="font-semibold text-gray-900 dark:text-white">
-                      {(Number(order.amount) / 1e6).toFixed(2)}
+                      {Number(order.amount).toFixed(2)}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">USDC</span>
                   </td>
@@ -345,11 +345,11 @@ export default function AdminDashboard() {
 
   // 计算统计数据
   const totalVolume = globalStats?.totalVolume
-    ? (Number(globalStats.totalVolume) / 1e6).toFixed(2)
+    ? Number(globalStats.totalVolume).toFixed(2)
     : '0.00';
 
   const totalFees = globalStats?.totalFees
-    ? (Number(globalStats.totalFees) / 1e6).toFixed(2)
+    ? Number(globalStats.totalFees).toFixed(2)
     : '0.00';
 
   return (
@@ -387,6 +387,8 @@ export default function AdminDashboard() {
                   活动任务
                 </Button>
               </Link>
+              {/* 钱包连接按钮 */}
+              <ConnectButton />
             </div>
           </div>
         </div>

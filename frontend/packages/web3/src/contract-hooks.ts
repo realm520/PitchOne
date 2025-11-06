@@ -13,8 +13,18 @@ export function useApproveUSDC() {
   const { chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
 
   const approve = async (spender: Address, amount: string) => {
     if (!addresses) throw new Error('Chain not supported');
@@ -34,7 +44,7 @@ export function useApproveUSDC() {
     isPending,
     isConfirming,
     isSuccess,
-    error,
+    error: writeError || receiptError,
     hash,
   };
 }
@@ -83,13 +93,44 @@ export function useUSDCBalance(address?: Address) {
  * @param marketAddress 市场合约地址
  */
 export function usePlaceBet(marketAddress?: Address) {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError,
+    data: receipt
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  // 调试日志
+  console.log('[usePlaceBet]:', {
+    chainId,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    receiptStatus: receipt?.status,
+    writeError: writeError?.message,
+    receiptError: receiptError?.message
+  });
 
   const placeBet = async (outcomeId: number, amount: string) => {
     if (!marketAddress) throw new Error('Market address required');
 
     const amountInWei = parseUnits(amount, 6); // USDC 使用 6 位小数
+
+    console.log('[usePlaceBet] 发起下注:', {
+      marketAddress,
+      outcomeId,
+      amount,
+      amountInWei: amountInWei.toString()
+    });
 
     return writeContract({
       address: marketAddress,
@@ -104,7 +145,7 @@ export function usePlaceBet(marketAddress?: Address) {
     isPending,
     isConfirming,
     isSuccess,
-    error,
+    error: writeError || receiptError,
     hash,
   };
 }
@@ -114,8 +155,19 @@ export function usePlaceBet(marketAddress?: Address) {
  * @param marketAddress 市场合约地址
  */
 export function useRedeem(marketAddress?: Address) {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
 
   const redeem = async (outcomeId: number, shares: string) => {
     if (!marketAddress) throw new Error('Market address required');
@@ -135,7 +187,7 @@ export function useRedeem(marketAddress?: Address) {
     isPending,
     isConfirming,
     isSuccess,
-    error,
+    error: writeError || receiptError,
     hash,
   };
 }

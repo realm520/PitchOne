@@ -133,16 +133,21 @@ export default function MarketsPage() {
 
                   {/* Market Stats */}
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                    <span>交易量: {(Number(market.totalVolume) / 1e6).toFixed(2)} USDC</span>
+                    <span>交易量: {Number(market.totalVolume).toFixed(2)} USDC</span>
                     <span>{market.uniqueBettors} 人参与</span>
                   </div>
 
                   {/* Market Type */}
                   <div className="flex items-center justify-between pt-4 border-t border-dark-border">
                     <span className="text-sm text-gray-400">玩法类型</span>
-                    <Badge variant="neon" size="sm">
-                      {market._displayInfo?.templateTypeDisplay || '未知'}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="neon" size="sm">
+                        {market._displayInfo?.templateTypeDisplay || '未知'}
+                      </Badge>
+                      {market._displayInfo?.lineDisplay && (
+                        <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
+                      )}
+                    </div>
                   </div>
 
                   {/* CTA */}
@@ -150,7 +155,6 @@ export default function MarketsPage() {
                     <Button
                       variant={market.state === MarketStatus.Open ? 'neon' : 'secondary'}
                       fullWidth
-                      disabled={market.state !== MarketStatus.Open}
                     >
                       {market.state === MarketStatus.Open ? '立即下注' : '查看详情'}
                     </Button>

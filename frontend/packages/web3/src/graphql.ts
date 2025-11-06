@@ -1,7 +1,10 @@
 import { GraphQLClient } from 'graphql-request';
 
-// Subgraph IPFS Hash（最新部署版本 v0.3.4-full）
-const SUBGRAPH_HASH = 'Qmf3vzEHR1X2SnEfDFkErjmc4r43Znowib6o2YNTxMSbGM';
+// Subgraph IPFS Hash（最新部署版本 v0.4.0）
+const SUBGRAPH_HASH = 'QmZFaPpEi8H6uAsDxWfENn87X4jV5tWNSfLJN8svMSkCdY';
+
+// Subgraph Name（使用名称更稳定，不依赖 IPFS hash）
+const SUBGRAPH_NAME = 'pitchone-local';
 
 // 获取 Subgraph URL（支持环境检测）
 function getSubgraphURL(): string {
@@ -10,15 +13,15 @@ function getSubgraphURL(): string {
     return process.env.NEXT_PUBLIC_SUBGRAPH_URL;
   }
 
-  // 浏览器环境：使用完整 URL 访问 Next.js 代理
+  // 浏览器环境：使用 Subgraph Name 更稳定
   if (typeof window !== 'undefined') {
-    const url = `${window.location.origin}/api/subgraph/subgraphs/id/${SUBGRAPH_HASH}`;
+    const url = `${window.location.origin}/api/subgraph/subgraphs/name/${SUBGRAPH_NAME}`;
     console.log('[GraphQL Client] 浏览器环境，使用代理 URL:', url);
     return url;
   }
 
   // 服务端环境：直接访问 Graph Node（无 CORS 限制）
-  const url = `http://localhost:8010/subgraphs/id/${SUBGRAPH_HASH}`;
+  const url = `http://localhost:8000/subgraphs/name/${SUBGRAPH_NAME}`;
   console.log('[GraphQL Client] 服务端环境，直接访问:', url);
   return url;
 }
@@ -72,6 +75,8 @@ export const MARKETS_QUERY_FILTERED = `
       createdAt
       lockedAt
       resolvedAt
+      line
+      lines
     }
   }
 `;
@@ -99,6 +104,8 @@ export const MARKETS_QUERY = `
       createdAt
       lockedAt
       resolvedAt
+      line
+      lines
     }
   }
 `;
@@ -122,6 +129,8 @@ export const MARKET_QUERY = `
       lockedAt
       resolvedAt
       finalizedAt
+      line
+      lines
     }
   }
 `;
@@ -199,6 +208,29 @@ export const MARKET_ORDERS_QUERY = `
         templateId
         matchId
         state
+      }
+      outcome
+      amount
+      shares
+      fee
+      price
+      timestamp
+      transactionHash
+    }
+  }
+`;
+
+export const MARKET_ALL_ORDERS_QUERY = `
+  query MarketAllOrders($marketId: ID!, $first: Int) {
+    orders(
+      where: { market: $marketId }
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      user {
+        id
       }
       outcome
       amount

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY } from './graphql';
 
 // 市场状态枚举
 export enum MarketStatus {
@@ -29,6 +29,8 @@ export interface Market {
   resolvedAt?: string;
   finalizedAt?: string;
   winnerOutcome?: number;
+  line?: string; // 大小球盘口线（单线市场，如 "2500000000000000000" = 2.5 球）
+  lines?: string[]; // 大小球盘口线数组（多线市场，如 ["2000000000000000000", "2500000000000000000", "3000000000000000000"]）
   // 辅助字段用于显示
   _displayInfo?: {
     homeTeam: string;
@@ -36,6 +38,7 @@ export interface Market {
     league: string;
     templateType: string; // 英文类型代码（WDL、OU等）
     templateTypeDisplay: string; // 中文显示名称（胜平负、大小球等）
+    lineDisplay?: string; // 格式化的球数显示（如 "2.5 球"）
   };
 }
 
@@ -117,6 +120,20 @@ interface OrderRaw {
 }
 
 /**
+ * 将千分位表示的球数转换为显示（如 2500 -> "2.5"）
+ */
+function formatLineDisplay(lineStr: string): string {
+  try {
+    // 将千分位表示转换为数字（除以 1000）
+    // 例如：2500 = 2.5 球，3500 = 3.5 球
+    const lineNumber = parseFloat(lineStr) / 1000;
+    return lineNumber.toFixed(1);
+  } catch {
+    return lineStr;
+  }
+}
+
+/**
  * 生成显示信息（使用 Subgraph 返回的字段）
  */
 function generateDisplayInfo(market: Market): Market['_displayInfo'] {
@@ -128,6 +145,7 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
     OU_MULTI: 'OU_MULTI',
     AH: 'AH',
     Score: 'Score',
+    OddEven: 'OddEven',
   };
 
   // 类型代码 -> 中文显示名称
@@ -137,11 +155,23 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
     OU_MULTI: '大小球（多线）',
     AH: '让球',
     Score: '精确比分',
+    OddEven: '单双号',
   };
 
   // 从 templateId 提取类型代码
   const templateType = templateIdToTypeMap[market.templateId] || 'WDL';
   const templateTypeDisplay = typeDisplayMap[templateType] || '未知玩法';
+
+  // 格式化球数显示
+  let lineDisplay: string | undefined = undefined;
+  if (market.line) {
+    // 单线市场
+    lineDisplay = formatLineDisplay(market.line) + ' 球';
+  } else if (market.lines && market.lines.length > 0) {
+    // 多线市场，显示第一条线或所有线
+    const formattedLines = market.lines.map(l => formatLineDisplay(l));
+    lineDisplay = formattedLines.join('、') + ' 球';
+  }
 
   return {
     homeTeam: market.homeTeam,
@@ -149,6 +179,7 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
     league: 'EPL', // TODO: 从 matchId 或其他字段解析
     templateType, // 英文类型代码，用于内部逻辑
     templateTypeDisplay, // 中文显示名称，用于 UI 展示
+    lineDisplay, // 格式化的球数显示
   };
 }
 
@@ -367,5 +398,50 @@ export function useMarketOrders(
     },
     enabled: !!userAddress && !!marketId,
     staleTime: 15 * 1000, // 15 秒
+  });
+}
+
+/**
+ * 查询市场所有订单（不限用户）
+ */
+export function useMarketAllOrders(
+  marketId: string | undefined,
+  first = 50
+) {
+  return useQuery({
+    queryKey: ['allOrders', marketId, first],
+    queryFn: async () => {
+      if (!marketId) {
+        console.log('[useMarketAllOrders] 市场ID为空，返回空数组');
+        return [];
+      }
+
+      const normalizedMarketId = marketId.toLowerCase();
+      console.log('[useMarketAllOrders] 查询市场所有订单:', { marketId: normalizedMarketId, first });
+
+      try {
+        const data = await graphqlClient.request<{ orders: OrderRaw[] }>(
+          MARKET_ALL_ORDERS_QUERY,
+          {
+            marketId: normalizedMarketId,
+            first,
+          }
+        );
+        console.log('[useMarketAllOrders] 查询成功，返回', data.orders.length, '个订单');
+
+        // 转换嵌套结构为扁平结构
+        const orders: Order[] = data.orders.map(order => ({
+          ...order,
+          user: order.user.id,
+        }));
+
+        return orders;
+      } catch (error) {
+        console.error('[useMarketAllOrders] 查询失败:', error);
+        throw error;
+      }
+    },
+    enabled: !!marketId,
+    staleTime: 10 * 1000, // 10 秒
   });
 }

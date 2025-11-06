@@ -1,14 +1,16 @@
 import type { Address, ContractAddresses } from '../index';
 
 // Anvil 本地测试链地址
+// 部署时间: 2025-11-06 (V2 System - Fresh Deploy)
 export const ANVIL_ADDRESSES: ContractAddresses = {
-  marketTemplateRegistry: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-  basket: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-  correlationGuard: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
-  feeRouter: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
-  rewardsDistributor: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9',
-  referralRegistry: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
-  usdc: '0x5FbDB2315678afecb367f032d93F642f64180aa3', // 修复：正确的 USDC 地址
+  marketTemplateRegistry: '0x6A59CC73e334b018C9922793d96Df84B538E6fD5', // MarketFactory_v2
+  basket: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',        // 待部署
+  correlationGuard: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',   // 待部署
+  feeRouter: '0x871ACbEabBaf8Bed65c22ba7132beCFaBf8c27B5',
+  rewardsDistributor: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9', // 待部署
+  referralRegistry: '0x8e264821AFa98DD104eEcfcfa7FD9f8D8B320adA',
+  usdc: '0x967AB65ef14c58bD4DcfFeaAA1ADb40a022140E5',
+  simpleCPMM: '0x0aec7c174554AF8aEc3680BB58431F6618311510',
 };
 
 // Sepolia 测试网地址 (待部署)

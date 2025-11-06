@@ -1,24 +1,15 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Providers as Web3Providers } from '@pitchone/web3';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000, // 1 分钟
-            refetchInterval: 30 * 1000, // 30 秒自动刷新（实时看板）
-          },
-        },
-      })
-  );
-
+  // 直接使用 @pitchone/web3 的 Providers，它已经包含了：
+  // - WagmiProvider（Web3 连接）
+  // - QueryClientProvider（React Query）
+  // - RainbowKitProvider（钱包连接 UI）
   return (
-    <QueryClientProvider client={queryClient}>
+    <Web3Providers>
       {children}
-    </QueryClientProvider>
+    </Web3Providers>
   );
 }

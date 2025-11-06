@@ -54,7 +54,9 @@ export function useWatchBetPlaced(marketAddress?: Address) {
     address: marketAddress,
     abi: MarketBaseABI,
     eventName: 'BetPlaced',
+    chainId: 31337, // Anvil 本地链
     onLogs: (logs) => {
+      console.log('[useWatchBetPlaced] 收到新事件:', logs.length, '条');
       const newEvents = logs.map((log) => ({
         user: log.args.user as Address,
         outcomeId: log.args.outcomeId as bigint,
@@ -67,6 +69,7 @@ export function useWatchBetPlaced(marketAddress?: Address) {
       }));
 
       setEvents((prev) => [...newEvents, ...prev].slice(0, 100)); // 保留最近 100 条
+      console.log('[useWatchBetPlaced] 更新后事件总数:', newEvents.length + Math.min(100, events.length));
     },
     enabled: !!marketAddress,
   });

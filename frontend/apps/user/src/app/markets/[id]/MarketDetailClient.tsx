@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { formatUnits } from 'viem';
 import {
   useAccount,
   useMarket,
   useMarketOrders,
+  useMarketAllOrders,
   MarketStatus,
   usePlaceBet,
   useApproveUSDC,
@@ -36,9 +37,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const [betAmount, setBetAmount] = useState('');
   const [showBetModal, setShowBetModal] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
+  const [approveToastId, setApproveToastId] = useState<string | null>(null);
+  const [betToastId, setBetToastId] = useState<string | null>(null);
 
   const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
   const { data: orders, refetch: refetchOrders } = useMarketOrders(address, marketId);
+  const { data: allOrders, refetch: refetchAllOrders } = useMarketAllOrders(marketId);
 
   // 获取真实的 outcome 数据（包括实时赔率）
   const { data: outcomes, isLoading: outcomesLoading, refetch: refetchOutcomes } = useMarketOutcomes(
@@ -60,11 +64,59 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     isLoading,
     outcomesLoading,
     hasError: !!error,
-    error
+    error,
+    allOrdersCount: allOrders?.length || 0,
   });
 
   // 实时事件监听
   const betPlacedEvents = useWatchBetPlaced(marketId as `0x${string}`);
+
+  // 合并历史订单和实时事件
+  const allBetEvents = useMemo(() => {
+    // 辅助函数：安全地将字符串转换为 BigInt
+    const stringToBigInt = (value: string | undefined, decimals: number = 18): bigint => {
+      if (!value) return 0n;
+
+      // 如果字符串包含小数点，说明已经被格式化了
+      if (value.includes('.')) {
+        // 去掉小数点，然后转换
+        const [integer, decimal = ''] = value.split('.');
+        const paddedDecimal = decimal.padEnd(decimals, '0').slice(0, decimals);
+        return BigInt(integer + paddedDecimal);
+      }
+
+      // 否则直接转换
+      return BigInt(value);
+    };
+
+    const historicalEvents = (allOrders || []).map(order => {
+      console.log('[allBetEvents] 处理历史订单:', order);
+      return {
+        user: order.user as `0x${string}`,
+        outcomeId: BigInt(order.outcome),
+        amount: stringToBigInt(order.amount, 6), // USDC 6 位小数
+        shares: stringToBigInt(order.shares, 18), // ERC-1155 shares 18 位小数
+        fee: stringToBigInt(order.fee, 6), // 手续费也是 USDC 6 位小数
+        blockNumber: 0n, // 历史订单没有 blockNumber
+        transactionHash: order.transactionHash,
+        timestamp: parseInt(order.timestamp) * 1000, // 转换为毫秒
+      };
+    });
+
+    // 合并实时事件和历史事件，按时间戳排序（最新的在前）
+    const combined = [...betPlacedEvents, ...historicalEvents];
+
+    // 去重（通过 transactionHash）
+    const uniqueEvents = combined.reduce((acc, event) => {
+      if (!acc.find(e => e.transactionHash === event.transactionHash)) {
+        acc.push(event);
+      }
+      return acc;
+    }, [] as typeof combined);
+
+    // 按时间戳降序排序
+    return uniqueEvents.sort((a, b) => b.timestamp - a.timestamp);
+  }, [allOrders, betPlacedEvents]);
 
   // 监听新下注事件并通知
   useEffect(() => {
@@ -80,11 +132,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   }, [betPlacedEvents, address, market, outcomes]);
 
-  // 自动刷新（包括 outcomes）
+  // 自动刷新（包括 outcomes 和所有订单）
   useAutoRefresh(
     () => {
       refetchMarket();
       refetchOutcomes();
+      refetchAllOrders();
       if (address) {
         refetchOrders();
       }
@@ -102,8 +155,33 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     address as `0x${string}`,
     marketId as `0x${string}`
   );
-  const { approve, isPending: isApproving, isSuccess: isApproved } = useApproveUSDC();
-  const { placeBet, isPending: isBetting, isSuccess: isBetSuccess } = usePlaceBet(marketId as `0x${string}`);
+  const {
+    approve,
+    isPending: isApproving,
+    isConfirming: isApprovingConfirming,
+    isSuccess: isApproved,
+    hash: approveHash,
+    error: approveError
+  } = useApproveUSDC();
+  const {
+    placeBet,
+    isPending: isBetting,
+    isConfirming: isBettingConfirming,
+    isSuccess: isBetSuccess,
+    hash: betHash,
+    error: betError
+  } = usePlaceBet(marketId as `0x${string}`);
+
+  // 调试日志：追踪下注交易状态
+  useEffect(() => {
+    console.log('[BET HOOK 状态]:', {
+      isPending: isBetting,
+      isConfirming: isBettingConfirming,
+      isSuccess: isBetSuccess,
+      hash: betHash,
+      error: betError
+    });
+  }, [isBetting, isBettingConfirming, isBetSuccess, betHash, betError]);
 
   // 检查是否需要 approve
   useEffect(() => {
@@ -127,21 +205,95 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   }, [betAmount, allowance]);
 
-  // 监听 approve 成功后刷新 allowance
+  // 监听授权交易发起
   useEffect(() => {
-    if (isApproved) {
+    if (isApproving && !approveToastId) {
+      console.log('[APPROVE] 交易开始，显示 loading toast');
+      const toastId = betNotifications.approvingUSDC();
+      setApproveToastId(toastId);
+    }
+  }, [isApproving, approveToastId]);
+
+  // 监听授权交易错误
+  useEffect(() => {
+    if (approveError && approveToastId) {
+      console.log('[APPROVE] 交易失败:', approveError);
+      betNotifications.approveFailed(approveToastId, approveError.message || '授权失败');
+      setApproveToastId(null);
+    }
+  }, [approveError, approveToastId]);
+
+  // 监听授权交易成功
+  useEffect(() => {
+    console.log('[APPROVE] 状态变化:', { isApproved, approveToastId });
+
+    if (isApproved && approveToastId) {
+      console.log('[APPROVE] 交易成功，更新 toast');
+      betNotifications.approvedUSDC(approveToastId);
+      setApproveToastId(null);
       refetchAllowance();
     }
-  }, [isApproved, refetchAllowance]);
+  }, [isApproved, approveToastId]);
 
-  // 监听下注成功
+  // 监听下注交易发起
   useEffect(() => {
-    if (isBetSuccess) {
+    if (isBetting && !betToastId) {
+      console.log('[BET] 交易开始，显示 loading toast');
+      const toastId = betNotifications.placingBet();
+      setBetToastId(toastId);
+    }
+  }, [isBetting, betToastId]);
+
+  // 监听下注交易错误
+  useEffect(() => {
+    if (betError && betToastId) {
+      console.log('[BET] 交易失败:', betError);
+
+      // 识别 nonce 错误并提供友好提示
+      let errorMessage = '交易失败';
+      if (betError.message && betError.message.includes('nonce')) {
+        errorMessage = '交易 nonce 冲突，请在钱包中清除交易历史后重试';
+      } else if (betError.message) {
+        // 简化错误消息
+        const shortMessage = betError.message.split('\n')[0];
+        errorMessage = shortMessage.length > 100
+          ? shortMessage.substring(0, 100) + '...'
+          : shortMessage;
+      }
+
+      betNotifications.betFailed(betToastId, errorMessage);
+      setBetToastId(null);
+    }
+  }, [betError, betToastId]);
+
+  // 监听下注交易成功
+  useEffect(() => {
+    console.log('[BET] 状态变化:', { isBetSuccess, betToastId, hasOutcomes: !!outcomes, selectedOutcome });
+
+    if (isBetSuccess && betToastId) {
+      console.log('[BET] 交易成功，更新 toast 并刷新数据');
+      const outcomeName = outcomes && selectedOutcome !== null
+        ? outcomes[selectedOutcome]?.name || `结果 ${selectedOutcome}`
+        : '未知结果';
+
+      betNotifications.betPlaced(betToastId, betAmount, outcomeName);
+      setBetToastId(null);
       setShowBetModal(false);
       setBetAmount('');
       setSelectedOutcome(null);
+
+      // 刷新市场数据和订单
+      setTimeout(() => {
+        refetchMarket();
+        refetchOutcomes();
+        refetchAllOrders();
+        if (address) {
+          refetchOrders();
+        }
+      }, 1000); // 等待 1 秒让 subgraph 索引事件
     }
-  }, [isBetSuccess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBetSuccess, betToastId]);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
@@ -175,29 +327,28 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const handleApprove = async () => {
     if (!marketId || !betAmount) return;
 
-    const toastId = betNotifications.approvingUSDC();
-
     try {
       await approve(marketId as `0x${string}`, betAmount);
-      betNotifications.approvedUSDC(toastId);
     } catch (error: any) {
       console.error('Approve error:', error);
-      betNotifications.approveFailed(toastId, error?.message || '未知错误');
+      if (approveToastId) {
+        betNotifications.approveFailed(approveToastId, error?.message || '未知错误');
+        setApproveToastId(null);
+      }
     }
   };
 
   const handlePlaceBet = async () => {
     if (!isConnected || selectedOutcome === null || !betAmount || !outcomes) return;
 
-    const toastId = betNotifications.placingBet();
-
     try {
       await placeBet(selectedOutcome, betAmount);
-      const outcomeName = outcomes[selectedOutcome]?.name || `结果 ${selectedOutcome}`;
-      betNotifications.betPlaced(toastId, betAmount, outcomeName);
     } catch (error: any) {
       console.error('Place bet error:', error);
-      betNotifications.betFailed(toastId, error?.message || '未知错误');
+      if (betToastId) {
+        betNotifications.betFailed(betToastId, error?.message || '未知错误');
+        setBetToastId(null);
+      }
     }
   };
 
@@ -260,7 +411,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 </p>
               )}
             </div>
-            <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || '未知'}</Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || '未知'}</Badge>
+              {market._displayInfo?.lineDisplay && (
+                <Badge variant="info" size="lg">{market._displayInfo.lineDisplay}</Badge>
+              )}
+            </div>
           </div>
 
           {/* Stats */}
@@ -313,7 +469,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             <div>
               <h2 className="text-2xl font-bold text-white mb-4">实时活动</h2>
               <LiveActivity
-                events={betPlacedEvents}
+                events={allBetEvents}
                 outcomeNames={outcomes.map((o) => o.name)}
               />
             </div>
@@ -460,7 +616,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   setShowBetModal(false);
                   setBetAmount('');
                 }}
-                disabled={isApproving || isBetting}
+                disabled={isApproving || isApprovingConfirming || isBetting || isBettingConfirming}
               >
                 取消
               </Button>
@@ -470,20 +626,20 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   variant="neon"
                   fullWidth
                   onClick={handleApprove}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || allowance === undefined}
-                  isLoading={isApproving}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || allowance === undefined}
+                  isLoading={isApproving || isApprovingConfirming}
                 >
-                  {isApproving ? '授权中...' : allowance === undefined ? '检查授权...' : '授权 USDC'}
+                  {isApproving || isApprovingConfirming ? '授权中...' : allowance === undefined ? '检查授权...' : '授权 USDC'}
                 </Button>
               ) : (
                 <Button
                   variant="neon"
                   fullWidth
                   onClick={handlePlaceBet}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || allowance === undefined}
-                  isLoading={isBetting}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || allowance === undefined}
+                  isLoading={isBetting || isBettingConfirming}
                 >
-                  {isBetting ? '下注中...' : allowance === undefined ? '加载中...' : '确认下注'}
+                  {isBetting || isBettingConfirming ? '下注中...' : allowance === undefined ? '加载中...' : '确认下注'}
                 </Button>
               )}
             </div>

@@ -20,7 +20,13 @@
     "graphql-request": "^7.1.2",
     "date-fns": "^4.1.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.5.4",
+    "viem": "^2.21.19",
+    "wagmi": "^2.12.17",
+    "@rainbow-me/rainbowkit": "^2.2.0",
+    "@pitchone/web3": "workspace:*",
+    "@pitchone/contracts": "workspace:*",
+    "@pitchone/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.8.6",

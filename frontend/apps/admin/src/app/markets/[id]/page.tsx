@@ -1,12 +1,12 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKET_QUERY } from '@pitchone/web3';
+import { graphqlClient, MARKET_QUERY, useLockMarket, useAccount } from '@pitchone/web3';
 import { Card, LoadingSpinner, ErrorState, Badge, Button } from '@pitchone/ui';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
-import { use } from 'react';
+import { use, useState } from 'react';
 
 // 市场状态映射
 const STATUS_MAP = {
@@ -39,15 +39,46 @@ function InfoCard({ title, value, subtitle }: { title: string; value: string; su
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { isConnected } = useAccount();
+  const [showLockConfirm, setShowLockConfirm] = useState(false);
+
+  // 锁盘功能
+  const {
+    lockMarket,
+    isPending: isLockPending,
+    isConfirming: isLockConfirming,
+    isSuccess: isLockSuccess,
+    error: lockError,
+    hash: lockHash
+  } = useLockMarket(id as `0x${string}`);
 
   // 获取市场详情
-  const { data: market, isLoading, error } = useQuery({
+  const { data: market, isLoading, error, refetch } = useQuery({
     queryKey: ['market', id],
     queryFn: async () => {
       const data: any = await graphqlClient.request(MARKET_QUERY, { id });
       return data.market;
     },
   });
+
+  // 处理锁盘
+  const handleLockMarket = async () => {
+    if (!isConnected) {
+      alert('请先连接钱包');
+      return;
+    }
+
+    try {
+      await lockMarket();
+      setShowLockConfirm(false);
+      // 3秒后刷新市场数据
+      setTimeout(() => {
+        refetch();
+      }, 3000);
+    } catch (err) {
+      console.error('锁盘失败:', err);
+    }
+  };
 
   // 加载状态
   if (isLoading) {
@@ -107,9 +138,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 </Button>
               </Link>
               {market.state === 'Open' && (
-                <Button variant="secondary" disabled>
-                  锁盘
-                  <span className="ml-2 text-xs">(需要 Web3)</span>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowLockConfirm(true)}
+                  disabled={!isConnected || isLockPending || isLockConfirming || isLockSuccess}
+                >
+                  {isLockPending || isLockConfirming ? '锁盘中...' : '🔒 锁盘市场'}
                 </Button>
               )}
             </div>
@@ -123,17 +157,17 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <InfoCard
             title="总交易量"
-            value={`${(Number(market.totalVolume || 0) / 1e6).toFixed(2)} USDC`}
+            value={`${Number(market.totalVolume || 0).toFixed(2)} USDC`}
             subtitle="累计下注金额"
           />
           <InfoCard
             title="手续费累计"
-            value={`${(Number(market.feeAccrued || 0) / 1e6).toFixed(2)} USDC`}
+            value={`${Number(market.feeAccrued || 0).toFixed(2)} USDC`}
             subtitle="已收取手续费"
           />
           <InfoCard
             title="LP 流动性"
-            value={`${(Number(market.lpLiquidity || 0) / 1e6).toFixed(2)} USDC`}
+            value={`${Number(market.lpLiquidity || 0).toFixed(2)} USDC`}
             subtitle="流动性池规模"
           />
           <InfoCard
@@ -245,30 +279,95 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           </dl>
         </Card>
 
-        {/* 操作提示 */}
-        {market.status === 'Open' && (
-          <Card className="p-6 mt-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  市场管理提示
-                </h3>
-                <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                  <p>
-                    此市场当前开盘中。管理员可以执行锁盘操作以准备结算。
-                    Web3 钱包集成功能即将推出，届时可直接在此页面操作。
-                  </p>
+        {/* 交易状态显示 */}
+        {(isLockPending || isLockConfirming || isLockSuccess || lockError) && (
+          <div className="mt-6 space-y-4">
+            {isLockPending && (
+              <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⏳ 等待钱包确认锁盘交易...
+                </p>
+              </Card>
+            )}
+            {isLockConfirming && (
+              <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner size="sm" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      ⛓️ 锁盘交易确认中...
+                    </p>
+                    {lockHash && (
+                      <a
+                        href={`http://localhost:8545/tx/${lockHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        查看交易: {lockHash.slice(0, 10)}...
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </Card>
+              </Card>
+            )}
+            {isLockSuccess && (
+              <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  ✅ 市场锁盘成功！页面将在 3 秒后刷新...
+                </p>
+              </Card>
+            )}
+            {lockError && (
+              <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  ❌ 锁盘失败
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  {lockError.message}
+                </p>
+              </Card>
+            )}
+          </div>
         )}
       </div>
+
+      {/* 锁盘确认对话框 */}
+      {showLockConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              确认锁盘市场
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              确定要锁盘此市场吗？锁盘后将禁止新的下注，仅允许用户卖出现有头寸。
+            </p>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ <strong>注意：</strong>此操作不可撤销！锁盘后市场无法重新开盘。
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowLockConfirm(false)}
+                disabled={isLockPending || isLockConfirming}
+                className="flex-1"
+              >
+                取消
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleLockMarket}
+                disabled={isLockPending || isLockConfirming}
+                className="flex-1"
+              >
+                {isLockPending || isLockConfirming ? '锁盘中...' : '确认锁盘'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

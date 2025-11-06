@@ -78,7 +78,7 @@ function MarketRow({ market }: { market: any }) {
       </td>
       <td className="py-4 px-4">
         <span className="font-semibold text-gray-900 dark:text-white">
-          {(Number(market.totalVolume || 0) / 1e6).toFixed(2)} USDC
+          {Number(market.totalVolume || 0).toFixed(2)} USDC
         </span>
       </td>
       <td className="py-4 px-4">
@@ -290,10 +290,11 @@ export default function MarketsPage() {
                   返回看板
                 </Button>
               </Link>
-              <Button variant="primary" disabled>
-                创建市场
-                <span className="ml-2 text-xs">(即将推出)</span>
-              </Button>
+              <Link href="/markets/create">
+                <Button variant="outline">
+                  + 创建市场
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

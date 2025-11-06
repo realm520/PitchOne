@@ -32,13 +32,14 @@ export {
   useUserPositions,
   useUserOrders,
   useMarketOrders,
+  useMarketAllOrders,
   MarketStatus,
   type Market,
   type Position,
   type Order,
 } from './hooks';
 
-// Contract Interaction Hooks
+// Contract Interaction Hooks (User)
 export {
   useApproveUSDC,
   useUSDCAllowance,
@@ -50,6 +51,20 @@ export {
   useOutcomeCount,
   useOutcomeLiquidity,
 } from './contract-hooks';
+
+// Contract Interaction Hooks (Admin)
+export {
+  useLockMarket,
+  useCreateMarket,
+  usePauseMarket,
+  useParamControllerPropose,
+  useParamControllerExecute,
+  useParamControllerCancel,
+  useParamProposal,
+  useCreateCampaign,
+  useCreateQuest,
+  usePublishMerkleRoot,
+} from './admin-hooks';
 
 // Event Listening Hooks
 export {
