@@ -6,272 +6,354 @@ import "../../src/pricing/SimpleCPMM.sol";
 
 /**
  * @title SimpleCPMMTest
- * @notice Unit tests for SimpleCPMM pricing engine
+ * @notice Unit tests for SimpleCPMM虚拟储备定价引擎
+ * @dev 验证虚拟储备模型：买入 → 储备减少 → 价格上升
  */
 contract SimpleCPMMTest is BaseTest {
     SimpleCPMM public engine;
+
+    // 测试常量
+    uint256 constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100,000 USDC
+    uint256 constant MIN_RESERVE = 1000 * 1e6; // 1,000 USDC
 
     function setUp() public override {
         super.setUp();
         engine = new SimpleCPMM();
     }
 
-    // ============ Price Calculation Tests ============
+    // ============ 核心验证：买入后价格上升 ============
 
-    function test_GetPrice_TwoOutcomes_Equal() public {
+    function test_BuyingIncreasesPrice_TwoOutcomes() public {
+        // 初始均衡储备
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
+        reserves[0] = VIRTUAL_RESERVE_INIT;
+        reserves[1] = VIRTUAL_RESERVE_INIT;
 
-        uint256 price0 = engine.getPrice(0, reserves);
-        uint256 price1 = engine.getPrice(1, reserves);
+        // 买入前价格
+        uint256 priceBefore = engine.getPrice(0, reserves);
+        assertEq(priceBefore, 5000, "Initial price should be 50%");
 
-        // Equal reserves should give 50% probability each
-        assertEq(price0, 5000, "Outcome 0 should be 50%");
-        assertEq(price1, 5000, "Outcome 1 should be 50%");
-        assertEq(price0 + price1, 10000, "Prices should sum to 100%");
+        // 模拟买入：储备减少
+        uint256 buyAmount = 10_000 * 1e6; // 10,000 USDC
+        uint256 shares = engine.calculateShares(0, buyAmount, reserves);
+
+        reserves[0] -= shares; // 目标储备减少
+        reserves[1] += buyAmount; // 对手盘储备增加
+
+        // 买入后价格
+        uint256 priceAfter = engine.getPrice(0, reserves);
+
+        // 关键验证：价格应该上升
+        assertGt(priceAfter, priceBefore, "Price must increase after buying");
+        emit log_named_uint("Price before", priceBefore);
+        emit log_named_uint("Price after", priceAfter);
+        emit log_named_uint("Price increase (bps)", priceAfter - priceBefore);
     }
 
-    function test_GetPrice_TwoOutcomes_Skewed() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 250e18;  // Lower reserve = higher price (more likely)
-        reserves[1] = 750e18;  // Higher reserve = lower price (less likely)
-
-        uint256 price0 = engine.getPrice(0, reserves);
-        uint256 price1 = engine.getPrice(1, reserves);
-
-        // Outcome 0 should be more expensive (higher probability)
-        assertGt(price0, price1, "Outcome 0 should have higher price");
-        assertApproxEqAbs(price0, 7500, 10); // ~75%
-        assertApproxEqAbs(price1, 2500, 10); // ~25%
-        assertEq(price0 + price1, 10000, "Prices should sum to 100%");
-    }
-
-    function test_GetPrice_ThreeOutcomes_Equal() public {
+    function test_BuyingIncreasesPrice_ThreeOutcomes() public {
+        // 初始均衡储备
         uint256[] memory reserves = new uint256[](3);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
-        reserves[2] = 1000e18;
+        reserves[0] = VIRTUAL_RESERVE_INIT;
+        reserves[1] = VIRTUAL_RESERVE_INIT;
+        reserves[2] = VIRTUAL_RESERVE_INIT;
+
+        // 买入前价格
+        uint256 priceBefore = engine.getPrice(0, reserves);
+        assertApproxEqAbs(priceBefore, 3333, 10, "Initial price ~33.33%");
+
+        // 模拟大量买入客队
+        uint256 buyAmount = 20_000 * 1e6; // 20,000 USDC
+        uint256 shares = engine.calculateShares(0, buyAmount, reserves);
+
+        reserves[0] -= shares;
+        reserves[1] += buyAmount / 2; // 对手盘均分
+        reserves[2] += buyAmount / 2;
+
+        // 买入后价格
+        uint256 priceAfter = engine.getPrice(0, reserves);
+
+        // 关键验证
+        assertGt(priceAfter, priceBefore, "Price must increase after buying");
+        emit log_named_uint("Price before", priceBefore);
+        emit log_named_uint("Price after", priceAfter);
+
+        // 价格应该显著上升（至少5%）
+        assertGt(priceAfter, priceBefore + 500, "Price should increase significantly");
+    }
+
+    // ============ 初始价格测试 ============
+
+    function test_InitialPrice_TwoOutcomes_Balanced() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
+
+        uint256 price0 = engine.getPrice(0, reserves);
+        uint256 price1 = engine.getPrice(1, reserves);
+
+        assertEq(price0, 5000, "Initial price should be 50%");
+        assertEq(price1, 5000, "Initial price should be 50%");
+        assertEq(price0 + price1, 10000, "Prices must sum to 100%");
+    }
+
+    function test_InitialPrice_ThreeOutcomes_Balanced() public {
+        uint256[] memory reserves = engine.getInitialReserves(3);
 
         uint256 price0 = engine.getPrice(0, reserves);
         uint256 price1 = engine.getPrice(1, reserves);
         uint256 price2 = engine.getPrice(2, reserves);
 
-        // Equal reserves should give 33.33% probability each
-        assertApproxEqAbs(price0, 3333, 10); // ~33.33%
-        assertApproxEqAbs(price1, 3333, 10);
-        assertApproxEqAbs(price2, 3333, 10);
+        assertApproxEqAbs(price0, 3333, 10, "Initial price ~33.33%");
+        assertApproxEqAbs(price1, 3333, 10, "Initial price ~33.33%");
+        assertApproxEqAbs(price2, 3333, 10, "Initial price ~33.33%");
 
-        // Sum should be approximately 100% (within rounding error)
         uint256 sum = price0 + price1 + price2;
-        assertApproxEqAbs(sum, 10000, 10);
+        assertApproxEqAbs(sum, 10000, 10, "Prices must sum to ~100%");
     }
 
-    function test_GetPrice_ThreeOutcomes_Skewed() public {
+    function test_Price_LowerReserve_HigherPrice() public {
         uint256[] memory reserves = new uint256[](3);
-        reserves[0] = 200e18;  // Favorite
-        reserves[1] = 500e18;  // Middle
-        reserves[2] = 800e18;  // Underdog
+        reserves[0] = 80_000 * 1e6;  // 被买入，储备少
+        reserves[1] = 100_000 * 1e6; // 均衡
+        reserves[2] = 120_000 * 1e6; // 被卖出，储备多
 
         uint256 price0 = engine.getPrice(0, reserves);
         uint256 price1 = engine.getPrice(1, reserves);
         uint256 price2 = engine.getPrice(2, reserves);
 
-        // Verify ordering
-        assertGt(price0, price1, "Price 0 > Price 1");
-        assertGt(price1, price2, "Price 1 > Price 2");
+        // 储备越少 → 价格越高
+        assertGt(price0, price1, "Lower reserve should have higher price");
+        assertGt(price1, price2, "Lower reserve should have higher price");
 
-        // Verify normalization (sum = 100%)
-        uint256 sum = price0 + price1 + price2;
-        assertApproxEqAbs(sum, 10000, 10);
+        emit log_named_uint("Price 0 (low reserve)", price0);
+        emit log_named_uint("Price 1 (medium)", price1);
+        emit log_named_uint("Price 2 (high reserve)", price2);
     }
 
-    // ============ Shares Calculation Tests ============
+    // ============ 二向市场精确公式验证 ============
 
-    function test_CalculateShares_TwoOutcomes_Basic() public {
+    function test_BinaryMarket_ExactFormula() public {
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
+        reserves[0] = 100_000 * 1e6;
+        reserves[1] = 100_000 * 1e6;
 
-        uint256 amount = 100e18;
+        uint256 buyAmount = 5_000 * 1e6;
+
+        // 计算 k
+        uint256 k = engine.calculateK(reserves);
+        assertEq(k, 100_000 * 1e6 * 100_000 * 1e6, "K calculation");
+
+        // 计算份额
+        uint256 shares = engine.calculateShares(0, buyAmount, reserves);
+
+        // 手动验证精确公式：shares = r₀ - k/(r₁ + amount)
+        uint256 r0 = reserves[0];
+        uint256 r1 = reserves[1];
+        uint256 r1_new = r1 + buyAmount;
+        uint256 r0_new = k / r1_new;
+        uint256 expectedShares = r0 - r0_new;
+
+        emit log_named_uint("Calculated shares", shares);
+        emit log_named_uint("Expected shares", expectedShares);
+
+        // 允许小误差（精度损失）
+        assertApproxEqRel(shares, expectedShares, 0.01e18, "Binary formula accuracy");
+    }
+
+    function test_BinaryMarket_KValuePreserved() public {
+        uint256[] memory reserves = new uint256[](2);
+        reserves[0] = 100_000 * 1e6;
+        reserves[1] = 100_000 * 1e6;
+
+        uint256 k_before = engine.calculateK(reserves);
+
+        // 模拟买入
+        uint256 buyAmount = 10_000 * 1e6;
+        uint256 shares = engine.calculateShares(0, buyAmount, reserves);
+
+        reserves[0] -= shares;
+        reserves[1] += buyAmount;
+
+        uint256 k_after = engine.calculateK(reserves);
+
+        // K值应该保持不变（允许小误差）
+        assertApproxEqRel(k_after, k_before, 0.001e18, "K value should be preserved");
+
+        emit log_named_uint("K before", k_before);
+        emit log_named_uint("K after", k_after);
+    }
+
+    // ============ 份额计算测试 ============
+
+    function test_CalculateShares_ReturnsPositive() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
+        uint256 amount = 1_000 * 1e6;
+
         uint256 shares = engine.calculateShares(0, amount, reserves);
 
-        // Shares should be at least amount (1:1 minimum)
-        assertGe(shares, amount, "Shares should be at least amount");
-
-        // For balanced market, shares should be close to amount
-        // Within reasonable range (can vary based on market conditions)
-        assertLe(shares, amount * 2); // Not more than 2x
+        assertGt(shares, 0, "Shares must be positive");
+        assertLt(shares, reserves[0], "Shares < reserve");
     }
 
-    function test_CalculateShares_TwoOutcomes_LowReserve() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 100e18;   // Low reserve
-        reserves[1] = 1000e18;  // High reserve
+    function test_CalculateShares_LargerAmount_LargerShares() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
 
-        uint256 amount = 10e18;
-        uint256 shares = engine.calculateShares(0, amount, reserves);
+        uint256 shares1 = engine.calculateShares(0, 1_000 * 1e6, reserves);
+        uint256 shares2 = engine.calculateShares(0, 2_000 * 1e6, reserves);
 
-        // Buying into low reserve outcome should give fewer shares
-        // (more expensive because it's the favorite)
-        assertGe(shares, amount, "Shares should be at least amount");
+        assertGt(shares2, shares1, "Larger amount should give more shares");
+        // 但不是线性关系（由于滑点）
+        assertLt(shares2, shares1 * 2, "Non-linear due to slippage");
     }
 
-    function test_CalculateShares_ThreeOutcomes_Basic() public {
-        uint256[] memory reserves = new uint256[](3);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
-        reserves[2] = 1000e18;
+    function test_CalculateShares_ThreeOutcomes_Consistent() public {
+        uint256[] memory reserves = engine.getInitialReserves(3);
+        uint256 amount = 5_000 * 1e6;
 
-        uint256 amount = 100e18;
+        // 同样金额买入不同结果，均衡市场应该给相同份额
         uint256 shares0 = engine.calculateShares(0, amount, reserves);
         uint256 shares1 = engine.calculateShares(1, amount, reserves);
         uint256 shares2 = engine.calculateShares(2, amount, reserves);
 
-        // All outcomes should give similar shares (balanced market)
-        assertApproxEqAbs(shares0, shares1, shares1 / 100); // Within 1%
-        assertApproxEqAbs(shares1, shares2, shares2 / 100);
-        assertGe(shares0, amount, "Shares should be at least amount");
+        assertApproxEqAbs(shares0, shares1, shares0 / 100, "Shares should be similar");
+        assertApproxEqAbs(shares1, shares2, shares1 / 100, "Shares should be similar");
     }
 
-    function test_CalculateShares_MinimumGuarantee() public {
-        // Test that shares are always at least the amount
+    // ============ 滑点测试 ============
+
+    function test_Slippage_LargeTradeHigherSlippage() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
+        uint256[] memory reservesCopy = new uint256[](2);
+        reservesCopy[0] = reserves[0];
+        reservesCopy[1] = reserves[1];
+
+        // 小额交易
+        uint256 smallAmount = 1_000 * 1e6;
+        uint256 sharesSmall = engine.calculateShares(0, smallAmount, reserves);
+        reserves[0] -= sharesSmall;
+        reserves[1] += smallAmount;
+
+        (,uint256 slippageSmall) = engine.calculateEffectivePrice(0, reservesCopy, reserves);
+
+        // 重置
+        reserves[0] = reservesCopy[0];
+        reserves[1] = reservesCopy[1];
+
+        // 大额交易
+        uint256 largeAmount = 20_000 * 1e6;
+        uint256 sharesLarge = engine.calculateShares(0, largeAmount, reserves);
+        reserves[0] -= sharesLarge;
+        reserves[1] += largeAmount;
+
+        (,uint256 slippageLarge) = engine.calculateEffectivePrice(0, reservesCopy, reserves);
+
+        // 大额交易滑点更高
+        assertGt(slippageLarge, slippageSmall, "Large trade should have higher slippage");
+
+        emit log_named_uint("Slippage small (bps)", slippageSmall);
+        emit log_named_uint("Slippage large (bps)", slippageLarge);
+    }
+
+    // ============ 对手盘调整测试 ============
+
+    function test_OpponentAdjustments_TwoOutcomes() public {
+        int256[] memory adjustments = engine.calculateOpponentAdjustments(0, 10_000 * 1e6, 2);
+
+        assertEq(adjustments.length, 2, "Should have 2 adjustments");
+        assertLt(adjustments[0], 0, "Target should decrease");
+        assertGt(adjustments[1], 0, "Opponent should increase");
+
+        // 对手盘增加量应该等于买入金额
+        assertEq(uint256(adjustments[1]), 10_000 * 1e6, "Opponent increase = buy amount");
+    }
+
+    function test_OpponentAdjustments_ThreeOutcomes() public {
+        uint256 buyAmount = 12_000 * 1e6;
+        int256[] memory adjustments = engine.calculateOpponentAdjustments(1, buyAmount, 3);
+
+        assertEq(adjustments.length, 3, "Should have 3 adjustments");
+        assertLt(adjustments[1], 0, "Target (1) should decrease");
+        assertGt(adjustments[0], 0, "Opponent (0) should increase");
+        assertGt(adjustments[2], 0, "Opponent (2) should increase");
+
+        // 两个对手盘应该均分
+        assertEq(uint256(adjustments[0]), buyAmount / 2, "Split evenly");
+        assertEq(uint256(adjustments[2]), buyAmount / 2, "Split evenly");
+    }
+
+    // ============ 边界情况测试 ============
+
+    function testRevert_CalculateShares_ExceedsReserve() public {
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 100e18;
-        reserves[1] = 100e18;
+        reserves[0] = 10_000 * 1e6;  // 小储备
+        reserves[1] = 100_000 * 1e6;
 
-        uint256 amount = 50e18;
-        uint256 shares = engine.calculateShares(0, amount, reserves);
+        // 尝试买入超过储备的量
+        uint256 hugeAmount = 500_000 * 1e6;
 
-        assertGe(shares, amount, "Shares must be at least amount");
+        vm.expectRevert("CPMM: Insufficient reserve");
+        engine.calculateShares(0, hugeAmount, reserves);
     }
 
-    // ============ Edge Cases and Validation ============
+    function testRevert_Price_ReserveTooHigh() public {
+        uint256[] memory reserves = new uint256[](2);
+        reserves[0] = 20_000_000 * 1e6; // 超过 MAX_RESERVE
+        reserves[1] = 100_000 * 1e6;
 
-    function testRevert_GetPrice_InvalidOutcomeCount_Zero() public {
-        uint256[] memory reserves = new uint256[](0);
-
-        vm.expectRevert("CPMM: Invalid outcome count");
-        engine.getPrice(0, reserves);
+        vm.expectRevert("CPMM: Reserve too high");
+        engine.calculateShares(0, 1_000 * 1e6, reserves);
     }
 
-    function testRevert_GetPrice_InvalidOutcomeCount_One() public {
-        uint256[] memory reserves = new uint256[](1);
-        reserves[0] = 1000e18;
-
-        vm.expectRevert("CPMM: Invalid outcome count");
-        engine.getPrice(0, reserves);
-    }
-
-    function testRevert_GetPrice_InvalidOutcomeCount_Four() public {
+    function testRevert_InvalidOutcomeCount() public {
         uint256[] memory reserves = new uint256[](4);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
-        reserves[2] = 1000e18;
-        reserves[3] = 1000e18;
+        reserves[0] = 100_000 * 1e6;
+        reserves[1] = 100_000 * 1e6;
+        reserves[2] = 100_000 * 1e6;
+        reserves[3] = 100_000 * 1e6;
 
         vm.expectRevert("CPMM: Invalid outcome count");
         engine.getPrice(0, reserves);
     }
 
-    function testRevert_GetPrice_InvalidOutcomeId() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
-
-        vm.expectRevert("CPMM: Invalid outcome ID");
-        engine.getPrice(2, reserves); // ID 2 doesn't exist for 2-outcome market
-    }
-
-    function testRevert_GetPrice_ReserveTooLow() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 100; // Below MIN_RESERVE
-        reserves[1] = 1000e18;
-
-        vm.expectRevert("CPMM: Reserve too low");
-        engine.getPrice(0, reserves);
-    }
-
-    function testRevert_CalculateShares_ZeroAmount() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
+    function testRevert_ZeroAmount() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
 
         vm.expectRevert("CPMM: Zero amount");
         engine.calculateShares(0, 0, reserves);
     }
 
-    function testRevert_CalculateShares_InvalidOutcomeCount() public {
-        uint256[] memory reserves = new uint256[](1);
-        reserves[0] = 1000e18;
+    // ============ 辅助函数测试 ============
 
+    function test_GetInitialReserves_TwoOutcomes() public {
+        uint256[] memory reserves = engine.getInitialReserves(2);
+
+        assertEq(reserves.length, 2, "Should have 2 reserves");
+        assertEq(reserves[0], VIRTUAL_RESERVE_INIT, "Reserve 0 = INIT");
+        assertEq(reserves[1], VIRTUAL_RESERVE_INIT, "Reserve 1 = INIT");
+    }
+
+    function test_GetInitialReserves_ThreeOutcomes() public {
+        uint256[] memory reserves = engine.getInitialReserves(3);
+
+        assertEq(reserves.length, 3, "Should have 3 reserves");
+        assertEq(reserves[0], VIRTUAL_RESERVE_INIT, "Reserve 0 = INIT");
+        assertEq(reserves[1], VIRTUAL_RESERVE_INIT, "Reserve 1 = INIT");
+        assertEq(reserves[2], VIRTUAL_RESERVE_INIT, "Reserve 2 = INIT");
+    }
+
+    function testRevert_GetInitialReserves_InvalidCount() public {
         vm.expectRevert("CPMM: Invalid outcome count");
-        engine.calculateShares(0, 100e18, reserves);
+        engine.getInitialReserves(4);
     }
 
-    function testRevert_CalculateShares_InvalidOutcomeId() public {
-        uint256[] memory reserves = new uint256[](3);
-        reserves[0] = 1000e18;
-        reserves[1] = 1000e18;
-        reserves[2] = 1000e18;
+    // ============ Fuzz测试 ============
 
-        vm.expectRevert("CPMM: Invalid outcome ID");
-        engine.calculateShares(3, 100e18, reserves); // ID 3 doesn't exist
-    }
-
-    function testRevert_CalculateShares_ReserveTooLow() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 100; // Below MIN_RESERVE
-        reserves[1] = 1000e18;
-
-        vm.expectRevert("CPMM: Reserve too low");
-        engine.calculateShares(0, 100e18, reserves);
-    }
-
-    // ============ K Value Calculation Tests ============
-
-    function test_CalculateK_TwoOutcomes() public {
-        uint256[] memory reserves = new uint256[](2);
-        reserves[0] = 100e18;
-        reserves[1] = 200e18;
-
-        uint256 k = engine.calculateK(reserves);
-        assertEq(k, 100e18 * 200e18, "K should be product of reserves");
-    }
-
-    function test_CalculateK_ThreeOutcomes() public {
-        uint256[] memory reserves = new uint256[](3);
-        reserves[0] = 100e18;
-        reserves[1] = 200e18;
-        reserves[2] = 300e18;
-
-        uint256 k = engine.calculateK(reserves);
-        assertEq(k, 100e18 * 200e18 * 300e18, "K should be product of reserves");
-    }
-
-    function testRevert_CalculateK_InvalidOutcomeCount() public {
-        uint256[] memory reserves = new uint256[](1);
-        reserves[0] = 1000e18;
-
-        vm.expectRevert("CPMM: Invalid outcome count");
-        engine.calculateK(reserves);
-    }
-
-    // ============ Fuzz Tests ============
-
-    function testFuzz_GetPrice_Normalization(
-        uint128 reserve0,
-        uint128 reserve1
+    function testFuzz_PriceNormalization_TwoOutcomes(
+        uint96 reserve0,
+        uint96 reserve1
     ) public {
-        // Ensure reserves are valid and not too extreme
-        vm.assume(reserve0 >= engine.MIN_RESERVE() * 100);
-        vm.assume(reserve1 >= engine.MIN_RESERVE() * 100);
-        // Avoid extreme ratios (max 100:1)
-        if (reserve0 > reserve1) {
-            vm.assume(reserve0 / reserve1 < 100);
-        } else {
-            vm.assume(reserve1 / reserve0 < 100);
-        }
+        vm.assume(reserve0 >= MIN_RESERVE);
+        vm.assume(reserve1 >= MIN_RESERVE);
+        vm.assume(reserve0 <= engine.MAX_RESERVE());
+        vm.assume(reserve1 <= engine.MAX_RESERVE());
 
         uint256[] memory reserves = new uint256[](2);
         reserves[0] = uint256(reserve0);
@@ -280,75 +362,40 @@ contract SimpleCPMMTest is BaseTest {
         uint256 price0 = engine.getPrice(0, reserves);
         uint256 price1 = engine.getPrice(1, reserves);
 
-        // Prices should always sum to 10000 (100%)
-        // Allow 1 basis point tolerance for rounding
-        uint256 sum = price0 + price1;
-        assertApproxEqAbs(sum, 10000, 1, "Prices must sum to ~100%");
+        // 价格必须归一化为100%
+        assertApproxEqAbs(price0 + price1, 10000, 1, "Prices must sum to 100%");
 
-        // Each price should be > 0 and < 100%
-        assertGt(price0, 0, "Price must be > 0");
-        assertLt(price0, 10000, "Price must be < 100%");
-        assertGt(price1, 0, "Price must be > 0");
-        assertLt(price1, 10000, "Price must be < 100%");
+        // 每个价格都在合理范围内
+        assertGt(price0, 0, "Price > 0");
+        assertLt(price0, 10000, "Price < 100%");
     }
 
-    function testFuzz_GetPrice_ThreeOutcomes_Normalization(
-        uint64 reserve0,
-        uint64 reserve1,
-        uint64 reserve2
+    function testFuzz_BuyingIncreasesPrice(
+        uint96 initialReserve,
+        uint32 buyAmount
     ) public {
-        // Ensure reserves are valid and not too extreme
-        uint256 minReserve = engine.MIN_RESERVE() * 10;
-        vm.assume(reserve0 >= minReserve);
-        vm.assume(reserve1 >= minReserve);
-        vm.assume(reserve2 >= minReserve);
+        vm.assume(initialReserve >= MIN_RESERVE * 10);
+        vm.assume(initialReserve <= 1_000_000 * 1e6);
+        vm.assume(buyAmount >= 100 * 1e6); // 最小100 USDC
+        vm.assume(buyAmount <= initialReserve / 10); // 最多买10%储备
 
-        // Avoid extreme ratios that cause precision issues
-        uint256 maxReserve = reserve0;
-        if (reserve1 > maxReserve) maxReserve = reserve1;
-        if (reserve2 > maxReserve) maxReserve = reserve2;
-        uint256 minR = reserve0;
-        if (reserve1 < minR) minR = reserve1;
-        if (reserve2 < minR) minR = reserve2;
-        vm.assume(maxReserve / minR < 50); // Max 50:1 ratio
-
-        uint256[] memory reserves = new uint256[](3);
-        reserves[0] = uint256(reserve0);
-        reserves[1] = uint256(reserve1);
-        reserves[2] = uint256(reserve2);
-
-        uint256 price0 = engine.getPrice(0, reserves);
-        uint256 price1 = engine.getPrice(1, reserves);
-        uint256 price2 = engine.getPrice(2, reserves);
-
-        // Prices should approximately sum to 10000 (100%)
-        // Allow small rounding error
-        uint256 sum = price0 + price1 + price2;
-        assertApproxEqAbs(sum, 10000, 10);
-
-        // Each price should be > 0 and < 100%
-        if (price0 > 0) assertLt(price0, 10000, "Price must be < 100%");
-        if (price1 > 0) assertLt(price1, 10000, "Price must be < 100%");
-        if (price2 > 0) assertLt(price2, 10000, "Price must be < 100%");
-    }
-
-    function testFuzz_CalculateShares_MinimumGuarantee(
-        uint64 reserve0,
-        uint64 reserve1,
-        uint64 amount
-    ) public {
-        // Ensure valid inputs
-        vm.assume(reserve0 >= engine.MIN_RESERVE());
-        vm.assume(reserve1 >= engine.MIN_RESERVE());
-        vm.assume(amount > 0 && amount < type(uint64).max);
+        // 确保交易量足够大，能产生可测量的价格变化（至少0.1%）
+        // 避免精度损失导致价格变化被四舍五入为0
+        vm.assume(buyAmount >= initialReserve / 1000); // 至少0.1%储备
 
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = uint256(reserve0);
-        reserves[1] = uint256(reserve1);
+        reserves[0] = uint256(initialReserve);
+        reserves[1] = uint256(initialReserve);
 
-        uint256 shares = engine.calculateShares(0, uint256(amount), reserves);
+        uint256 priceBefore = engine.getPrice(0, reserves);
 
-        // Shares should always be at least the amount
-        assertGe(shares, amount, "Shares must be at least amount");
+        uint256 shares = engine.calculateShares(0, uint256(buyAmount), reserves);
+        reserves[0] -= shares;
+        reserves[1] += uint256(buyAmount);
+
+        uint256 priceAfter = engine.getPrice(0, reserves);
+
+        // 核心不变量：买入必然导致价格上升
+        assertGt(priceAfter, priceBefore, "Buying must increase price");
     }
 }

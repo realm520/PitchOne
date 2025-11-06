@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 
@@ -11,10 +11,20 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
  * @dev 优化版本：
  *      - 使用 EIP-1167 Minimal Proxy 克隆模板（节省 gas）
  *      - 支持动态注册新模板
+ *      - 多管理员权限控制（基于 AccessControl）
  *      - 轻量级（< 24KB）
+ *
+ * 权限角色：
+ *      - DEFAULT_ADMIN_ROLE: 超级管理员（可管理所有角色和模板）
+ *      - MARKET_CREATOR_ROLE: 市场创建者（可创建和记录市场）
  */
-contract MarketFactory_v2 is Ownable, Pausable {
+contract MarketFactory_v2 is AccessControl, Pausable {
     using Clones for address;
+
+    // ============ 角色定义 ============
+
+    /// @notice 市场创建者角色
+    bytes32 public constant MARKET_CREATOR_ROLE = keccak256("MARKET_CREATOR_ROLE");
 
     // ============ 结构体 ============
 
@@ -48,6 +58,9 @@ contract MarketFactory_v2 is Ownable, Pausable {
     /// @notice 市场地址 => 模板ID
     mapping(address => bytes32) public marketTemplate;
 
+    /// @notice 市场地址 => 当前管理员地址（用于追踪）
+    mapping(address => address) public marketOwner;
+
     // ============ 事件 ============
 
     /// @notice 模板注册事件
@@ -68,9 +81,36 @@ contract MarketFactory_v2 is Ownable, Pausable {
         address indexed creator
     );
 
+    // ============ 事件（新增）============
+
+    /// @notice 市场创建者添加事件
+    event MarketCreatorAdded(address indexed account, address indexed admin);
+
+    /// @notice 市场创建者移除事件
+    event MarketCreatorRemoved(address indexed account, address indexed admin);
+
+    /// @notice 市场 Owner 更换事件
+    event MarketOwnershipTransferred(
+        address indexed market,
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
     // ============ 构造函数 ============
 
-    constructor() Ownable(msg.sender) {}
+    /**
+     * @notice 构造函数
+     * @dev 部署者获得以下权限：
+     *      1. DEFAULT_ADMIN_ROLE（超级管理员）
+     *      2. MARKET_CREATOR_ROLE（市场创建者）
+     */
+    constructor() {
+        // 授予部署者超级管理员角色
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+        // 授予部署者市场创建者角色
+        _grantRole(MARKET_CREATOR_ROLE, msg.sender);
+    }
 
     // ============ 管理函数 ============
 
@@ -85,7 +125,7 @@ contract MarketFactory_v2 is Ownable, Pausable {
         string memory name,
         string memory version,
         address implementation
-    ) external onlyOwner returns (bytes32 templateId) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bytes32 templateId) {
         require(bytes(name).length > 0, "Empty name");
         require(bytes(version).length > 0, "Empty version");
         require(implementation != address(0), "Invalid address");
@@ -112,7 +152,7 @@ contract MarketFactory_v2 is Ownable, Pausable {
     /**
      * @notice 设置模板激活状态
      */
-    function setTemplateActive(bytes32 templateId, bool active) external onlyOwner {
+    function setTemplateActive(bytes32 templateId, bool active) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(templates[templateId].implementation != address(0), "Template not found");
         templates[templateId].active = active;
         emit TemplateActiveStatusUpdated(templateId, active);
@@ -121,12 +161,56 @@ contract MarketFactory_v2 is Ownable, Pausable {
     /**
      * @notice 暂停/恢复市场创建
      */
-    function pause() external onlyOwner {
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
-    function unpause() external onlyOwner {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
+    }
+
+    // ============ 角色管理函数 ============
+
+    /**
+     * @notice 添加市场创建者
+     * @param account 要添加的地址
+     * @dev 只有 DEFAULT_ADMIN_ROLE 可调用
+     */
+    function addMarketCreator(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(account != address(0), "Invalid address");
+        grantRole(MARKET_CREATOR_ROLE, account);
+        emit MarketCreatorAdded(account, msg.sender);
+    }
+
+    /**
+     * @notice 移除市场创建者
+     * @param account 要移除的地址
+     * @dev 只有 DEFAULT_ADMIN_ROLE 可调用
+     */
+    function removeMarketCreator(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(MARKET_CREATOR_ROLE, account);
+        emit MarketCreatorRemoved(account, msg.sender);
+    }
+
+    /**
+     * @notice 批量添加市场创建者
+     * @param accounts 地址数组
+     */
+    function addMarketCreators(address[] calldata accounts) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            require(accounts[i] != address(0), "Invalid address");
+            grantRole(MARKET_CREATOR_ROLE, accounts[i]);
+            emit MarketCreatorAdded(accounts[i], msg.sender);
+        }
+    }
+
+    /**
+     * @notice 检查地址是否为市场创建者
+     * @param account 要检查的地址
+     * @return 是否拥有市场创建者角色
+     */
+    function isMarketCreator(address account) external view returns (bool) {
+        return hasRole(MARKET_CREATOR_ROLE, account);
     }
 
     // ============ 市场创建 ============
@@ -139,9 +223,11 @@ contract MarketFactory_v2 is Ownable, Pausable {
      *
      * @dev 使用 EIP-1167 Minimal Proxy 克隆模板
      *      Gas 成本：~200 gas（vs 直接部署的 ~1M gas）
+     *      只有 MARKET_CREATOR_ROLE 可调用
      */
     function createMarket(bytes32 templateId, bytes memory initData)
         external
+        onlyRole(MARKET_CREATOR_ROLE)
         whenNotPaused
         returns (address market)
     {
@@ -162,18 +248,28 @@ contract MarketFactory_v2 is Ownable, Pausable {
         marketTemplate[market] = templateId;
         template.marketCount++;
 
+        // 查询并记录市场的初始 owner
+        (bool ownerSuccess, bytes memory ownerData) = market.staticcall(
+            abi.encodeWithSignature("owner()")
+        );
+        if (ownerSuccess && ownerData.length > 0) {
+            address initialOwner = abi.decode(ownerData, (address));
+            marketOwner[market] = initialOwner;
+        }
+
         emit MarketCreated(market, templateId, msg.sender);
     }
 
     /**
      * @notice 使用 deterministic 地址创建市场
      * @dev 可预测市场地址（便于前端）
+     *      只有 MARKET_CREATOR_ROLE 可调用
      */
     function createMarketDeterministic(
         bytes32 templateId,
         bytes32 salt,
         bytes memory initData
-    ) external whenNotPaused returns (address market) {
+    ) external onlyRole(MARKET_CREATOR_ROLE) whenNotPaused returns (address market) {
         TemplateInfo storage template = templates[templateId];
         require(template.implementation != address(0), "Template not found");
         require(template.active, "Template not active");
@@ -191,6 +287,15 @@ contract MarketFactory_v2 is Ownable, Pausable {
         marketTemplate[market] = templateId;
         template.marketCount++;
 
+        // 查询并记录市场的初始 owner
+        (bool ownerSuccess, bytes memory ownerData) = market.staticcall(
+            abi.encodeWithSignature("owner()")
+        );
+        if (ownerSuccess && ownerData.length > 0) {
+            address initialOwner = abi.decode(ownerData, (address));
+            marketOwner[market] = initialOwner;
+        }
+
         emit MarketCreated(market, templateId, msg.sender);
     }
 
@@ -201,12 +306,14 @@ contract MarketFactory_v2 is Ownable, Pausable {
      *      1. 外部直接 new Template(...)
      *      2. 调用此方法注册市场
      *      3. Subgraph 监听 MarketCreated 事件索引
+     *      只有 MARKET_CREATOR_ROLE 可调用
      *
      * @param market 市场地址
      * @param templateId 使用的模板 ID
      */
     function recordMarket(address market, bytes32 templateId)
         external
+        onlyRole(MARKET_CREATOR_ROLE)
         whenNotPaused
         returns (bool)
     {
@@ -221,6 +328,15 @@ contract MarketFactory_v2 is Ownable, Pausable {
         isMarket[market] = true;
         marketTemplate[market] = templateId;
         template.marketCount++;
+
+        // 查询并记录市场的初始 owner
+        (bool ownerSuccess, bytes memory ownerData) = market.staticcall(
+            abi.encodeWithSignature("owner()")
+        );
+        if (ownerSuccess && ownerData.length > 0) {
+            address initialOwner = abi.decode(ownerData, (address));
+            marketOwner[market] = initialOwner;
+        }
 
         emit MarketCreated(market, templateId, msg.sender);
         return true;
@@ -237,6 +353,84 @@ contract MarketFactory_v2 is Ownable, Pausable {
         address implementation = templates[templateId].implementation;
         require(implementation != address(0), "Template not found");
         return implementation.predictDeterministicAddress(salt);
+    }
+
+    // ============ 市场 Owner 管理 ============
+
+    /**
+     * @notice 工厂管理员强制转移市场 ownership
+     * @param market 市场地址
+     * @param newOwner 新的 owner 地址
+     * @dev 只有 DEFAULT_ADMIN_ROLE 可调用
+     *      用于紧急情况（如 owner 私钥丢失）
+     *      需要市场合约实现 Ownable 接口
+     */
+    function transferMarketOwnership(address market, address newOwner)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        require(isMarket[market], "Market not found");
+        require(newOwner != address(0), "Invalid new owner");
+
+        // 调用市场合约的 transferOwnership
+        // 注意：这要求工厂合约本身是市场的 owner
+        address previousOwner = marketOwner[market];
+
+        (bool success,) = market.call(
+            abi.encodeWithSignature("transferOwnership(address)", newOwner)
+        );
+        require(success, "Ownership transfer failed");
+
+        // 更新记录
+        marketOwner[market] = newOwner;
+
+        emit MarketOwnershipTransferred(market, previousOwner, newOwner);
+    }
+
+    /**
+     * @notice 市场 owner 更新工厂记录
+     * @param market 市场地址
+     * @dev 如果市场 owner 直接调用了 market.transferOwnership()
+     *      可以调用此方法同步工厂的记录
+     */
+    function updateMarketOwnerRecord(address market) external {
+        require(isMarket[market], "Market not found");
+
+        // 查询市场的实际 owner
+        (bool success, bytes memory data) = market.staticcall(
+            abi.encodeWithSignature("owner()")
+        );
+        require(success, "Failed to query market owner");
+
+        address actualOwner = abi.decode(data, (address));
+        address recordedOwner = marketOwner[market];
+
+        // 只有实际 owner 或工厂管理员可以更新记录
+        require(
+            msg.sender == actualOwner || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "Not authorized"
+        );
+
+        if (actualOwner != recordedOwner) {
+            marketOwner[market] = actualOwner;
+            emit MarketOwnershipTransferred(market, recordedOwner, actualOwner);
+        }
+    }
+
+    /**
+     * @notice 批量查询市场的实际 owner
+     * @param _markets 市场地址数组
+     * @return owners 对应的 owner 地址数组
+     */
+    function getMarketOwners(address[] calldata _markets)
+        external
+        view
+        returns (address[] memory owners)
+    {
+        owners = new address[](_markets.length);
+        for (uint256 i = 0; i < _markets.length; i++) {
+            owners[i] = marketOwner[_markets[i]];
+        }
     }
 
     // ============ 查询函数 ============
