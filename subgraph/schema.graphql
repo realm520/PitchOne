@@ -70,6 +70,15 @@ type Market @entity(immutable: false) {
   "定价引擎地址"
   pricingEngine: Bytes
 
+  "大小球盘口线（单线市场，如 2.5 球，存储为 2500000000000000000 即 18 位小数）"
+  line: BigInt
+
+  "是否半球盘（如 2.5 球）"
+  isHalfLine: Boolean
+
+  "大小球盘口线数组（多线市场，如 [2.0, 2.5, 3.0]）"
+  lines: [BigInt!]
+
   "关联的订单"
   orders: [Order!]! @derivedFrom(field: "market")
 

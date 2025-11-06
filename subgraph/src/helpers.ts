@@ -3,7 +3,7 @@
  * 提供实体加载、创建和转换的通用函数
  */
 
-import { BigInt, BigDecimal, Address, Bytes } from "@graphprotocol/graph-ts";
+import { BigInt, BigDecimal, Address, Bytes, store } from "@graphprotocol/graph-ts";
 import {
   Market,
   User,
@@ -166,10 +166,23 @@ export function updatePositionAverageCost(
  * @param marketAddress - 市场地址
  * @returns 是否首次参与
  */
-export function isFirstTimeInMarket(user: User, marketAddress: Address): boolean {
-  // 简化实现：检查用户是否有该市场的头寸
-  // 生产环境可能需要更复杂的逻辑
-  return true; // 暂时返回 true，由调用者根据业务逻辑处理
+export function isFirstTimeInMarket(userAddress: Address, marketAddress: Address): boolean {
+  // 检查常见的 outcome (0, 1, 2) 是否有任何 position
+  for (let i = 0; i < 3; i++) {
+    const positionId = marketAddress
+      .toHexString()
+      .concat("-")
+      .concat(userAddress.toHexString())
+      .concat("-")
+      .concat(i.toString());
+
+    const position = Position.load(positionId);
+    if (position !== null && position.totalInvested.gt(ZERO_BD)) {
+      return false; // 已经在这个市场下过注了
+    }
+  }
+
+  return true; // 首次参与
 }
 
 /**
@@ -184,3 +197,4 @@ export function generateEventId(txHash: Bytes, logIndex: BigInt): string {
     .concat("-")
     .concat(logIndex.toString());
 }
+

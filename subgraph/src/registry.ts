@@ -11,7 +11,7 @@ import {
   TemplateActiveStatusUpdated as TemplateActiveStatusUpdatedEvent,
 } from '../generated/MarketTemplateRegistry/MarketTemplateRegistry';
 import { WDLMarket, OUMarket, OUMultiMarket, OddEvenMarket } from '../generated/templates';
-import { WDL_Template } from '../generated/templates/WDLMarket/WDL_Template';
+import { WDL_Template_V2 } from '../generated/MarketFactory/WDL_Template_V2';
 import { OU_Template } from '../generated/templates/OUMarket/OU_Template';
 import { OddEven_Template } from '../generated/templates/OddEvenMarket/OddEven_Template';
 import { Template, GlobalStats, Market } from '../generated/schema';
@@ -90,14 +90,31 @@ function createWDLMarketEntity(marketAddress: Address, event: MarketCreatedFromR
   }
 
   // 从链上读取市场信息
-  let marketContract = WDL_Template.bind(marketAddress);
+  let marketContract = WDL_Template_V2.bind(marketAddress);
+
+  // 使用try_call避免合约调用失败导致索引失败
+  let matchIdResult = marketContract.try_matchId();
+  if (matchIdResult.reverted) {
+    log.warning('Registry: Failed to call matchId() for market {}, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  let homeTeamResult = marketContract.try_homeTeam();
+  let awayTeamResult = marketContract.try_awayTeam();
+  let kickoffTimeResult = marketContract.try_kickoffTime();
+  let pricingEngineResult = marketContract.try_pricingEngine();
+
+  if (homeTeamResult.reverted || awayTeamResult.reverted || kickoffTimeResult.reverted) {
+    log.warning('Registry: Failed to read market data for {}, skipping', [marketAddress.toHexString()]);
+    return;
+  }
 
   market = new Market(marketAddress.toHexString());
   market.templateId = "WDL";
-  market.matchId = marketContract.matchId();
-  market.homeTeam = marketContract.homeTeam();
-  market.awayTeam = marketContract.awayTeam();
-  market.kickoffTime = marketContract.kickoffTime();
+  market.matchId = matchIdResult.value;
+  market.homeTeam = homeTeamResult.value;
+  market.awayTeam = awayTeamResult.value;
+  market.kickoffTime = kickoffTimeResult.value;
   market.ruleVer = Bytes.empty();
   market.state = "Open";
   market.createdAt = event.block.timestamp;
@@ -106,7 +123,7 @@ function createWDLMarketEntity(marketAddress: Address, event: MarketCreatedFromR
   market.lpLiquidity = ZERO_BD;
   market.uniqueBettors = 0;
   market.oracle = null;
-  market.pricingEngine = marketContract.pricingEngine();
+  market.pricingEngine = pricingEngineResult.reverted ? Address.zero() : pricingEngineResult.value;
   market.save();
 
   log.info('Registry: Created WDL market entity: {} vs {}', [

@@ -5,14 +5,14 @@ schema:
   file: ./schema.graphql
 dataSources:
   # ============================================================================
-  # MarketFactory - 监听市场创建事件，动态索引新市场
+  # MarketFactory_v2 - 监听市场创建事件，动态索引新市场
   # ============================================================================
   - kind: ethereum/contract
     name: MarketFactory
     network: localhost
     source:
-      address: "0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55"
-      abi: MarketTemplateRegistry
+      address: "0x6A59CC73e334b018C9922793d96Df84B538E6fD5"
+      abi: MarketFactory_v2
       startBlock: 0
     mapping:
       kind: ethereum/events
@@ -23,10 +23,10 @@ dataSources:
         - Template
         - GlobalStats
       abis:
-        - name: MarketTemplateRegistry
-          file: ../contracts/out/MarketTemplateRegistry.sol/MarketTemplateRegistry.json
-        - name: WDL_Template
-          file: ../contracts/out/WDL_Template.sol/WDL_Template.json
+        - name: MarketFactory_v2
+          file: ../contracts/out/MarketFactory_v2.sol/MarketFactory_v2.json
+        - name: WDL_Template_V2
+          file: ../contracts/out/WDL_Template_V2.sol/WDL_Template_V2.json
         - name: OU_Template
           file: ../contracts/out/OU_Template.sol/OU_Template.json
         - name: OddEven_Template
@@ -36,8 +36,6 @@ dataSources:
           handler: handleMarketCreatedFromRegistry
         - event: TemplateRegistered(indexed bytes32,indexed address,string,string)
           handler: handleTemplateRegistered
-        - event: TemplateUnregistered(indexed bytes32,indexed address)
-          handler: handleTemplateUnregistered
         - event: TemplateActiveStatusUpdated(indexed bytes32,bool)
           handler: handleTemplateActiveStatusUpdated
       file: ./src/registry.ts
@@ -49,7 +47,7 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8"
+      address: "0x871ACbEabBaf8Bed65c22ba7132beCFaBf8c27B5"
       abi: FeeRouter
       startBlock: 0
     mapping:
@@ -108,6 +106,8 @@ templates:
           handler: handleFinalized
         - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
           handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
         - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleTransferSingle
         - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
@@ -149,6 +149,8 @@ templates:
           handler: handleFinalized
         - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
           handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
         - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleTransferSingle
         - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
@@ -190,6 +192,8 @@ templates:
           handler: handleFinalized
         - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
           handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
         - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleTransferSingle
         - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
@@ -231,6 +235,8 @@ templates:
           handler: handleFinalized
         - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
           handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
         - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleTransferSingle
         - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
