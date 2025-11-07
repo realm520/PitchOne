@@ -75,7 +75,8 @@ contract SystemIntegration_V2Test is Test {
         factory = new MarketFactory_v2();
 
         // 4. 注册WDL模板
-        WDL_Template_V2 wdlImplementation = new WDL_Template_V2(
+        WDL_Template_V2 wdlImplementation = new WDL_Template_V2();
+        wdlImplementation.initialize(
             "IMPL",
             "TeamA",
             "TeamB",
@@ -86,7 +87,7 @@ contract SystemIntegration_V2Test is Test {
             DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            ""
+            "" // WDL_Template_V2 没有 owner 参数
         );
 
         bytes32 templateId = factory.registerTemplate("WDL", "V2", address(wdlImplementation));
@@ -114,8 +115,9 @@ contract SystemIntegration_V2Test is Test {
         internal
         returns (WDL_Template_V2)
     {
-        // 直接部署WDL_Template_V2实例（因为使用constructor而非initialize）
-        WDL_Template_V2 market = new WDL_Template_V2(
+        // 直接部署WDL_Template_V2实例（使用initialize模式）
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             matchId,
             "Manchester United",
             "Manchester City",
@@ -126,7 +128,7 @@ contract SystemIntegration_V2Test is Test {
             DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "ipfs://test"
+            "ipfs://test" // WDL_Template_V2 没有 owner 参数
         );
 
         // 授权市场从Vault借款

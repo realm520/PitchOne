@@ -391,11 +391,13 @@ contract RewardsDistributorTest is Test {
         bytes32 leaf0 = keccak256(bytes.concat(keccak256(abi.encode(alice, uint256(0), 1000e6))));
         bytes32 leaf1 = keccak256(bytes.concat(keccak256(abi.encode(alice, uint256(1), 2000e6))));
 
+        // 发布第一周
         distributor.publishRoot(0, leaf0, 1000e6, 10000);
-        vm.warp(block.timestamp + 7 days); // 跳过 vesting
+        vm.warp(1 + 7 days); // Warp to absolute time
 
+        // 发布第二周
         distributor.publishRoot(1, leaf1, 2000e6, 10000);
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(1 + 14 days); // Warp to absolute time (14 days from start)
 
         // 批量领取
         uint256[] memory weekNumbers = new uint256[](2);

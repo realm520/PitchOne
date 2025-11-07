@@ -39,7 +39,8 @@ contract WDL_Template_V2Test is BaseTest {
         );
 
         // 部署 WDL Market V2
-        market = new WDL_Template_V2(
+        market = new WDL_Template_V2();
+        market.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -100,8 +101,10 @@ contract WDL_Template_V2Test is BaseTest {
     }
 
     function testRevert_Constructor_InvalidMatchId() public {
+        WDL_Template_V2 newMarket = new WDL_Template_V2();
+
         vm.expectRevert("WDL_V2: Invalid match ID");
-        new WDL_Template_V2(
+        newMarket.initialize(
             "", // 空的 Match ID
             HOME_TEAM,
             AWAY_TEAM,
@@ -117,8 +120,10 @@ contract WDL_Template_V2Test is BaseTest {
     }
 
     function testRevert_Constructor_KickoffInPast() public {
+        WDL_Template_V2 newMarket = new WDL_Template_V2();
+
         vm.expectRevert("WDL_V2: Kickoff time in past");
-        new WDL_Template_V2(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,

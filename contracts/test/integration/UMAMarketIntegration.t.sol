@@ -73,7 +73,8 @@ contract UMAMarketIntegrationTest is Test {
         uint256 kickoffTime = block.timestamp + 1 hours;
 
         vm.prank(owner);
-        market = new WDL_Template(
+        market = new WDL_Template();
+        market.initialize(
             "TEST_MATCH_001",
             "Team A",
             "Team B",
@@ -83,7 +84,8 @@ contract UMAMarketIntegrationTest is Test {
             FEE_RATE,
             2 hours, // dispute period
             address(cpmm),
-            "https://test.com/market/{id}"
+            "https://test.com/market/{id}",
+            owner // owner parameter
         );
 
         // Set oracle

@@ -32,7 +32,8 @@ contract MarketBase_V2Test is BaseTest {
         );
 
         // 部署 Mock Market V2
-        market = new MockMarketV2(
+        market = new MockMarketV2();
+        market.initialize(
             3, // WDL (3 outcomes)
             address(usdc),
             address(feeRouter),
@@ -213,7 +214,8 @@ contract MarketBase_V2Test is BaseTest {
         // 这个测试验证滑点检查逻辑本身，而不是实际的 AMM 滑点
 
         // 创建一个会产生滑点的 Mock（通过减少返回的 shares）
-        MockMarketV2WithSlippage slippageMarket = new MockMarketV2WithSlippage(
+        MockMarketV2WithSlippage slippageMarket = new MockMarketV2WithSlippage();
+        slippageMarket.initialize(
             3,
             address(usdc),
             address(feeRouter),
@@ -530,7 +532,7 @@ contract MarketBase_V2Test is BaseTest {
  * @notice Mock 实现用于测试 MarketBase_V2
  */
 contract MockMarketV2 is MarketBase_V2 {
-    constructor(
+    function initialize(
         uint256 _outcomeCount,
         address _settlementToken,
         address _feeRecipient,
@@ -538,8 +540,8 @@ contract MockMarketV2 is MarketBase_V2 {
         uint256 _disputePeriod,
         address _vault,
         string memory _uri
-    )
-        MarketBase_V2(
+    ) public initializer {
+        __MarketBase_init(
             _outcomeCount,
             _settlementToken,
             _feeRecipient,
@@ -547,8 +549,8 @@ contract MockMarketV2 is MarketBase_V2 {
             _disputePeriod,
             _vault,
             _uri
-        )
-    {}
+        );
+    }
 
     // 简化的份额计算（1:1）
     function _calculateShares(uint256, uint256 netAmount)
@@ -571,7 +573,7 @@ contract MockMarketV2 is MarketBase_V2 {
  * @notice Mock 实现，返回较少的 shares 以模拟高滑点场景
  */
 contract MockMarketV2WithSlippage is MarketBase_V2 {
-    constructor(
+    function initialize(
         uint256 _outcomeCount,
         address _settlementToken,
         address _feeRecipient,
@@ -579,8 +581,8 @@ contract MockMarketV2WithSlippage is MarketBase_V2 {
         uint256 _disputePeriod,
         address _vault,
         string memory _uri
-    )
-        MarketBase_V2(
+    ) public initializer {
+        __MarketBase_init(
             _outcomeCount,
             _settlementToken,
             _feeRecipient,
@@ -588,8 +590,8 @@ contract MockMarketV2WithSlippage is MarketBase_V2 {
             _disputePeriod,
             _vault,
             _uri
-        )
-    {}
+        );
+    }
 
     // 返回 50% 的 shares（高滑点）
     function _calculateShares(uint256, uint256 netAmount)

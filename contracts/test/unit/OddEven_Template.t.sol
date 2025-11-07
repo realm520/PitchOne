@@ -39,7 +39,8 @@ contract OddEven_TemplateTest is Test {
         cpmm = new SimpleCPMM();
         oracle = new MockOracle(address(this));
 
-        market = new OddEven_Template(
+        market = new OddEven_Template();
+        market.initialize(
             "EPL_2024_MUN_vs_MCI",
             "Manchester United",
             "Manchester City",
@@ -49,7 +50,8 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // 给用户铸造 USDC
@@ -84,7 +86,8 @@ contract OddEven_TemplateTest is Test {
             address(cpmm)
         );
 
-        new OddEven_Template(
+        OddEven_Template newMarket = new OddEven_Template();
+        newMarket.initialize(
             "EPL_2024_TEST",
             "Team A",
             "Team B",
@@ -94,13 +97,16 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidMatchId() public {
+        OddEven_Template newMarket = new OddEven_Template();
+
         vm.expectRevert("OddEven: Invalid match ID");
-        new OddEven_Template(
+        newMarket.initialize(
             "",
             "Team A",
             "Team B",
@@ -110,13 +116,16 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidHomeTeam() public {
+        OddEven_Template newMarket = new OddEven_Template();
+
         vm.expectRevert("OddEven: Invalid home team");
-        new OddEven_Template(
+        newMarket.initialize(
             "TEST",
             "",
             "Team B",
@@ -126,13 +135,16 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidAwayTeam() public {
+        OddEven_Template newMarket = new OddEven_Template();
+
         vm.expectRevert("OddEven: Invalid away team");
-        new OddEven_Template(
+        newMarket.initialize(
             "TEST",
             "Team A",
             "",
@@ -142,13 +154,16 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_KickoffTimeInPast() public {
+        OddEven_Template newMarket = new OddEven_Template();
+
         vm.expectRevert("OddEven: Kickoff time in past");
-        new OddEven_Template(
+        newMarket.initialize(
             "TEST",
             "Team A",
             "Team B",
@@ -158,13 +173,16 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidPricingEngine() public {
+        OddEven_Template newMarket = new OddEven_Template();
+
         vm.expectRevert("OddEven: Invalid pricing engine");
-        new OddEven_Template(
+        newMarket.initialize(
             "TEST",
             "Team A",
             "Team B",
@@ -174,7 +192,8 @@ contract OddEven_TemplateTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(0),
-            URI
+            URI,
+            address(this)
         );
     }
 

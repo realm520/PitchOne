@@ -64,7 +64,9 @@ contract OU_MultiLineTest is BaseTest {
         linkedController = new LinkedLinesController(owner, address(paramController));
 
         // Deploy OU_MultiLine market
-        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+        market = new OU_MultiLine();
+
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
             matchId: MATCH_ID,
             homeTeam: HOME_TEAM,
             awayTeam: AWAY_TEAM,
@@ -76,14 +78,28 @@ contract OU_MultiLineTest is BaseTest {
             disputePeriod: DEFAULT_DISPUTE_PERIOD,
             pricingEngine: address(cpmm),
             linkedLinesController: address(linkedController),
-            uri: URI
+            uri: URI,
+            owner: owner
         });
 
-        market = new OU_MultiLine(params);
+        market.initialize(params);
 
         vm.label(address(market), "OU_MultiLine_Market");
         vm.label(address(linkedController), "LinkedLinesController");
         vm.label(address(paramController), "ParamController");
+
+        // Add initial liquidity to avoid "Insufficient reserve" errors
+        // For 3 lines with 2 outcomes each (6 outcomes total), we add balanced liquidity
+        uint256[] memory weights = new uint256[](6);
+        for (uint256 i = 0; i < 6; i++) {
+            weights[i] = 1; // Equal weight for all outcomes
+        }
+
+        // Add 60,000 USDC as initial liquidity (10,000 per outcome)
+        uint256 liquidityAmount = 60_000e6;
+        usdc.mint(owner, liquidityAmount);
+        usdc.approve(address(market), liquidityAmount);
+        market.addLiquidity(liquidityAmount, weights);
     }
 
     // ============ Constructor and Initialization Tests ============
@@ -112,7 +128,9 @@ contract OU_MultiLineTest is BaseTest {
             MATCH_ID, HOME_TEAM, AWAY_TEAM, kickoffTime, testLines, bytes32(0), address(cpmm), address(linkedController)
         );
 
-        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+        OU_MultiLine newMarket = new OU_MultiLine();
+
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
             matchId: MATCH_ID,
             homeTeam: HOME_TEAM,
             awayTeam: AWAY_TEAM,
@@ -124,10 +142,11 @@ contract OU_MultiLineTest is BaseTest {
             disputePeriod: DEFAULT_DISPUTE_PERIOD,
             pricingEngine: address(cpmm),
             linkedLinesController: address(linkedController),
-            uri: URI
+            uri: URI,
+            owner: owner
         });
 
-        new OU_MultiLine(params);
+        newMarket.initialize(params);
     }
 
     function testRevert_Constructor_IntegerLineNotAllowed() public {
@@ -136,7 +155,9 @@ contract OU_MultiLineTest is BaseTest {
         integerLines[1] = 2500;
         integerLines[2] = 3000; // Integer line - not allowed
 
-        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+        OU_MultiLine newMarket = new OU_MultiLine();
+
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
             matchId: MATCH_ID,
             homeTeam: HOME_TEAM,
             awayTeam: AWAY_TEAM,
@@ -148,17 +169,20 @@ contract OU_MultiLineTest is BaseTest {
             disputePeriod: DEFAULT_DISPUTE_PERIOD,
             pricingEngine: address(cpmm),
             linkedLinesController: address(linkedController),
-            uri: URI
+            uri: URI,
+            owner: owner
         });
 
         vm.expectRevert(abi.encodeWithSelector(OU_MultiLine.OnlyHalfLinesAllowed.selector, 2000));
-        new OU_MultiLine(params);
+        newMarket.initialize(params);
     }
 
     function testRevert_Constructor_NoLines() public {
         uint256[] memory emptyLines = new uint256[](0);
 
-        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+        OU_MultiLine newMarket = new OU_MultiLine();
+
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
             matchId: MATCH_ID,
             homeTeam: HOME_TEAM,
             awayTeam: AWAY_TEAM,
@@ -170,12 +194,13 @@ contract OU_MultiLineTest is BaseTest {
             disputePeriod: DEFAULT_DISPUTE_PERIOD,
             pricingEngine: address(cpmm),
             linkedLinesController: address(linkedController),
-            uri: URI
+            uri: URI,
+            owner: owner
         });
 
-        // MarketBase checks outcomeCount first, so it will revert with "Invalid outcome count"
-        vm.expectRevert("MarketBase: Invalid outcome count");
-        new OU_MultiLine(params);
+        // OU_MultiLine checks lines.length before calling __MarketBase_init, so it will revert with NoLinesProvided
+        vm.expectRevert(OU_MultiLine.NoLinesProvided.selector);
+        newMarket.initialize(params);
     }
 
     function testRevert_Constructor_LinesNotSorted() public {
@@ -184,7 +209,9 @@ contract OU_MultiLineTest is BaseTest {
         unsortedLines[1] = 2500; // Wrong order
         unsortedLines[2] = 4500;
 
-        OU_MultiLine.ConstructorParams memory params = OU_MultiLine.ConstructorParams({
+        OU_MultiLine newMarket = new OU_MultiLine();
+
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
             matchId: MATCH_ID,
             homeTeam: HOME_TEAM,
             awayTeam: AWAY_TEAM,
@@ -196,11 +223,12 @@ contract OU_MultiLineTest is BaseTest {
             disputePeriod: DEFAULT_DISPUTE_PERIOD,
             pricingEngine: address(cpmm),
             linkedLinesController: address(linkedController),
-            uri: URI
+            uri: URI,
+            owner: owner
         });
 
         vm.expectRevert(OU_MultiLine.LinesNotSorted.selector);
-        new OU_MultiLine(params);
+        newMarket.initialize(params);
     }
 
     // ============ Outcome ID Encoding/Decoding Tests ============

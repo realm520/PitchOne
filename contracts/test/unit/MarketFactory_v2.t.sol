@@ -32,7 +32,8 @@ contract MarketFactory_v2Test is BaseTest {
         );
 
         // 部署 WDL 模板（作为实现合约）
-        wdlTemplate = new WDL_Template_V2(
+        wdlTemplate = new WDL_Template_V2();
+        wdlTemplate.initialize(
             "TEMPLATE",
             "Team A",
             "Team B",
@@ -54,7 +55,8 @@ contract MarketFactory_v2Test is BaseTest {
     // ============ 模板注册测试 ============
 
     function test_RegisterTemplate_Success() public {
-        WDL_Template_V2 newTemplate = new WDL_Template_V2(
+        WDL_Template_V2 newTemplate = new WDL_Template_V2();
+        newTemplate.initialize(
             "TEMPLATE2",
             "Team C",
             "Team D",
@@ -197,7 +199,8 @@ contract MarketFactory_v2Test is BaseTest {
 
     function test_RecordMarket_RegistersExternal() public {
         // 直接部署一个新的 WDL 市场（不通过 factory.createMarket）
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -224,7 +227,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function testRevert_RecordMarket_DuplicateMarket() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -252,7 +256,8 @@ contract MarketFactory_v2Test is BaseTest {
         vm.prank(owner);
         factory.setTemplateActive(wdlTemplateId, false);
 
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -272,7 +277,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function testRevert_RecordMarket_Unauthorized() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -294,7 +300,8 @@ contract MarketFactory_v2Test is BaseTest {
     // ============ Market Ownership 管理测试 ============
 
     function test_RecordMarket_TracksOwner() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -317,7 +324,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function test_UpdateMarketOwnerRecord_Syncs() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -345,7 +353,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function test_TransferMarketOwnership_ByAdmin() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -373,7 +382,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function testRevert_TransferMarketOwnership_Unauthorized() public {
-        WDL_Template_V2 externalMarket = new WDL_Template_V2(
+        WDL_Template_V2 externalMarket = new WDL_Template_V2();
+        externalMarket.initialize(
             "EXTERNAL_MATCH",
             "Team X",
             "Team Y",
@@ -399,7 +409,8 @@ contract MarketFactory_v2Test is BaseTest {
 
     function test_GetMarketOwners_ReturnsArray() public {
         // 创建多个市场
-        WDL_Template_V2 market1 = new WDL_Template_V2(
+        WDL_Template_V2 market1 = new WDL_Template_V2();
+        market1.initialize(
             "M1",
             "A",
             "B",
@@ -413,7 +424,8 @@ contract MarketFactory_v2Test is BaseTest {
             "uri"
         );
 
-        WDL_Template_V2 market2 = new WDL_Template_V2(
+        WDL_Template_V2 market2 = new WDL_Template_V2();
+        market2.initialize(
             "M2",
             "C",
             "D",
@@ -465,7 +477,8 @@ contract MarketFactory_v2Test is BaseTest {
         assertEq(factory.getMarketCount(), 0, "Initial count = 0");
 
         // 注册一个市场
-        WDL_Template_V2 market = new WDL_Template_V2(
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             "M1",
             "A",
             "B",
@@ -486,7 +499,8 @@ contract MarketFactory_v2Test is BaseTest {
     }
 
     function test_GetMarket() public {
-        WDL_Template_V2 market = new WDL_Template_V2(
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             "M1",
             "A",
             "B",
@@ -513,7 +527,8 @@ contract MarketFactory_v2Test is BaseTest {
         vm.prank(owner);
         factory.pause();
 
-        WDL_Template_V2 market = new WDL_Template_V2(
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             "M1",
             "A",
             "B",
@@ -539,7 +554,8 @@ contract MarketFactory_v2Test is BaseTest {
         vm.prank(owner);
         factory.unpause();
 
-        WDL_Template_V2 market = new WDL_Template_V2(
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             "M1",
             "A",
             "B",
@@ -562,7 +578,8 @@ contract MarketFactory_v2Test is BaseTest {
     // ============ 事件测试 ============
 
     function test_RegisterTemplate_EmitsEvent() public {
-        WDL_Template_V2 newTemplate = new WDL_Template_V2(
+        WDL_Template_V2 newTemplate = new WDL_Template_V2();
+        newTemplate.initialize(
             "T2",
             "A",
             "B",
@@ -593,7 +610,8 @@ contract MarketFactory_v2Test is BaseTest {
     );
 
     function test_RecordMarket_EmitsEvent() public {
-        WDL_Template_V2 market = new WDL_Template_V2(
+        WDL_Template_V2 market = new WDL_Template_V2();
+        market.initialize(
             "M1",
             "A",
             "B",
@@ -624,7 +642,8 @@ contract MarketFactory_v2Test is BaseTest {
 
     function test_MultipleTemplates_Coexist() public {
         // 注册第二个模板
-        WDL_Template_V2 ouTemplate = new WDL_Template_V2(
+        WDL_Template_V2 ouTemplate = new WDL_Template_V2();
+        ouTemplate.initialize(
             "OU_TEMPLATE",
             "Team",
             "Team",
@@ -651,7 +670,8 @@ contract MarketFactory_v2Test is BaseTest {
 
     function test_TemplateMarketCount_Independent() public {
         // 创建两个使用同一模板的市场
-        WDL_Template_V2 market1 = new WDL_Template_V2(
+        WDL_Template_V2 market1 = new WDL_Template_V2();
+        market1.initialize(
             "M1",
             "A",
             "B",
@@ -665,7 +685,8 @@ contract MarketFactory_v2Test is BaseTest {
             "uri"
         );
 
-        WDL_Template_V2 market2 = new WDL_Template_V2(
+        WDL_Template_V2 market2 = new WDL_Template_V2();
+        market2.initialize(
             "M2",
             "C",
             "D",

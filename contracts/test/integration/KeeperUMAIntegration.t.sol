@@ -85,7 +85,8 @@ contract KeeperUMAIntegrationTest is Test {
         uint256 kickoffTime = block.timestamp + 1 hours;
 
         vm.prank(owner);
-        market = new WDL_Template(
+        market = new WDL_Template();
+        market.initialize(
             "E2E_TEST_MATCH",
             "Team Home",
             "Team Away",
@@ -95,7 +96,8 @@ contract KeeperUMAIntegrationTest is Test {
             FEE_RATE,
             2 hours, // dispute period
             address(cpmm),
-            "https://test.com/market/{id}"
+            "https://test.com/market/{id}",
+            owner // owner parameter
         );
 
         // Set oracle
@@ -330,7 +332,8 @@ contract KeeperUMAIntegrationTest is Test {
             uint256 kickoffTime = block.timestamp + 1 hours;
 
             vm.prank(owner);
-            markets[i] = new WDL_Template(
+            markets[i] = new WDL_Template();
+            markets[i].initialize(
                 string(abi.encodePacked("MATCH_", vm.toString(i))),
                 "Home",
                 "Away",
@@ -340,7 +343,8 @@ contract KeeperUMAIntegrationTest is Test {
                 FEE_RATE,
                 2 hours,
                 address(cpmm),
-                "https://test.com/market/{id}"
+                "https://test.com/market/{id}",
+                owner // owner parameter
             );
 
             vm.prank(owner);

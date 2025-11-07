@@ -53,7 +53,8 @@ contract OU_TemplateTest is BaseTest {
         kickoffTime = block.timestamp + 2 hours;
 
         // Deploy OU market (2.5 goals line)
-        market = new OU_Template(
+        market = new OU_Template();
+        market.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -64,10 +65,23 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
 
         vm.label(address(market), "OU_Market");
+
+        // Add initial liquidity to avoid "Insufficient reserve" errors
+        // For 2 outcomes (Over/Under), we add balanced liquidity
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 1; // Over
+        weights[1] = 1; // Under
+
+        // Add 20,000 USDC as initial liquidity (10,000 per outcome)
+        uint256 liquidityAmount = 20_000e6;
+        usdc.mint(owner, liquidityAmount);
+        usdc.approve(address(market), liquidityAmount);
+        market.addLiquidity(liquidityAmount, weights);
     }
 
     // ============ Constructor and Initialization Tests ============
@@ -87,7 +101,8 @@ contract OU_TemplateTest is BaseTest {
         vm.expectEmit(true, false, false, true);
         emit MarketCreated(MATCH_ID, HOME_TEAM, AWAY_TEAM, kickoffTime, LINE, address(cpmm));
 
-        new OU_Template(
+        OU_Template newMarket = new OU_Template();
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -98,14 +113,17 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_IntegerLine() public {
         uint256 integerLine = 2000; // 2.0 goals (integer line)
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Only half lines allowed");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -116,13 +134,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidMatchId() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid match ID");
-        new OU_Template(
+        newMarket.initialize(
             "",
             HOME_TEAM,
             AWAY_TEAM,
@@ -133,13 +154,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidHomeTeam() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid home team");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             "",
             AWAY_TEAM,
@@ -150,13 +174,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidAwayTeam() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid away team");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             "",
@@ -167,13 +194,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_KickoffTimeInPast() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Kickoff time in past");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -184,13 +214,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidLine_Zero() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid line");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -201,13 +234,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidLine_TooHigh() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid line");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -218,13 +254,16 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            owner
         );
     }
 
     function testRevert_Constructor_InvalidPricingEngine() public {
+        OU_Template newMarket = new OU_Template();
+
         vm.expectRevert("OU: Invalid pricing engine");
-        new OU_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -235,7 +274,8 @@ contract OU_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(0),
-            URI
+            URI,
+            owner
         );
     }
 
@@ -345,8 +385,13 @@ contract OU_TemplateTest is BaseTest {
         uint256 priceOver = market.getCurrentPrice(OVER);
         uint256 priceUnder = market.getCurrentPrice(UNDER);
 
-        // Over should be cheaper (more reserve) after heavy betting
-        assertLt(priceOver, priceUnder, "Over should be cheaper after heavy betting");
+        // After heavy buying of Over:
+        // - Over reserve decreases (shares sold)
+        // - Under reserve increases (receives payment from Over buyers)
+        // - Price reflects "how much you get back per unit bet"
+        // - Over price should be LOWER (less remaining to distribute)
+        // - Under price should be HIGHER (more liquidity available)
+        assertLt(priceOver, priceUnder, "Over should be cheaper after heavy buying (less to distribute)");
 
         // Prices should sum to 100%
         assertApproxEqAbs(priceOver + priceUnder, 10000, 10);

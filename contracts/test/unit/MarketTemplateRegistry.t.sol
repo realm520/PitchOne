@@ -51,7 +51,8 @@ contract MarketTemplateRegistryTest is BaseTest {
         registry = new MarketTemplateRegistry();
 
         // Deploy a real WDL template for testing
-        wdlTemplate = new WDL_Template(
+        wdlTemplate = new WDL_Template();
+        wdlTemplate.initialize(
             "TEST_MATCH",
             "Team A",
             "Team B",
@@ -61,7 +62,8 @@ contract MarketTemplateRegistryTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            ""
+            "",
+            owner
         );
 
         // Create mock template addresses

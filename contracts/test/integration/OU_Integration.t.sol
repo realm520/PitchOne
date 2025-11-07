@@ -64,7 +64,8 @@ contract OU_IntegrationTest is Test {
         feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
         // 部署半球盘 OU 市场 (2.5球)
-        marketHalfLine = new OU_Template(
+        marketHalfLine = new OU_Template();
+        marketHalfLine.initialize(
             "EPL_2024_MUN_vs_MCI",
             "Manchester United",
             "Manchester City",
@@ -75,7 +76,8 @@ contract OU_IntegrationTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(pricingEngine),
-            ""
+            "",
+            owner // owner parameter
         );
 
         // 设置预言机

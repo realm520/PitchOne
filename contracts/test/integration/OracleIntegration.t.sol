@@ -45,7 +45,8 @@ contract OracleIntegrationTest is Test {
         oracle = new MockOracle(owner);
 
         // 部署 WDL 市场
-        market = new WDL_Template(
+        market = new WDL_Template();
+        market.initialize(
             "EPL_2024_MUN_vs_MCI",
             "Manchester United",
             "Manchester City",
@@ -55,7 +56,8 @@ contract OracleIntegrationTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(pricingEngine),
-            ""
+            "",
+            owner // owner parameter
         );
 
         // 设置预言机
@@ -368,7 +370,8 @@ contract OracleIntegrationTest is Test {
     /// @notice 测试预言机未设置时无法结算
     function test_ResolveFromOracle_RevertWhen_OracleNotSet() public {
         // 创建新市场但不设置预言机
-        WDL_Template newMarket = new WDL_Template(
+        WDL_Template newMarket = new WDL_Template();
+        newMarket.initialize(
             "TEST",
             "Team A",
             "Team B",
@@ -378,7 +381,8 @@ contract OracleIntegrationTest is Test {
             FEE_RATE,
             DISPUTE_PERIOD,
             address(pricingEngine),
-            ""
+            "",
+            owner // owner parameter
         );
 
         // 锁盘

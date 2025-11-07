@@ -52,7 +52,8 @@ contract WDL_TemplateTest is BaseTest {
         kickoffTime = block.timestamp + 2 hours;
 
         // Deploy WDL market
-        market = new WDL_Template(
+        market = new WDL_Template();
+        market.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -62,7 +63,8 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         vm.label(address(market), "WDL_Market");
@@ -84,7 +86,8 @@ contract WDL_TemplateTest is BaseTest {
         vm.expectEmit(true, false, false, true);
         emit MarketCreated(MATCH_ID, HOME_TEAM, AWAY_TEAM, kickoffTime, address(cpmm));
 
-        new WDL_Template(
+        WDL_Template newMarket = new WDL_Template();
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -94,13 +97,16 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidMatchId() public {
+        WDL_Template newMarket = new WDL_Template();
+
         vm.expectRevert("WDL: Invalid match ID");
-        new WDL_Template(
+        newMarket.initialize(
             "",
             HOME_TEAM,
             AWAY_TEAM,
@@ -110,13 +116,16 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidHomeTeam() public {
+        WDL_Template newMarket = new WDL_Template();
+
         vm.expectRevert("WDL: Invalid home team");
-        new WDL_Template(
+        newMarket.initialize(
             MATCH_ID,
             "",
             AWAY_TEAM,
@@ -126,13 +135,16 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidAwayTeam() public {
+        WDL_Template newMarket = new WDL_Template();
+
         vm.expectRevert("WDL: Invalid away team");
-        new WDL_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             "",
@@ -142,13 +154,16 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_KickoffTimeInPast() public {
+        WDL_Template newMarket = new WDL_Template();
+
         vm.expectRevert("WDL: Kickoff time in past");
-        new WDL_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -158,13 +173,16 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function testRevert_Constructor_InvalidPricingEngine() public {
+        WDL_Template newMarket = new WDL_Template();
+
         vm.expectRevert("WDL: Invalid pricing engine");
-        new WDL_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -174,7 +192,8 @@ contract WDL_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(0),
-            URI
+            URI,
+            address(this)
         );
     }
 
@@ -320,9 +339,10 @@ contract WDL_TemplateTest is BaseTest {
         uint256 priceDraw = market.getCurrentPrice(DRAW);
         uint256 priceLoss = market.getCurrentPrice(LOSS);
 
-        // Draw should have lowest price (most reserve)
-        assertLt(priceDraw, priceWin, "Draw should be cheaper after heavy betting");
-        assertLt(priceDraw, priceLoss, "Draw should be cheaper after heavy betting");
+        // Draw should have HIGHEST price (least reserve) after heavy buying
+        // Win and Loss should have LOWER prices (more reserve from buying Draw)
+        assertGt(priceDraw, priceWin, "Draw should be more expensive after heavy buying");
+        assertGt(priceDraw, priceLoss, "Draw should be more expensive after heavy buying");
 
         // Prices should still sum to 100%
         assertApproxEqAbs(priceWin + priceDraw + priceLoss, 10000, 10);

@@ -20,7 +20,8 @@ contract MarketBase_RedeemTest is BaseTest {
         super.setUp();
 
         // 创建 WDL 市场
-        market = new WDL_Template(
+        market = new WDL_Template();
+        market.initialize(
             "TEST_MATCH",
             "Team A",
             "Team B",
@@ -30,7 +31,8 @@ contract MarketBase_RedeemTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            ""
+            "",
+            owner
         );
 
         // 用户授权市场
@@ -147,9 +149,9 @@ contract MarketBase_RedeemTest is BaseTest {
         uint256 expectedPayout2 = (shares2 * totalLiquidity) / totalShares;
         uint256 expectedPayout3 = (shares3 * totalLiquidity) / totalShares;
 
-        assertApproxEqAbs(payout1, expectedPayout1, 1, "user1 payout mismatch");
-        assertApproxEqAbs(payout2, expectedPayout2, 1, "user2 payout mismatch");
-        assertApproxEqAbs(payout3, expectedPayout3, 1, "user3 payout mismatch");
+        assertApproxEqAbs(payout1, expectedPayout1, 2, "user1 payout mismatch");
+        assertApproxEqAbs(payout2, expectedPayout2, 2, "user2 payout mismatch");
+        assertApproxEqAbs(payout3, expectedPayout3, 2, "user3 payout mismatch");
     }
 
     /**

@@ -65,7 +65,8 @@ contract AH_TemplateTest is BaseTest {
         kickoffTime = block.timestamp + 2 hours;
 
         // Deploy AH market (半球盘 -0.5)
-        market = new AH_Template(
+        market = new AH_Template();
+        market.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -77,7 +78,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         vm.label(address(market), "AH_Market");
@@ -103,7 +105,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_Constructor_WholeHandicap_Success() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -115,7 +118,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         assertEq(wholeMarket.getHandicap(), HANDICAP_WHOLE);
@@ -136,7 +140,8 @@ contract AH_TemplateTest is BaseTest {
             address(cpmm)
         );
 
-        new AH_Template(
+        AH_Template newMarket = new AH_Template();
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -148,13 +153,16 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function test_Constructor_RevertIf_EmptyMatchId() public {
+        AH_Template newMarket = new AH_Template();
+
         vm.expectRevert("Empty match ID");
-        new AH_Template(
+        newMarket.initialize(
             "",
             HOME_TEAM,
             AWAY_TEAM,
@@ -166,14 +174,17 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function test_Constructor_RevertIf_InvalidHandicap() public {
         // 让球数不是 0.25 的倍数
+        AH_Template newMarket = new AH_Template();
+
         vm.expectRevert(abi.encodeWithSelector(IAH_Template.InvalidHandicap.selector, -300));
-        new AH_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -185,14 +196,17 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
     function test_Constructor_RevertIf_HandicapTypeMismatch() public {
         // 整球盘但给了半球数
+        AH_Template newMarket = new AH_Template();
+
         vm.expectRevert(abi.encodeWithSelector(IAH_Template.InvalidHandicap.selector, HANDICAP_HALF));
-        new AH_Template(
+        newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -204,7 +218,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
     }
 
@@ -263,7 +278,8 @@ contract AH_TemplateTest is BaseTest {
     // ============================================================================
 
     function test_PlaceBet_WholeHandicap_AllOutcomes() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -275,7 +291,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         uint256 betAmount = 1000e6;
@@ -313,7 +330,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_CalculateAdjustedScore_HomeGiveWhole() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -325,7 +343,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // 主队让 1.0 球：主队 2:1 客队
@@ -357,7 +376,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_DetermineOutcome_WholeHandicap_HomeCover() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -369,7 +389,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // 主队 3:1 客队，让1球 → 调整后 2:1 → 主队赢盘
@@ -380,7 +401,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_DetermineOutcome_WholeHandicap_Push() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -392,7 +414,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // 主队 2:1 客队，让1球 → 调整后 1:1 → 退款
@@ -403,7 +426,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_DetermineOutcome_WholeHandicap_AwayCover() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -415,7 +439,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // 主队 1:1 客队，让1球 → 调整后 0:1 → 客队赢盘
@@ -460,7 +485,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_Settle_WholeHandicap_Push() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -472,7 +498,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         // Lock and settle
@@ -525,7 +552,8 @@ contract AH_TemplateTest is BaseTest {
 
     function test_HandicapDirection_AwayGive() public {
         // 主队受让 0.5 球（客队让球）
-        AH_Template awayGiveMarket = new AH_Template(
+        AH_Template awayGiveMarket = new AH_Template();
+        awayGiveMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -537,7 +565,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         assertEq(
@@ -552,7 +581,8 @@ contract AH_TemplateTest is BaseTest {
     }
 
     function test_OutcomeNames_WholeHandicap() public {
-        AH_Template wholeMarket = new AH_Template(
+        AH_Template wholeMarket = new AH_Template();
+        wholeMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
             AWAY_TEAM,
@@ -564,7 +594,8 @@ contract AH_TemplateTest is BaseTest {
             DEFAULT_FEE_RATE,
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
-            URI
+            URI,
+            address(this)
         );
 
         assertEq(wholeMarket.outcomeNames(0), "Home Cover");
