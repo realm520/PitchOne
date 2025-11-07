@@ -54,12 +54,12 @@ contract OU_Template is MarketBase {
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public immutable kickoffTime; // 开球时间
+    uint256 public kickoffTime; // 开球时间
 
     /// @notice 盘口线（千分位表示）
     /// @dev 例如：2.5球 = 2500，3.5球 = 3500，0.5球 = 500
     /// @dev 必须是半球盘（line % LINE_PRECISION != 0）
-    uint256 public immutable line;
+    uint256 public line;
 
     // ============ 事件 ============
 
@@ -79,7 +79,16 @@ contract OU_Template is MarketBase {
     // ============ 构造函数 ============
 
     /**
-     * @notice 构造函数
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接初始化
+     */
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
      * @param _matchId 比赛ID
      * @param _homeTeam 主队名称
      * @param _awayTeam 客队名称
@@ -91,8 +100,9 @@ contract OU_Template is MarketBase {
      * @param _disputePeriod 争议期（秒）
      * @param _pricingEngine 定价引擎地址
      * @param _uri ERC-1155 元数据 URI
+     * @param _owner 合约所有者
      */
-    constructor(
+    function initialize(
         string memory _matchId,
         string memory _homeTeam,
         string memory _awayTeam,
@@ -103,17 +113,9 @@ contract OU_Template is MarketBase {
         uint256 _feeRate,
         uint256 _disputePeriod,
         address _pricingEngine,
-        string memory _uri
-    )
-        MarketBase(
-            OUTCOME_COUNT,
-            _settlementToken,
-            _feeRecipient,
-            _feeRate,
-            _disputePeriod,
-            _uri
-        )
-    {
+        string memory _uri,
+        address _owner
+    ) public initializer {
         require(bytes(_matchId).length > 0, "OU: Invalid match ID");
         require(bytes(_homeTeam).length > 0, "OU: Invalid home team");
         require(bytes(_awayTeam).length > 0, "OU: Invalid away team");
@@ -121,6 +123,16 @@ contract OU_Template is MarketBase {
         require(_line > 0 && _line <= 20000, "OU: Invalid line"); // 最大20.0球
         require(_line % LINE_PRECISION != 0, "OU: Only half lines allowed"); // 必须是半球盘
         require(_pricingEngine != address(0), "OU: Invalid pricing engine");
+
+        __MarketBase_init(
+            OUTCOME_COUNT,
+            _settlementToken,
+            _feeRecipient,
+            _feeRate,
+            _disputePeriod,
+            _uri,
+            _owner
+        );
 
         matchId = _matchId;
         homeTeam = _homeTeam;

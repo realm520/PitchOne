@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../core/MarketBase.sol";
 import "../interfaces/IPricingEngine.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title WDL_Template
@@ -35,11 +36,14 @@ contract WDL_Template is MarketBase {
     /// @notice 定价引擎
     IPricingEngine public pricingEngine;
 
+    /// @notice 虚拟储备（用于初始化和定价计算）
+    mapping(uint256 => uint256) public virtualReserves;
+
     /// @notice 比赛信息
     string public matchId;      // 比赛ID（如 "EPL_2024_MUN_vs_MCI"）
     string public homeTeam;     // 主队
     string public awayTeam;     // 客队
-    uint256 public immutable kickoffTime; // 开球时间（Unix 时间戳）
+    uint256 public kickoffTime; // 开球时间（Unix 时间戳）
 
     // ============ 事件 ============
 
@@ -58,7 +62,16 @@ contract WDL_Template is MarketBase {
     // ============ 构造函数 ============
 
     /**
-     * @notice 构造函数
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接初始化
+     */
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
      * @param _matchId 比赛ID
      * @param _homeTeam 主队名称
      * @param _awayTeam 客队名称
@@ -69,8 +82,9 @@ contract WDL_Template is MarketBase {
      * @param _disputePeriod 争议期（秒）
      * @param _pricingEngine 定价引擎地址
      * @param _uri ERC-1155 元数据 URI
+     * @param _owner 合约所有者
      */
-    constructor(
+    function initialize(
         string memory _matchId,
         string memory _homeTeam,
         string memory _awayTeam,
@@ -80,28 +94,36 @@ contract WDL_Template is MarketBase {
         uint256 _feeRate,
         uint256 _disputePeriod,
         address _pricingEngine,
-        string memory _uri
-    )
-        MarketBase(
-            OUTCOME_COUNT,
-            _settlementToken,
-            _feeRecipient,
-            _feeRate,
-            _disputePeriod,
-            _uri
-        )
-    {
+        string memory _uri,
+        address _owner
+    ) public initializer {
         require(bytes(_matchId).length > 0, "WDL: Invalid match ID");
         require(bytes(_homeTeam).length > 0, "WDL: Invalid home team");
         require(bytes(_awayTeam).length > 0, "WDL: Invalid away team");
         require(_kickoffTime > block.timestamp, "WDL: Kickoff time in past");
         require(_pricingEngine != address(0), "WDL: Invalid pricing engine");
 
+        __MarketBase_init(
+            OUTCOME_COUNT,
+            _settlementToken,
+            _feeRecipient,
+            _feeRate,
+            _disputePeriod,
+            _uri,
+            _owner
+        );
+
         matchId = _matchId;
         homeTeam = _homeTeam;
         awayTeam = _awayTeam;
         kickoffTime = _kickoffTime;
         pricingEngine = IPricingEngine(_pricingEngine);
+
+        // 初始化虚拟储备（100,000 * 10^decimals）
+        uint256 virtualReserve = 100_000 * (10 ** IERC20Metadata(_settlementToken).decimals());
+        for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
+            virtualReserves[i] = virtualReserve;
+        }
 
         emit MarketCreated(_matchId, _homeTeam, _awayTeam, _kickoffTime, _pricingEngine);
     }
@@ -114,25 +136,29 @@ contract WDL_Template is MarketBase {
      * @param amount 净金额（已扣除手续费）
      * @return shares 获得的份额
      * @dev 覆盖 MarketBase 的抽象函数
+     *      使用虚拟储备 + 真实流动性进行定价
      */
     function _calculateShares(uint256 outcomeId, uint256 amount)
         internal
-        view
         override
         returns (uint256 shares)
     {
-        // 构建储备数组
+        // 构建储备数组（虚拟储备 + 真实流动性）
         uint256[] memory reserves = new uint256[](OUTCOME_COUNT);
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            reserves[i] = outcomeLiquidity[i];
-            // 如果储备为 0，初始化为最小值
-            if (reserves[i] == 0) {
-                reserves[i] = 1e18; // 1 token (假设 18 decimals)
-            }
+            reserves[i] = virtualReserves[i] + outcomeLiquidity[i];
         }
 
         // 调用定价引擎
         shares = pricingEngine.calculateShares(outcomeId, amount, reserves);
+
+        // 更新虚拟储备（模拟买入操作）
+        virtualReserves[outcomeId] -= shares;
+        for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
+            if (i != outcomeId) {
+                virtualReserves[i] += amount / (OUTCOME_COUNT - 1);
+            }
+        }
 
         return shares;
     }
@@ -188,13 +214,10 @@ contract WDL_Template is MarketBase {
     function getCurrentPrice(uint256 outcomeId) external view returns (uint256 price) {
         require(outcomeId < OUTCOME_COUNT, "WDL: Invalid outcome ID");
 
-        // 构建储备数组
+        // 构建储备数组（虚拟储备 + 真实流动性）
         uint256[] memory reserves = new uint256[](OUTCOME_COUNT);
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            reserves[i] = outcomeLiquidity[i];
-            if (reserves[i] == 0) {
-                reserves[i] = 1e18;
-            }
+            reserves[i] = virtualReserves[i] + outcomeLiquidity[i];
         }
 
         price = pricingEngine.getPrice(outcomeId, reserves);
@@ -206,12 +229,10 @@ contract WDL_Template is MarketBase {
      * @return prices 价格数组（基点）
      */
     function getAllPrices() external view returns (uint256[OUTCOME_COUNT] memory prices) {
+        // 构建储备数组（虚拟储备 + 真实流动性）
         uint256[] memory reserves = new uint256[](OUTCOME_COUNT);
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            reserves[i] = outcomeLiquidity[i];
-            if (reserves[i] == 0) {
-                reserves[i] = 1e18;
-            }
+            reserves[i] = virtualReserves[i] + outcomeLiquidity[i];
         }
 
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {

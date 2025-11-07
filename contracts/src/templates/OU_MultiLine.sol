@@ -65,7 +65,7 @@ contract OU_MultiLine is MarketBase {
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public immutable kickoffTime; // 开球时间
+    uint256 public kickoffTime; // 开球时间
 
     /// @notice 盘口线数组（千分位表示）
     uint256[] private lines;
@@ -100,7 +100,7 @@ contract OU_MultiLine is MarketBase {
 
     // ============ 构造函数 ============
 
-    struct ConstructorParams {
+    struct InitializeParams {
         string matchId;
         string homeTeam;
         string awayTeam;
@@ -113,22 +113,23 @@ contract OU_MultiLine is MarketBase {
         address pricingEngine;
         address linkedLinesController;
         string uri;
+        address owner;
     }
 
     /**
-     * @notice 构造函数
-     * @param params 构造参数结构体
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接实例化
      */
-    constructor(ConstructorParams memory params)
-        MarketBase(
-            params.lines.length * OUTCOMES_PER_LINE,
-            params.settlementToken,
-            params.feeRecipient,
-            params.feeRate,
-            params.disputePeriod,
-            params.uri
-        )
-    {
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
+     * @param params 初始化参数结构体
+     */
+    function initialize(InitializeParams memory params) public initializer {
         require(bytes(params.matchId).length > 0, "OU_ML: Invalid match ID");
         require(bytes(params.homeTeam).length > 0, "OU_ML: Invalid home team");
         require(bytes(params.awayTeam).length > 0, "OU_ML: Invalid away team");
@@ -154,6 +155,16 @@ contract OU_MultiLine is MarketBase {
                 revert LinesNotSorted();
             }
         }
+
+        __MarketBase_init(
+            params.lines.length * OUTCOMES_PER_LINE,
+            params.settlementToken,
+            params.feeRecipient,
+            params.feeRate,
+            params.disputePeriod,
+            params.uri,
+            params.owner
+        );
 
         matchId = params.matchId;
         homeTeam = params.homeTeam;

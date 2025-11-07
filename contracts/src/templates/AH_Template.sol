@@ -5,6 +5,7 @@ import "../core/MarketBase.sol";
 import "../interfaces/IPricingEngine.sol";
 import "../interfaces/IAH_Template.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title AH_Template
@@ -61,21 +62,24 @@ contract AH_Template is MarketBase, IAH_Template {
     /// @notice 定价引擎
     IPricingEngine public pricingEngine;
 
+    /// @notice 虚拟储备（用于初始化和定价计算）
+    mapping(uint256 => uint256) public virtualReserves;
+
     /// @notice 比赛信息
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public immutable kickoffTime; // 开球时间
+    uint256 public kickoffTime; // 开球时间
 
     /// @notice 让球数（千分位表示，负数=主队让球，正数=客队让球）
     /// @dev 例如：主队 -0.5 = -500，主队 +0.5 = +500
-    int256 public immutable handicap;
+    int256 public handicap;
 
     /// @notice 让球类型
-    HandicapType public immutable handicapType;
+    HandicapType public handicapType;
 
     /// @notice 让球方向
-    HandicapDirection public immutable direction;
+    HandicapDirection public direction;
 
     /// @notice Outcome 名称（根据让球类型动态设置）
     string[] public outcomeNames;
@@ -85,7 +89,16 @@ contract AH_Template is MarketBase, IAH_Template {
     // ============================================================================
 
     /**
-     * @notice 构造函数
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接初始化
+     */
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
      * @param _matchId 比赛ID
      * @param _homeTeam 主队名称
      * @param _awayTeam 客队名称
@@ -98,8 +111,9 @@ contract AH_Template is MarketBase, IAH_Template {
      * @param _disputePeriod 争议期（秒）
      * @param _pricingEngine 定价引擎地址
      * @param _uri ERC-1155 元数据 URI
+     * @param _owner 合约所有者
      */
-    constructor(
+    function initialize(
         string memory _matchId,
         string memory _homeTeam,
         string memory _awayTeam,
@@ -111,19 +125,9 @@ contract AH_Template is MarketBase, IAH_Template {
         uint256 _feeRate,
         uint256 _disputePeriod,
         address _pricingEngine,
-        string memory _uri
-    )
-        MarketBase(
-            _handicapType == HandicapType.HALF
-                ? HALF_HANDICAP_OUTCOME_COUNT
-                : WHOLE_HANDICAP_OUTCOME_COUNT,
-            _settlementToken,
-            _feeRecipient,
-            _feeRate,
-            _disputePeriod,
-            _uri
-        )
-    {
+        string memory _uri,
+        address _owner
+    ) public initializer {
         // 验证参数
         require(bytes(_matchId).length > 0, "Empty match ID");
         require(bytes(_homeTeam).length > 0, "Empty home team");
@@ -133,6 +137,18 @@ contract AH_Template is MarketBase, IAH_Template {
 
         // 验证让球数（必须是 0.25 的倍数）
         _validateHandicap(_handicap, _handicapType);
+
+        __MarketBase_init(
+            _handicapType == HandicapType.HALF
+                ? HALF_HANDICAP_OUTCOME_COUNT
+                : WHOLE_HANDICAP_OUTCOME_COUNT,
+            _settlementToken,
+            _feeRecipient,
+            _feeRate,
+            _disputePeriod,
+            _uri,
+            _owner
+        );
 
         // 设置状态变量
         matchId = _matchId;
@@ -148,6 +164,11 @@ contract AH_Template is MarketBase, IAH_Template {
 
         // 设置 outcome 名称
         _setOutcomeNames(_handicapType);
+
+        // 初始化虚拟储备（仅为 HOME_COVER 和 AWAY_COVER，PUSH 不参与定价）
+        uint256 virtualReserve = 100_000 * (10 ** IERC20Metadata(_settlementToken).decimals());
+        virtualReserves[HOME_COVER] = virtualReserve;
+        virtualReserves[AWAY_COVER] = virtualReserve;
 
         // 设置自动锁盘时间（开球前5分钟）
         lockTimestamp = _kickoffTime > 300 ? _kickoffTime - 300 : _kickoffTime;
@@ -176,6 +197,7 @@ contract AH_Template is MarketBase, IAH_Template {
      * @dev 调用定价引擎计算 shares
      *      - 半球盘：不允许下注 PUSH
      *      - 整球盘：PUSH 为 1:1（shares = amount）
+     *      - 使用虚拟储备 + 真实流动性进行定价
      */
     function _calculateShares(uint256 outcomeId, uint256 amount)
         internal
@@ -197,21 +219,17 @@ contract AH_Template is MarketBase, IAH_Template {
             return amount;
         }
 
-        // 构建储备数组（仅包含 HOME_COVER 和 AWAY_COVER）
+        // 构建储备数组（虚拟储备 + 真实流动性，仅包含 HOME_COVER 和 AWAY_COVER）
         uint256[] memory reserves = new uint256[](2);
-        reserves[HOME_COVER] = outcomeLiquidity[HOME_COVER];
-        reserves[AWAY_COVER] = outcomeLiquidity[AWAY_COVER];
-
-        // 初始化为最小值（如果储备为 0）
-        if (reserves[HOME_COVER] == 0) {
-            reserves[HOME_COVER] = 1e18;
-        }
-        if (reserves[AWAY_COVER] == 0) {
-            reserves[AWAY_COVER] = 1e18;
-        }
+        reserves[HOME_COVER] = virtualReserves[HOME_COVER] + outcomeLiquidity[HOME_COVER];
+        reserves[AWAY_COVER] = virtualReserves[AWAY_COVER] + outcomeLiquidity[AWAY_COVER];
 
         // 调用定价引擎
         shares = pricingEngine.calculateShares(outcomeId, amount, reserves);
+
+        // 更新虚拟储备（模拟买入操作）
+        virtualReserves[outcomeId] -= shares;
+        virtualReserves[outcomeId == HOME_COVER ? AWAY_COVER : HOME_COVER] += amount;
 
         return shares;
     }

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -32,7 +33,7 @@ import "../liquidity/LiquidityVault.sol";
  * @author PitchOne Team
  * @custom:security-contact security@pitchone.io
  */
-abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, ReentrancyGuard {
+abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradeable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ 状态变量 ============
@@ -41,13 +42,13 @@ abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, Re
     MarketStatus public override status;
 
     /// @notice 结果数量（如 WDL = 3，OU = 2）
-    uint256 public immutable override outcomeCount;
+    uint256 public override outcomeCount;
 
     /// @notice 获胜结果ID（仅在 Resolved/Finalized 后有效）
     uint256 public override winningOutcome;
 
     /// @notice 结算币种（稳定币地址）
-    IERC20 public immutable settlementToken;
+    IERC20 public settlementToken;
 
     /// @notice 基础手续费率（基点，默认 200 = 2%）
     uint256 public feeRate;
@@ -65,12 +66,12 @@ abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, Re
     uint256 public lockTimestamp;
 
     /// @notice 争议期时长（秒，默认 24 小时）
-    uint256 public immutable disputePeriod;
+    uint256 public disputePeriod;
 
     // ============ Vault 集成新增 ============
 
     /// @notice 流动性金库地址
-    LiquidityVault public immutable vault;
+    LiquidityVault public vault;
 
     /// @notice 从 Vault 借出的金额
     uint256 public borrowedAmount;
@@ -124,10 +125,16 @@ abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, Re
         _;
     }
 
-    // ============ 构造函数 ============
+    // ============ 构造函数和初始化 ============
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
 
     /**
-     * @notice 构造函数
+     * @notice 初始化函数（替代构造函数）
      * @param _outcomeCount 结果数量
      * @param _settlementToken 结算币种地址
      * @param _feeRecipient 费用接收地址
@@ -136,7 +143,7 @@ abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, Re
      * @param _vault Vault 地址
      * @param _uri ERC-1155 元数据 URI
      */
-    constructor(
+    function __MarketBase_init(
         uint256 _outcomeCount,
         address _settlementToken,
         address _feeRecipient,
@@ -144,7 +151,11 @@ abstract contract MarketBase_V2 is IMarket, ERC1155Supply, Ownable, Pausable, Re
         uint256 _disputePeriod,
         address _vault,
         string memory _uri
-    ) ERC1155(_uri) Ownable(msg.sender) {
+    ) internal onlyInitializing {
+        __ERC1155_init(_uri);
+        __Ownable_init(msg.sender);
+        __Pausable_init();
+
         require(_outcomeCount >= 2, "MarketBase_V2: Invalid outcome count");
         require(_settlementToken != address(0), "MarketBase_V2: Invalid token");
         require(_feeRecipient != address(0), "MarketBase_V2: Invalid fee recipient");

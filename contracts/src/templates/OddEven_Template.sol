@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "../core/MarketBase.sol";
 import "../interfaces/IPricingEngine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OddEven_Template
@@ -48,7 +49,11 @@ contract OddEven_Template is MarketBase {
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public immutable kickoffTime; // 开球时间
+    uint256 public kickoffTime; // 开球时间
+
+    /// @notice 虚拟储备（用于 CPMM 定价）
+    /// @dev 独立于 outcomeLiquidity，根据 CPMM 公式更新
+    mapping(uint256 => uint256) public virtualReserves;
 
     // ============ 事件 ============
 
@@ -67,7 +72,16 @@ contract OddEven_Template is MarketBase {
     // ============ 构造函数 ============
 
     /**
-     * @notice 构造函数
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接初始化
+     */
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
      * @param _matchId 比赛ID
      * @param _homeTeam 主队名称
      * @param _awayTeam 客队名称
@@ -78,8 +92,9 @@ contract OddEven_Template is MarketBase {
      * @param _disputePeriod 争议期（秒）
      * @param _pricingEngine 定价引擎地址
      * @param _uri ERC-1155 元数据 URI
+     * @param _owner 合约所有者
      */
-    constructor(
+    function initialize(
         string memory _matchId,
         string memory _homeTeam,
         string memory _awayTeam,
@@ -89,22 +104,24 @@ contract OddEven_Template is MarketBase {
         uint256 _feeRate,
         uint256 _disputePeriod,
         address _pricingEngine,
-        string memory _uri
-    )
-        MarketBase(
-            OUTCOME_COUNT,
-            _settlementToken,
-            _feeRecipient,
-            _feeRate,
-            _disputePeriod,
-            _uri
-        )
-    {
+        string memory _uri,
+        address _owner
+    ) public initializer {
         require(bytes(_matchId).length > 0, "OddEven: Invalid match ID");
         require(bytes(_homeTeam).length > 0, "OddEven: Invalid home team");
         require(bytes(_awayTeam).length > 0, "OddEven: Invalid away team");
         require(_kickoffTime > block.timestamp, "OddEven: Kickoff time in past");
         require(_pricingEngine != address(0), "OddEven: Invalid pricing engine");
+
+        __MarketBase_init(
+            OUTCOME_COUNT,
+            _settlementToken,
+            _feeRecipient,
+            _feeRate,
+            _disputePeriod,
+            _uri,
+            _owner
+        );
 
         matchId = _matchId;
         homeTeam = _homeTeam;
@@ -112,6 +129,11 @@ contract OddEven_Template is MarketBase {
         kickoffTime = _kickoffTime;
 
         pricingEngine = IPricingEngine(_pricingEngine);
+
+        // 初始化虚拟储备（100,000 * 10^decimals）
+        uint256 initialReserve = 100_000 * (10 ** IERC20Metadata(_settlementToken).decimals());
+        virtualReserves[ODD] = initialReserve;
+        virtualReserves[EVEN] = initialReserve;
 
         emit MarketCreated(
             _matchId,
@@ -133,23 +155,35 @@ contract OddEven_Template is MarketBase {
      */
     function _calculateShares(uint256 outcomeId, uint256 amount)
         internal
-        view
         override
         returns (uint256 shares)
     {
         require(outcomeId < OUTCOME_COUNT, "OddEven: Invalid outcome ID");
 
-        // 构建储备数组
+        // 使用虚拟储备（而非 outcomeLiquidity）
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = outcomeLiquidity[ODD];
-        reserves[1] = outcomeLiquidity[EVEN];
+        reserves[0] = virtualReserves[ODD];
+        reserves[1] = virtualReserves[EVEN];
 
-        // 如果储备为 0，初始化为最小值
-        if (reserves[0] == 0) reserves[0] = 1e18;
-        if (reserves[1] == 0) reserves[1] = 1e18;
-
-        // 调用定价引擎进行二向定价
+        // 调用定价引擎计算份额
         shares = pricingEngine.calculateShares(outcomeId, amount, reserves);
+
+        // 更新虚拟储备（根据 CPMM 公式）
+        // 买入 outcome i：r_i 减少，r_other 增加
+        uint256 otherOutcome = 1 - outcomeId;
+
+        // k = r_0 * r_1 (保持不变)
+        uint256 k = reserves[0] * reserves[1];
+
+        // 新的对手盘储备：r_other' = r_other + amount
+        uint256 r_other_new = reserves[otherOutcome] + amount;
+
+        // 新的目标储备：r_target' = k / r_other'
+        uint256 r_target_new = k / r_other_new;
+
+        // 更新虚拟储备
+        virtualReserves[outcomeId] = r_target_new;
+        virtualReserves[otherOutcome] = r_other_new;
 
         return shares;
     }
@@ -185,13 +219,10 @@ contract OddEven_Template is MarketBase {
     function getCurrentPrice(uint256 outcomeId) external view returns (uint256 price) {
         require(outcomeId < 2, "OddEven: Invalid outcome");
 
-        // 构建储备数组
+        // 使用虚拟储备
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = outcomeLiquidity[ODD];
-        reserves[1] = outcomeLiquidity[EVEN];
-
-        if (reserves[0] == 0) reserves[0] = 1e18;
-        if (reserves[1] == 0) reserves[1] = 1e18;
+        reserves[0] = virtualReserves[ODD];
+        reserves[1] = virtualReserves[EVEN];
 
         price = pricingEngine.getPrice(outcomeId, reserves);
         return price;
@@ -202,12 +233,10 @@ contract OddEven_Template is MarketBase {
      * @return prices 价格数组（基点，包含 Odd 和 Even）
      */
     function getAllPrices() external view returns (uint256[2] memory prices) {
+        // 使用虚拟储备
         uint256[] memory reserves = new uint256[](2);
-        reserves[0] = outcomeLiquidity[ODD];
-        reserves[1] = outcomeLiquidity[EVEN];
-
-        if (reserves[0] == 0) reserves[0] = 1e18;
-        if (reserves[1] == 0) reserves[1] = 1e18;
+        reserves[0] = virtualReserves[ODD];
+        reserves[1] = virtualReserves[EVEN];
 
         prices[0] = pricingEngine.getPrice(ODD, reserves);
         prices[1] = pricingEngine.getPrice(EVEN, reserves);

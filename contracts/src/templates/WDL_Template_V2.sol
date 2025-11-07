@@ -47,7 +47,7 @@ contract WDL_Template_V2 is MarketBase_V2 {
     string public matchId;
     string public homeTeam;
     string public awayTeam;
-    uint256 public immutable kickoffTime;
+    uint256 public kickoffTime;
 
     // ============ 事件 ============
 
@@ -64,9 +64,29 @@ contract WDL_Template_V2 is MarketBase_V2 {
 
     event VirtualReservesUpdated(uint256[] reserves);
 
-    // ============ 构造函数 ============
+    // ============ 构造函数和初始化 ============
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
+     * @param _matchId 比赛ID
+     * @param _homeTeam 主队名称
+     * @param _awayTeam 客队名称
+     * @param _kickoffTime 开球时间
+     * @param _settlementToken 结算币种地址
+     * @param _feeRecipient 费用接收地址
+     * @param _feeRate 手续费率（基点）
+     * @param _disputePeriod 争议期（秒）
+     * @param _pricingEngine 定价引擎地址
+     * @param _vault Vault 地址
+     * @param _uri ERC-1155 元数据 URI
+     */
+    function initialize(
         string memory _matchId,
         string memory _homeTeam,
         string memory _awayTeam,
@@ -78,8 +98,9 @@ contract WDL_Template_V2 is MarketBase_V2 {
         address _pricingEngine,
         address _vault,
         string memory _uri
-    )
-        MarketBase_V2(
+    ) external initializer {
+        // 初始化父合约
+        __MarketBase_init(
             OUTCOME_COUNT,
             _settlementToken,
             _feeRecipient,
@@ -87,14 +108,16 @@ contract WDL_Template_V2 is MarketBase_V2 {
             _disputePeriod,
             _vault,
             _uri
-        )
-    {
+        );
+
+        // 验证参数
         require(bytes(_matchId).length > 0, "WDL_V2: Invalid match ID");
         require(bytes(_homeTeam).length > 0, "WDL_V2: Invalid home team");
         require(bytes(_awayTeam).length > 0, "WDL_V2: Invalid away team");
         require(_kickoffTime > block.timestamp, "WDL_V2: Kickoff time in past");
         require(_pricingEngine != address(0), "WDL_V2: Invalid pricing engine");
 
+        // 设置状态变量
         matchId = _matchId;
         homeTeam = _homeTeam;
         awayTeam = _awayTeam;

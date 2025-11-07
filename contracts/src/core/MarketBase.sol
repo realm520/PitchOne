@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,7 +20,7 @@ import "../interfaces/IResultOracle.sol";
  *      继承 ERC1155Supply 以支持 totalSupply 追踪
  *      支持 Phase 1 折扣接口预留（Phase 0 设为 address(0)）
  */
-abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, ReentrancyGuard {
+abstract contract MarketBase is Initializable, IMarket, ERC1155SupplyUpgradeable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ 状态变量 ============
@@ -28,13 +29,13 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
     MarketStatus public override status;
 
     /// @notice 结果数量（如 WDL = 3，OU = 2）
-    uint256 public immutable override outcomeCount;
+    uint256 public override outcomeCount;
 
     /// @notice 获胜结果ID（仅在 Resolved/Finalized 后有效）
     uint256 public override winningOutcome;
 
     /// @notice 结算币种（稳定币地址）
-    IERC20 public immutable settlementToken;
+    IERC20 public settlementToken;
 
     /// @notice 基础手续费率（基点，默认 200 = 2%）
     uint256 public feeRate;
@@ -52,7 +53,7 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
     uint256 public lockTimestamp;
 
     /// @notice 争议期时长（秒，默认 24 小时）
-    uint256 public immutable disputePeriod;
+    uint256 public disputePeriod;
 
     /// @notice 总流动性（所有 outcome 的总金额）
     uint256 public totalLiquidity;
@@ -80,26 +81,42 @@ abstract contract MarketBase is IMarket, ERC1155Supply, Ownable, Pausable, Reent
     // ============ 构造函数 ============
 
     /**
-     * @notice 构造函数
+     * @notice 禁用初始化器的构造函数
+     * @dev 防止实现合约被直接初始化
+     */
+    constructor() {
+        // 注意：不调用 _disableInitializers() 以允许在测试中直接实例化
+        // initializer 修饰符已经足够防止重复初始化
+    }
+
+    /**
+     * @notice 初始化函数
      * @param _outcomeCount 结果数量
      * @param _settlementToken 结算币种地址
      * @param _feeRecipient 费用接收地址
      * @param _feeRate 手续费率（基点）
      * @param _disputePeriod 争议期（秒）
      * @param _uri ERC-1155 元数据 URI
+     * @param _owner 合约所有者
      */
-    constructor(
+    function __MarketBase_init(
         uint256 _outcomeCount,
         address _settlementToken,
         address _feeRecipient,
         uint256 _feeRate,
         uint256 _disputePeriod,
-        string memory _uri
-    ) ERC1155(_uri) Ownable(msg.sender) {
+        string memory _uri,
+        address _owner
+    ) internal onlyInitializing {
         require(_outcomeCount >= 2, "MarketBase: Invalid outcome count");
         require(_settlementToken != address(0), "MarketBase: Invalid token");
         require(_feeRecipient != address(0), "MarketBase: Invalid fee recipient");
         require(_feeRate <= 1000, "MarketBase: Fee rate too high"); // 最大 10%
+
+        __ERC1155_init(_uri);
+        __ERC1155Supply_init();
+        __Ownable_init(_owner);
+        __Pausable_init();
 
         outcomeCount = _outcomeCount;
         settlementToken = IERC20(_settlementToken);
