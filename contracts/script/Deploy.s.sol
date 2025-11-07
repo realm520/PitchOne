@@ -154,62 +154,27 @@ contract Deploy is Script {
         console.log("MarketFactory_v2:", address(factory));
 
         // ========================================
-        // 4. 部署并注册市场模板
+        // 4. 部署并注册市场模板（Clone 模式）
         // ========================================
-        console.log("\nStep 4: Deploy Market Templates");
+        console.log("\nStep 4: Deploy Market Templates (Clone Mode)");
         console.log("----------------------------------------");
 
-        // WDL Template V2
-        WDL_Template_V2 wdlTemplate = new WDL_Template_V2(
-            "TEMPLATE_WDL_V2",
-            "Template Home",
-            "Template Away",
-            block.timestamp + 365 days,
-            usdc,
-            address(feeRouter),
-            200, // 2% fee
-            2 hours,
-            address(cpmm),
-            address(vault),
-            "https://api.pitchone.io/metadata/wdl/{id}"
-        );
+        // WDL Template V2 - 部署未初始化的实现合约
+        WDL_Template_V2 wdlTemplate = new WDL_Template_V2();
         bytes32 wdlTemplateId = factory.registerTemplate("WDL", "V2", address(wdlTemplate));
-        console.log("WDL_Template_V2:", address(wdlTemplate));
+        console.log("WDL_Template_V2 Implementation:", address(wdlTemplate));
         console.log("WDL Template ID:", vm.toString(wdlTemplateId));
 
-        // OU Template
-        OU_Template ouTemplate = new OU_Template(
-            "TEMPLATE_OU",
-            "Template Home",
-            "Template Away",
-            block.timestamp + 365 days,
-            2500, // O/U 2.5
-            usdc,
-            address(feeRouter),
-            200,
-            2 hours,
-            address(cpmm),
-            "https://api.pitchone.io/metadata/ou/{id}"
-        );
+        // OU Template - 部署未初始化的实现合约
+        OU_Template ouTemplate = new OU_Template();
         bytes32 ouTemplateId = factory.registerTemplate("OU", "1.0.0", address(ouTemplate));
-        console.log("OU_Template:", address(ouTemplate));
+        console.log("OU_Template Implementation:", address(ouTemplate));
         console.log("OU Template ID:", vm.toString(ouTemplateId));
 
-        // OddEven Template
-        OddEven_Template oddEvenTemplate = new OddEven_Template(
-            "TEMPLATE_ODDEVEN",
-            "Template Home",
-            "Template Away",
-            block.timestamp + 365 days,
-            usdc,
-            address(feeRouter),
-            200,
-            2 hours,
-            address(cpmm),
-            "https://api.pitchone.io/metadata/oddeven/{id}"
-        );
+        // OddEven Template - 部署未初始化的实现合约
+        OddEven_Template oddEvenTemplate = new OddEven_Template();
         bytes32 oddEvenTemplateId = factory.registerTemplate("OddEven", "1.0.0", address(oddEvenTemplate));
-        console.log("OddEven_Template:", address(oddEvenTemplate));
+        console.log("OddEven_Template Implementation:", address(oddEvenTemplate));
         console.log("OddEven Template ID:", vm.toString(oddEvenTemplateId));
 
         // ========================================
