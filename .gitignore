@@ -79,3 +79,9 @@ lib/openzeppelin-contracts/
 /node_modules/
 /pnpm-lock.yaml
 /package.json
+
+# SQL测试文件
+backend/pkg/db/test_*.sql
+
+# Shell测试脚本
+subgraph/test-*.sh

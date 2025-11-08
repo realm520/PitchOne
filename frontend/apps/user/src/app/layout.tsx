@@ -4,13 +4,15 @@ import Link from "next/link";
 import { Providers, ConnectButton } from "@pitchone/web3";
 import { Header, Footer } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
+import { ParlayProvider } from "../lib/parlay-store";
+import { ParlayCart } from "../components/parlay";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PitchOne - 去中心化足球博彩平台",
-  description: "链上透明、非托管资产、自动化结算的足球博彩平台",
+  title: "PitchOne - 去中心化足球预测平台",
+  description: "链上透明、非托管资产、自动化结算的足球预测平台",
 };
 
 export default function RootLayout({
@@ -22,7 +24,8 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className={inter.className}>
         <Providers>
-          <div className="flex flex-col min-h-screen">
+          <ParlayProvider>
+            <div className="flex flex-col min-h-screen">
             <Header
               logo={
                 <Link href="/" className="flex items-center gap-2">
@@ -48,9 +51,11 @@ export default function RootLayout({
               }
               actions={<ConnectButton />}
             />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <ParlayCart />
+            </div>
+          </ParlayProvider>
           <Toaster
             position="top-right"
             reverseOrder={false}

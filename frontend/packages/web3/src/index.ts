@@ -56,6 +56,7 @@ export {
 export {
   useLockMarket,
   useCreateMarket,
+  useAuthorizeMarket,
   usePauseMarket,
   useParamControllerPropose,
   useParamControllerExecute,
@@ -89,3 +90,19 @@ export {
   type MarketFullData,
   type OutcomeData,
 } from './multicall-hooks';
+
+// Basket (Parlay) Hooks
+export {
+  useParlayQuote,
+  useParlayDetails,
+  useUserParlays,
+  useCanSettle,
+  usePoolStatus,
+  useCreateParlay,
+  useSettleParlay,
+  useBatchSettleParlays,
+  ParlayStatus,
+  type ParlayLeg,
+  type Parlay,
+  type ParlayQuote,
+} from './basket-hooks';

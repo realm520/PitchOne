@@ -29,9 +29,12 @@ import {
 } from '@pitchone/ui';
 import { LiveActivity } from '@/components/LiveActivity';
 import { betNotifications, marketNotifications } from '@/lib/notifications';
+import { useParlayStore } from '@/lib/parlay-store';
+import toast from 'react-hot-toast';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { address, isConnected, chain } = useAccount();
+  const { addOutcome, hasMarket, getOutcome } = useParlayStore();
 
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState('');
@@ -352,6 +355,28 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   };
 
+  const handleAddToParlay = (outcomeId: number) => {
+    if (!market || !outcomes || outcomeId >= outcomes.length) return;
+
+    const outcome = outcomes[outcomeId];
+    const marketName = market._displayInfo?.homeTeam && market._displayInfo?.awayTeam
+      ? `${market._displayInfo.homeTeam} vs ${market._displayInfo.awayTeam}`
+      : `市场 ${market.id.slice(0, 8)}...`;
+
+    addOutcome({
+      marketAddress: marketId as `0x${string}`,
+      marketName,
+      outcomeId,
+      outcomeName: outcome.name,
+      odds: outcome.odds,
+    });
+
+    toast.success(`已添加到串关: ${outcome.name}`, {
+      icon: '🎯',
+      duration: 2000,
+    });
+  };
+
   // 1. 加载状态（优先级最高）
   if (isLoading || outcomesLoading) {
     return (
@@ -441,28 +466,75 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-bold text-white mb-4">投注选项</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {outcomes.map((outcome) => (
-                <Card
-                  key={outcome.id}
-                  hoverable
-                  variant={selectedOutcome === outcome.id ? 'neon' : 'default'}
-                  padding="lg"
-                  onClick={() => {
-                    if (market.state === MarketStatus.Open) {
-                      setSelectedOutcome(outcome.id);
-                      setShowBetModal(true);
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  <div className={`w-full h-2 rounded-full bg-gradient-to-r ${outcome.color} mb-4`} />
-                  <h3 className="text-xl font-bold text-white mb-2">{outcome.name}</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-neon">{outcome.odds}</span>
-                    <span className="text-sm text-gray-500">赔率</span>
-                  </div>
-                </Card>
-              ))}
+              {outcomes.map((outcome) => {
+                const isInParlay = hasMarket(marketId as `0x${string}`);
+                const currentSelection = isInParlay ? getOutcome(marketId as `0x${string}`) : null;
+                const isThisOutcomeSelected = currentSelection?.outcomeId === outcome.id;
+
+                return (
+                  <Card
+                    key={outcome.id}
+                    hoverable
+                    variant={selectedOutcome === outcome.id ? 'neon' : 'default'}
+                    padding="lg"
+                    className="flex flex-col"
+                  >
+                    <div className={`w-full h-2 rounded-full bg-gradient-to-r ${outcome.color} mb-4`} />
+                    <h3 className="text-xl font-bold text-white mb-2">{outcome.name}</h3>
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-3xl font-bold text-neon">{outcome.odds}</span>
+                      <span className="text-sm text-gray-500">赔率</span>
+                    </div>
+
+                    {/* 按钮组 */}
+                    <div className="mt-auto space-y-2">
+                      {/* 立即下注按钮 */}
+                      <Button
+                        onClick={() => {
+                          if (market.state === MarketStatus.Open) {
+                            setSelectedOutcome(outcome.id);
+                            setShowBetModal(true);
+                          }
+                        }}
+                        disabled={market.state !== MarketStatus.Open}
+                        variant="neon"
+                        size="sm"
+                        className="w-full"
+                      >
+                        {market.state === MarketStatus.Open ? '立即下注' : '已锁盘'}
+                      </Button>
+
+                      {/* 加入串关按钮 */}
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToParlay(outcome.id);
+                        }}
+                        disabled={isThisOutcomeSelected || market.state !== MarketStatus.Open}
+                        variant={isThisOutcomeSelected ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="w-full"
+                      >
+                        {isThisOutcomeSelected ? (
+                          <>
+                            <svg className="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            已加入串关
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            加入串关
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Live Activity */}
@@ -493,7 +565,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 <Card padding="lg">
                   <EmptyState
                     title="暂无订单"
-                    description="您还没有在这个市场下注过"
+                    description="您还没有在这个市场进行预测"
                   />
                 </Card>
               ) : (
@@ -545,11 +617,11 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   <p className="text-sm text-white">2%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">最小下注</p>
+                  <p className="text-sm text-gray-500 mb-1">最小投注</p>
                   <p className="text-sm text-white">1 USDC</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">最大下注</p>
+                  <p className="text-sm text-gray-500 mb-1">最大投注</p>
                   <p className="text-sm text-white">10,000 USDC</p>
                 </div>
               </div>
@@ -565,7 +637,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           setShowBetModal(false);
           setBetAmount('');
         }}
-        title="确认下注"
+        title="确认预测"
         size="md"
       >
         {selectedOutcome !== null && outcomes && (
@@ -589,7 +661,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             {/* Amount Input */}
             <Input
               type="number"
-              label="下注金额 (USDC)"
+              label="投注金额 (USDC)"
               placeholder="输入金额"
               value={betAmount}
               onChange={(e) => setBetAmount(e.target.value)}
@@ -639,7 +711,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || allowance === undefined}
                   isLoading={isBetting || isBettingConfirming}
                 >
-                  {isBetting || isBettingConfirming ? '下注中...' : allowance === undefined ? '加载中...' : '确认下注'}
+                  {isBetting || isBettingConfirming ? '预测中...' : allowance === undefined ? '加载中...' : '确认预测'}
                 </Button>
               )}
             </div>
@@ -650,7 +722,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
             {needsApproval && (
               <p className="text-sm text-blue-400 text-center">
-                💡 首次下注需要授权 USDC
+                💡 首次预测需要授权 USDC
               </p>
             )}
           </div>

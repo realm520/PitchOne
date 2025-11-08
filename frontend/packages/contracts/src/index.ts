@@ -11,6 +11,8 @@ export { default as FeeRouterABI } from './abis/FeeRouter';
 export { default as ReferralRegistryABI } from './abis/ReferralRegistry';
 export { default as OU_TemplateABI } from './abis/OU_Template';
 export { default as OU_MultiLineABI } from './abis/OU_MultiLine';
+export { default as LiquidityVaultABI } from './abis/LiquidityVault';
+export { default as BasketABI } from './abis/Basket';
 
 // 合约地址导出
 export * from './addresses';
@@ -20,6 +22,7 @@ export type Address = `0x${string}`;
 
 export interface ContractAddresses {
   marketTemplateRegistry: Address;
+  vault?: Address;              // LiquidityVault (WDL 市场需要)
   basket: Address;
   correlationGuard: Address;
   feeRouter: Address;
