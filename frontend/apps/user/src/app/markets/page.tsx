@@ -51,7 +51,7 @@ export default function MarketsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-neon mb-2">市场列表</h1>
-          <p className="text-gray-400">浏览所有可下注的足球赛事市场</p>
+          <p className="text-gray-400">浏览所有可预测的足球赛事市场</p>
         </div>
 
         {/* Filters */}
@@ -156,7 +156,7 @@ export default function MarketsPage() {
                       variant={market.state === MarketStatus.Open ? 'neon' : 'secondary'}
                       fullWidth
                     >
-                      {market.state === MarketStatus.Open ? '立即下注' : '查看详情'}
+                      {market.state === MarketStatus.Open ? '立即预测' : '查看详情'}
                     </Button>
                   </div>
                 </Card>

@@ -14,6 +14,7 @@ import {
   CampaignABI,
   QuestABI,
   RewardsDistributorABI,
+  LiquidityVaultABI,
   getContractAddresses
 } from '@pitchone/contracts';
 
@@ -108,6 +109,57 @@ export function useCreateMarket() {
 
   return {
     createMarket,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
+ * 授权市场从 Vault 借款 Hook
+ * 调用 LiquidityVault.authorizeMarket()
+ * 注意: WDL 市场创建后必须调用此方法
+ */
+export function useAuthorizeMarket() {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  /**
+   * 授权市场
+   * @param marketAddress 市场合约地址
+   */
+  const authorizeMarket = async (marketAddress: Address) => {
+    if (!addresses?.vault) throw new Error('Vault address required');
+
+    console.log('[useAuthorizeMarket] 授权市场:', {
+      vault: addresses.vault,
+      marketAddress
+    });
+
+    return writeContract({
+      address: addresses.vault,
+      abi: LiquidityVaultABI,
+      functionName: 'authorizeMarket',
+      args: [marketAddress],
+    });
+  };
+
+  return {
+    authorizeMarket,
     isPending,
     isConfirming,
     isSuccess,

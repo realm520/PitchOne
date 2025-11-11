@@ -685,5 +685,333 @@ stats.save();
 
 ---
 
-**最后更新时间**：2025-11-02
+## Basket 串关事件
+
+### 1. ParlayCreated
+
+**事件签名**：
+```solidity
+event ParlayCreated(
+    uint256 indexed parlayId,
+    address indexed user,
+    ParlayLeg[] legs,
+    uint256 stake,
+    uint256 potentialPayout,
+    uint256 combinedOdds,
+    uint256 penaltyBps
+);
+
+struct ParlayLeg {
+    address market;
+    uint256 outcomeId;
+}
+```
+
+**参数说明**：
+| 参数名 | 类型 | 索引 | 说明 |
+|--------|------|------|------|
+| `parlayId` | `uint256` | ✅ | 串关唯一标识符（自增 ID） |
+| `user` | `address` | ✅ | 创建串关的用户地址 |
+| `legs` | `ParlayLeg[]` | ❌ | 串关腿数组（市场地址 + 投注结果） |
+| `stake` | `uint256` | ❌ | 用户投注金额（USDC，6 decimals） |
+| `potentialPayout` | `uint256` | ❌ | 潜在赔付金额（USDC，6 decimals） |
+| `combinedOdds` | `uint256` | ❌ | 组合赔率（基点，10000 = 1.0） |
+| `penaltyBps` | `uint256` | ❌ | 相关性惩罚（基点，100 = 1%） |
+
+**触发时机**：
+- 调用 `Basket.createParlay()` 成功时
+- 满足条件：
+  - 腿数在 2-8 之间
+  - 所有市场状态为 Open
+  - 用户 USDC 余额充足
+  - 通过 CorrelationGuard 验证
+
+**Subgraph 映射**：
+- 创建新的 `Basket` 实体
+  - `id = parlayId.toString()`
+  - `creator = user`
+  - `markets = legs.map(leg => leg.market)`
+  - `outcomes = legs.map(leg => leg.outcomeId)`
+  - `marketCount = legs.length`
+  - `totalStake = toDecimal(stake, 6)`
+  - `potentialPayout = toDecimal(potentialPayout, 6)`
+  - `combinedOdds = toDecimal(combinedOdds, 4)`
+  - `correlationDiscount = penaltyBps`
+  - `adjustedOdds = combinedOdds * (1 - penaltyBps/10000)`
+  - `status = "Pending"`
+  - `createdAt = block.timestamp`
+- 更新用户统计
+
+**示例值**：
+```json
+{
+  "parlayId": "1",
+  "user": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "legs": [
+    {"market": "0xMarket1", "outcomeId": "0"},
+    {"market": "0xMarket2", "outcomeId": "1"}
+  ],
+  "stake": "100000000",
+  "potentialPayout": "400000000",
+  "combinedOdds": "40000",
+  "penaltyBps": "0"
+}
+```
+
+---
+
+### 2. ParlaySettled
+
+**事件签名**：
+```solidity
+event ParlaySettled(
+    uint256 indexed parlayId,
+    address indexed user,
+    ParlayStatus status,
+    uint256 payout
+);
+
+enum ParlayStatus {
+    Pending,   // 0
+    Won,       // 1
+    Lost,      // 2
+    Cancelled  // 3 (Refunded)
+}
+```
+
+**参数说明**：
+| 参数名 | 类型 | 索引 | 说明 |
+|--------|------|------|------|
+| `parlayId` | `uint256` | ✅ | 串关唯一标识符 |
+| `user` | `address` | ✅ | 串关创建者地址 |
+| `status` | `ParlayStatus` | ❌ | 结算状态（0=Pending, 1=Won, 2=Lost, 3=Cancelled） |
+| `payout` | `uint256` | ❌ | 实际赔付金额（USDC，6 decimals） |
+
+**触发时机**：
+- 调用 `Basket.settleParlay()` 成功时
+- 前置条件：
+  - 所有关联市场已 Finalized
+  - 串关状态为 Pending
+
+**Subgraph 映射**：
+- 更新 `Basket` 实体
+  - `status = getStatusString(status)`（Pending → Won/Lost/Refunded）
+  - `actualPayout = toDecimal(payout, 6)`
+  - `settledAt = block.timestamp`
+- 如果赢了（status = 1）：
+  - 更新 `User.totalRedeemed += actualPayout`
+  - 更新 `User.netProfit = totalRedeemed - totalBetAmount`
+
+**示例值**：
+```json
+{
+  "parlayId": "1",
+  "user": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "status": "1",
+  "payout": "400000000"
+}
+```
+
+---
+
+## PlayerProps 球员道具市场事件
+
+### 1. PlayerPropsMarketCreated
+
+**事件签名**：
+```solidity
+event PlayerPropsMarketCreated(
+    string indexed matchId,
+    string indexed playerId,
+    PropType indexed propType,
+    uint256 line,
+    uint256 kickoffTime
+);
+
+enum PropType {
+    GOALS_OU,       // 0: 进球数 O/U
+    ASSISTS_OU,     // 1: 助攻数 O/U
+    SHOTS_OU,       // 2: 射门数 O/U
+    YELLOW_CARD,    // 3: 是否得黄牌
+    RED_CARD,       // 4: 是否得红牌
+    ANYTIME_SCORER, // 5: 是否进球
+    FIRST_SCORER    // 6: 首个进球者
+}
+```
+
+**参数说明**：
+| 参数名 | 类型 | 索引 | 说明 |
+|--------|------|------|------|
+| `matchId` | `string` | ✅ | 赛事唯一标识符（keccak256 哈希） |
+| `playerId` | `string` | ✅ | 球员唯一标识符（keccak256 哈希） |
+| `propType` | `PropType` | ✅ | 道具类型枚举 |
+| `line` | `uint256` | ❌ | 盘口线（如进球数 1.5，18 decimals） |
+| `kickoffTime` | `uint256` | ❌ | 开赛时间（Unix 时间戳） |
+
+**触发时机**：
+- 调用 `PlayerProps_Template.initialize()` 成功时
+- 仅限 MARKET_CREATOR_ROLE 权限
+- 必须在开赛前创建
+
+**Subgraph 映射**：
+- 创建新的 `Market` 实体
+  - `templateId = "PLAYER_PROPS"`
+  - `matchId = contract.matchId()`（从合约读取原始值）
+  - `playerId = contract.playerId()`
+  - `playerName = contract.playerName()`
+  - `propType = getPropTypeString(propType)`
+  - `line = contract.line()`
+  - `homeTeam = ""` （PlayerProps 无主客队）
+  - `awayTeam = ""`
+  - `kickoffTime = kickoffTime`
+  - `state = "Open"`
+- 更新 `GlobalStats.totalMarkets += 1`
+
+**PropType 映射表**：
+| 枚举值 | 字符串 | 说明 |
+|--------|--------|------|
+| 0 | GOALS_OU | 进球数 O/U |
+| 1 | ASSISTS_OU | 助攻数 O/U |
+| 2 | SHOTS_OU | 射门数 O/U |
+| 3 | YELLOW_CARD | 是否得黄牌 |
+| 4 | RED_CARD | 是否得红牌 |
+| 5 | ANYTIME_SCORER | 是否进球 |
+| 6 | FIRST_SCORER | 首个进球者 |
+
+**示例值**：
+```json
+{
+  "matchId": "0x..." (keccak256 of "EPL_2024_MUN_vs_MCI"),
+  "playerId": "0x..." (keccak256 of "player_haaland"),
+  "propType": "0",
+  "line": "1500000000000000000",
+  "kickoffTime": "1731340800"
+}
+```
+
+---
+
+### 2. PlayerPropsBetPlaced
+
+**事件签名**：
+```solidity
+event PlayerPropsBetPlaced(
+    address indexed user,
+    uint256 indexed outcomeId,
+    string playerName,
+    uint256 amount,
+    uint256 shares
+);
+```
+
+**参数说明**：
+| 参数名 | 类型 | 索引 | 说明 |
+|--------|------|------|------|
+| `user` | `address` | ✅ | 下注用户地址 |
+| `outcomeId` | `uint256` | ✅ | 投注结果 ID（0/1 或更多） |
+| `playerName` | `string` | ❌ | 球员姓名（便于前端显示） |
+| `amount` | `uint256` | ❌ | 下注金额（USDC，6 decimals） |
+| `shares` | `uint256` | ❌ | 获得的 shares（ERC-1155 Token 数量） |
+
+**触发时机**：
+- 调用 `PlayerProps_Template.placeBet()` 成功时
+- 同时会触发标准的 `BetPlaced` 事件
+
+**Subgraph 映射**：
+- 与标准 `BetPlaced` 事件处理相同
+- 额外记录 `playerName` 便于前端查询
+- 创建/更新 `Order` 和 `Position` 实体
+- 更新市场和用户统计
+
+**示例值**：
+```json
+{
+  "user": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "outcomeId": "0",
+  "playerName": "Erling Haaland",
+  "amount": "50000000",
+  "shares": "49500000"
+}
+```
+
+---
+
+## ScoreTemplate 精确比分市场事件
+
+**注意**：ScoreTemplate 使用标准的 `MarketCreated` 和 `BetPlaced` 事件，无自定义事件。
+
+**特殊字段**：
+- `outcomeId` 编码：`HomeScore * 6 + AwayScore`
+  - 例如：1-1 = 1*6+1 = 7
+  - 例如：3-2 = 3*6+2 = 20
+  - 5+ (AnyOtherScore) = 35
+
+**Subgraph 处理**：
+- 在 `handleMarketCreated` 中识别 `templateId = "SCORE"`
+- 解码 `outcomeId` 获取实际比分
+- 支持 36 个结果（0-0 到 5+）
+
+---
+
+## Subgraph 映射说明（M3 更新）
+
+### 新增实体
+
+**Basket**：
+- `id`: String! (parlayId)
+- `creator`: User!
+- `markets`: [Bytes!]!
+- `outcomes`: [Int!]!
+- `marketCount`: Int!
+- `totalStake`: BigDecimal!
+- `potentialPayout`: BigDecimal!
+- `combinedOdds`: BigDecimal!
+- `correlationDiscount`: Int!
+- `adjustedOdds`: BigDecimal!
+- `status`: String! (Pending/Won/Lost/Refunded)
+- `actualPayout`: BigDecimal
+- `createdAt`: BigInt!
+- `settledAt`: BigInt
+
+### Market 实体扩展
+
+**PlayerProps 扩展字段**：
+- `playerId`: String
+- `playerName`: String
+- `propType`: String (GOALS_OU, ASSISTS_OU, ...)
+- `firstScorerPlayerIds`: [String!]
+- `firstScorerPlayerNames`: [String!]
+
+### 事件处理器映射
+
+| 合约 | 事件 | 处理器函数 | 文件 |
+|------|------|------------|------|
+| Basket | ParlayCreated | handleBasketCreated | basket.ts |
+| Basket | ParlaySettled | handleBasketSettled | basket.ts |
+| PlayerProps | PlayerPropsMarketCreated | handlePlayerPropsMarketCreated | market.ts |
+| PlayerProps | PlayerPropsBetPlaced | handleBetPlaced (复用) | market.ts |
+
+---
+
+## 相关文档
+
+- **合约源码**：
+  - `/contracts/src/parlay/Basket.sol`
+  - `/contracts/src/parlay/CorrelationGuard.sol`
+  - `/contracts/src/templates/PlayerProps_Template.sol`
+  - `/contracts/src/templates/ScoreTemplate.sol`
+  - `/contracts/src/pricing/LMSR.sol`
+- **测试用例**：
+  - `/contracts/test/integration/BasketIntegration.t.sol`
+  - `/contracts/test/unit/PlayerProps.t.sol`
+  - `/contracts/test/integration/ScoreTemplate_LMSR_Integration.t.sol`
+- **Subgraph**：
+  - `/subgraph/src/basket.ts`
+  - `/subgraph/src/market.ts`
+  - `/subgraph/schema.graphql`
+  - `/subgraph/M3_GRAPHQL_QUERIES.md`
+
+---
+
+**最后更新时间**：2025-11-08
 **维护者**：PitchOne 开发团队

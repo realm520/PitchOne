@@ -336,15 +336,10 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
   for (let i = 0; i < outcomeCount; i++) {
     const liquidity = outcomeLiquidity[i];
 
-    // 跳过流动性为 0 的结果（如半球盘的退款、未注入流动性的选项）
-    if (liquidity === 0n) {
-      continue;
-    }
-
     // 计算隐含概率（流动性占比）
     const probability = totalLiquidity > 0n
       ? Number(liquidity) / Number(totalLiquidity)
-      : 0;
+      : 1 / outcomeCount; // 如果没有流动性，使用平均概率
 
     // 计算赔率（1 / 概率，考虑手续费）
     const feeRate = Number(marketData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）

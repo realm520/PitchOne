@@ -23,7 +23,7 @@ export function Footer({ className, children }: FooterProps) {
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-neon">PitchOne</h3>
               <p className="text-sm text-gray-400">
-                去中心化链上足球博彩平台
+                去中心化链上足球预测平台
               </p>
             </div>
 

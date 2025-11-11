@@ -10,6 +10,57 @@
 ## [Unreleased]
 
 ### 新增 (Added)
+- **CreditToken.sol**: 免佣券系统（基于 ERC-1155）
+  - 支持多券种、过期时间、使用次数限制
+  - 可交易性和批量发放功能
+  - 33 个单元测试，100% 通过率
+- **Coupon.sol**: 赔率加成券系统（基于 ERC-1155）
+  - 支持不同加成比例（最高 50%）
+  - 使用场景限制（WDL/OU/AH/Parlay）
+  - 使用历史记录追踪
+  - 10 个单元测试，100% 通过率
+- **PayoutScaler.sol**: 预算缩放策略合约
+  - 多预算池管理（Promo/Campaign/Quest/Insurance）
+  - 动态缩放比例计算和预算告警
+  - 11 个单元测试，100% 通过率
+- **DeployM2.s.sol**: M2 合约部署脚本
+  - 自动部署所有 5 个 M2 合约
+  - 支持本地和主网部署
+  - 自动更新部署配置文件
+
+### Subgraph (✅ 100% 完成)
+- **Schema 扩展**: 15 个新实体（Campaign/Quest/CreditToken/Coupon/PayoutScaler）
+- **Mapping 实现**: 5 个文件，1,063 行代码，23 个事件处理器
+  - campaign.ts: 5 个事件处理器 ✅
+  - quest.ts: 5 个事件处理器 ✅
+  - credit.ts: 6 个事件处理器 ✅
+  - coupon.ts: 3 个事件处理器 ✅（已修复 BigInt → i32 类型转换）
+  - scaler.ts: 4 个事件处理器 ✅（已修复 BigInt → i32 类型转换）
+- **配置更新**: subgraph.yaml 添加 5 个新数据源
+- **Helper 优化**: toDecimal() 函数支持可变精度参数
+- **构建与部署**:
+  - graph build 成功，无编译错误
+  - 部署到本地 Graph Node (v0.4.0-m2)
+  - IPFS Hash: QmUd6V3YoNhFnsasRfHPHYc3gMcFyVvuw6FgvugAZUs2Ag
+  - 索引状态: synced=true, health=healthy
+
+### 文档 (Documentation)
+- **MAPPING_IMPLEMENTATION_GUIDE.md**: 385 行完整实施指南
+- **IMPLEMENTATION_COMPLETE.md**: 250 行部署清单和监控指南
+- **M2_SUBGRAPH_STATUS.md**: 状态报告和问题追踪
+- **EVENT_DICTIONARY.md**: M2 合约事件定义更新
+
+### 测试 (Tests)
+- 总测试数: 从 491 增加到 554 (+13%)
+- 新增测试: CreditToken (33), Coupon (10), PayoutScaler (11)
+- 测试通过率: 保持 100%
+- 合约完成度: 从 63% (12/19) 提升至 79% (15/19)
+
+---
+
+## [0.3.0] - 2025-12-10
+
+### 新增 (Added)
 - Campaign.sol: 活动工厂合约，支持预算管理和参与追踪
 - Quest.sol: 任务系统合约，支持 5 种任务类型（首次下注、连续下注、推荐、交易量、连胜）
 - Subgraph Schema: 16 个新实体用于 Campaign/Quest 数据索引

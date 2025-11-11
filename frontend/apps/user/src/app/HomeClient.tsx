@@ -29,7 +29,7 @@ export function HomeClient() {
             <span className="ml-4">⚽</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-400 mb-4">
-            去中心化链上足球博彩平台
+            去中心化链上足球预测平台
           </p>
           <p className="text-sm md:text-base text-gray-500 max-w-2xl mx-auto">
             全链透明 · 非托管资产 · 自动化结算 · 乐观式预言机
@@ -57,7 +57,7 @@ export function HomeClient() {
           <Link href="/markets" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="text-4xl mb-4">📊</div>
             <h3 className="text-xl font-semibold mb-2 group-hover:text-neon transition-colors">市场列表</h3>
-            <p className="text-gray-400 text-sm">浏览所有可下注的足球赛事市场</p>
+            <p className="text-gray-400 text-sm">浏览所有可预测的足球赛事市场</p>
           </Link>
 
           <Link href="/portfolio" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.2s' }}>
@@ -68,8 +68,8 @@ export function HomeClient() {
 
           <Link href="/parlay" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.3s' }}>
             <div className="text-4xl mb-4">🎯</div>
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-green transition-colors">串关下注</h3>
-            <p className="text-gray-400 text-sm">组合多场赛事，获取更高赔率</p>
+            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-green transition-colors">串关预测</h3>
+            <p className="text-gray-400 text-sm">组合多场赛事预测，获取更高收益</p>
           </Link>
         </div>
 

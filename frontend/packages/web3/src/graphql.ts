@@ -1,10 +1,10 @@
 import { GraphQLClient } from 'graphql-request';
 
-// Subgraph IPFS Hash（最新部署版本 v0.4.0）
-const SUBGRAPH_HASH = 'QmZFaPpEi8H6uAsDxWfENn87X4jV5tWNSfLJN8svMSkCdY';
+// Subgraph IPFS Hash（最新部署版本 v0.7.0 - 2025-11-07 全新合约 Block 591）
+const SUBGRAPH_HASH = 'QmYiU79Y3CaW7hNada1KGYcq4c1Hk8J6AUUesLYFhZ1Myu';
 
 // Subgraph Name（使用名称更稳定，不依赖 IPFS hash）
-const SUBGRAPH_NAME = 'pitchone-local';
+const SUBGRAPH_NAME = 'pitchone-sportsbook';
 
 // 获取 Subgraph URL（支持环境检测）
 function getSubgraphURL(): string {
@@ -21,7 +21,7 @@ function getSubgraphURL(): string {
   }
 
   // 服务端环境：直接访问 Graph Node（无 CORS 限制）
-  const url = `http://localhost:8000/subgraphs/name/${SUBGRAPH_NAME}`;
+  const url = `http://localhost:8010/subgraphs/name/${SUBGRAPH_NAME}`;
   console.log('[GraphQL Client] 服务端环境，直接访问:', url);
   return url;
 }

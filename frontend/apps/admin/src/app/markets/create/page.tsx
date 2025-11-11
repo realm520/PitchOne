@@ -9,24 +9,29 @@ import { encodeAbiParameters, parseAbiParameters, keccak256 } from 'viem';
 import Link from 'next/link';
 
 // 市场模板类型
+// Template ID 来源: contracts/script/Deploy.s.sol 输出
+// 注意: 这些 ID 必须与 MarketFactory 注册的模板一致
 const MARKET_TEMPLATES = [
   {
     id: 'WDL',
     name: '胜平负 (Win-Draw-Lose)',
     description: '经典三向盘口：主胜/平局/客胜',
-    version: '1.0.0',
+    version: 'V2', // 注意: 脚本中注册为 "V2" 而非 "1.0.0"
+    templateId: '0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc' as `0x${string}`,
   },
   {
     id: 'OU',
     name: '大小球 (Over/Under)',
     description: '单线大小球盘口',
     version: '1.0.0',
+    templateId: '0x6441bdfa8f4495d4dd881afce0e761e3a05085b4330b9db35c684a348ef2697f' as `0x${string}`,
   },
   {
-    id: 'OU_MULTI',
-    name: '大小球多线 (Over/Under Multi-Line)',
-    description: '多条盘口线联动定价',
+    id: 'OddEven',
+    name: '单双号 (Odd/Even)',
+    description: '总进球数单双号',
     version: '1.0.0',
+    templateId: '0xf1d71fd4a1d5c765ed93ae053cb712e5c2d053fc61d39d01a15c3aadf1da027b' as `0x${string}`,
   },
 ];
 
@@ -96,44 +101,66 @@ export default function CreateMarketPage() {
     }
   };
 
-  // 生成 initData
+  // 生成 initData (使用 encodeAbiParameters 匹配脚本行为)
   const generateInitData = () => {
     const kickoffTimestamp = BigInt(Math.floor(new Date(formData.kickoffTime).getTime() / 1000));
 
     if (formData.templateType === 'WDL') {
-      // WDL_Template 构造函数参数
+      // WDL_Template_V2.initialize() - 11 个参数
+      // 匹配 CreateMarkets.s.sol:312-325
       return encodeAbiParameters(
-        parseAbiParameters('string, string, string, uint256, address, address, uint256, uint256, address, string'),
+        parseAbiParameters('string, string, string, uint256, address, address, uint256, uint256, address, address, string'),
         [
-          formData.matchId,
-          formData.homeTeam,
-          formData.awayTeam,
-          kickoffTimestamp,
-          addresses!.usdc,
-          addresses!.feeRouter,
-          BigInt(formData.feeRate),
-          BigInt(formData.disputePeriod),
-          addresses!.simpleCPMM,
-          `https://api.pitchone.io/metadata/wdl/{id}`
+          formData.matchId,           // _matchId
+          formData.homeTeam,          // _homeTeam
+          formData.awayTeam,          // _awayTeam
+          kickoffTimestamp,           // _kickoffTime
+          addresses!.usdc,            // _settlementToken
+          addresses!.feeRouter,       // _feeRecipient
+          BigInt(formData.feeRate),   // _feeRate
+          BigInt(formData.disputePeriod), // _disputePeriod
+          addresses!.simpleCPMM,      // _pricingEngine
+          addresses!.vault!,          // _vault ⭐ 添加
+          `https://api.pitchone.io/metadata/wdl/${formData.matchId}` // _uri
         ]
       );
     } else if (formData.templateType === 'OU') {
-      // OU_Template 构造函数参数
+      // OU_Template.initialize() - 12 个参数 (含 _owner)
+      // 匹配 CreateMarkets.s.sol:349-363
       const lineInBps = BigInt(Math.floor(parseFloat(formData.line!) * 1000)); // 2.5 -> 2500
       return encodeAbiParameters(
-        parseAbiParameters('string, string, string, uint256, uint256, address, address, uint256, uint256, address, string'),
+        parseAbiParameters('string, string, string, uint256, uint256, address, address, uint256, uint256, address, string, address'),
+        [
+          formData.matchId,           // _matchId
+          formData.homeTeam,          // _homeTeam
+          formData.awayTeam,          // _awayTeam
+          kickoffTimestamp,           // _kickoffTime
+          lineInBps,                  // _line
+          addresses!.usdc,            // _settlementToken
+          addresses!.feeRouter,       // _feeRecipient
+          BigInt(formData.feeRate),   // _feeRate
+          BigInt(formData.disputePeriod), // _disputePeriod
+          addresses!.simpleCPMM,      // _pricingEngine
+          `https://api.pitchone.io/metadata/ou/${formData.matchId}`, // _uri
+          address!                     // _owner ⭐ 添加
+        ]
+      );
+    } else if (formData.templateType === 'OddEven') {
+      // OddEven_Template.initialize() - 11 个参数 (含 _owner)
+      return encodeAbiParameters(
+        parseAbiParameters('string, string, string, uint256, address, address, uint256, uint256, address, string, address'),
         [
           formData.matchId,
           formData.homeTeam,
           formData.awayTeam,
           kickoffTimestamp,
-          lineInBps,
           addresses!.usdc,
           addresses!.feeRouter,
           BigInt(formData.feeRate),
           BigInt(formData.disputePeriod),
           addresses!.simpleCPMM,
-          `https://api.pitchone.io/metadata/ou/{id}`
+          `https://api.pitchone.io/metadata/oddeven/${formData.matchId}`,
+          address!  // _owner
         ]
       );
     }
@@ -141,18 +168,11 @@ export default function CreateMarketPage() {
     throw new Error('Unsupported template type');
   };
 
-  // 生成 templateId
-  const generateTemplateId = (): `0x${string}` => {
+  // 获取 templateId (使用预定义的硬编码值)
+  const getTemplateId = (): `0x${string}` => {
     const template = MARKET_TEMPLATES.find(t => t.id === formData.templateType);
     if (!template) throw new Error('Template not found');
-
-    // templateId = keccak256(abi.encode(name, version))
-    // 使用 encodeAbiParameters 来匹配合约的 abi.encode(name, version) 逻辑
-    const encoded = encodeAbiParameters(
-      parseAbiParameters('string, string'),
-      [template.id, template.version]
-    );
-    return keccak256(encoded);
+    return template.templateId;
   };
 
   // 提交创建市场
@@ -171,7 +191,7 @@ export default function CreateMarketPage() {
     }
 
     try {
-      const templateId = generateTemplateId();
+      const templateId = getTemplateId();
       const initData = generateInitData();
 
       console.log('创建市场:', {
