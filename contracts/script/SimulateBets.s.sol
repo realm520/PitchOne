@@ -12,16 +12,15 @@ import "../test/mocks/MockERC20.sol";
  * @dev 支持多种模拟参数配置
  *
  * 使用方法：
- *   1. 确保已运行 Deploy.s.sol 和 CreateMarkets.s.sol
- *   2. 设置环境变量（可选）：
- *      export FACTORY_ADDRESS=0x...
- *      export USDC_ADDRESS=0x...
+ *   1. 确保已运行 Deploy.s.sol 和 CreateMarkets.s.sol，并生成了 deployments/localhost.json
+ *   2. 脚本会自动从 deployments/localhost.json 读取 Factory 和 USDC 地址
+ *   3. 设置环境变量（可选）：
  *      export NUM_BETTORS=10          # 下注用户数量
  *      export MIN_BET_AMOUNT=5        # 最小下注金额（USDC）
  *      export MAX_BET_AMOUNT=50       # 最大下注金额（USDC）
  *      export BETS_PER_USER=3         # 每个用户平均下注次数
  *      export OUTCOME_DISTRIBUTION=balanced  # 结果分布：balanced/skewed/random
- *   3. 运行脚本：
+ *   4. 运行脚本：
  *      forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
  *
  * 模拟参数说明：
@@ -35,6 +34,9 @@ import "../test/mocks/MockERC20.sol";
  *   - SKIP_LOCKED_MARKETS: 跳过已锁定的市场（默认 true）
  */
 contract SimulateBets is Script {
+    // Deployment JSON 路径
+    string constant DEPLOYMENT_FILE = "deployments/localhost.json";
+
     // Anvil 默认账户私钥（10个）
     uint256[] private testPrivateKeys = [
         0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80, // #0
@@ -48,10 +50,6 @@ contract SimulateBets is Script {
         0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97, // #8
         0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6  // #9
     ];
-
-    // 默认地址
-    address constant DEFAULT_FACTORY = 0x22753E4264FDDc6181dc7cce468904A80a363E44;
-    address constant DEFAULT_USDC = 0xc96304e3c037f81dA488ed9dEa1D8F2a48278a75;
 
     // 下注统计
     struct BettingStats {
@@ -67,9 +65,10 @@ contract SimulateBets is Script {
         console.log("  Simulate Multi-User Betting");
         console.log("========================================\n");
 
-        // 读取配置
-        address factoryAddr = vm.envOr("FACTORY_ADDRESS", DEFAULT_FACTORY);
-        address usdcAddr = vm.envOr("USDC_ADDRESS", DEFAULT_USDC);
+        // 读取部署配置文件
+        string memory deploymentJson = vm.readFile(DEPLOYMENT_FILE);
+        address factoryAddr = vm.parseJsonAddress(deploymentJson, ".contracts.factory");
+        address usdcAddr = vm.parseJsonAddress(deploymentJson, ".contracts.usdc");
         uint256 numBettors = vm.envOr("NUM_BETTORS", uint256(10));
         uint256 minBetAmount = vm.envOr("MIN_BET_AMOUNT", uint256(5)) * 1e6;
         uint256 maxBetAmount = vm.envOr("MAX_BET_AMOUNT", uint256(50)) * 1e6;
@@ -88,7 +87,8 @@ contract SimulateBets is Script {
         console.log("  Factory:", factoryAddr);
         console.log("  USDC:", usdcAddr);
         console.log("  Bettors:", numBettors);
-        console.log("  Bet Amount:", minBetAmount / 1e6, "-", maxBetAmount / 1e6, "USDC");
+        console.log("  Min Bet Amount (USDC):", minBetAmount / 1e6);
+        console.log("  Max Bet Amount (USDC):", maxBetAmount / 1e6);
         console.log("  Bets per User:", betsPerUser);
         console.log("  Distribution:", distribution);
         console.log("  Skip Locked:", skipLocked);
@@ -208,24 +208,23 @@ contract SimulateBets is Script {
                     userBets++;
                     userVolume += betAmount;
 
-                    console.log(
-                        "  Bet #", b + 1, ":",
-                        betAmount / 1e6, "USDC",
-                        "-> Outcome", outcomeId,
-                        "->", shares / 1e18, "shares"
-                    );
+                    console.log("  Bet placed successfully");
+                    console.log("    Amount (USDC):", betAmount / 1e6);
+                    console.log("    Outcome:", outcomeId);
+                    console.log("    Shares:", shares / 1e18);
                 } catch Error(string memory reason) {
                     stats.totalBets++;
                     stats.failedBets++;
-                    console.log("  Bet #", b + 1, ": FAILED -", reason);
+                    console.log("  Bet FAILED:", reason);
                 } catch {
                     stats.totalBets++;
                     stats.failedBets++;
-                    console.log("  Bet #", b + 1, ": FAILED - Unknown error");
+                    console.log("  Bet FAILED: Unknown error");
                 }
             }
 
-            console.log("  Total:", userBets, "bets,", userVolume / 1e6, "USDC");
+            console.log("  Total bets:", userBets);
+            console.log("  Total volume (USDC):", userVolume / 1e6);
             console.log("");
 
             vm.stopBroadcast();

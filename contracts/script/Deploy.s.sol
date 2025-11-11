@@ -5,11 +5,17 @@ import "forge-std/Script.sol";
 import "../src/core/MarketFactory_v2.sol";
 import "../src/templates/WDL_Template_V2.sol";
 import "../src/templates/OU_Template.sol";
+import "../src/templates/OU_MultiLine.sol";
+import "../src/templates/AH_Template.sol";
 import "../src/templates/OddEven_Template.sol";
+import "../src/templates/ScoreTemplate.sol";
+import "../src/templates/PlayerProps_Template.sol";
 import "../src/liquidity/LiquidityVault.sol";
 import "../src/core/FeeRouter.sol";
 import "../src/core/ReferralRegistry.sol";
 import "../src/pricing/SimpleCPMM.sol";
+import "../src/pricing/LMSR.sol";
+import "../src/pricing/LinkedLinesController.sol";
 import "../test/mocks/MockERC20.sol";
 
 /**
@@ -55,10 +61,18 @@ contract Deploy is Script {
         address factory;
         address wdlTemplate;
         address ouTemplate;
+        address ouMultiLineTemplate;
+        address ahTemplate;
         address oddEvenTemplate;
+        address scoreTemplate;
+        address playerPropsTemplate;
         bytes32 wdlTemplateId;
         bytes32 ouTemplateId;
+        bytes32 ouMultiLineTemplateId;
+        bytes32 ahTemplateId;
         bytes32 oddEvenTemplateId;
+        bytes32 scoreTemplateId;
+        bytes32 playerPropsTemplateId;
     }
 
     // 网络配置（主网 USDC 地址）
@@ -177,6 +191,33 @@ contract Deploy is Script {
         console.log("OddEven_Template Implementation:", address(oddEvenTemplate));
         console.log("OddEven Template ID:", vm.toString(oddEvenTemplateId));
 
+        // OU_MultiLine Template - 部署未初始化的实现合约
+        OU_MultiLine ouMultiLineTemplate = new OU_MultiLine();
+        bytes32 ouMultiLineTemplateId = factory.registerTemplate("OU_MultiLine", "1.0.0", address(ouMultiLineTemplate));
+        console.log("OU_MultiLine_Template Implementation:", address(ouMultiLineTemplate));
+        console.log("OU_MultiLine Template ID:", vm.toString(ouMultiLineTemplateId));
+
+        // AH Template - 部署未初始化的实现合约
+        AH_Template ahTemplate = new AH_Template();
+        bytes32 ahTemplateId = factory.registerTemplate("AH", "1.0.0", address(ahTemplate));
+        console.log("AH_Template Implementation:", address(ahTemplate));
+        console.log("AH Template ID:", vm.toString(ahTemplateId));
+
+        // ScoreTemplate - 部署未初始化的实现合约
+        ScoreTemplate scoreTemplate = new ScoreTemplate();
+        bytes32 scoreTemplateId = factory.registerTemplate("Score", "1.0.0", address(scoreTemplate));
+        console.log("ScoreTemplate Implementation:", address(scoreTemplate));
+        console.log("Score Template ID:", vm.toString(scoreTemplateId));
+
+        // PlayerProps Template - 部署未初始化的实现合约
+        PlayerProps_Template playerPropsTemplate = new PlayerProps_Template();
+        bytes32 playerPropsTemplateId = factory.registerTemplate("PlayerProps", "1.0.0", address(playerPropsTemplate));
+        console.log("PlayerProps_Template Implementation:", address(playerPropsTemplate));
+        console.log("PlayerProps Template ID:", vm.toString(playerPropsTemplateId));
+
+        console.log("\nAll 7 Market Templates Registered!");
+        console.log("\nNote: LMSR and LinkedLinesController will be deployed per-market as needed");
+
         // ========================================
         // 5. 初始化 LP（仅测试网）
         // ========================================
@@ -210,15 +251,23 @@ contract Deploy is Script {
         console.log("  ReferralRegistry:", address(referralRegistry));
         console.log("  MarketFactory_v2:", address(factory));
 
-        console.log("\nMarket Templates:");
-        console.log("  WDL_Template_V2:", address(wdlTemplate));
-        console.log("  OU_Template:", address(ouTemplate));
-        console.log("  OddEven_Template:", address(oddEvenTemplate));
+        console.log("\nMarket Templates (7 types):");
+        console.log("  1. WDL_Template_V2:", address(wdlTemplate));
+        console.log("  2. OU_Template:", address(ouTemplate));
+        console.log("  3. OU_MultiLine_Template:", address(ouMultiLineTemplate));
+        console.log("  4. AH_Template:", address(ahTemplate));
+        console.log("  5. OddEven_Template:", address(oddEvenTemplate));
+        console.log("  6. ScoreTemplate:", address(scoreTemplate));
+        console.log("  7. PlayerProps_Template:", address(playerPropsTemplate));
 
-        console.log("\nTemplate IDs (for CreateMarket.s.sol):");
+        console.log("\nTemplate IDs (for CreateAllMarketTypes.s.sol):");
         console.log("  WDL:", vm.toString(wdlTemplateId));
         console.log("  OU:", vm.toString(ouTemplateId));
+        console.log("  OU_MultiLine:", vm.toString(ouMultiLineTemplateId));
+        console.log("  AH:", vm.toString(ahTemplateId));
         console.log("  OddEven:", vm.toString(oddEvenTemplateId));
+        console.log("  Score:", vm.toString(scoreTemplateId));
+        console.log("  PlayerProps:", vm.toString(playerPropsTemplateId));
 
         if (config.usdc == address(0)) {
             console.log("\nVault Status:");
@@ -232,7 +281,8 @@ contract Deploy is Script {
         console.log("1. Update subgraph/subgraph.yaml:");
         console.log("   - Factory address:", address(factory));
         console.log("   - FeeRouter address:", address(feeRouter));
-        console.log("2. Run CreateMarket.s.sol to create test markets");
+        console.log("2. Run CreateAllMarketTypes.s.sol to create 36 test markets");
+        console.log("   (All 7 market types, 3+ markets each)");
         console.log("3. Run SimulateBets.s.sol to generate test data");
         console.log("========================================\n");
 
@@ -245,10 +295,18 @@ contract Deploy is Script {
             factory: address(factory),
             wdlTemplate: address(wdlTemplate),
             ouTemplate: address(ouTemplate),
+            ouMultiLineTemplate: address(ouMultiLineTemplate),
+            ahTemplate: address(ahTemplate),
             oddEvenTemplate: address(oddEvenTemplate),
+            scoreTemplate: address(scoreTemplate),
+            playerPropsTemplate: address(playerPropsTemplate),
             wdlTemplateId: wdlTemplateId,
             ouTemplateId: ouTemplateId,
-            oddEvenTemplateId: oddEvenTemplateId
+            ouMultiLineTemplateId: ouMultiLineTemplateId,
+            ahTemplateId: ahTemplateId,
+            oddEvenTemplateId: oddEvenTemplateId,
+            scoreTemplateId: scoreTemplateId,
+            playerPropsTemplateId: playerPropsTemplateId
         });
     }
 

@@ -1,0 +1,32 @@
+{
+  "name": "pitchone-market-creator",
+  "version": "2.1.0",
+  "description": "TypeScript script to create PitchOne markets (supports all 7 market types, preset mode fully replaces CreateAllMarketTypes.s.sol)",
+  "scripts": {
+    "create": "tsx createMarkets.ts",
+    "create:all": "tsx createMarkets.ts --all --count 3",
+    "create:wdl": "tsx createMarkets.ts --type wdl --count 5",
+    "create:ou": "tsx createMarkets.ts --type ou --count 5",
+    "create:ou-multiline": "tsx createMarkets.ts --type ou_multiline --count 3",
+    "create:ah": "tsx createMarkets.ts --type ah --count 5",
+    "create:oddeven": "tsx createMarkets.ts --type oddeven --count 5",
+    "create:score": "tsx createMarkets.ts --type score --count 3",
+    "create:playerprops": "tsx createMarkets.ts --type playerprops --count 5",
+    "create:preset": "tsx createMarkets.ts --preset --all",
+    "create:preset:wdl": "tsx createMarkets.ts --preset --type wdl --count 5",
+    "create:preset:ou": "tsx createMarkets.ts --preset --type ou --count 6",
+    "create:preset:ou-multiline": "tsx createMarkets.ts --preset --type ou_multiline --count 3",
+    "create:preset:ah": "tsx createMarkets.ts --preset --type ah --count 5",
+    "create:preset:oddeven": "tsx createMarkets.ts --preset --type oddeven --count 5",
+    "create:preset:score": "tsx createMarkets.ts --preset --type score --count 3",
+    "create:preset:playerprops": "tsx createMarkets.ts --preset --type playerprops --count 9"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
