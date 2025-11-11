@@ -163,11 +163,128 @@ func (a *Aggregator) aggregateTradingRewards(ctx context.Context, weekStart, wee
 	return rewards, rows.Err()
 }
 
-// aggregateCampaignRewards 聚合活动奖励
+// aggregateCampaignRewards 聚合活动奖励（Campaign + Quest）
 func (a *Aggregator) aggregateCampaignRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
-	// TODO: 实现活动奖励逻辑
-	// 这里简化处理，返回空
-	return make(map[common.Address]*big.Int), nil
+	rewards := make(map[common.Address]*big.Int)
+
+	// 1. 聚合 Quest 完成奖励
+	questRewards, err := a.aggregateQuestRewards(ctx, weekStart, weekEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate quest rewards: %w", err)
+	}
+	for user, amount := range questRewards {
+		rewards[user] = amount
+	}
+
+	// 2. 聚合 Campaign 参与奖励
+	campaignRewards, err := a.aggregateCampaignParticipationRewards(ctx, weekStart, weekEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate campaign rewards: %w", err)
+	}
+	for user, amount := range campaignRewards {
+		if existing, ok := rewards[user]; ok {
+			rewards[user] = new(big.Int).Add(existing, amount)
+		} else {
+			rewards[user] = amount
+		}
+	}
+
+	return rewards, nil
+}
+
+// aggregateQuestRewards 聚合任务完成奖励
+// 假设数据库有 quest_completions 表记录用户完成的任务
+func (a *Aggregator) aggregateQuestRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
+	// 查询：从 Quest 合约事件索引的数据
+	// 注意：这里假设 Indexer 已经将 QuestCompleted 事件存入数据库
+	query := `
+		SELECT
+			user_address,
+			SUM(reward_amount) as total_rewards
+		FROM quest_completions
+		WHERE completed_at >= $1
+			AND completed_at < $2
+			AND reward_claimed = true
+		GROUP BY user_address
+	`
+
+	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
+	if err != nil {
+		// 如果表不存在（开发早期），返回空而不是错误
+		if err.Error() == "relation \"quest_completions\" does not exist" {
+			return make(map[common.Address]*big.Int), nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	rewards := make(map[common.Address]*big.Int)
+
+	for rows.Next() {
+		var userHex string
+		var rewardStr string
+
+		if err := rows.Scan(&userHex, &rewardStr); err != nil {
+			return nil, err
+		}
+
+		user := common.HexToAddress(userHex)
+		reward, ok := new(big.Int).SetString(rewardStr, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid quest reward amount: %s", rewardStr)
+		}
+
+		rewards[user] = reward
+	}
+
+	return rewards, rows.Err()
+}
+
+// aggregateCampaignParticipationRewards 聚合活动参与奖励
+// 假设数据库有 campaign_participations 表记录用户参与活动
+func (a *Aggregator) aggregateCampaignParticipationRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
+	// 查询：从 Campaign 合约事件索引的数据
+	query := `
+		SELECT
+			participant_address,
+			SUM(reward_amount) as total_rewards
+		FROM campaign_participations
+		WHERE participated_at >= $1
+			AND participated_at < $2
+			AND reward_claimed = true
+		GROUP BY participant_address
+	`
+
+	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
+	if err != nil {
+		// 如果表不存在，返回空
+		if err.Error() == "relation \"campaign_participations\" does not exist" {
+			return make(map[common.Address]*big.Int), nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	rewards := make(map[common.Address]*big.Int)
+
+	for rows.Next() {
+		var userHex string
+		var rewardStr string
+
+		if err := rows.Scan(&userHex, &rewardStr); err != nil {
+			return nil, err
+		}
+
+		user := common.HexToAddress(userHex)
+		reward, ok := new(big.Int).SetString(rewardStr, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid campaign reward amount: %s", rewardStr)
+		}
+
+		rewards[user] = reward
+	}
+
+	return rewards, rows.Err()
 }
 
 // mergeRewards 合并多个奖励映射

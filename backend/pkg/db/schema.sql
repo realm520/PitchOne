@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS markets (
     away_team VARCHAR(100),                    -- 客队名称
     kickoff_time BIGINT NOT NULL,              -- 开赛时间 (Unix timestamp)
     status VARCHAR(20) NOT NULL,               -- Open/Locked/Resolved/Finalized/Refundable
-    locked_at BIGINT,                          -- 锁盘时间
     resolved_at BIGINT,                        -- 结算时间
     finalized_at BIGINT,                       -- 终结时间
     winner_outcome INT,                        -- 赢家结果 (0=主胜, 1=平, 2=客胜, -1=取消)
