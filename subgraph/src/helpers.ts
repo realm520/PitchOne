@@ -26,12 +26,18 @@ export const USDC_DECIMALS = 6;
 export const USDC_DIVISOR = BigInt.fromI32(10).pow(USDC_DECIMALS as u8);
 
 /**
- * 将 BigInt (wei) 转换为 BigDecimal (USDC)
+ * 将 BigInt (wei) 转换为 BigDecimal
  * @param value - 金额（wei）
- * @returns BigDecimal 表示的 USDC 金额
+ * @param decimals - 小数位数（默认 6 for USDC）
+ * @returns BigDecimal 表示的金额
  */
-export function toDecimal(value: BigInt): BigDecimal {
-  return value.toBigDecimal().div(USDC_DIVISOR.toBigDecimal());
+export function toDecimal(value: BigInt, decimals: i32 = 6): BigDecimal {
+  if (decimals == 6) {
+    return value.toBigDecimal().div(USDC_DIVISOR.toBigDecimal());
+  }
+
+  const divisor = BigInt.fromI32(10).pow(decimals as u8);
+  return value.toBigDecimal().div(divisor.toBigDecimal());
 }
 
 /**

@@ -87,6 +87,22 @@ type Market @entity(immutable: false) {
 
   "关联的赎回记录"
   redemptions: [Redemption!]! @derivedFrom(field: "market")
+
+  # ============ PlayerProps 扩展字段 ============
+  "球员 ID（仅 PlayerProps 市场）"
+  playerId: String
+
+  "球员姓名（仅 PlayerProps 市场）"
+  playerName: String
+
+  "道具类型（仅 PlayerProps 市场）: GOALS_OU, ASSISTS_OU, SHOTS_OU, YELLOW_CARD, RED_CARD, ANYTIME_SCORER, FIRST_SCORER"
+  propType: String
+
+  "首球球员 ID 列表（仅 FIRST_SCORER 市场）"
+  firstScorerPlayerIds: [String!]
+
+  "首球球员姓名列表（仅 FIRST_SCORER 市场）"
+  firstScorerPlayerNames: [String!]
 }
 
 enum MarketState {
@@ -152,6 +168,9 @@ type User @entity(immutable: false) {
 
   "领取的任务奖励"
   questRewardsClaimed: [QuestRewardClaim!]! @derivedFrom(field: "user")
+
+  "创建的串关"
+  baskets: [Basket!]! @derivedFrom(field: "creator")
 }
 
 # ============================================================================
@@ -379,6 +398,160 @@ type FeeDistribution @entity(immutable: false) {
   category: String!
 
   "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+# ============================================================================
+# Basket（串关）实体
+# ============================================================================
+
+"""
+Basket - 串关市场
+代表用户创建的多市场组合下注
+"""
+type Basket @entity(immutable: false) {
+  "Basket ID（合约地址-basketId）"
+  id: ID!
+
+  "创建者"
+  creator: User!
+
+  "包含的市场地址列表"
+  markets: [Bytes!]!
+
+  "每个市场对应的结果选择（outcome）"
+  outcomes: [Int!]!
+
+  "市场数量"
+  marketCount: Int!
+
+  "总下注金额（USDC）"
+  totalStake: BigDecimal!
+
+  "组合赔率（18 decimals）"
+  combinedOdds: BigDecimal!
+
+  "相关性折扣（基点，如 9800 = 98%）"
+  correlationDiscount: Int!
+
+  "折扣后赔率"
+  adjustedOdds: BigDecimal!
+
+  "潜在赢利"
+  potentialPayout: BigDecimal!
+
+  "状态: Pending, Won, Lost, Refunded"
+  status: BasketStatus!
+
+  "实际赔付金额（结算后）"
+  actualPayout: BigDecimal
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "结算时间"
+  settledAt: BigInt
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+enum BasketStatus {
+  Pending
+  Won
+  Lost
+  Refunded
+}
+
+"""
+CorrelationRule - 相关性规则
+记录 CorrelationGuard 中定义的相关性规则
+"""
+type CorrelationRule @entity(immutable: false) {
+  "规则 ID（ruleHash）"
+  id: ID!
+
+  "市场模板 A（如 WDL）"
+  templateA: String!
+
+  "市场模板 B（如 OU）"
+  templateB: String!
+
+  "赛事 A（matchId）"
+  matchA: String!
+
+  "赛事 B（matchId）"
+  matchB: String!
+
+  "结果方向 A"
+  outcomeA: Int!
+
+  "结果方向 B"
+  outcomeB: Int!
+
+  "惩罚类型: Discount, Block"
+  penaltyType: PenaltyType!
+
+  "折扣比例（基点，仅 Discount 类型有效）"
+  discountBps: Int
+
+  "是否启用"
+  isActive: Boolean!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "创建者"
+  creator: Bytes!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "应用记录"
+  applications: [CorrelationApplication!]! @derivedFrom(field: "rule")
+}
+
+enum PenaltyType {
+  Discount
+  Block
+}
+
+"""
+CorrelationApplication - 相关性规则应用记录
+记录规则被应用到具体 Basket 的情况
+"""
+type CorrelationApplication @entity(immutable: false) {
+  "应用 ID（txHash-logIndex）"
+  id: ID!
+
+  "应用的规则"
+  rule: CorrelationRule!
+
+  "关联的 Basket"
+  basket: Basket!
+
+  "应用的折扣比例（基点）"
+  appliedDiscountBps: Int!
+
+  "应用前赔率"
+  oddsBeforeDiscount: BigDecimal!
+
+  "应用后赔率"
+  oddsAfterDiscount: BigDecimal!
+
+  "应用时间"
   timestamp: BigInt!
 
   "区块号"
@@ -909,4 +1082,355 @@ type QuestStats @entity(immutable: false) {
 
   "最后更新时间"
   lastUpdatedAt: BigInt!
+}
+
+# ============================================================================
+# CreditToken 免佣券实体
+# ============================================================================
+
+"""
+CreditType - 券种配置
+免佣券的券种定义
+"""
+type CreditType @entity(immutable: false) {
+  "券种 ID"
+  id: ID!
+
+  "面额（USDC，6 decimals）"
+  value: BigDecimal!
+
+  "折扣比例（基点，10000 = 100%）"
+  discountBps: Int!
+
+  "过期时间戳（0 = 永不过期）"
+  expiresAt: BigInt!
+
+  "最大使用次数（0 = 无限制）"
+  maxUses: Int!
+
+  "是否启用"
+  isActive: Boolean!
+
+  "元数据 URI"
+  metadata: String
+
+  "总发行量"
+  totalSupply: BigInt!
+
+  "总使用次数"
+  totalUsed: BigInt!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "使用记录"
+  usages: [CreditUsage!]! @derivedFrom(field: "creditType")
+}
+
+"""
+CreditUsage - 券使用记录
+记录用户使用免佣券的详情
+"""
+type CreditUsage @entity(immutable: false) {
+  "使用 ID（txHash-logIndex）"
+  id: ID!
+
+  "券种"
+  creditType: CreditType!
+
+  "使用用户"
+  user: User!
+
+  "使用数量"
+  amount: Int!
+
+  "折扣金额（USDC）"
+  discountValue: BigDecimal!
+
+  "使用时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+CreditBalance - 用户券余额
+记录用户持有的各类券余额
+"""
+type CreditBalance @entity(immutable: false) {
+  "余额 ID（creditType-user）"
+  id: ID!
+
+  "券种"
+  creditType: CreditType!
+
+  "持有用户"
+  user: Bytes!
+
+  "余额"
+  balance: BigInt!
+
+  "已使用次数（针对有次数限制的券）"
+  usedCount: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
+
+# ============================================================================
+# Coupon 加成券实体
+# ============================================================================
+
+"""
+CouponType - 券种配置
+赔率加成券的券种定义
+"""
+type CouponType @entity(immutable: false) {
+  "券种 ID"
+  id: ID!
+
+  "加成比例（基点，如 500 = 5%）"
+  boostBps: Int!
+
+  "使用场景: ALL, WDL_ONLY, OU_ONLY, AH_ONLY, PARLAY_ONLY"
+  scope: String!
+
+  "最低下注额（USDC，0 = 无限制）"
+  minBetAmount: BigDecimal!
+
+  "最大赔率限制（18 decimals，0 = 无限制）"
+  maxOdds: BigDecimal!
+
+  "过期时间戳（0 = 永不过期）"
+  expiresAt: BigInt!
+
+  "最大使用次数（0 = 无限制）"
+  maxUses: Int!
+
+  "是否启用"
+  isActive: Boolean!
+
+  "元数据 URI"
+  metadata: String
+
+  "总发行量"
+  totalSupply: BigInt!
+
+  "总使用次数"
+  totalUsed: BigInt!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "使用记录"
+  usages: [CouponUsage!]! @derivedFrom(field: "couponType")
+}
+
+"""
+CouponUsage - 券使用记录
+记录用户使用加成券的详情
+"""
+type CouponUsage @entity(immutable: false) {
+  "使用 ID（txHash-logIndex）"
+  id: ID!
+
+  "券种"
+  couponType: CouponType!
+
+  "使用用户"
+  user: User!
+
+  "关联市场"
+  market: Bytes!
+
+  "下注金额（USDC）"
+  betAmount: BigDecimal!
+
+  "原始赔率"
+  originalOdds: BigDecimal!
+
+  "加成后赔率"
+  boostedOdds: BigDecimal!
+
+  "使用时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+CouponBalance - 用户券余额
+记录用户持有的各类加成券余额
+"""
+type CouponBalance @entity(immutable: false) {
+  "余额 ID（couponType-user）"
+  id: ID!
+
+  "券种"
+  couponType: CouponType!
+
+  "持有用户"
+  user: Bytes!
+
+  "余额"
+  balance: BigInt!
+
+  "已使用次数（针对有次数限制的券）"
+  usedCount: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+}
+
+# ============================================================================
+# PayoutScaler 预算缩放实体
+# ============================================================================
+
+"""
+BudgetPool - 预算池
+记录各个预算池的状态
+"""
+type BudgetPool @entity(immutable: false) {
+  "预算池 ID: PROMO, CAMPAIGN, QUEST, INSURANCE"
+  id: ID!
+
+  "总预算"
+  totalBudget: BigDecimal!
+
+  "已使用预算"
+  usedBudget: BigDecimal!
+
+  "待发放金额"
+  pendingPayout: BigDecimal!
+
+  "可用预算"
+  availableBudget: BigDecimal!
+
+  "最后充值时间"
+  lastRefillAt: BigInt!
+
+  "是否启用自动缩放"
+  autoScaleEnabled: Boolean!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+
+  "充值记录"
+  refills: [BudgetRefill!]! @derivedFrom(field: "pool")
+
+  "缩放记录"
+  scalings: [ScalingRecord!]! @derivedFrom(field: "pool")
+}
+
+"""
+BudgetRefill - 预算充值记录
+记录预算池的充值操作
+"""
+type BudgetRefill @entity(immutable: false) {
+  "充值 ID（txHash-logIndex）"
+  id: ID!
+
+  "预算池"
+  pool: BudgetPool!
+
+  "充值金额"
+  amount: BigDecimal!
+
+  "充值后总预算"
+  newTotal: BigDecimal!
+
+  "充值时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+ScalingRecord - 缩放记录
+记录预算缩放计算的详细信息
+"""
+type ScalingRecord @entity(immutable: false) {
+  "记录 ID（txHash-logIndex）"
+  id: ID!
+
+  "预算池"
+  pool: BudgetPool!
+
+  "周期编号（如周编号）"
+  period: BigInt!
+
+  "请求金额"
+  requestedAmount: BigDecimal!
+
+  "可用预算"
+  availableBudget: BigDecimal!
+
+  "缩放比例（基点）"
+  scaleBps: Int!
+
+  "缩放后金额"
+  scaledAmount: BigDecimal!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+BudgetUsage - 预算使用记录
+记录实际发放后的预算使用
+"""
+type BudgetUsage @entity(immutable: false) {
+  "使用 ID（txHash-logIndex）"
+  id: ID!
+
+  "预算池"
+  pool: BudgetPool!
+
+  "周期编号"
+  period: BigInt!
+
+  "使用金额"
+  amount: BigDecimal!
+
+  "剩余预算"
+  remainingBudget: BigDecimal!
+
+  "使用时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
 }

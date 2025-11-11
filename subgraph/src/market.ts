@@ -18,6 +18,7 @@ import {
 import { OU_Template } from "../generated/templates/OUMarket/OU_Template";
 import { OU_MultiLine } from "../generated/templates/OUMultiMarket/OU_MultiLine";
 import { OddEven_Template } from "../generated/templates/OddEvenMarket/OddEven_Template";
+import { PlayerProps_Template } from "../generated/templates/PlayerPropsMarket/PlayerProps_Template";
 import {
   LiquidityAdded as LiquidityAddedEvent,
 } from "../generated/OldMarket1_MUN_vs_MCI/MarketBase";
@@ -564,4 +565,91 @@ export function handleLiquidityAdded(event: LiquidityAddedEvent): void {
   let stats = loadOrCreateGlobalStats();
   stats.lastUpdatedAt = event.block.timestamp;
   stats.save();
+}
+
+// ============================================================================
+// PlayerProps 球员道具市场事件
+// ============================================================================
+
+/**
+ * 处理 PlayerProps 市场创建事件
+ * event MarketCreated(
+ *   string indexed matchId,
+ *   string playerId,
+ *   string playerName,
+ *   uint8 propType,
+ *   uint256 line,
+ *   uint256 kickoffTime,
+ *   address pricingEngine
+ * );
+ */
+export function handlePlayerPropsMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const kickoffTime = event.params.kickoffTime;
+
+  // 加载或创建市场实体
+  let market = Market.load(marketAddress.toHexString());
+  let isNewMarket = market === null;
+
+  if (isNewMarket) {
+    // 从合约读取详细信息
+    let marketContract = PlayerProps_Template.bind(event.address);
+
+    // 创建市场实体
+    market = new Market(marketAddress.toHexString());
+    market.templateId = "PLAYER_PROPS"; // PlayerProps 模板
+    market.matchId = marketContract.matchId();
+    market.homeTeam = ""; // PlayerProps 没有主客队概念，留空
+    market.awayTeam = "";
+    market.kickoffTime = kickoffTime;
+    market.ruleVer = Bytes.empty();
+    market.state = "Open";
+    market.createdAt = event.block.timestamp;
+    market.totalVolume = ZERO_BD;
+    market.feeAccrued = ZERO_BD;
+    market.lpLiquidity = ZERO_BD;
+    market.uniqueBettors = 0;
+    market.oracle = null;
+    market.pricingEngine = null;
+
+    // PlayerProps 扩展字段
+    market.playerId = marketContract.playerId();
+    market.playerName = marketContract.playerName();
+
+    // PropType 枚举转字符串
+    const propType = marketContract.propType();
+    market.propType = getPropTypeString(propType);
+
+    // Line（如果是 O/U 类型）
+    market.line = marketContract.line();
+
+    // Note: firstScorerPlayerIds 和 firstScorerPlayerNames 字段暂不从合约读取
+    // 如果未来合约添加了这些 getter 方法，可以在这里调用
+    // 目前保持为 null（Schema 中定义为可选字段）
+  }
+
+  market!.save();
+
+  // 只有新市场才更新全局统计
+  if (isNewMarket) {
+    let stats = loadOrCreateGlobalStats();
+    stats.totalMarkets = stats.totalMarkets + 1;
+    stats.activeMarkets = stats.activeMarkets + 1;
+    stats.lastUpdatedAt = event.block.timestamp;
+    stats.save();
+  }
+}
+
+/**
+ * 将 PropType 枚举转换为字符串
+ */
+function getPropTypeString(propType: i32): string {
+  if (propType == 0) return "GOALS_OU";
+  if (propType == 1) return "ASSISTS_OU";
+  if (propType == 2) return "SHOTS_OU";
+  if (propType == 3) return "YELLOW_CARD";
+  if (propType == 4) return "RED_CARD";
+  if (propType == 5) return "ANYTIME_SCORER";
+  if (propType == 6) return "FIRST_SCORER";
+  return "UNKNOWN";
 }
