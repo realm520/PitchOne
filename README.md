@@ -123,20 +123,44 @@ graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbo
 
 ## 核心模块
 
-### 智能合约（10/19 完成，344 测试全部通过）
+### 智能合约（19/19 完成 ✅，491 测试全部通过）
 
-- ✅ **MarketBase** - 市场基础合约（Open → Locked → Resolved）
-- ✅ **MarketTemplateRegistry** - 玩法模板注册
-- ✅ **SimpleCPMM** - 恒定乘积做市商（23 测试，97.5% 覆盖率）
-- ✅ **LinkedLinesController** - 相邻线联动控制器（19 测试，92.45% 覆盖率）
+**核心基础设施**:
+- ✅ **MarketBase** - 市场基础合约（Open → Locked → Resolved → Finalized）
+- ✅ **MarketTemplateRegistry** - 玩法模板注册表
+- ✅ **SimpleCPMM** - 恒定乘积做市商（21 测试，二/三向市场）
+- ✅ **LMSR** - 对数做市商（多结果市场定价引擎）
+- ✅ **LinkedLinesController** - 相邻线联动控制器（19 测试）
+
+**市场模板（7/7）**:
 - ✅ **WDL_Template** - 胜平负市场（51 测试，100% 覆盖率）
-- ✅ **OU_Template** - 大小球单线市场（298 测试，97.96% 覆盖率）
-- ✅ **OU_MultiLine** - 大小球多线市场（23 测试，83.62% 覆盖率）
-- ✅ **UMAOptimisticOracleAdapter** - UMA 预言机适配（24 测试）
+- ✅ **OU_Template** - 大小球单线市场（含 Push 退款机制）
+- ✅ **OU_MultiLine** - 大小球多线市场（23 测试）
+- ✅ **AH_Template** - 让球市场（28 测试，支持半球盘/整球盘）
+- ✅ **OddEven_Template** - 进球数单双市场（34 测试）
+- ✅ **ScoreTemplate** - 精确比分市场（34 测试，LMSR 定价）
+- ✅ **PlayerProps_Template** - 球员道具市场（14 测试，7 种道具类型）
+
+**预言机系统**:
+- ✅ **MockOracle** - 测试预言机（19 测试）
+- ✅ **UMAOptimisticOracleAdapter** - UMA OO 集成（24 测试）
+
+**串关系统**:
+- ✅ **Basket** - 串关组合下注（6 个集成测试）
+- ✅ **CorrelationGuard** - 相关性风控（20+ 测试）
+
+**运营基建**:
 - ✅ **FeeRouter** - 费用路由（29 测试）
 - ✅ **RewardsDistributor** - Merkle 奖励分发（42 测试）
 - ✅ **ReferralRegistry** - 推荐系统（41 测试）
-- ✅ **ParamController** - 参数控制器 + Timelock（35 测试，90% 覆盖率）
+- ✅ **Campaign** - 活动工厂（26 测试 + 12 集成测试）
+- ✅ **Quest** - 任务系统（32 测试，5 种任务类型）
+- ✅ **CreditToken** - 免佣券（33 测试）
+- ✅ **Coupon** - 赔率加成券（10 测试）
+- ✅ **PayoutScaler** - 预算缩放（11 测试）
+
+**治理系统**:
+- ✅ **ParamController** - 参数控制器 + Timelock（35 测试）
 
 ### 前端应用
 
@@ -160,9 +184,9 @@ graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbo
 
 ### 后端服务
 
-- ✅ **Indexer** - 订阅合约事件，写入 Postgres（~1,100 行）
-- ✅ **Keeper** - 自动锁盘、结算、发布 Merkle 根（~1,500 行，95% 测试通过）
-- ⏳ **Rewards Builder** - 周度奖励聚合和 Merkle 树生成
+- ✅ **Indexer** - 订阅合约事件，写入 Postgres（~1,100 行，6 种核心事件）
+- ✅ **Keeper** - 自动锁盘、结算、UMA OO 集成（~1,500 行，19/20 测试通过）
+- ✅ **Rewards Builder** - 周度奖励聚合和 Merkle 树生成（基础框架完成）
 
 ### Subgraph
 
@@ -235,7 +259,7 @@ forge coverage               # 覆盖率报告
 echidna . --contract xxx     # 模糊测试
 ```
 
-**当前测试状态**: 344/344 测试通过 ✅
+**当前测试状态**: 491/491 测试通过 ✅
 
 ### 后端测试
 
@@ -279,6 +303,13 @@ MIT License
 
 ---
 
-**开发状态**: 🚧 活跃开发中（52% 完成）
+**开发状态**: 🎉 核心功能完成（100% M1-M3 里程碑达成）
 
-**最后更新**: 2025-11-02
+**最后更新**: 2025-11-11
+
+**项目进度**:
+- ✅ M1（主流程闭环）: 100% 完成
+- ✅ M2（运营闭环）: 100% 完成
+- ✅ M3（扩玩法与串关）: 100% 完成
+- 🔄 前端开发：进行中
+- 📋 测试网部署：准备中

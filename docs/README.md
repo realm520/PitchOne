@@ -1,165 +1,178 @@
-# PitchOne 项目文档
+# 项目文档索引
 
-本目录包含 PitchOne 去中心化链上足球博彩平台的所有技术文档。
+PitchOne 去中心化链上足球博彩平台的完整技术文档。
 
-## 📁 文档结构
+## 📁 目录结构
 
 ```
 docs/
-├── README.md                    # 本文件 - 文档导航索引
-│
-├── 项目概览
-│   ├── intro.md                 # 项目介绍（面向技术受众）
-│   ├── project_mind.md          # 架构思维导图
-│   ├── progress.md              # 开发进度追踪
-│   └── 任务追踪.md               # 详细任务清单
-│
-├── design/                      # 📐 技术设计文档
-│   ├── 01_整体架构设计.md
-│   ├── 02_市场合约设计.md
-│   ├── 03_定价引擎设计.md
-│   ├── 04_预言机设计.md
-│   ├── 05_串关(Parlay)设计.md
-│   ├── 06_费用路由设计.md
-│   ├── 07_推荐与奖励设计.md
-│   ├── 08_活动与任务设计.md
-│   ├── 09_治理与参数控制设计.md
-│   └── 10_链下服务设计.md
-│
-├── 模块接口事件参数/           # 📋 接口规范
-│   ├── EVENT_DICTIONARY.md      # 事件字典（所有合约事件）
-│   └── SUBGRAPH_SCHEMA.graphql  # Subgraph Schema 定义
-│
-├── deployment/                  # 🚀 部署文档
-│   └── scripts-guide.md         # 部署和演示脚本使用指南
-│
-├── security/                    # 🔒 安全文档
-│   └── audit-report.md          # Slither 安全审计报告
-│
-├── operations/                  # ⚙️ 运营指南
-│   └── keeper-guide.md          # Keeper 服务权限和操作指南
-│
-└── verification/                # ✅ 验证报告
-    └── demo-success.md          # 本地演示成功验证报告
+├── design/              # 设计文档（架构、技术栈、实现方案）
+├── test/               # 测试文档（测试报告、验证、技术债清理）
+├── security/           # 安全文档（审计报告、安全扫描）
+├── operation/          # 运营文档（部署、操作手册、变更日志）
+├── archive/            # 历史文档归档
+├── 模块接口事件参数/     # API/事件接口定义
+├── README.md           # 本文件
+├── intro.md            # 项目介绍
+├── 任务追踪.md          # 任务和里程碑追踪
+├── marketing.md        # 市场营销文档
+└── tech_marketing.md   # 技术营销文档
 ```
 
-## 📚 快速导航
+## 📖 主要文档
 
-### 新手入门
-1. 📖 [项目介绍](intro.md) - 了解项目背景、技术栈和核心特性
-2. 🗺️ [架构思维导图](project_mind.md) - 快速理解整体架构
-3. 🚀 [部署脚本指南](deployment/scripts-guide.md) - 本地部署和演示
+### 快速开始
+- **[项目介绍](intro.md)** - 项目概述、特性、技术架构
+- **[任务追踪](任务追踪.md)** - 里程碑、交付成果、进度追踪
+- **[项目初始化指南](operation/项目初始化指南.md)** - 开发环境搭建
 
-### 合约开发
-1. 📐 [整体架构设计](design/01_整体架构设计.md) - 系统架构概览
-2. 📐 [市场合约设计](design/02_市场合约设计.md) - 核心市场逻辑
-3. 📐 [定价引擎设计](design/03_定价引擎设计.md) - AMM/LMSR 定价机制
-4. 📋 [事件字典](模块接口事件参数/EVENT_DICTIONARY.md) - 所有合约事件规范
+### 设计文档 ([design/](design/))
 
-### 链下服务开发
-1. 📐 [链下服务设计](design/10_链下服务设计.md) - Indexer/Keeper/Rewards 架构
-2. 📋 [Subgraph Schema](模块接口事件参数/SUBGRAPH_SCHEMA.graphql) - 数据层定义
-3. ⚙️ [Keeper 操作指南](operations/keeper-guide.md) - Keeper 服务运行指南
+**核心设计**:
+- [01_MarketBase.md](design/01_MarketBase.md) - 市场基础合约设计
+- [02_AMM_LinkedLines.md](design/02_AMM_LinkedLines.md) - AMM 和联动定价
+- [03_ResultOracle_OO.md](design/03_ResultOracle_OO.md) - 预言机设计
+- [04_Parlay_CorrelationGuard.md](design/04_Parlay_CorrelationGuard.md) - 串关系统
+- [05_FeeRouter_Vault.md](design/05_FeeRouter_Vault.md) - 费用路由
+- [06_Rewards_Referral_Campaign.md](design/06_Rewards_Referral_Campaign.md) - 奖励系统
+- [07_ParamController_Governance.md](design/07_ParamController_Governance.md) - 参数治理
+- [08_Offchain_Indexer_Keeper_RewardsBuilder.md](design/08_Offchain_Indexer_Keeper_RewardsBuilder.md) - 链下服务
+- [09_Subgraph_Data_Analytics.md](design/09_Subgraph_Data_Analytics.md) - 数据索引
+- [10_DevOps_Security_Runbook.md](design/10_DevOps_Security_Runbook.md) - 运维手册
 
-### 质量保证
-1. 🔒 [安全审计报告](security/audit-report.md) - Slither 静态分析结果
-2. ✅ [演示验证报告](verification/demo-success.md) - 完整流程验证
-3. 📊 [开发进度追踪](progress.md) - 当前进度和质量指标
+**架构与技术**:
+- [architect.md](design/architect.md) - 整体架构设计
+- [blueprint.md](design/blueprint.md) - 项目蓝图
+- [tech_stack.md](design/tech_stack.md) - 技术栈选型
+- [project_mind.md](design/project_mind.md) - 项目思维导图
 
-### 高级主题
-1. 📐 [串关(Parlay)设计](design/05_串关(Parlay)设计.md) - 组合下注和相关性控制
-2. 📐 [预言机设计](design/04_预言机设计.md) - UMA OO 乐观式结算
-3. 📐 [治理与参数控制](design/09_治理与参数控制设计.md) - 链上治理机制
-4. 📐 [推荐与奖励设计](design/07_推荐与奖励设计.md) - 增长激励机制
+**实现文档**:
+- [indexer-implementation.md](design/indexer-implementation.md) - Indexer 实现细节
+- [OU_TEMPLATE_IMPLEMENTATION.md](design/OU_TEMPLATE_IMPLEMENTATION.md) - OU 模板实现
+- [UMA_OO_INTEGRATION.md](design/UMA_OO_INTEGRATION.md) - UMA OO 集成指南
+- [MARKET_TYPES_OVERVIEW.md](design/MARKET_TYPES_OVERVIEW.md) - 市场类型概览
+- [M3_DEVELOPMENT_PLAN.md](design/M3_DEVELOPMENT_PLAN.md) - M3 开发计划
+- [FRONTEND_RESTRUCTURE_PLAN.md](design/FRONTEND_RESTRUCTURE_PLAN.md) - 前端重构计划
 
-## 🔍 按角色查找文档
+### 测试文档 ([test/](test/))
+
+- [INTEGRATION_TEST_COMPLETION_REPORT.md](test/INTEGRATION_TEST_COMPLETION_REPORT.md) - 集成测试完成报告
+- [TECH_DEBT_CLEANUP_2025-11-02.md](test/TECH_DEBT_CLEANUP_2025-11-02.md) - 技术债清理记录
+- [week3-4-summary.md](test/week3-4-summary.md) - Week 3-4 测试总结
+- [verification/](test/verification/) - 验证文档目录
+  - demo-success.md - 本地演示成功报告
+  - week1-2-summary.md - Week 1-2 总结
+
+### 安全文档 ([security/](security/))
+
+- [audit-report.md](security/audit-report.md) - Slither 安全审计报告
+
+### 运营文档 ([operation/](operation/))
+
+**操作手册**:
+- [operation.md](operation/operation.md) - 运营指南
+- [项目初始化指南.md](operation/项目初始化指南.md) - 环境初始化
+- [keeper-guide.md](operation/keeper-guide.md) - Keeper 服务操作指南
+
+**部署文档**:
+- [deployment/](operation/deployment/) - 部署脚本和说明
+  - scripts-guide.md - 脚本使用指南
+
+**变更记录**:
+- [CHANGELOG.md](operation/CHANGELOG.md) - 项目变更日志
+- [ADMIN_DASHBOARD_COMPLETE.md](operation/ADMIN_DASHBOARD_COMPLETE.md) - 管理后台完成报告
+- [FRONTEND_MIGRATION_COMPLETE.md](operation/FRONTEND_MIGRATION_COMPLETE.md) - 前端迁移完成报告
+
+### 接口文档 ([模块接口事件参数/](模块接口事件参数/))
+
+- [EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 事件字典（完整事件定义）
+- [PARAMETERS.md](模块接口事件参数/PARAMETERS.md) - 参数说明
+- [ABI_PLACEHOLDERS.md](模块接口事件参数/ABI_PLACEHOLDERS.md) - ABI 占位符
+- [SUBGRAPH_SCHEMA.graphql](模块接口事件参数/SUBGRAPH_SCHEMA.graphql) - Subgraph Schema
+
+### 归档文档 ([archive/](archive/))
+
+历史进度文档和已完成的里程碑报告，详见 [archive/README.md](archive/README.md)。
+
+## 🎯 按角色查阅
 
 ### 智能合约开发者
-- [市场合约设计](design/02_市场合约设计.md)
-- [定价引擎设计](design/03_定价引擎设计.md)
-- [事件字典](模块接口事件参数/EVENT_DICTIONARY.md)
-- [安全审计报告](security/audit-report.md)
-- [部署脚本指南](deployment/scripts-guide.md)
+1. [design/01_MarketBase.md](design/01_MarketBase.md) - 了解市场合约设计
+2. [design/02_AMM_LinkedLines.md](design/02_AMM_LinkedLines.md) - 定价引擎实现
+3. [模块接口事件参数/EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 事件定义
+4. [security/audit-report.md](security/audit-report.md) - 安全审计结果
 
 ### 后端开发者
-- [链下服务设计](design/10_链下服务设计.md)
-- [Subgraph Schema](模块接口事件参数/SUBGRAPH_SCHEMA.graphql)
-- [Keeper 操作指南](operations/keeper-guide.md)
-- [事件字典](模块接口事件参数/EVENT_DICTIONARY.md)
+1. [design/08_Offchain_Indexer_Keeper_RewardsBuilder.md](design/08_Offchain_Indexer_Keeper_RewardsBuilder.md) - 链下服务架构
+2. [design/indexer-implementation.md](design/indexer-implementation.md) - Indexer 实现
+3. [operation/keeper-guide.md](operation/keeper-guide.md) - Keeper 操作指南
+4. [design/09_Subgraph_Data_Analytics.md](design/09_Subgraph_Data_Analytics.md) - 数据索引
 
 ### 前端开发者
-- [项目介绍](intro.md)
-- [Subgraph Schema](模块接口事件参数/SUBGRAPH_SCHEMA.graphql)
-- [部署脚本指南](deployment/scripts-guide.md)
-- [演示验证报告](verification/demo-success.md)
+1. [design/FRONTEND_RESTRUCTURE_PLAN.md](design/FRONTEND_RESTRUCTURE_PLAN.md) - 前端架构
+2. [模块接口事件参数/EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 合约接口
+3. [operation/FRONTEND_MIGRATION_COMPLETE.md](operation/FRONTEND_MIGRATION_COMPLETE.md) - 前端迁移完成
+4. [design/MARKET_TYPES_OVERVIEW.md](design/MARKET_TYPES_OVERVIEW.md) - 市场类型说明
 
-### 产品经理 / 项目管理
-- [项目介绍](intro.md)
-- [架构思维导图](project_mind.md)
-- [开发进度追踪](progress.md)
-- [任务追踪](任务追踪.md)
+### 运维人员
+1. [operation/项目初始化指南.md](operation/项目初始化指南.md) - 环境搭建
+2. [operation/deployment/](operation/deployment/) - 部署文档
+3. [design/10_DevOps_Security_Runbook.md](design/10_DevOps_Security_Runbook.md) - 运维手册
+4. [operation/CHANGELOG.md](operation/CHANGELOG.md) - 变更日志
 
-### 安全审计员
-- [整体架构设计](design/01_整体架构设计.md)
-- [安全审计报告](security/audit-report.md)
-- [事件字典](模块接口事件参数/EVENT_DICTIONARY.md)
-- 所有 design/ 目录下的设计文档
+### 测试工程师
+1. [test/INTEGRATION_TEST_COMPLETION_REPORT.md](test/INTEGRATION_TEST_COMPLETION_REPORT.md) - 测试报告
+2. [test/verification/](test/verification/) - 验证文档
+3. [test/TECH_DEBT_CLEANUP_2025-11-02.md](test/TECH_DEBT_CLEANUP_2025-11-02.md) - 技术债清理
 
-## 📝 文档更新记录
+### 项目经理/产品经理
+1. [intro.md](intro.md) - 项目概述
+2. [任务追踪.md](任务追踪.md) - 进度追踪
+3. [design/blueprint.md](design/blueprint.md) - 项目蓝图
+4. [marketing.md](marketing.md) - 市场策略
 
-### 2025-10-29
-- ✅ **文档重组**: 将所有文档集中到 `docs/` 目录
-- ✅ **新增分类**: 创建 deployment, security, operations, verification 子目录
-- ✅ **路径迁移**:
-  - `contracts/SECURITY_AUDIT.md` → `docs/security/audit-report.md`
-  - `contracts/KEEPER_GUIDE.md` → `docs/operations/keeper-guide.md`
-  - `contracts/DEMO_SUCCESS.md` → `docs/verification/demo-success.md`
-  - `contracts/script/README.md` → `docs/deployment/scripts-guide.md`
-- ✅ **新增文档**: 创建 `docs/README.md` (本文件)
+## 📊 项目状态
 
-### Week 1-2 (完成)
-- ✅ 核心合约设计文档（02-03-06）
-- ✅ 安全审计报告
-- ✅ Keeper 操作指南
-- ✅ 演示验证报告
-- ✅ 部署脚本指南
+- **合约完成度**: 100% (19/19)
+- **测试状态**: 491/491 测试通过 ✅
+- **市场模板**: 7/7 (100%)
+- **Subgraph**: 完整部署 ✅
+- **安全扫描**: 0 高危/中危问题
 
-### Week 3-4 (规划中)
-- ⏳ 预言机详细设计
-- ⏳ 运营监控指南
-- ⏳ 测试网部署指南
+详见 [任务追踪.md](任务追踪.md)。
 
-## 🤝 贡献指南
+## 🔍 快速搜索
 
-### 文档维护原则
-1. **集中管理**: 所有项目文档必须放在 `docs/` 目录下
-2. **分类清晰**: 按功能分类放入相应子目录
-3. **命名规范**: 使用清晰描述性的文件名（kebab-case）
-4. **交叉引用**: 文档间引用使用相对路径
-5. **及时更新**: 代码变更时同步更新相关文档
+### 常见主题
 
-### 新增文档流程
-1. 确定文档类型和所属分类
-2. 在对应子目录创建文档
-3. 更新本 README.md 的文档结构和导航
-4. 在 `progress.md` 中记录文档产出
+- **市场模板**: `design/MARKET_TYPES_OVERVIEW.md`
+- **定价引擎**: `design/02_AMM_LinkedLines.md`
+- **预言机**: `design/03_ResultOracle_OO.md` + `design/UMA_OO_INTEGRATION.md`
+- **串关系统**: `design/04_Parlay_CorrelationGuard.md`
+- **奖励系统**: `design/06_Rewards_Referral_Campaign.md`
+- **数据索引**: `design/09_Subgraph_Data_Analytics.md`
+- **安全审计**: `security/audit-report.md`
+- **部署指南**: `operation/deployment/scripts-guide.md`
 
-### 文档审查清单
-- [ ] 文档放在正确的分类目录下
-- [ ] 文件名符合命名规范
-- [ ] 在 README.md 中添加了导航链接
-- [ ] 交叉引用的路径正确
-- [ ] 内容完整、格式规范
-- [ ] 在 progress.md 中记录
+### 技术栈
 
-## 📞 联系方式
+- **智能合约**: Solidity + Foundry
+- **后端**: Go (Indexer + Keeper)
+- **前端**: Next.js 15 + React 19 + wagmi 2
+- **数据**: The Graph + PostgreSQL
+- **基础设施**: Docker + K8s
 
-如有文档相关问题，请通过以下方式反馈：
-- 📧 提交 Issue
-- 💬 项目讨论群
-- 📝 Pull Request
+详见 [design/tech_stack.md](design/tech_stack.md)。
+
+## 📝 文档贡献
+
+文档遵循以下原则：
+- 使用 Markdown 格式
+- 中文为主，代码和技术术语使用英文
+- 保持目录结构清晰
+- 及时更新过时内容
 
 ---
 
-**最后更新**: 2025-10-29
-**维护者**: PitchOne 开发团队
+**最后更新**: 2025-11-11
+**维护**: PitchOne 开发团队
