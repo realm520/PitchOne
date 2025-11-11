@@ -29,6 +29,10 @@ contracts/broadcast/
 foundry.lock
 contracts/foundry.lock
 
+# 本地部署配置（包含地址等敏感信息）
+contracts/deployments/localhost.json
+contracts/deployments/*/run-*.json
+
 # ============================================
 # Subgraph
 # ============================================
@@ -36,6 +40,10 @@ subgraph/build/
 subgraph/generated/
 subgraph/node_modules/
 subgraph/package-lock.json
+
+# Subgraph 备份文件
+subgraph/*.backup
+subgraph/*.yaml.backup
 
 # ============================================
 # 通用忽略

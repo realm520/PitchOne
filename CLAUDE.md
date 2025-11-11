@@ -106,7 +106,13 @@ graph deploy --studio sportsbook
 
 ## 核心架构
 
-### 📊 项目进度：52% 完成（10/19 核心合约，344 测试全部通过）
+### 📊 项目进度：85% 完成（17/20 核心合约，562+ 测试全部通过）
+
+**最新进展（2025-11）**：
+- ✅ 7 种市场模板全部完成（WDL、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）
+- ✅ LMSR 定价引擎已实现并集成
+- ✅ Clone 模式部署全面支持
+- ⏳ 待完成：Basket 串关、CorrelationGuard、部分运营代币（CreditToken、Coupon、PayoutScaler）
 
 ### 1. 合约层架构（contracts/src/）
 
@@ -115,31 +121,60 @@ graph deploy --studio sportsbook
 - **✅ MarketTemplateRegistry.sol**：市场模板注册表，管理 WDL/OU/AH/比分等玩法模板
 - **定价引擎**：
   - **✅ SimpleCPMM.sol**：二/三向 Constant Product Market Maker（23 测试，97.5% 覆盖率）
-  - **⏳ LMSR.sol**：Logarithmic Market Scoring Rule（用于多结果市场，如精确比分）- M3 待实现
+    - 用于 WDL、OU、AH、OddEven 等二/三向市场
+  - **✅ LMSR.sol**：Logarithmic Market Scoring Rule（已完成，用于多结果市场）
+    - 用于 ScoreTemplate（精确比分）和 PlayerProps（首位进球者）
+    - 支持 3-100 个结果的多向市场
+    - 动态流动性参数 b（影响价格敏感度）
   - **✅ LinkedLinesController.sol**：相邻线联动控制器（450 行，19 个测试，92.45% 覆盖率）
     - 线组管理、联动系数、套利检测、储备量调整
+    - 用于 OU_MultiLine 多线市场
     - 完整使用文档：`contracts/docs/LinkedLinesController_Usage.md`
 - **串关**：
-  - **⏳ Basket.sol**：Parlay 组合下注合约 - M2/M3 待实现
-  - **⏳ CorrelationGuard.sol**：相关性惩罚/阻断（同场同向限制）- M2/M3 待实现
+  - **⏳ Basket.sol**：Parlay 组合下注合约 - M3 待实现
+  - **⏳ CorrelationGuard.sol**：相关性惩罚/阻断（同场同向限制）- M3 待实现
 - **预言机**：
   - **✅ MockOracle.sol**：测试预言机（220 行，19 个单元测试）
   - **✅ UMAOptimisticOracleAdapter.sol**：UMA OO 适配器（410 行，24 个测试，完整集成）
-- **市场模板**：
-  - **✅ WDL_Template.sol**：胜平负市场（245 行，51 个测试，100% 覆盖率）
-  - **✅ OU_Template.sol**：大小球单线市场（含 Push 退款机制，298 个测试，97.96% 覆盖率）
-  - **✅ OU_MultiLine.sol**：大小球多线市场（475 行，23 个测试，83.62% 覆盖率）
+- **市场模板**（7/7 已完成，100% 核心玩法覆盖）：
+  - **✅ WDL_Template.sol / WDL_Template_V2.sol**：胜平负市场（305 行，51 个测试，100% 覆盖率）
+    - V2 支持 Clone 模式部署（initialize 替代 constructor）
+  - **✅ OU_Template.sol**：大小球单线市场（328 行，47 个测试，97.96% 覆盖率）
+    - 含 Push 退款机制（整数盘口线退款处理）
+    - 支持 Clone 模式部署
+  - **✅ OU_MultiLine.sol**：大小球多线市场（469 行，23 个测试，83.62% 覆盖率）
     - 支持多条盘口线（如 2.0、2.5、3.0 球）
     - 集成 LinkedLinesController 联动定价
-    - Outcome ID 编码：lineIndex * 3 + direction
-  - **⏳ AH_Template.sol**：让球市场 - M2 待实现
-  - **⏳ ScoreTemplate.sol**：精确比分市场 - M3 待实现
+    - Outcome ID 编码：lineIndex * 2 + direction
+    - 仅支持半球盘（避免 Push 退款复杂性）
+  - **✅ AH_Template.sol**：让球市场（418 行，28 个测试，100% 通过）
+    - 半球盘（-0.5）：二向市场（主队赢盘/客队赢盘）
+    - 整球盘（-1.0）：三向市场（含 Push 退款）
+    - 支持主队让球/客队让球双向
+    - 支持 Clone 模式部署
+  - **✅ OddEven_Template.sol**：进球数单双市场（307 行，34 个测试，100% 通过）
+    - 二向市场（奇数/偶数），判断总进球数奇偶性
+    - 支持 Clone 模式部署
+  - **✅ ScoreTemplate.sol**：精确比分市场（34 个测试，100% 通过）
+    - 使用 LMSR 定价引擎（支持 25-100 个结果）
+    - Outcome ID 编码：homeGoals * 10 + awayGoals（如 2-1 = 21）
+    - 包含 "Other" 选项（outcomeId 999）用于超出范围的比分
+    - 可配置比分范围（默认 0-5）
+  - **✅ PlayerProps_Template.sol**：球员道具市场（14 个测试，100% 通过）
+    - 支持 7 种道具类型：进球数 O/U、助攻数 O/U、射门次数 O/U、黄牌 Y/N、红牌 Y/N、任意时间进球 Y/N、首位进球者
+    - O/U 市场使用 SimpleCPMM，首位进球者使用 LMSR
+    - 支持半球盘和整球盘
 - **运营基建**：
   - **✅ FeeRouter.sol**：费用路由（LP/Promo/Insurance/Treasury 分成，29 个测试）
   - **✅ RewardsDistributor.sol**：周度 Merkle 奖励分发（42 个测试）
   - **✅ ReferralRegistry.sol**：推荐关系注册与返佣计算（41 个测试）
-  - **⏳ Campaign.sol** / **Quest.sol**：活动/任务工厂 - M2 待实现
+  - **✅ Campaign.sol**：活动工厂（356 行，26 个测试 + 12 个集成测试，100% 通过）
+    - 活动创建、预算管理、参与追踪、活动状态控制
+  - **✅ Quest.sol**：任务系统（403 行，32 个测试，100% 通过）
+    - 5 种任务类型（下注、推荐、串关、连续登录、社交）
+    - 进度追踪、自动完成检测、奖励领取
   - **⏳ CreditToken.sol** / **Coupon.sol**：免佣券/加成券 - M2 待实现
+  - **⏳ PayoutScaler.sol**：预算缩放策略 - M2 待实现
 - **治理**：
   - **✅ ParamController.sol**：参数控制器（335 行，35 个测试，90.10% 行覆盖率，100% 函数覆盖率）
     - 完整的 Timelock 机制（提案创建/执行/取消）

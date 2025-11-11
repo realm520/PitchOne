@@ -1,0 +1,246 @@
+specVersion: 0.0.6
+description: PitchOne Decentralized Sportsbook Subgraph (Dynamic Templates)
+repository: https://github.com/pitchone/pitchone
+schema:
+  file: ./schema.graphql
+dataSources:
+  # ============================================================================
+  # MarketFactory_v2 - 监听市场创建事件，动态索引新市场
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: MarketFactory
+    network: localhost
+    source:
+      address: "{{FACTORY_ADDRESS}}"
+      abi: MarketFactory_v2
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Template
+        - GlobalStats
+      abis:
+        - name: MarketFactory_v2
+          file: ../contracts/out/MarketFactory_v2.sol/MarketFactory_v2.json
+        - name: WDL_Template_V2
+          file: ../contracts/out/WDL_Template_V2.sol/WDL_Template_V2.json
+        - name: OU_Template
+          file: ../contracts/out/OU_Template.sol/OU_Template.json
+        - name: OddEven_Template
+          file: ../contracts/out/OddEven_Template.sol/OddEven_Template.json
+      eventHandlers:
+        - event: MarketCreated(indexed address,indexed bytes32,indexed address)
+          handler: handleMarketCreatedFromRegistry
+        - event: TemplateRegistered(indexed bytes32,indexed address,string,string)
+          handler: handleTemplateRegistered
+        - event: TemplateActiveStatusUpdated(indexed bytes32,bool)
+          handler: handleTemplateActiveStatusUpdated
+      file: ./src/registry.ts
+
+  # ============================================================================
+  # FeeRouter - 费用分发事件
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: FeeRouter
+    network: localhost
+    source:
+      address: "{{FEE_ROUTER_ADDRESS}}"
+      abi: FeeRouter
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - FeeDistribution
+        - GlobalStats
+      abis:
+        - name: FeeRouter
+          file: ../contracts/out/FeeRouter.sol/FeeRouter.json
+      eventHandlers:
+        - event: FeeReceived(indexed address,indexed address,uint256)
+          handler: handleFeeReceived
+        - event: FeeRouted(indexed address,uint256,indexed address,uint256,uint256,uint256,uint256,uint256)
+          handler: handleFeeRouted
+      file: ./src/fee.ts
+
+# ============================================================================
+# 动态模板配置 - 用于自动索引新创建的市场
+# ============================================================================
+templates:
+  # WDL 市场模板（胜平负）
+  - kind: ethereum/contract
+    name: WDLMarket
+    network: localhost
+    source:
+      abi: WDL_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: WDL_Template
+          file: ../contracts/out/WDL_Template.sol/WDL_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: MarketCreated(indexed string,string,string,uint256,address)
+          handler: handleMarketCreated
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # OU 单线市场模板（大小球）
+  - kind: ethereum/contract
+    name: OUMarket
+    network: localhost
+    source:
+      abi: OU_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: OU_Template
+          file: ../contracts/out/OU_Template.sol/OU_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: MarketCreated(indexed string,string,string,uint256,uint256,address)
+          handler: handleOUMarketCreated
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # OU 多线市场模板（大小球多盘口）
+  - kind: ethereum/contract
+    name: OUMultiMarket
+    network: localhost
+    source:
+      abi: OU_MultiLine
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: OU_MultiLine
+          file: ../contracts/out/OU_MultiLine.sol/OU_MultiLine.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: MarketCreated(indexed string,string,string,uint256,uint256[],bytes32,address,address)
+          handler: handleOUMultiLineMarketCreated
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # OddEven 市场模板（进球数单双）
+  - kind: ethereum/contract
+    name: OddEvenMarket
+    network: localhost
+    source:
+      abi: OddEven_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: OddEven_Template
+          file: ../contracts/out/OddEven_Template.sol/OddEven_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: MarketCreated(indexed string,string,string,uint256,address)
+          handler: handleOddEvenMarketCreated
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
