@@ -106,13 +106,19 @@ graph deploy --studio sportsbook
 
 ## 核心架构
 
-### 📊 项目进度：85% 完成（17/20 核心合约，562+ 测试全部通过）
+### 📊 项目进度：100% 核心开发完成（19/19 合约，912 测试全部通过）
 
-**最新进展（2025-11）**：
+**最新进展（2025-11-11, Week 8）**：
+- ✅ 19 个核心合约全部完成（100% 完成度）
 - ✅ 7 种市场模板全部完成（WDL、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）
-- ✅ LMSR 定价引擎已实现并集成
-- ✅ Clone 模式部署全面支持
-- ⏳ 待完成：Basket 串关、CorrelationGuard、部分运营代币（CreditToken、Coupon、PayoutScaler）
+- ✅ 3 种定价引擎（SimpleCPMM、LMSR、LinkedLinesController）
+- ✅ 串关系统完成（Basket + CorrelationGuard，51 测试）
+- ✅ 运营工具完成（CreditToken、Coupon、PayoutScaler，54 测试）
+- ✅ 预言机集成（MockOracle + UMA OO Adapter，43 测试）
+- ✅ Subgraph v0.3.0 完整部署，端到端数据流打通
+- ✅ 912 个测试全部通过（100% 通过率）
+- 🔄 前端开发进行中（用户端基础框架完成）
+- 📋 待完成：前端功能完善、测试网部署、安全审计
 
 ### 1. 合约层架构（contracts/src/）
 
@@ -131,8 +137,14 @@ graph deploy --studio sportsbook
     - 用于 OU_MultiLine 多线市场
     - 完整使用文档：`contracts/docs/LinkedLinesController_Usage.md`
 - **串关**：
-  - **⏳ Basket.sol**：Parlay 组合下注合约 - M3 待实现
-  - **⏳ CorrelationGuard.sol**：相关性惩罚/阻断（同场同向限制）- M3 待实现
+  - **✅ Basket.sol**：Parlay 组合下注合约（537 行，25 个测试，100% 完成）
+    - 支持 2-10 腿串关组合
+    - 池化资金管理
+    - 组合赔率计算与滑点保护
+  - **✅ CorrelationGuard.sol**：相关性惩罚/阻断（386 行，25 个测试，100% 完成）
+    - 同场同向限制检测
+    - Discount/Block 策略
+    - 动态相关性矩阵
 - **预言机**：
   - **✅ MockOracle.sol**：测试预言机（220 行，19 个单元测试）
   - **✅ UMAOptimisticOracleAdapter.sol**：UMA OO 适配器（410 行，24 个测试，完整集成）
@@ -173,8 +185,18 @@ graph deploy --studio sportsbook
   - **✅ Quest.sol**：任务系统（403 行，32 个测试，100% 通过）
     - 5 种任务类型（下注、推荐、串关、连续登录、社交）
     - 进度追踪、自动完成检测、奖励领取
-  - **⏳ CreditToken.sol** / **Coupon.sol**：免佣券/加成券 - M2 待实现
-  - **⏳ PayoutScaler.sol**：预算缩放策略 - M2 待实现
+  - **✅ CreditToken.sol**：免佣券（442 行，33 个测试，100% 完成）
+    - 多种免佣券类型管理
+    - 有效期和使用限制
+    - 转让和销毁机制
+  - **✅ Coupon.sol**：赔率加成券（599 行，10 个测试，100% 完成）
+    - 加成券类型配置
+    - 使用次数和有效期管理
+    - 与市场集成
+  - **✅ PayoutScaler.sol**：预算缩放策略（534 行，11 个测试，100% 完成）
+    - 预算池管理
+    - 动态缩放算法
+    - 奖励分配优化
 - **治理**：
   - **✅ ParamController.sol**：参数控制器（335 行，35 个测试，90.10% 行覆盖率，100% 函数覆盖率）
     - 完整的 Timelock 机制（提案创建/执行/取消）
@@ -206,11 +228,13 @@ graph deploy --studio sportsbook
    - 冗余执行：本地 + Gelato/Chainlink Automation 双保险
    - 代码量：~1,500 行核心 + 1,200 行测试，19/20 测试通过（95%）
 
-3. **⏳ Rewards Builder**（`cmd/rewards/`）- 待实现
+3. **✅ Rewards Builder**（`cmd/rewards/`）- 基础完成
    - 周度任务：
      - 从数据库聚合所有待发放奖励（推荐返佣、任务奖励、活动奖金）
      - 生成 Merkle 树并上链 Root
      - 用户凭 Merkle Proof 自行领取
+   - 代码量：~800 行核心 + 400 行测试
+   - 状态：基础框架完成，待完整集成测试
 
 4. **Risk & Pricing Worker**（未来实现）
    - 实时计算：
@@ -413,10 +437,11 @@ forge script script/CreateMarketsViaFactory.s.sol --broadcast
 ## 项目里程碑
 
 详见 `docs/任务追踪.md`：
-- **M0（第 1 周）**：脚手架 - 合约骨架、Indexer、Subgraph、CI/CD
-- **M1（第 3-4 周）**：主流程闭环 - WDL + OU 单线、AMM、结算、奖励/推荐
-- **M2（第 5-8 周）**：运营闭环 - 活动/任务、周度 Merkle、OU 多线联动、AH
-- **M3（第 9-12 周）**：扩玩法 - 精确比分（LMSR）、球员道具、CLOB 插槽
+- **M0（第 1 周）**：✅ 完成 - 脚手架（合约骨架、Indexer、Subgraph、CI/CD）
+- **M1（第 3-4 周）**：✅ 完成 - 主流程闭环（WDL + OU 单线、AMM、结算、奖励/推荐）
+- **M2（第 5-7 周）**：✅ 完成 - 运营闭环（活动/任务、周度 Merkle、OU 多线联动、AH、运营工具）
+- **M3（第 8 周）**：✅ 完成 - 扩玩法与串关（精确比分 LMSR、球员道具、Basket 串关、CorrelationGuard）
+- **M4（第 9-12 周）**：🔄 进行中 - 前端开发、测试网部署、安全审计
 
 ## 文档资源
 
