@@ -20,21 +20,27 @@ import "../interfaces/IPricingEngine.sol";
  * - price_i = (1/r_i) / Σ(1/r_j) （归一化隐含概率）
  * - 所有价格之和 = 100%
  *
+ * 📝 精度支持：
+ * - 支持任意精度代币（6 位 USDC、18 位 DAI 等）
+ * - 储备限制由调用者传入，适配不同代币
+ *
  * @author PitchOne Team
  * @custom:security-contact security@pitchone.io
  */
 contract SimpleCPMM is IPricingEngine {
     // ============ 常量 ============
 
-    /// @notice 虚拟储备初始值（每个结果）
-    /// @dev 较大的初始值 → 流动性更好，滑点更小
-    uint256 public constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100,000 USDC
+    /// @notice 最小储备倍数（相对于基础单位）
+    /// @dev minReserve = MIN_RESERVE_MULTIPLIER * (10 ** decimals)
+    ///      例如：6位小数 → 1000 * 1e6 = 1,000 USDC
+    ///           18位小数 → 1000 * 1e18 = 1,000 DAI
+    uint256 public constant MIN_RESERVE_MULTIPLIER = 1000;
 
-    /// @notice 最小储备（防止除零和极端价格）
-    uint256 public constant MIN_RESERVE = 1000 * 1e6; // 1,000 USDC
-
-    /// @notice 最大储备（防止溢出）
-    uint256 public constant MAX_RESERVE = 10_000_000 * 1e6; // 10M USDC
+    /// @notice 最大储备倍数（相对于基础单位）
+    /// @dev maxReserve = MAX_RESERVE_MULTIPLIER * (10 ** decimals)
+    ///      例如：6位小数 → 10_000_000 * 1e6 = 1000万 USDC
+    ///           18位小数 → 10_000_000 * 1e18 = 1000万 DAI
+    uint256 public constant MAX_RESERVE_MULTIPLIER = 10_000_000;
 
     // ============ 核心函数 ============
 
@@ -71,10 +77,9 @@ contract SimpleCPMM is IPricingEngine {
         require(outcomeId < n, "CPMM: Invalid outcome ID");
         require(amount > 0, "CPMM: Zero amount");
 
-        // 检查储备有效性
+        // 基本储备有效性检查（非零即可）
         for (uint256 i = 0; i < n; i++) {
-            require(reserves[i] >= MIN_RESERVE, "CPMM: Reserve too low");
-            require(reserves[i] <= MAX_RESERVE, "CPMM: Reserve too high");
+            require(reserves[i] > 0, "CPMM: Zero reserve");
         }
 
         if (n == 2) {
@@ -118,9 +123,9 @@ contract SimpleCPMM is IPricingEngine {
         require(n >= 2 && n <= 3, "CPMM: Invalid outcome count");
         require(outcomeId < n, "CPMM: Invalid outcome ID");
 
-        // 检查储备有效性
+        // 检查储备有效性（非零即可）
         for (uint256 i = 0; i < n; i++) {
-            require(reserves[i] >= MIN_RESERVE, "CPMM: Reserve too low");
+            require(reserves[i] > 0, "CPMM: Zero reserve");
         }
 
         // 计算 sum(1 / r_j) - 使用乘法避免浮点运算
@@ -327,20 +332,28 @@ contract SimpleCPMM is IPricingEngine {
     }
 
     /**
-     * @notice 获取初始虚拟储备值
+     * @notice 计算初始虚拟储备值（基于代币精度）
      * @param outcomeCount 结果数量
+     * @param decimals 代币精度
+     * @param multiplier 倍数（默认 100,000）
      * @return initialReserves 初始储备数组
+     * @dev 例如：decimals=6, multiplier=100,000 → 100,000 * 1e6 = 100,000 USDC
+     *           decimals=18, multiplier=100,000 → 100,000 * 1e18 = 100,000 DAI
      */
-    function getInitialReserves(uint256 outcomeCount)
-        external
-        pure
-        returns (uint256[] memory initialReserves)
-    {
+    function getInitialReserves(
+        uint256 outcomeCount,
+        uint8 decimals,
+        uint256 multiplier
+    ) external pure returns (uint256[] memory initialReserves) {
         require(outcomeCount >= 2 && outcomeCount <= 3, "CPMM: Invalid outcome count");
+        require(decimals <= 18, "CPMM: Decimals too high");
+        require(multiplier > 0, "CPMM: Invalid multiplier");
 
         initialReserves = new uint256[](outcomeCount);
+        uint256 initialReserve = multiplier * (10 ** decimals);
+
         for (uint256 i = 0; i < outcomeCount; i++) {
-            initialReserves[i] = VIRTUAL_RESERVE_INIT;
+            initialReserves[i] = initialReserve;
         }
 
         return initialReserves;

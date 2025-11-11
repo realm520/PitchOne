@@ -383,6 +383,16 @@ contract BasketTest is BaseTest {
         uint256 parlayId = basket.createParlay(legs, stake, potentialPayout);
         vm.stopPrank();
 
+        // Owner adds reserve fund to cover potential payout
+        uint256 reserveNeeded = potentialPayout > stake ? potentialPayout - stake : 0;
+        if (reserveNeeded > 0) {
+            deal(address(usdc), owner, reserveNeeded);
+            vm.startPrank(owner);
+            usdc.approve(address(basket), reserveNeeded);
+            basket.addReserveFund(reserveNeeded);
+            vm.stopPrank();
+        }
+
         // Lock markets
         vm.warp(block.timestamp + 2 hours);
         market1.lock();
@@ -400,12 +410,11 @@ contract BasketTest is BaseTest {
         // Settle parlay
         uint256 balanceBefore = usdc.balanceOf(user1);
 
-        // Note: actual payout may differ from potentialPayout due to redemption mechanics
-        // We just verify the user receives the payout and event is emitted
         uint256 actualPayout = basket.settleParlay(parlayId);
 
-        // Verify user received payout
+        // Verify user received payout (should equal potentialPayout in pooled mode)
         assertEq(usdc.balanceOf(user1), balanceBefore + actualPayout);
+        assertEq(actualPayout, potentialPayout, "Payout should equal potentialPayout");
         assertGt(actualPayout, stake, "Payout should be greater than stake for winning parlay");
 
         IBasket.Parlay memory parlay = basket.getParlay(parlayId);
@@ -481,13 +490,23 @@ contract BasketTest is BaseTest {
         legs[1] = ICorrelationGuard.ParlayLeg({market: address(market2), outcomeId: 1});
 
         uint256 stake = 1000e6;
-        (, , uint256 minPayout) = basket.quote(legs, stake);
+        (, , uint256 potentialPayout) = basket.quote(legs, stake);
 
         deal(address(usdc), user1, stake);
         vm.startPrank(user1);
         usdc.approve(address(basket), stake);
-        uint256 parlayId = basket.createParlay(legs, stake, minPayout);
+        uint256 parlayId = basket.createParlay(legs, stake, potentialPayout);
         vm.stopPrank();
+
+        // Owner adds reserve fund
+        uint256 reserveNeeded = potentialPayout > stake ? potentialPayout - stake : 0;
+        if (reserveNeeded > 0) {
+            deal(address(usdc), owner, reserveNeeded);
+            vm.startPrank(owner);
+            usdc.approve(address(basket), reserveNeeded);
+            basket.addReserveFund(reserveNeeded);
+            vm.stopPrank();
+        }
 
         // Lock and settle markets
         vm.warp(block.timestamp + 2 hours);
@@ -517,14 +536,28 @@ contract BasketTest is BaseTest {
         uint256 stake = 1000e6;
 
         uint256[] memory parlayIds = new uint256[](3);
+        uint256 totalPotentialPayout = 0;
 
         for (uint256 i = 0; i < 3; i++) {
-            // Get fresh quote for each parlay (prices change after each bet)
-            (, , uint256 minPayout) = basket.quote(legs, stake);
+            // Get fresh quote for each parlay
+            (, , uint256 potentialPayout) = basket.quote(legs, stake);
+            totalPotentialPayout += potentialPayout;
+
             deal(address(usdc), user1, stake);
             vm.startPrank(user1);
             usdc.approve(address(basket), stake);
-            parlayIds[i] = basket.createParlay(legs, stake, minPayout);
+            parlayIds[i] = basket.createParlay(legs, stake, potentialPayout);
+            vm.stopPrank();
+        }
+
+        // Owner adds reserve fund to cover all payouts
+        uint256 totalStake = stake * 3;
+        uint256 reserveNeeded = totalPotentialPayout > totalStake ? totalPotentialPayout - totalStake : 0;
+        if (reserveNeeded > 0) {
+            deal(address(usdc), owner, reserveNeeded);
+            vm.startPrank(owner);
+            usdc.approve(address(basket), reserveNeeded);
+            basket.addReserveFund(reserveNeeded);
             vm.stopPrank();
         }
 

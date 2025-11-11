@@ -45,7 +45,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         // 预期事件
@@ -81,7 +82,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.proposeResult(MARKET_ID_1, facts);
@@ -100,7 +102,8 @@ contract MockOracleTest is Test {
             extraTime: true,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.proposeResult(MARKET_ID_1, facts);
@@ -120,7 +123,8 @@ contract MockOracleTest is Test {
             extraTime: true,        // 点球大战必须有加时
             penaltiesHome: 5,       // 点球大战进球
             penaltiesAway: 4,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.proposeResult(MARKET_ID_1, facts);
@@ -143,7 +147,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.prank(user);
@@ -164,7 +169,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -182,7 +188,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -200,7 +207,8 @@ contract MockOracleTest is Test {
             extraTime: false, // 应该为 true
             penaltiesHome: 5,
             penaltiesAway: 4,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -221,7 +229,8 @@ contract MockOracleTest is Test {
             extraTime: true,
             penaltiesHome: 0, // 应该非0
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -239,7 +248,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 5, // 不应该有
             penaltiesAway: 4,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -260,7 +270,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp + 1 days // 未来时间
+            reportedAt: block.timestamp + 1 days, // 未来时间
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.expectRevert(
@@ -283,7 +294,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(MARKET_ID_1, facts);
 
@@ -310,7 +322,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         factsArray[1] = IResultOracle.MatchFacts({
             scope: bytes32("FT_90"),
@@ -319,7 +332,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.batchProposeResults(marketIds, factsArray);
@@ -379,7 +393,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.proposeResult(MARKET_ID_1, facts);
@@ -400,7 +415,8 @@ contract MockOracleTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: currentTime
+            reportedAt: currentTime,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         oracle.proposeResult(MARKET_ID_1, facts);

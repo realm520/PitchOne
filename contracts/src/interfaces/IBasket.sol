@@ -264,4 +264,13 @@ interface IBasket {
 
     /// @notice 未授权的操作
     error Unauthorized();
+
+    /// @notice 资金不足
+    error InsufficientFunds(uint256 required, uint256 available);
+
+    /// @notice 有活跃串关时无法提取储备金
+    error CannotWithdrawWhileParlaysActive();
+
+    /// @notice 储备金不足
+    error InsufficientReserveFund(uint256 requested, uint256 available);
 }

@@ -20,6 +20,18 @@ import "../interfaces/IMarket.sol";
  *      - 全中才赢，任一错误全输
  *      - 集成 CorrelationGuard 进行相关性检查
  *      - 支持滑点保护
+ *
+ * 架构设计（池化模式）：
+ *      - 用户本金全部锁定在 Basket 合约中（不分散到各市场）
+ *      - 不实际在市场下注，仅记录虚拟头寸用于结算条件判断
+ *      - 结算时根据 potentialPayout（创建时计算）直接从池中支付
+ *      - 引入风险储备金机制（owner 注入）保证赔付能力
+ *
+ * 资金流：
+ *      - 创建串关：用户本金 → Basket 池（totalLockedStake += stake）
+ *      - 赢：Basket 池 → 用户（payout = potentialPayout）
+ *      - 输：本金留在池中（用于后续赔付或 owner 提取）
+ *      - 取消：退还本金（payout = stake）
  */
 contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
     using SafeERC20 for IERC20;
@@ -64,6 +76,15 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
 
     /// @notice 最大组合赔率（基点）
     uint256 public maxOdds;
+
+    /// @notice 总锁定本金 (所有待结算串关的本金总和)
+    uint256 public totalLockedStake;
+
+    /// @notice 总潜在赔付 (所有待结算串关的最大赔付总和)
+    uint256 public totalPotentialPayout;
+
+    /// @notice 风险储备金 (owner 注入,用于覆盖赔付缺口)
+    uint256 public reserveFund;
 
     // ============================================================================
     // 构造函数
@@ -254,7 +275,7 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
             revert SlippageExceeded(potentialPayout, minPayout);
         }
 
-        // 转入资金到 Basket
+        // 转入资金到 Basket (池化模式：资金留在 Basket)
         settlementToken.safeTransferFrom(msg.sender, address(this), stake);
 
         // 创建串关
@@ -271,23 +292,14 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
         parlay.createdAt = block.timestamp;
         parlay.settledAt = 0;
 
-        // 计算每条腿的下注金额（按赔率权重分配）
-        uint256[] memory legStakes = _allocateStakesToLegs(legs, stake);
-
-        // 为每条腿下注（Basket 代表用户在各市场下注）
+        // 记录腿信息 (不实际下注,仅用于结算条件判断)
         for (uint256 i = 0; i < legs.length; i++) {
-            IMarket market = IMarket(legs[i].market);
-
-            // 授权市场使用资金
-            settlementToken.approve(legs[i].market, legStakes[i]);
-
-            // Basket 代表用户下注，获得头寸 Token
-            uint256 shares = market.placeBet(legs[i].outcomeId, legStakes[i]);
-
-            // 记录头寸数量（用于后续 redeem）
             parlay.legs.push(legs[i]);
-            // 注意：头寸 Token (ERC-1155) 已经归 Basket 所有
         }
+
+        // 更新全局风险追踪
+        totalLockedStake += stake;
+        totalPotentialPayout += potentialPayout;
 
         // 记录用户串关
         userParlays[msg.sender].push(parlayId);
@@ -333,17 +345,28 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
         parlay.status = finalStatus;
         parlay.settledAt = block.timestamp;
 
-        // 计算赔付
+        // 更新全局风险追踪
+        totalLockedStake -= parlay.stake;
+        totalPotentialPayout -= parlay.potentialPayout;
+
+        // 计算赔付 (池化模式：直接从 Basket 支付)
         if (finalStatus == ParlayStatus.Won) {
-            // 赢了：从各市场 redeem 头寸并汇总赔付
-            payout = _redeemAllLegs(parlay);
+            // 赢了：支付 potentialPayout
+            payout = parlay.potentialPayout;
+
+            // 检查池中余额是否足够 (本金池 + 储备金)
+            uint256 availableFunds = settlementToken.balanceOf(address(this));
+            if (payout > availableFunds) {
+                revert InsufficientFunds(payout, availableFunds);
+            }
+
             settlementToken.safeTransfer(parlay.user, payout);
         } else if (finalStatus == ParlayStatus.Cancelled) {
-            // 取消：从各市场 redeem 头寸（退本金）
-            payout = _redeemAllLegs(parlay);
+            // 取消：退还本金
+            payout = parlay.stake;
             settlementToken.safeTransfer(parlay.user, payout);
         } else {
-            // 输了：不 redeem（让 LP 保留资金）
+            // 输了：本金留在池中
             payout = 0;
         }
 
@@ -462,72 +485,53 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
     }
 
     /**
-     * @notice 将本金分配到各条腿
-     * @param legs 串关腿
-     * @param totalStake 总本金
-     * @return legStakes 各条腿的下注金额
-     * @dev 简化版：平均分配（后续可优化为按赔率权重分配）
-     *
-     * TODO (HIGH PRIORITY): 当前的平均分配策略会导致总赔付远超预期！
-     * 问题：平均分配本金到各腿，每条腿独立赔付，总赔付 = sum(各腿赔付)
-     * 但用户预期的赔付 = combinedOdds × totalStake
-     *
-     * 示例：2 腿串关，各赔率 2.0x，本金 1000 USDC
-     * - 当前实现: 各腿 500 USDC → 各腿赔付 1000 USDC → 总计 2000 USDC
-     * - 预期逻辑: 组合赔率 4.0x → 总赔付 4000 USDC ❌ 不符！
-     *
-     * 待选方案:
-     * A. 改为池化资金模式 (Basket 独立管理资金池，不依赖 Market)
-     * B. 只在一条腿下注全部本金，其他腿作为结算条件
-     * C. 调整 AMM 定价逻辑，使组合赔付与各腿赔付一致
+     * @notice 添加风险储备金 (仅 owner)
+     * @param amount 储备金数量
+     * @dev 用于覆盖串关赔付缺口,确保用户能及时兑付
      */
-    function _allocateStakesToLegs(
-        ICorrelationGuard.ParlayLeg[] calldata legs,
-        uint256 totalStake
-    ) private pure returns (uint256[] memory legStakes) {
-        uint256 legCount = legs.length;
-        legStakes = new uint256[](legCount);
-
-        // 平均分配（确保总和 = totalStake）
-        uint256 baseStake = totalStake / legCount;
-        uint256 remainder = totalStake % legCount;
-
-        for (uint256 i = 0; i < legCount; i++) {
-            legStakes[i] = baseStake;
-            if (i < remainder) {
-                legStakes[i] += 1; // 将余数分配到前几条腿
-            }
-        }
-
-        return legStakes;
+    function addReserveFund(uint256 amount) external onlyOwner {
+        settlementToken.safeTransferFrom(msg.sender, address(this), amount);
+        reserveFund += amount;
     }
 
     /**
-     * @notice 从各市场 redeem 头寸并汇总赔付
-     * @param parlay 串关数据
-     * @return totalPayout 总赔付金额
-     * @dev 查询 Basket 持有的头寸 Token (ERC-1155)，然后 redeem
+     * @notice 提取储备金 (仅 owner)
+     * @param amount 提取数量
+     * @dev 仅当没有待结算串关时才能提取
      */
-    function _redeemAllLegs(Parlay storage parlay)
-        private
-        returns (uint256 totalPayout)
-    {
-        totalPayout = 0;
-
-        for (uint256 i = 0; i < parlay.legs.length; i++) {
-            IMarket market = IMarket(parlay.legs[i].market);
-            uint256 outcomeId = parlay.legs[i].outcomeId;
-
-            // 查询 Basket 持有的该头寸数量（ERC-1155）
-            uint256 shares = market.getUserPosition(address(this), outcomeId);
-
-            if (shares > 0) {
-                // Redeem 头寸，获得赔付
-                uint256 payout = market.redeem(outcomeId, shares);
-                totalPayout += payout;
-            }
+    function withdrawReserveFund(uint256 amount) external onlyOwner {
+        if (totalLockedStake > 0) {
+            revert CannotWithdrawWhileParlaysActive();
         }
 
-        return totalPayout;
+        if (amount > reserveFund) {
+            revert InsufficientReserveFund(amount, reserveFund);
+        }
+
+        reserveFund -= amount;
+        settlementToken.safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @notice 获取当前池状态
+     * @return poolBalance 池总余额
+     * @return lockedStake 锁定本金
+     * @return reserve 储备金
+     * @return potentialPayout 潜在赔付总额
+     */
+    function getPoolStatus()
+        external
+        view
+        returns (
+            uint256 poolBalance,
+            uint256 lockedStake,
+            uint256 reserve,
+            uint256 potentialPayout
+        )
+    {
+        poolBalance = settlementToken.balanceOf(address(this));
+        lockedStake = totalLockedStake;
+        reserve = reserveFund;
+        potentialPayout = totalPotentialPayout;
     }
 }

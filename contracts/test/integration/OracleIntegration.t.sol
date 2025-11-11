@@ -116,7 +116,8 @@ contract OracleIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -177,7 +178,8 @@ contract OracleIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -224,7 +226,8 @@ contract OracleIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -268,7 +271,8 @@ contract OracleIntegrationTest is Test {
             extraTime: true,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -307,7 +311,8 @@ contract OracleIntegrationTest is Test {
             extraTime: true,
             penaltiesHome: 5,
             penaltiesAway: 4,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -346,7 +351,8 @@ contract OracleIntegrationTest is Test {
             extraTime: true,
             penaltiesHome: 3,
             penaltiesAway: 4,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -416,7 +422,8 @@ contract OracleIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 

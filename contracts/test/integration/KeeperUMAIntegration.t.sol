@@ -174,7 +174,8 @@ contract KeeperUMAIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.prank(keeper);
@@ -270,7 +271,8 @@ contract KeeperUMAIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.prank(keeper);
@@ -384,7 +386,8 @@ contract KeeperUMAIntegrationTest is Test {
                 extraTime: false,
                 penaltiesHome: 0,
                 penaltiesAway: 0,
-                reportedAt: block.timestamp
+                reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
             });
 
             vm.prank(keeper);
@@ -443,7 +446,8 @@ contract KeeperUMAIntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
 
         vm.prank(keeper);

@@ -136,7 +136,8 @@ contract OU_IntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -191,7 +192,8 @@ contract OU_IntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
 
@@ -242,7 +244,8 @@ contract OU_IntegrationTest is Test {
             extraTime: false,
             penaltiesHome: 0,
             penaltiesAway: 0,
-            reportedAt: block.timestamp
+            reportedAt: block.timestamp,
+            playerStats: new IResultOracle.PlayerStats[](0)
         });
         oracle.proposeResult(marketId, facts);
         marketHalfLine.resolveFromOracle();

@@ -15,6 +15,20 @@ pragma solidity ^0.8.28;
  * Week 5-6 扩展：UMA OO Adapter（完整乐观式预言机）
  */
 interface IResultOracle {
+    /// @notice 球员统计数据结构（用于 PlayerProps 市场）
+    /// @dev Week 9: M3 扩展 - 支持球员道具市场
+    struct PlayerStats {
+        string playerId;        // 球员 ID（如 "player_haaland"）
+        uint8 goals;            // 进球数
+        uint8 assists;          // 助攻数
+        uint8 shots;            // 射门次数
+        uint8 shotsOnTarget;    // 射正次数
+        bool yellowCard;        // 是否吃黄牌
+        bool redCard;           // 是否吃红牌
+        bool isFirstScorer;     // 是否首位进球者
+        uint8 minuteFirstGoal;  // 首粒进球时间（分钟）
+    }
+
     /// @notice 比赛结果数据结构
     /// @dev 支持常规时间、加时赛、点球大战等多种场景
     struct MatchFacts {
@@ -25,6 +39,7 @@ interface IResultOracle {
         uint8 penaltiesHome;   // 点球大战主队进球数 (0 if no penalties)
         uint8 penaltiesAway;   // 点球大战客队进球数 (0 if no penalties)
         uint256 reportedAt;    // 结果上报时间戳
+        PlayerStats[] playerStats; // 球员统计数据数组（M3 新增）
     }
 
     /*//////////////////////////////////////////////////////////////
