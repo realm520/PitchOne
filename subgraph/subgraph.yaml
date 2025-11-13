@@ -12,9 +12,9 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0x47c05BCCA7d57c87083EB4e586007530eE4539e9"
+      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
       abi: MarketFactory_v2
-      startBlock: 591
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -32,8 +32,6 @@ dataSources:
           file: ../contracts/out/OU_Template.sol/OU_Template.json
         - name: OddEven_Template
           file: ../contracts/out/OddEven_Template.sol/OddEven_Template.json
-        - name: PlayerProps_Template
-          file: ../contracts/out/PlayerProps_Template.sol/PlayerProps_Template.json
       eventHandlers:
         - event: MarketCreated(indexed address,indexed bytes32,indexed address)
           handler: handleMarketCreatedFromRegistry
@@ -51,9 +49,9 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0xB468647B04bF657C9ee2de65252037d781eABafD"
+      address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
       abi: FeeRouter
-      startBlock: 591
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -70,238 +68,6 @@ dataSources:
         - event: FeeRouted(indexed address,uint256,indexed address,uint256,uint256,uint256,uint256,uint256)
           handler: handleFeeRouted
       file: ./src/fee.ts
-
-  # ============================================================================
-  # Campaign - 活动管理事件
-  # ============================================================================
-  - kind: ethereum/contract
-    name: Campaign
-    network: localhost
-    source:
-      address: "0xA9d0Fb5837f9c42c874e16da96094b14Af0e2784"
-      abi: Campaign
-      startBlock: 591
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Campaign
-        - CampaignParticipation
-        - CampaignBudgetChange
-        - CampaignStatusChange
-        - CampaignStats
-      abis:
-        - name: Campaign
-          file: ./abis/Campaign.json
-      eventHandlers:
-        - event: CampaignCreated(indexed bytes32,string,bytes32,uint256,uint256,uint256)
-          handler: handleCampaignCreated
-        - event: CampaignParticipated(indexed bytes32,indexed address,uint256)
-          handler: handleCampaignParticipated
-        - event: CampaignBudgetIncreased(indexed bytes32,uint256,uint256)
-          handler: handleCampaignBudgetIncreased
-        - event: CampaignBudgetSpent(indexed bytes32,uint256,uint256)
-          handler: handleCampaignBudgetSpent
-        - event: CampaignStatusChanged(indexed bytes32,uint8,uint8)
-          handler: handleCampaignStatusChanged
-      file: ./src/campaign.ts
-
-  # ============================================================================
-  # Quest - 任务系统事件
-  # ============================================================================
-  - kind: ethereum/contract
-    name: Quest
-    network: localhost
-    source:
-      address: "0x6B21b3ae41f818Fc91e322b53f8D0773d31eCB75"
-      abi: Quest
-      startBlock: 591
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Quest
-        - QuestProgress
-        - QuestProgressUpdate
-        - QuestRewardClaim
-        - QuestStatusChange
-        - QuestStats
-      abis:
-        - name: Quest
-          file: ./abis/Quest.json
-      eventHandlers:
-        - event: QuestCreated(indexed bytes32,indexed bytes32,uint8,string,uint256,uint256,uint256,uint256)
-          handler: handleQuestCreated
-        - event: QuestProgressUpdated(indexed bytes32,indexed address,uint256,uint256)
-          handler: handleQuestProgressUpdated
-        - event: QuestCompleted(indexed bytes32,indexed address,uint256)
-          handler: handleQuestCompleted
-        - event: QuestRewardClaimed(indexed bytes32,indexed address,uint256)
-          handler: handleQuestRewardClaimed
-        - event: QuestStatusChanged(indexed bytes32,uint8,uint8)
-          handler: handleQuestStatusChanged
-      file: ./src/quest.ts
-
-  # ============================================================================
-  # CreditToken - 免佣券事件
-  # ============================================================================
-  - kind: ethereum/contract
-    name: CreditToken
-    network: localhost
-    source:
-      address: "0x1f53E116c31F171e59f45f0752AEc5d1F5aA3714"
-      abi: CreditToken
-      startBlock: 591
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - CreditType
-        - CreditUsage
-        - CreditBalance
-        - User
-      abis:
-        - name: CreditToken
-          file: ./abis/CreditToken.json
-      eventHandlers:
-        - event: CreditTypeCreated(indexed uint256,uint256,uint256,uint256,uint256)
-          handler: handleCreditTypeCreated
-        - event: CreditTypeStatusUpdated(indexed uint256,bool)
-          handler: handleCreditTypeStatusUpdated
-        - event: CreditUsed(indexed address,indexed uint256,uint256,uint256)
-          handler: handleCreditUsed
-        - event: CreditBatchMinted(indexed uint256,address[],uint256[],uint256)
-          handler: handleCreditBatchMinted
-        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
-          handler: handleTransferSingle
-        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
-          handler: handleTransferBatch
-      file: ./src/credit.ts
-
-  # ============================================================================
-  # Coupon - 加成券事件
-  # ============================================================================
-  - kind: ethereum/contract
-    name: Coupon
-    network: localhost
-    source:
-      address: "0xa31F4c0eF2935Af25370D9AE275169CCd9793DA3"
-      abi: Coupon
-      startBlock: 591
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - CouponType
-        - CouponUsage
-        - CouponBalance
-        - User
-      abis:
-        - name: Coupon
-          file: ./abis/Coupon.json
-      eventHandlers:
-        - event: CouponTypeCreated(indexed uint256,uint256,uint8,uint256,uint256,uint256,uint256)
-          handler: handleCouponTypeCreated
-        - event: CouponUsed(indexed address,indexed uint256,indexed address,uint256,uint256,uint256,uint256)
-          handler: handleCouponUsed
-        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
-          handler: handleTransferSingle
-      file: ./src/coupon.ts
-
-  # ============================================================================
-  # PayoutScaler - 预算缩放事件
-  # ============================================================================
-  - kind: ethereum/contract
-    name: PayoutScaler
-    network: localhost
-    source:
-      address: "0xF9c0bF1CFAAB883ADb95fed4cfD60133BffaB18a"
-      abi: PayoutScaler
-      startBlock: 591
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - BudgetPool
-        - BudgetRefill
-        - ScalingRecord
-        - BudgetUsage
-      abis:
-        - name: PayoutScaler
-          file: ./abis/PayoutScaler.json
-      eventHandlers:
-        - event: BudgetRefilled(indexed uint8,uint256,uint256)
-          handler: handleBudgetRefilled
-        - event: ScalingCalculated(indexed uint8,indexed uint256,uint256,uint256,uint256,uint256,uint256)
-          handler: handleScalingCalculated
-        - event: BudgetUsed(indexed uint8,indexed uint256,uint256,uint256)
-          handler: handleBudgetUsed
-        - event: AutoScaleUpdated(indexed uint8,bool)
-          handler: handleAutoScaleUpdated
-      file: ./src/scaler.ts
-
-  # ============================================================================
-  # Basket - 串关市场事件 (M3)
-  # 注意：需要先部署合约后更新地址
-  # ============================================================================
-  - kind: ethereum/contract
-    name: Basket
-    network: localhost
-    source:
-      address: "0x0000000000000000000000000000000000000000"  # TODO: 部署后更新
-      abi: Basket
-      startBlock: 1
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Basket
-        - User
-      abis:
-        - name: Basket
-          file: ./abis/Basket.json
-      eventHandlers:
-        - event: ParlayCreated(indexed uint256,indexed address,(address,uint256)[],uint256,uint256,uint256,uint256)
-          handler: handleBasketCreated
-        - event: ParlaySettled(indexed uint256,indexed address,uint8,uint256)
-          handler: handleBasketSettled
-      file: ./src/basket.ts
-
-  # ============================================================================
-  # CorrelationGuard - 相关性守卫事件 (M3)
-  # 注意：需要先部署合约后更新地址
-  # ============================================================================
-  - kind: ethereum/contract
-    name: CorrelationGuard
-    network: localhost
-    source:
-      address: "0x0000000000000000000000000000000000000000"  # TODO: 部署后更新
-      abi: CorrelationGuard
-      startBlock: 1
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - CorrelationRule
-        - CorrelationApplication
-      abis:
-        - name: CorrelationGuard
-          file: ./abis/CorrelationGuard.json
-      eventHandlers:
-        - event: CorrelationRuleSet(indexed bytes32,indexed bytes32,uint256,bool)
-          handler: handleCorrelationRuleSet
-        - event: DefaultPenaltyUpdated(uint256)
-          handler: handleDefaultPenaltyUpdated
-        - event: ParlayBlocked(indexed address,string)
-          handler: handleParlayBlocked
-      file: ./src/correlation.ts
 
 # ============================================================================
 # 动态模板配置 - 用于自动索引新创建的市场
@@ -479,7 +245,89 @@ templates:
           handler: handleTransferBatch
       file: ./src/market.ts
 
-  # PlayerProps 市场模板（球员道具市场，M3）
+  # AH 让球市场模板
+  - kind: ethereum/contract
+    name: AHMarket
+    network: localhost
+    source:
+      abi: AH_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: AH_Template
+          file: ../contracts/out/AH_Template.sol/AH_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # Score 精确比分市场模板
+  - kind: ethereum/contract
+    name: ScoreMarket
+    network: localhost
+    source:
+      abi: ScoreTemplate
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: ScoreTemplate
+          file: ../contracts/out/ScoreTemplate.sol/ScoreTemplate.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # PlayerProps 球员道具市场模板
   - kind: ethereum/contract
     name: PlayerPropsMarket
     network: localhost
@@ -502,10 +350,6 @@ templates:
         - name: MarketBase
           file: ../contracts/out/MarketBase.sol/MarketBase.json
       eventHandlers:
-        - event: PlayerPropsMarketCreated(indexed string,indexed string,indexed uint8,uint256,uint256)
-          handler: handlePlayerPropsMarketCreated
-        - event: PlayerPropsBetPlaced(indexed address,indexed uint256,string,uint256,uint256)
-          handler: handlePlayerPropsBetPlaced
         - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
           handler: handleBetPlaced
         - event: Locked(uint256)

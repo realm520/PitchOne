@@ -27,10 +27,16 @@ if (!fs.existsSync(deploymentFile)) {
 // 读取部署数据
 const deployment = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
 
+// 处理 deployedAt 字段（可能未定义，使用默认值 0）
+const startBlock = deployment.deployedAt || 0;
+
 console.log('\n📝 Updating Subgraph configuration...');
 console.log(`  Network: ${deployment.network}`);
 console.log(`  ChainId: ${deployment.chainId}`);
-console.log(`  Deployed at block: ${deployment.deployedAt}`);
+console.log(`  Deployed at block: ${startBlock}`);
+if (!deployment.deployedAt) {
+  console.log('  ⚠️  Warning: deployedAt not found in deployment file, using block 0');
+}
 
 // 读取模板文件
 const templatePath = path.join(__dirname, '../subgraph.template.yaml');
@@ -46,7 +52,7 @@ const template = fs.readFileSync(templatePath, 'utf-8');
 const config = template
   .replace(/{{FACTORY_ADDRESS}}/g, deployment.contracts.factory)
   .replace(/{{FEE_ROUTER_ADDRESS}}/g, deployment.contracts.feeRouter)
-  .replace(/{{START_BLOCK}}/g, deployment.deployedAt.toString());
+  .replace(/{{START_BLOCK}}/g, startBlock.toString());
 
 // 写入最终配置
 const outputPath = path.join(__dirname, '../subgraph.yaml');

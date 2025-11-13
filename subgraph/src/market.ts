@@ -289,10 +289,9 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   // 加载或创建用户
   let user = loadOrCreateUser(userAddress);
 
-  // 使用事件中的费用参数
-  const amountDecimal = toDecimal(amount);
-  const fee = toDecimal(feeParam);
-  const netAmount = amountDecimal.minus(fee);
+  // 直接使用原始 wei 值，不转换为 decimal
+  // 前端会使用 formatUnits() 进行转换
+  const netAmount = amount.minus(feeParam);
 
   // 创建订单记录
   const orderId = generateEventId(event.transaction.hash, event.logIndex);
@@ -300,12 +299,12 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   order.market = marketAddress.toHexString();
   order.user = userAddress.toHexString();
   order.outcome = outcome;
-  order.amount = amountDecimal;
+  order.amount = amount;  // 存储原始 BigInt
   order.shares = shares;
-  order.fee = fee;
+  order.fee = feeParam;   // 存储原始 BigInt
   order.referrer = null; // TODO: 从合约事件中提取（如果有）
   order.price = shares.gt(ZERO_BI)
-    ? netAmount.div(shares.toBigDecimal())
+    ? netAmount.toBigDecimal().div(shares.toBigDecimal())
     : ZERO_BD;
   order.timestamp = event.block.timestamp;
   order.blockNumber = event.block.number;
@@ -315,9 +314,14 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   // 检查是否首次参与该市场（在创建/更新 position 之前判断）
   const isFirstBetInMarket = isFirstTimeInMarket(userAddress, marketAddress);
 
+  // 为统计聚合转换为 BigDecimal
+  const amountDecimal = toDecimal(amount);
+  const feeDecimal = toDecimal(feeParam);
+  const netAmountDecimal = amountDecimal.minus(feeDecimal);
+
   // 更新或创建头寸
   let position = loadOrCreatePosition(marketAddress, userAddress, outcome);
-  updatePositionAverageCost(position, netAmount, shares);
+  updatePositionAverageCost(position, netAmountDecimal, shares);
   position.lastUpdatedAt = event.block.timestamp;
   position.save();
 
@@ -340,13 +344,13 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
 
   // 更新市场统计
   market.totalVolume = market.totalVolume.plus(amountDecimal);
-  market.feeAccrued = market.feeAccrued.plus(fee);
+  market.feeAccrued = market.feeAccrued.plus(feeDecimal);
   market.save();
 
   // 更新全局统计
   let stats = loadOrCreateGlobalStats();
   stats.totalVolume = stats.totalVolume.plus(amountDecimal);
-  stats.totalFees = stats.totalFees.plus(fee);
+  stats.totalFees = stats.totalFees.plus(feeDecimal);
   stats.lastUpdatedAt = event.block.timestamp;
   stats.save();
 }

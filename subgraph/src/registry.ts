@@ -10,10 +10,11 @@ import {
   TemplateUnregistered as TemplateUnregisteredEvent,
   TemplateActiveStatusUpdated as TemplateActiveStatusUpdatedEvent,
 } from '../generated/MarketTemplateRegistry/MarketTemplateRegistry';
-import { WDLMarket, OUMarket, OUMultiMarket, OddEvenMarket } from '../generated/templates';
+import { WDLMarket, OUMarket, OUMultiMarket, OddEvenMarket, AHMarket, ScoreMarket, PlayerPropsMarket } from '../generated/templates';
 import { WDL_Template_V2 } from '../generated/MarketFactory/WDL_Template_V2';
 import { OU_Template } from '../generated/templates/OUMarket/OU_Template';
 import { OddEven_Template } from '../generated/templates/OddEvenMarket/OddEven_Template';
+import { MarketBase } from '../generated/templates/WDLMarket/MarketBase';
 import { Template, GlobalStats, Market } from '../generated/schema';
 import { loadOrCreateGlobalStats, ZERO_BD } from './helpers';
 
@@ -71,6 +72,18 @@ export function handleMarketCreatedFromRegistry(event: MarketCreatedFromRegistry
     log.info('Registry: Creating OddEven market data source for {}', [marketAddress.toHexString()]);
     OddEvenMarket.create(marketAddress);
     createOddEvenMarketEntity(marketAddress, event);
+  } else if (templateName != null && templateName == 'AH') {
+    log.info('Registry: Creating AH market data source for {}', [marketAddress.toHexString()]);
+    AHMarket.create(marketAddress);
+    createBasicMarketEntity(marketAddress, 'AH', event);
+  } else if (templateName != null && templateName == 'Score') {
+    log.info('Registry: Creating Score market data source for {}', [marketAddress.toHexString()]);
+    ScoreMarket.create(marketAddress);
+    createBasicMarketEntity(marketAddress, 'Score', event);
+  } else if (templateName != null && templateName == 'PlayerProps') {
+    log.info('Registry: Creating PlayerProps market data source for {}', [marketAddress.toHexString()]);
+    PlayerPropsMarket.create(marketAddress);
+    createBasicMarketEntity(marketAddress, 'PlayerProps', event);
   } else {
     log.warning('Registry: Unknown template name {} for market {}', [
       templateName !== null ? templateName! : 'null',
@@ -318,4 +331,182 @@ export function registerExistingMarkets(): void {
 
   // OU Multi-Line Market: PSG vs Lyon
   OUMultiMarket.create(Address.fromString('0x09635F643e140090A9A8Dcd712eD6285858ceBef'));
+}
+
+/**
+ * 从链上读取并创建 AH Market 实体 (使用 MarketBase ABI)
+ */
+function createAHMarketEntity(marketAddress: Address, event: MarketCreatedFromRegistryEvent): void {
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    log.info('Registry: Market {} already exists, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  // 使用 MarketBase ABI 读取通用字段
+  let marketContract = MarketBase.bind(marketAddress);
+  let matchIdResult = marketContract.try_matchId();
+  let homeTeamResult = marketContract.try_homeTeam();
+  let awayTeamResult = marketContract.try_awayTeam();
+  let kickoffTimeResult = marketContract.try_kickoffTime();
+
+  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
+    log.warning('Registry: Failed to read market data for AH market {}, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "AH";
+  market.matchId = matchIdResult.value;
+  market.homeTeam = homeTeamResult.value;
+  market.awayTeam = awayTeamResult.value;
+  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null;
+  market.save();
+
+  log.info('Registry: Created AH market entity: {} vs {}', [market.homeTeam, market.awayTeam]);
+
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+/**
+ * 从链上读取并创建 Score Market 实体 (使用 MarketBase ABI)
+ */
+function createScoreMarketEntity(marketAddress: Address, event: MarketCreatedFromRegistryEvent): void {
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    log.info('Registry: Market {} already exists, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  let marketContract = MarketBase.bind(marketAddress);
+  let matchIdResult = marketContract.try_matchId();
+  let homeTeamResult = marketContract.try_homeTeam();
+  let awayTeamResult = marketContract.try_awayTeam();
+  let kickoffTimeResult = marketContract.try_kickoffTime();
+
+  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
+    log.warning('Registry: Failed to read market data for Score market {}, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "Score";
+  market.matchId = matchIdResult.value;
+  market.homeTeam = homeTeamResult.value;
+  market.awayTeam = awayTeamResult.value;
+  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null;
+  market.save();
+
+  log.info('Registry: Created Score market entity: {} vs {}', [market.homeTeam, market.awayTeam]);
+
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+/**
+ * 从链上读取并创建 PlayerProps Market 实体 (使用 MarketBase ABI)
+ */
+function createPlayerPropsMarketEntity(marketAddress: Address, event: MarketCreatedFromRegistryEvent): void {
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    log.info('Registry: Market {} already exists, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  let marketContract = MarketBase.bind(marketAddress);
+  let matchIdResult = marketContract.try_matchId();
+  let homeTeamResult = marketContract.try_homeTeam();
+  let awayTeamResult = marketContract.try_awayTeam();
+  let kickoffTimeResult = marketContract.try_kickoffTime();
+
+  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
+    log.warning('Registry: Failed to read market data for PlayerProps market {}, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  market = new Market(marketAddress.toHexString());
+  market.templateId = "PlayerProps";
+  market.matchId = matchIdResult.value;
+  market.homeTeam = homeTeamResult.value;
+  market.awayTeam = awayTeamResult.value;
+  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null;
+  market.save();
+
+  log.info('Registry: Created PlayerProps market entity: {} vs {}', [market.homeTeam, market.awayTeam]);
+
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
+}
+
+/**
+ * 创建基础 Market 实体（用于不需要读取链上数据的市场类型）
+ */
+function createBasicMarketEntity(marketAddress: Address, templateId: string, event: MarketCreatedFromRegistryEvent): void {
+  let market = Market.load(marketAddress.toHexString());
+  if (market !== null) {
+    log.info('Registry: Market {} already exists, skipping', [marketAddress.toHexString()]);
+    return;
+  }
+
+  market = new Market(marketAddress.toHexString());
+  market.templateId = templateId;
+  market.matchId = "";  // Will be updated by first event handler
+  market.homeTeam = "";
+  market.awayTeam = "";
+  market.kickoffTime = event.block.timestamp;
+  market.ruleVer = Bytes.empty();
+  market.state = "Open";
+  market.createdAt = event.block.timestamp;
+  market.totalVolume = ZERO_BD;
+  market.feeAccrued = ZERO_BD;
+  market.lpLiquidity = ZERO_BD;
+  market.uniqueBettors = 0;
+  market.oracle = null;
+  market.pricingEngine = null;
+  market.save();
+
+  log.info('Registry: Created {} market entity: {}', [templateId, marketAddress.toHexString()]);
+
+  let stats = loadOrCreateGlobalStats();
+  stats.totalMarkets = stats.totalMarkets + 1;
+  stats.activeMarkets = stats.activeMarkets + 1;
+  stats.lastUpdatedAt = event.block.timestamp;
+  stats.save();
 }

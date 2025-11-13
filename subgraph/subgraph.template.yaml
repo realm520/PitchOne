@@ -244,3 +244,126 @@ templates:
         - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
           handler: handleTransferBatch
       file: ./src/market.ts
+
+  # AH 让球市场模板
+  - kind: ethereum/contract
+    name: AHMarket
+    network: localhost
+    source:
+      abi: AH_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: AH_Template
+          file: ../contracts/out/AH_Template.sol/AH_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # Score 精确比分市场模板
+  - kind: ethereum/contract
+    name: ScoreMarket
+    network: localhost
+    source:
+      abi: ScoreTemplate
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: ScoreTemplate
+          file: ../contracts/out/ScoreTemplate.sol/ScoreTemplate.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
+
+  # PlayerProps 球员道具市场模板
+  - kind: ethereum/contract
+    name: PlayerPropsMarket
+    network: localhost
+    source:
+      abi: PlayerProps_Template
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Order
+        - Position
+        - Redemption
+        - User
+        - GlobalStats
+      abis:
+        - name: PlayerProps_Template
+          file: ../contracts/out/PlayerProps_Template.sol/PlayerProps_Template.json
+        - name: MarketBase
+          file: ../contracts/out/MarketBase.sol/MarketBase.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed uint256,uint256,uint256,uint256)
+          handler: handleBetPlaced
+        - event: Locked(uint256)
+          handler: handleLocked
+        - event: Resolved(indexed uint256,uint256)
+          handler: handleResolved
+        - event: Finalized(uint256)
+          handler: handleFinalized
+        - event: Redeemed(indexed address,indexed uint256,uint256,uint256)
+          handler: handleRedeemed
+        - event: LiquidityAdded(indexed address,uint256,uint256)
+          handler: handleLiquidityAdded
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+      file: ./src/market.ts
