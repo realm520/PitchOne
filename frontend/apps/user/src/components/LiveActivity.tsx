@@ -3,6 +3,7 @@
 import { formatUnits } from 'viem';
 import { Card, Badge } from '@pitchone/ui';
 import type { BetPlacedEvent } from '@pitchone/web3';
+import { TOKEN_DECIMALS } from '@pitchone/web3';
 
 interface LiveActivityProps {
   events: BetPlacedEvent[];
@@ -73,10 +74,10 @@ export function LiveActivity({ events, outcomeNames = [] }: LiveActivityProps) {
 
               <div className="text-right">
                 <p className="text-sm font-bold text-neon-green">
-                  {formatUnits(event.amount, 6)} USDC
+                  {formatUnits(event.amount, TOKEN_DECIMALS.USDC)} USDC
                 </p>
                 <p className="text-xs text-gray-500">
-                  手续费: {formatUnits(event.fee, 6)} USDC
+                  手续费: {formatUnits(event.fee, TOKEN_DECIMALS.USDC)} USDC
                 </p>
               </div>
             </div>

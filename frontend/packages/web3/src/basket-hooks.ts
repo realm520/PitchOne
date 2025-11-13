@@ -4,6 +4,7 @@ import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAcc
 import { parseUnits, type Address, formatUnits } from 'viem';
 import { BasketABI, getContractAddresses } from '@pitchone/contracts';
 import { useMemo } from 'react';
+import { TOKEN_DECIMALS, BUSINESS_DECIMALS } from './constants';
 
 // ============================================================================
 // 类型定义
@@ -65,7 +66,7 @@ export function useParlayQuote(legs?: ParlayLeg[], stake?: string) {
   const { chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
-  const stakeInWei = stake ? parseUnits(stake, 6) : 0n;
+  const stakeInWei = stake ? parseUnits(stake, TOKEN_DECIMALS.USDC) : 0n;
 
   const { data, isLoading, isError, error, refetch } = useReadContract({
     address: addresses?.basket,
@@ -89,17 +90,17 @@ export function useParlayQuote(legs?: ParlayLeg[], stake?: string) {
 
   // 格式化的赔率（如 3.5x）
   const formattedOdds = quote
-    ? Number(formatUnits(quote.combinedOdds, 4)).toFixed(2) + 'x'
+    ? Number(formatUnits(quote.combinedOdds, BUSINESS_DECIMALS.ODDS)).toFixed(2) + 'x'
     : null;
 
   // 格式化的潜在赔付（USDC）
   const formattedPayout = quote
-    ? formatUnits(quote.potentialPayout, 6)
+    ? formatUnits(quote.potentialPayout, TOKEN_DECIMALS.USDC)
     : null;
 
   // 相关性惩罚百分比（如 -5%）
   const penaltyPercentage = quote
-    ? Number(formatUnits(quote.penaltyBps, 2)).toFixed(2) + '%'
+    ? Number(formatUnits(quote.penaltyBps, BUSINESS_DECIMALS.BPS)).toFixed(2) + '%'
     : null;
 
   return {
@@ -232,9 +233,9 @@ export function usePoolStatus() {
     reserveFund,
     totalLockedStake,
     totalPotentialPayout,
-    formattedReserve: formatUnits(reserveFund, 6),
-    formattedLocked: formatUnits(totalLockedStake, 6),
-    formattedPotential: formatUnits(totalPotentialPayout, 6),
+    formattedReserve: formatUnits(reserveFund, TOKEN_DECIMALS.USDC),
+    formattedLocked: formatUnits(totalLockedStake, TOKEN_DECIMALS.USDC),
+    formattedPotential: formatUnits(totalPotentialPayout, TOKEN_DECIMALS.USDC),
     isLoading,
     isError,
     error,
@@ -290,7 +291,7 @@ export function useCreateParlay() {
     if (legs.length < 2) throw new Error('At least 2 legs required for parlay');
     if (legs.length > 10) throw new Error('Maximum 10 legs allowed');
 
-    const stakeInWei = parseUnits(stake, 6); // USDC 使用 6 位小数
+    const stakeInWei = parseUnits(stake, TOKEN_DECIMALS.USDC);
 
     console.log('[useCreateParlay] 发起串关:', {
       basketAddress: addresses.basket,

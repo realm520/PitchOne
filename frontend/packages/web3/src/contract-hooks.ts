@@ -3,6 +3,7 @@
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
 import { MarketBaseABI, ERC20ABI, getContractAddresses } from '@pitchone/contracts';
+import { TOKEN_DECIMALS } from './constants';
 
 /**
  * 使用 USDC Approve hook
@@ -29,7 +30,7 @@ export function useApproveUSDC() {
   const approve = async (spender: Address, amount: string) => {
     if (!addresses) throw new Error('Chain not supported');
 
-    const amountInWei = parseUnits(amount, 6); // USDC 使用 6 位小数
+    const amountInWei = parseUnits(amount, TOKEN_DECIMALS.USDC);
 
     return writeContract({
       address: addresses.usdc,
@@ -58,15 +59,39 @@ export function useUSDCAllowance(owner?: Address, spender?: Address) {
   const { chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
-  return useReadContract({
+  const result = useReadContract({
     address: addresses?.usdc,
     abi: ERC20ABI,
     functionName: 'allowance',
     args: owner && spender ? [owner, spender] : undefined,
     query: {
       enabled: !!owner && !!spender && !!addresses,
+      // 添加重试和刷新配置
+      retry: 3,
+      retryDelay: 1000,
     },
   });
+
+  // 调试日志
+  console.log('[useUSDCAllowance] 查询参数:', {
+    owner,
+    spender,
+    chainId,
+    usdcAddress: addresses?.usdc,
+    hasAddresses: !!addresses,
+    enabled: !!owner && !!spender && !!addresses,
+  });
+
+  console.log('[useUSDCAllowance] 查询结果:', {
+    hasData: result.data !== undefined,
+    data: result.data?.toString(),
+    isLoading: result.isLoading,
+    isError: result.isError,
+    error: result.error?.message,
+    status: result.status,
+  });
+
+  return result;
 }
 
 /**
@@ -123,7 +148,7 @@ export function usePlaceBet(marketAddress?: Address) {
   const placeBet = async (outcomeId: number, amount: string) => {
     if (!marketAddress) throw new Error('Market address required');
 
-    const amountInWei = parseUnits(amount, 6); // USDC 使用 6 位小数
+    const amountInWei = parseUnits(amount, TOKEN_DECIMALS.USDC);
 
     console.log('[usePlaceBet] 发起下注:', {
       marketAddress,
@@ -172,7 +197,7 @@ export function useRedeem(marketAddress?: Address) {
   const redeem = async (outcomeId: number, shares: string) => {
     if (!marketAddress) throw new Error('Market address required');
 
-    const sharesInWei = parseUnits(shares, 18); // ERC-1155 份额使用 18 位小数
+    const sharesInWei = parseUnits(shares, TOKEN_DECIMALS.SHARES);
 
     return writeContract({
       address: marketAddress,
@@ -272,7 +297,7 @@ export function useOutcomeLiquidity(marketAddress?: Address, outcomeId?: number)
  * @param amount 下注金额（USDC，6 位小数）
  */
 export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: string) {
-  const amountInWei = amount ? parseUnits(amount, 6) : BigInt(0);
+  const amountInWei = amount ? parseUnits(amount, TOKEN_DECIMALS.USDC) : BigInt(0);
 
   return useReadContract({
     address: marketAddress,

@@ -25,6 +25,9 @@ export { ConnectButton } from '@rainbow-me/rainbowkit';
 export { graphqlClient } from './graphql';
 export * from './graphql';
 
+// Constants (Decimals)
+export { TOKEN_DECIMALS, BUSINESS_DECIMALS } from './constants';
+
 // Custom Hooks
 export {
   useMarkets,

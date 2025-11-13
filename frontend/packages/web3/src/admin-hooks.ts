@@ -17,6 +17,7 @@ import {
   LiquidityVaultABI,
   getContractAddresses
 } from '@pitchone/contracts';
+import { TOKEN_DECIMALS } from './constants';
 
 // ============================================
 // 市场管理 Hooks
@@ -421,7 +422,7 @@ export function useCreateCampaign() {
   const createCampaign = async (name: string, budget: string, ruleHash: string) => {
     if (!addresses?.campaign) throw new Error('Campaign contract not deployed');
 
-    const budgetInWei = parseUnits(budget, 6); // USDC 6 位小数
+    const budgetInWei = parseUnits(budget, TOKEN_DECIMALS.USDC); // USDC 6 位小数
 
     console.log('[useCreateCampaign] 创建活动:', {
       campaign: addresses.campaign,
@@ -477,7 +478,7 @@ export function useCreateQuest() {
   const createQuest = async (questType: number, target: bigint, reward: string) => {
     if (!addresses?.quest) throw new Error('Quest contract not deployed');
 
-    const rewardInWei = parseUnits(reward, 6); // USDC 6 位小数
+    const rewardInWei = parseUnits(reward, TOKEN_DECIMALS.USDC); // USDC 6 位小数
 
     console.log('[useCreateQuest] 创建任务:', {
       quest: addresses.quest,
@@ -536,7 +537,7 @@ export function usePublishMerkleRoot() {
   const publishRoot = async (root: Hex, totalAmount: string) => {
     if (!addresses?.rewardsDistributor) throw new Error('RewardsDistributor not deployed');
 
-    const amountInWei = parseUnits(totalAmount, 6); // USDC 6 位小数
+    const amountInWei = parseUnits(totalAmount, TOKEN_DECIMALS.USDC); // USDC 6 位小数
 
     console.log('[usePublishMerkleRoot] 发布 Merkle Root:', {
       rewardsDistributor: addresses.rewardsDistributor,

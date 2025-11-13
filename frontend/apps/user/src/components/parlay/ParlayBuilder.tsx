@@ -8,6 +8,7 @@ import {
   useUSDCAllowance,
   useAccount,
   type ParlayLeg,
+  TOKEN_DECIMALS,
 } from '@pitchone/web3';
 import { getContractAddresses, type Address } from '@pitchone/contracts';
 import { Card, Button, Input, LoadingSpinner } from '@pitchone/ui';
@@ -74,7 +75,7 @@ export function ParlayBuilder({
   // 检查是否需要授权
   const needsApproval = useMemo(() => {
     if (!stakeAmount || !allowance) return false;
-    const stakeInWei = parseUnits(stakeAmount, 6);
+    const stakeInWei = parseUnits(stakeAmount, TOKEN_DECIMALS.USDC);
     return allowance < stakeInWei;
   }, [stakeAmount, allowance]);
 

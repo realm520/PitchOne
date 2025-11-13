@@ -15,6 +15,7 @@ import {
   useAutoRefresh,
   useWatchBetPlaced,
   useMarketOutcomes,
+  useMarketFullData,
 } from '@pitchone/web3';
 import {
   Container,
@@ -53,6 +54,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     market?._displayInfo?.templateType || 'WDL'
   );
 
+  // 获取实时的市场流动性数据（直接从合约读取）
+  const { data: marketFullData, refetch: refetchMarketFullData } = useMarketFullData(
+    marketId as `0x${string}`,
+    address
+  );
+
   // 调试日志：显示所有关键状态
   console.log('[MarketDetailClient] 组件状态:', {
     marketId,
@@ -64,6 +71,8 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     market,
     hasOutcomes: !!outcomes,
     outcomes,
+    hasMarketFullData: !!marketFullData,
+    marketFullData,
     isLoading,
     outcomesLoading,
     hasError: !!error,
@@ -77,18 +86,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 合并历史订单和实时事件
   const allBetEvents = useMemo(() => {
     // 辅助函数：安全地将字符串转换为 BigInt
-    const stringToBigInt = (value: string | undefined, decimals: number = 18): bigint => {
+    // Subgraph 现在返回原始 BigInt 字符串，直接转换即可
+    const stringToBigInt = (value: string | undefined): bigint => {
       if (!value) return 0n;
-
-      // 如果字符串包含小数点，说明已经被格式化了
-      if (value.includes('.')) {
-        // 去掉小数点，然后转换
-        const [integer, decimal = ''] = value.split('.');
-        const paddedDecimal = decimal.padEnd(decimals, '0').slice(0, decimals);
-        return BigInt(integer + paddedDecimal);
-      }
-
-      // 否则直接转换
       return BigInt(value);
     };
 
@@ -97,9 +97,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       return {
         user: order.user as `0x${string}`,
         outcomeId: BigInt(order.outcome),
-        amount: stringToBigInt(order.amount, 6), // USDC 6 位小数
-        shares: stringToBigInt(order.shares, 18), // ERC-1155 shares 18 位小数
-        fee: stringToBigInt(order.fee, 6), // 手续费也是 USDC 6 位小数
+        amount: stringToBigInt(order.amount), // 原始 wei 值
+        shares: stringToBigInt(order.shares), // 原始 wei 值
+        fee: stringToBigInt(order.fee), // 原始 wei 值
         blockNumber: 0n, // 历史订单没有 blockNumber
         transactionHash: order.transactionHash,
         timestamp: parseInt(order.timestamp) * 1000, // 转换为毫秒
@@ -135,11 +135,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   }, [betPlacedEvents, address, market, outcomes]);
 
-  // 自动刷新（包括 outcomes 和所有订单）
+  // 自动刷新（包括 outcomes、流动性和所有订单）
   useAutoRefresh(
     () => {
       refetchMarket();
       refetchOutcomes();
+      refetchMarketFullData();
       refetchAllOrders();
       if (address) {
         refetchOrders();
@@ -154,7 +155,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
   // 合约交互 hooks
   const { data: usdcBalance } = useUSDCBalance(address as `0x${string}`);
-  const { data: allowance, refetch: refetchAllowance } = useUSDCAllowance(
+  const {
+    data: allowance,
+    refetch: refetchAllowance,
+    isLoading: isAllowanceLoading,
+    error: allowanceError
+  } = useUSDCAllowance(
     address as `0x${string}`,
     marketId as `0x${string}`
   );
@@ -188,7 +194,21 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
   // 检查是否需要 approve
   useEffect(() => {
-    if (betAmount && allowance !== undefined) {
+    if (!betAmount) {
+      // 没有输入金额时，重置状态
+      setNeedsApproval(false);
+      return;
+    }
+
+    // 如果有授权错误，默认需要授权
+    if (allowanceError) {
+      console.log('[MarketDetailClient] allowance 查询失败，默认需要授权:', allowanceError);
+      setNeedsApproval(true);
+      return;
+    }
+
+    // 如果授权数据可用，进行检查
+    if (allowance !== undefined) {
       const amountInWei = BigInt(parseFloat(betAmount) * 1e6); // USDC 6 decimals
       const needsApprove = allowance < amountInWei;
       console.log('[MarketDetailClient] 授权检查:', {
@@ -198,15 +218,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
         needsApprove
       });
       setNeedsApproval(needsApprove);
-    } else if (betAmount && allowance === undefined) {
-      // allowance 还在加载中，默认假设需要授权
-      console.log('[MarketDetailClient] allowance 未加载，默认需要授权');
-      setNeedsApproval(true);
-    } else {
-      // 没有输入金额时，重置状态
-      setNeedsApproval(false);
     }
-  }, [betAmount, allowance]);
+    // 注意：这里不再默认设置需要授权，让按钮显示"检查授权..."
+  }, [betAmount, allowance, allowanceError]);
 
   // 监听授权交易发起
   useEffect(() => {
@@ -289,6 +303,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       setTimeout(() => {
         refetchMarket();
         refetchOutcomes();
+        refetchMarketFullData();
         refetchAllOrders();
         if (address) {
           refetchOrders();
@@ -452,7 +467,11 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">流动性</p>
-              <p className="text-xl font-bold text-neon-green">{Number(market.lpLiquidity).toFixed(2)} USDC</p>
+              <p className="text-xl font-bold text-neon-green">
+                {marketFullData?.totalLiquidity
+                  ? Number(formatUnits(marketFullData.totalLiquidity, 6)).toFixed(2)
+                  : '0.00'} USDC
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">参与人数</p>
@@ -581,16 +600,25 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-dark-border">
-                        {orders.map((order) => (
-                          <tr key={order.id} className="hover:bg-dark-card/50 transition-colors">
-                            <td className="px-6 py-4 text-sm text-gray-400">{formatDate(order.timestamp)}</td>
-                            <td className="px-6 py-4">
-                              <Badge variant="info">结果 {order.outcome}</Badge>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium text-white">{formatUnits(BigInt(order.amount), 6)} USDC</td>
-                            <td className="px-6 py-4 text-sm font-medium text-neon-green">+{formatUnits(BigInt(order.shares), 18)} shares</td>
-                          </tr>
-                        ))}
+                        {orders.map((order) => {
+                          // Subgraph 返回的 amount 是 BigDecimal 字符串（已格式化）
+                          const amountUSDC = parseFloat(order.amount);
+                          // shares 是 BigInt 字符串（未格式化），使用 USDC 精度（6 位小数）
+                          const sharesInUSDC = parseFloat(order.shares) / 1e6;
+
+                          return (
+                            <tr key={order.id} className="hover:bg-dark-card/50 transition-colors">
+                              <td className="px-6 py-4 text-sm text-gray-400">{formatDate(order.timestamp)}</td>
+                              <td className="px-6 py-4">
+                                <Badge variant="info">结果 {order.outcome}</Badge>
+                              </td>
+                              <td className="px-6 py-4 text-sm font-medium text-white">{amountUSDC.toFixed(2)} USDC</td>
+                              <td className="px-6 py-4 text-sm font-medium text-neon-green">
+                                +{sharesInUSDC.toFixed(2)} USDC
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -698,20 +726,20 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   variant="neon"
                   fullWidth
                   onClick={handleApprove}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || allowance === undefined}
-                  isLoading={isApproving || isApprovingConfirming}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
+                  isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
                 >
-                  {isApproving || isApprovingConfirming ? '授权中...' : allowance === undefined ? '检查授权...' : '授权 USDC'}
+                  {isApproving || isApprovingConfirming ? '授权中...' : isAllowanceLoading ? '检查授权...' : '授权 USDC'}
                 </Button>
               ) : (
                 <Button
                   variant="neon"
                   fullWidth
                   onClick={handlePlaceBet}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || allowance === undefined}
+                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || (isAllowanceLoading && allowance === undefined)}
                   isLoading={isBetting || isBettingConfirming}
                 >
-                  {isBetting || isBettingConfirming ? '预测中...' : allowance === undefined ? '加载中...' : '确认预测'}
+                  {isBetting || isBettingConfirming ? '预测中...' : (isAllowanceLoading && allowance === undefined) ? '检查授权...' : '确认预测'}
                 </Button>
               )}
             </div>
