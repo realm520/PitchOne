@@ -1,158 +1,126 @@
-# PitchOne 部署脚本使用指南
+# PitchOne 合约脚本使用指南
 
 ## 📋 脚本概览
 
-本目录包含 3 个核心脚本，用于完整的合约部署、市场创建和测试数据生成流程：
+本目录包含 3 个核心 Forge 脚本和 1 个便捷测试脚本：
 
 | 脚本 | 功能 | 说明 |
 |------|------|------|
-| **Deploy.s.sol** | 部署所有合约 | 部署 USDC、Vault、Factory、模板等，生成 `deployments/localhost.json` |
-| **CreateMarkets.s.sol** | 批量创建市场 | 根据配置创建 WDL、OU、AH、OddEven 市场 |
+| **Deploy.s.sol** | 部署所有合约 | 部署 USDC、Vault、Factory、7 种市场模板，生成 `deployments/localhost.json` |
+| **CreateAllMarketTypes.s.sol** | 创建测试市场 | 创建 7 种类型（WDL、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）共 21 个测试市场 |
 | **SimulateBets.s.sol** | 模拟用户下注 | 多用户、多市场模拟下注，生成测试数据 |
-
-**辅助脚本**：
-- **PostDeploy.sh**: 部署后自动更新 Subgraph（清理旧数据 + 重新部署）
+| **test-all.sh** | 一键测试流程 | 依次执行部署 → 创建市场 → 模拟投注 |
 
 ---
 
 ## 🚀 快速开始
 
-### 完整部署流程（3 步）
+### 方式 1：一键完整测试（推荐）
 
 ```bash
 cd /home/harry/code/PitchOne/contracts
 
-# 1️⃣ 部署合约（生成 deployments/localhost.json）
+# 设置环境变量（可选，默认使用 Anvil 账户）
+export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+export RPC_URL=http://localhost:8545
+
+# 执行完整测试流程
+./script/test-all.sh
+```
+
+**执行效果**：
+- ✅ 部署所有合约（USDC、Vault、Factory、7 种模板）
+- ✅ 创建 21 个测试市场（7 种类型各 3 个）
+- ✅ 模拟 5 个用户，每人在所有市场下注 2 次
+- ✅ 总共约 210 笔下注记录
+
+### 方式 2：逐步执行
+
+```bash
+cd /home/harry/code/PitchOne/contracts
+
+# 步骤 1：部署合约
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   forge script script/Deploy.s.sol:Deploy \
   --rpc-url http://localhost:8545 \
   --broadcast
 
-# 2️⃣ 更新 Subgraph（自动清理旧数据）
-./script/PostDeploy.sh localhost
-
-# 3️⃣ 创建测试市场（3 WDL + 4 OU）
+# 步骤 2：创建所有类型测试市场
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes \
   --rpc-url http://localhost:8545 \
   --broadcast
 
-# 4️⃣ 模拟用户下注（10 个用户，每人 3 次下注）
-forge script script/SimulateBets.s.sol:SimulateBets \
+# 步骤 3：模拟多用户下注
+NUM_BETTORS=5 \
+MIN_BET_AMOUNT=10 \
+MAX_BET_AMOUNT=100 \
+BETS_PER_USER=2 \
+OUTCOME_DISTRIBUTION=balanced \
+  forge script script/SimulateBets.s.sol:SimulateBets \
   --rpc-url http://localhost:8545 \
   --broadcast
 ```
-
-**执行后效果**：
-- ✅ 所有合约部署完成
-- ✅ Subgraph 索引最新合约
-- ✅ 7 个测试市场创建完成
-- ✅ 30 笔下注记录（10 用户 × 3 次）
-- ✅ 前端可查看市场和下注数据
 
 ---
 
 ## 📖 脚本详细说明
 
-### 1. Deploy.s.sol - 部署合约
+### 1. Deploy.s.sol - 部署所有合约
 
 **功能**：
 - 部署 Mock USDC（测试代币）
 - 部署 LiquidityVault（LP 金库）
-- 部署 SimpleCPMM（定价引擎）
-- 部署 FeeRouter（费用路由）
-- 部署 ReferralRegistry（推荐注册）
+- 部署定价引擎（SimpleCPMM、LMSR、LinkedLinesController）
+- 部署运营工具（FeeRouter、ReferralRegistry、CreditToken、Coupon 等）
 - 部署 MarketFactory_v2（市场工厂）
-- 注册 WDL、OU、OddEven 模板
+- 注册 7 种市场模板（WDL_V2、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）
 - **输出** `deployments/localhost.json`（所有地址和模板 ID）
 
 **使用方法**：
 ```bash
-# 方式 1：使用默认 Anvil 账户
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   forge script script/Deploy.s.sol:Deploy \
   --rpc-url http://localhost:8545 \
   --broadcast
-
-# 方式 2：使用自定义私钥
-PRIVATE_KEY=0x<your-private-key> \
-  forge script script/Deploy.s.sol:Deploy \
-  --rpc-url http://localhost:8545 \
-  --broadcast
 ```
 
-**输出示例**（`deployments/localhost.json`）：
-```json
-{
-  "network": "localhost",
-  "chainId": 31337,
-  "deployedAt": 591,
-  "timestamp": 1762486579,
-  "contracts": {
-    "usdc": "0x2b639Cc84e1Ad3aA92D4Ee7d2755A6ABEf300D72",
-    "vault": "0xF85895D097B2C25946BB95C4d11E2F3c035F8f0C",
-    "cpmm": "0x0b27a79cb9C0B38eE06Ca3d94DAA68e0Ed17F953",
-    "feeRouter": "0xB468647B04bF657C9ee2de65252037d781eABafD",
-    "referralRegistry": "0x7bdd3b028C4796eF0EAf07d11394d0d9d8c24139",
-    "factory": "0x47c05BCCA7d57c87083EB4e586007530eE4539e9"
-  },
-  "templates": {
-    "wdl": "0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc",
-    "ou": "0x6441bdfa8f4495d4dd881afce0e761e3a05085b4330b9db35c684a348ef2697f",
-    "oddEven": "0xf1d71fd4a1d5c765ed93ae053cb712e5c2d053fc61d39d01a15c3aadf1da027b"
-  }
-}
-```
+**输出文件**（`deployments/localhost.json`）包含：
+- `contracts`: 所有部署的合约地址
+- `templates`: 7 种市场模板的 Template ID（bytes32）
+- `deployedAt`: 部署所在区块号
+- `chainId`: 链 ID
 
 ---
 
-### 2. CreateMarkets.s.sol - 批量创建市场
+### 2. CreateAllMarketTypes.s.sol - 创建所有类型测试市场
 
 **功能**：
-- 自动从 `deployments/localhost.json` 读取合约地址
-- 通过 Factory 创建市场（Clone 模式）
-- 支持 4 种市场类型：WDL（胜平负）、OU（大小球）、AH（让球）、OddEven（单双）
+- 自动从 `deployments/localhost.json` 读取合约地址和模板 ID
+- 创建 7 种市场类型，每种 3 个市场，总共 21 个市场
+- 自动授权所有市场到 LiquidityVault（用户才能下注）
 
-**默认配置**：
-- **3 个 WDL 市场**：MUN vs LIV, ARS vs CHE, MCI vs TOT
-- **4 个 OU 市场**：2.5 球、1.5 球、3.5 球
-- **3 个 AH 市场**：-1.5、-1.0、-0.5 让球
-- **0 个 OddEven 市场**（默认禁用）
+**创建的市场类型**：
+1. **WDL（胜平负）** × 3：MUN vs LIV, ARS vs CHE, MCI vs TOT
+2. **OU（大小球单线）** × 3：2.5 球、1.5 球、3.5 球
+3. **OU_MultiLine（大小球多线）** × 3：多条盘口线（2.0/2.5/3.0 球）
+4. **AH（让球）** × 3：-1.5、-1.0、-0.5 让球
+5. **OddEven（进球数单双）** × 3：总进球数奇偶判断
+6. **Score（精确比分）** × 3：使用 LMSR 定价
+7. **PlayerProps（球员道具）** × 3：进球数 O/U、首位进球者等
 
 **使用方法**：
-
 ```bash
-# 默认配置（3 WDL + 4 OU + 3 AH）
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets \
-  --rpc-url http://localhost:8545 \
-  --broadcast
-
-# 自定义市场数量
-NUM_WDL_MARKETS=5 \
-NUM_OU_MARKETS=2 \
-NUM_AH_MARKETS=0 \
-NUM_ODDEVEN_MARKETS=3 \
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes \
   --rpc-url http://localhost:8545 \
   --broadcast
 ```
 
-**环境变量选项**：
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `NUM_WDL_MARKETS` | WDL 市场数量 | 3 |
-| `NUM_OU_MARKETS` | OU 市场数量 | 4 |
-| `NUM_AH_MARKETS` | AH 市场数量 | 3 |
-| `NUM_ODDEVEN_MARKETS` | OddEven 市场数量 | 0 |
-| `CREATE_DIFFERENT_STATES` | 创建不同状态的市场（Open/Locked/Resolved） | false |
-
-**预设赛事数据**：
-脚本内置了多个真实球队的赛事配置，会按顺序创建：
-- WDL: Manchester United vs Liverpool, Arsenal vs Chelsea, Manchester City vs Tottenham
-- OU: Chelsea vs Newcastle (2.5), Aston Villa vs Brighton (2.5), West Ham vs Wolves (1.5)
-- AH: Liverpool vs Burnley (-1.5), Manchester City vs Southampton (-1.0)
+**重要提示**：
+- ⚠️ 必须先运行 `Deploy.s.sol` 生成 `deployments/localhost.json`
+- ⚠️ 所有市场会自动通过 `vault.authorizeMarket()` 授权，否则用户无法下注
+- ✅ 脚本会打印所有创建的市场地址
 
 ---
 
@@ -168,15 +136,15 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 **使用方法**：
 
 ```bash
-# 默认配置（10 用户，每人 3 次，5-50 USDC，均匀分布）
+# 默认配置（5 用户，每人 2 次，10-100 USDC，均匀分布）
 forge script script/SimulateBets.s.sol:SimulateBets \
   --rpc-url http://localhost:8545 \
   --broadcast
 
 # 自定义配置
-NUM_BETTORS=20 \
-MIN_BET_AMOUNT=10 \
-MAX_BET_AMOUNT=100 \
+NUM_BETTORS=10 \
+MIN_BET_AMOUNT=50 \
+MAX_BET_AMOUNT=200 \
 BETS_PER_USER=5 \
 OUTCOME_DISTRIBUTION=skewed \
   forge script script/SimulateBets.s.sol:SimulateBets \
@@ -187,111 +155,61 @@ OUTCOME_DISTRIBUTION=skewed \
 **环境变量选项**：
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `NUM_BETTORS` | 参与下注的用户数量（最多 10） | 10 |
-| `MIN_BET_AMOUNT` | 最小下注金额（USDC） | 5 |
-| `MAX_BET_AMOUNT` | 最大下注金额（USDC） | 50 |
-| `BETS_PER_USER` | 每个用户平均下注次数 | 3 |
+| `NUM_BETTORS` | 参与下注的用户数量（最多 10） | 5 |
+| `MIN_BET_AMOUNT` | 最小下注金额（USDC） | 10 |
+| `MAX_BET_AMOUNT` | 最大下注金额（USDC） | 100 |
+| `BETS_PER_USER` | 每个用户平均下注次数 | 2 |
 | `OUTCOME_DISTRIBUTION` | 下注分布策略 | balanced |
-| `SKIP_LOCKED_MARKETS` | 跳过已锁定的市场 | true |
 
 **下注分布策略**：
-- **balanced**: 各选项均匀分布（33.3% / 33.3% / 33.3%）
+- **balanced**: 各选项均匀分布（50% / 50% 或 33% / 33% / 33%）
 - **skewed**: 热门选项占比高（70% / 20% / 10%）
 - **random**: 完全随机分布
 
-**Anvil 测试账户**：
-脚本使用 Anvil 默认 10 个账户（私钥硬编码在脚本中），每个账户初始有 10,000 ETH 和无限 USDC（通过 MockERC20.mint）
-
 ---
 
-## 🔧 PostDeploy.sh - 部署后自动化
+### 4. test-all.sh - 一键测试流程
 
 **功能**：
-1. 验证 `deployments/localhost.json` 存在
-2. 调用 `update-config.js` 更新 `subgraph.yaml`
-3. **清理旧 Subgraph 数据**（`graph remove`）
-4. 创建新 Subgraph 实例（`graph create`）
-5. 生成代码、构建、部署 Subgraph
-6. 验证同步状态
+依次执行完整测试流程：
+1. 部署所有合约
+2. 创建所有类型测试市场
+3. 模拟多用户下注
 
 **使用方法**：
 ```bash
-# 在 contracts/ 目录下执行
-./script/PostDeploy.sh localhost
-
-# 或者从其他目录
-/home/harry/code/PitchOne/contracts/script/PostDeploy.sh localhost
+cd /home/harry/code/PitchOne/contracts
+./script/test-all.sh
 ```
 
-**脚本流程**：
+**脚本输出示例**：
 ```
-✅ Found deployment file: deployments/localhost.json
-📋 Deployment Info:
-  Factory: 0x47c05BCCA7d57c87083EB4e586007530eE4539e9
-  Start Block: 591
+========================================
+  PitchOne 完整测试流程
+========================================
 
-🔧 Step 1: Updating Subgraph configuration...
-✅ Subgraph config updated successfully!
+步骤 1/3: 部署合约...
+----------------------------------------
+✅ 部署完成
 
-🗑️  Step 2: Cleaning old Subgraph data...
-✅ Removed subgraph: pitchone-sportsbook
-✅ Created subgraph: pitchone-sportsbook
+步骤 2/3: 创建测试市场（7 种类型，21 个市场）...
+----------------------------------------
+✅ 21 个市场创建完成
 
-🔨 Step 3: Building Subgraph...
-✅ Build complete
+步骤 3/3: 模拟多用户投注...
+----------------------------------------
+✅ 投注完成
 
-📤 Step 4: Deploying Subgraph...
-✅ Deployed to http://localhost:8010/subgraphs/name/pitchone-sportsbook
+========================================
+  测试流程完成！
+========================================
 
-⏳ Step 5: Waiting for Subgraph to sync...
-  Subgraph synced to block: 591
-```
+📊 验证结果：
+  查询市场数量：
+    cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 'getMarketCount()' --rpc-url $RPC_URL
 
----
-
-## 📊 数据流示意图
-
-```
-┌─────────────────┐
-│  Deploy.s.sol   │ 部署合约
-└────────┬────────┘
-         │ 生成
-         ▼
-┌─────────────────────────┐
-│ deployments/localhost.json │ ← 单一数据源（SSOT）
-└────┬──────────┬─────────┘
-     │          │
-     │          │ 读取
-     │          ▼
-     │    ┌──────────────────┐
-     │    │ CreateMarkets.s.sol│ 创建市场
-     │    └──────────────────┘
-     │          │
-     │          ▼
-     │    ┌──────────────────┐
-     │    │ SimulateBets.s.sol │ 模拟下注
-     │    └──────────────────┘
-     │
-     │ 读取
-     ▼
-┌──────────────┐
-│ PostDeploy.sh│ 更新 Subgraph
-└──────┬───────┘
-       │
-       ▼
-┌────────────────┐
-│ subgraph.yaml  │ Subgraph 配置
-└────────────────┘
-       │
-       ▼
-┌────────────────┐
-│  Graph Node    │ 索引数据
-└────────────────┘
-       │
-       ▼
-┌────────────────┐
-│   Frontend     │ 查询展示
-└────────────────┘
+  查询 Vault 总资产：
+    cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 'totalAssets()' --rpc-url $RPC_URL
 ```
 
 ---
@@ -300,48 +218,35 @@ OUTCOME_DISTRIBUTION=skewed \
 
 ### 场景 1：全新环境初始化
 ```bash
-# 启动 Anvil
+# 1. 启动 Anvil（新终端）
 anvil
 
-# 部署合约 + Subgraph + 市场 + 下注
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+# 2. 执行完整测试流程
+./script/test-all.sh
 
-./script/PostDeploy.sh localhost
-
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets --rpc-url http://localhost:8545 --broadcast
-
-forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
+# 3. 重新索引 Subgraph（如需要）
+cd ../subgraph && ./reset-subgraph.sh
 ```
 
-### 场景 2：仅创建更多市场
+### 场景 2：仅创建更多测试数据
 ```bash
-# 创建 5 个 WDL 市场
-NUM_WDL_MARKETS=5 NUM_OU_MARKETS=0 NUM_AH_MARKETS=0 \
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets --rpc-url http://localhost:8545 --broadcast
+# 假设已部署合约和市场，仅增加下注数据
+NUM_BETTORS=10 BETS_PER_USER=10 \
+  forge script script/SimulateBets.s.sol:SimulateBets \
+  --rpc-url http://localhost:8545 \
+  --broadcast
 ```
 
-### 场景 3：生成大量测试数据
+### 场景 3：重新部署（清理旧环境）
 ```bash
-# 20 个用户，每人 10 次下注，倾斜分布
-NUM_BETTORS=10 BETS_PER_USER=10 OUTCOME_DISTRIBUTION=skewed \
-  forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
-```
+# 1. 重启 Anvil（清空链状态）
+pkill anvil && sleep 2 && anvil
 
-### 场景 4：重新部署合约（清理旧数据）
-```bash
-# 1. 重新部署
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+# 2. 执行完整流程
+./script/test-all.sh
 
-# 2. 清理并重新部署 Subgraph（自动删除旧数据）
-./script/PostDeploy.sh localhost
-
-# 3. 创建新市场
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/CreateMarkets.s.sol:CreateMarkets --rpc-url http://localhost:8545 --broadcast
+# 3. 重新部署 Subgraph
+cd ../subgraph && ./reset-subgraph.sh
 ```
 
 ---
@@ -350,8 +255,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 
 ### 必需环境
 - ✅ Anvil 运行在 `http://localhost:8545`
-- ✅ Graph Node 运行在 `http://localhost:8020`
-- ✅ IPFS 运行在 `http://localhost:5001`
+- ✅ Foundry 已安装（`forge`, `cast`）
 
 ### Foundry 配置
 在 `foundry.toml` 中必须添加：
@@ -369,11 +273,8 @@ curl -X POST http://localhost:8545 \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
 
-# 检查 Graph Node
-curl http://localhost:8020
-
-# 检查 IPFS
-curl http://localhost:5001/api/v0/version
+# 检查 Forge 版本
+forge --version
 ```
 
 ---
@@ -402,69 +303,76 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
 ```
 
-### 问题 3：Subgraph 仍显示旧数据
-**原因**：未清理旧 Subgraph
+### 问题 3：`UnauthorizedMarket` 错误
+**原因**：市场未授权到 LiquidityVault
 
 **解决方案**：
+- `CreateAllMarketTypes.s.sol` 会自动授权所有市场
+- 如果手动创建市场，需调用 `vault.authorizeMarket(marketAddress)`
+
+### 问题 4：SimulateBets 失败
+**原因**：市场已锁定或结算
+
+**解决方案**：
+- 脚本会自动跳过已锁定市场
+- 重新运行 `CreateAllMarketTypes.s.sol` 创建新市场
+
+---
+
+## 📊 验证结果
+
+### 查询市场数量
 ```bash
-# 运行 PostDeploy.sh（会自动清理）
-./script/PostDeploy.sh localhost
+cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 \
+  "getMarketCount()(uint256)" \
+  --rpc-url http://localhost:8545
 ```
 
-### 问题 4：SimulateBets 失败 `Insufficient allowance`
-**原因**：用户未批准市场使用 USDC
-
-**解决方案**：脚本已自动处理。如果仍报错，检查 USDC 合约地址是否正确。
-
-### 问题 5：CreateMarkets 失败 `Template not registered`
-**原因**：Deploy.s.sol 未正确注册模板
-
-**解决方案**：
+### 查询 Vault 总资产
 ```bash
-# 检查 deployments/localhost.json 中 templates 是否存在
-cat deployments/localhost.json | jq '.templates'
+cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 \
+  "totalAssets()(uint256)" \
+  --rpc-url http://localhost:8545
+```
 
-# 如果为空，重新运行 Deploy.s.sol
+### 查询用户 USDC 余额
+```bash
+cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  "balanceOf(address)(uint256)" \
+  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --rpc-url http://localhost:8545
 ```
 
 ---
 
 ## 📚 相关文档
 
-- **统一地址管理方案**：`README_DEPLOYMENT.md`（详细架构说明）
 - **Subgraph 文档**：`../../subgraph/README.md`
-- **合约文档**：`../../docs/`
-- **CLAUDE.md**：项目整体架构和开发指南
+- **合约设计文档**：`../../docs/design/`
+- **项目开发指南**：`../../CLAUDE.md`
 
 ---
 
 ## 🔑 快速参考
 
-### Anvil 默认账户
+### Anvil 默认账户（前 5 个）
 ```bash
-# Account #0 (部署者账户)
+# Account #0 (部署者)
 Address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-# Account #1-9 (测试用户)
+# Account #1-4 (测试用户)
 # 参见 SimulateBets.s.sol 中的 testPrivateKeys 数组
 ```
 
-### 常用命令
+### 常用合约地址（Anvil 确定性部署）
 ```bash
-# 查看部署信息
-cat deployments/localhost.json | jq
-
-# 查看 Factory 创建的市场数量
-cast call <FACTORY_ADDRESS> "getMarketCount()(uint256)" --rpc-url http://localhost:8545
-
-# 查看 Subgraph 同步状态
-curl -X POST http://localhost:8010/subgraphs/name/pitchone-sportsbook \
-  -H "Content-Type: application/json" \
-  -d '{"query":"{ _meta { block { number } } }"}'
+USDC:           0x5FbDB2315678afecb367f032d93F642f64180aa3
+Vault:          0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+Factory:        0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
 ```
 
 ---
 
-**最后更新**：2025-11-08
+**最后更新**：2025-11-13
 **维护者**：PitchOne 开发团队
