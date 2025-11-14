@@ -399,7 +399,7 @@ function getOutcomeName(outcomeId: number, templateType: string): string {
   const nameMap: Record<string, string[]> = {
     WDL: ['主胜', '平局', '客胜'],
     OU: ['大球', '小球'],
-    AH: ['主队让球', '客队让球'],
+    AH: ['主队赢盘', '客队赢盘', '走盘'], // 修正：使用正确的术语，并添加"走盘"选项
     OddEven: ['单数', '双数'],
     Score: [], // 精确比分需要特殊处理
   };

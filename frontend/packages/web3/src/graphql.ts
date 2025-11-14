@@ -150,8 +150,13 @@ export const USER_POSITIONS_QUERY = `
         id
         templateId
         matchId
+        homeTeam
+        awayTeam
+        kickoffTime
         state
         winnerOutcome
+        line
+        lines
       }
       outcome
       balance

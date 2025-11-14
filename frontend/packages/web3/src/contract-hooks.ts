@@ -8,7 +8,7 @@ import { TOKEN_DECIMALS } from './constants';
 /**
  * 使用 USDC Approve hook
  * @param spender 被授权地址（通常是市场合约地址）
- * @param amount 授权金额（USDC，6 位小数）
+ * @param amount 授权金额（USDC，6 位小数）- 如果为 'max' 则授权最大值
  */
 export function useApproveUSDC() {
   const { chainId } = useAccount();
@@ -27,10 +27,13 @@ export function useApproveUSDC() {
     }
   });
 
-  const approve = async (spender: Address, amount: string) => {
+  const approve = async (spender: Address, amount: string | 'max' = 'max') => {
     if (!addresses) throw new Error('Chain not supported');
 
-    const amountInWei = parseUnits(amount, TOKEN_DECIMALS.USDC);
+    // 默认授权最大值，避免用户反复授权（DeFi 标准做法）
+    const amountInWei = amount === 'max'
+      ? BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff') // type(uint256).max
+      : parseUnits(amount, TOKEN_DECIMALS.USDC);
 
     return writeContract({
       address: addresses.usdc,

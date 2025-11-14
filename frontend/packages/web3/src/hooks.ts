@@ -48,8 +48,13 @@ export interface Position {
     id: string;
     matchId: string;
     templateId: string;
+    homeTeam: string;
+    awayTeam: string;
+    kickoffTime: string;
     state: MarketStatus;
     winnerOutcome?: number;
+    line?: string;
+    lines?: string[];
   };
   outcome: number;
   balance: string;
@@ -67,8 +72,13 @@ interface PositionRaw {
     id: string;
     matchId: string;
     templateId: string;
+    homeTeam: string;
+    awayTeam: string;
+    kickoffTime: string;
     state: MarketStatus;
     winnerOutcome?: number;
+    line?: string;
+    lines?: string[];
   };
   outcome: number;
   balance: string;
@@ -165,8 +175,18 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
   // 格式化球数显示
   let lineDisplay: string | undefined = undefined;
   if (market.line) {
-    // 单线市场
-    lineDisplay = formatLineDisplay(market.line) + ' 球';
+    // 单线市场（OU 或 AH）
+    if (templateType === 'AH') {
+      // 让球市场：handicap 是千分位表示的整数，可能为负
+      // -500 = -0.5 球，+500 = +0.5 球
+      const handicapValue = Number(market.line) / 1000;
+      const absValue = Math.abs(handicapValue);
+      const sign = handicapValue >= 0 ? '+' : '';
+      lineDisplay = `${sign}${handicapValue.toFixed(absValue % 1 === 0 ? 1 : 1)} 球`;
+    } else {
+      // OU 市场：正数，18 位小数
+      lineDisplay = formatLineDisplay(market.line) + ' 球';
+    }
   } else if (market.lines && market.lines.length > 0) {
     // 多线市场，显示第一条线或所有线
     const formattedLines = market.lines.map(l => formatLineDisplay(l));

@@ -28,6 +28,24 @@ export * from './graphql';
 // Constants (Decimals)
 export { TOKEN_DECIMALS, BUSINESS_DECIMALS } from './constants';
 
+// Outcome Constants
+export {
+  WDL_OUTCOMES,
+  WDL_OUTCOME_NAMES,
+  OU_OUTCOMES,
+  OU_OUTCOME_NAMES,
+  AH_OUTCOMES,
+  AH_OUTCOME_NAMES,
+  ODDEVEN_OUTCOMES,
+  ODDEVEN_OUTCOME_NAMES,
+  SCORE_OUTCOMES,
+  formatScoreOutcome,
+  PLAYER_PROPS_OUTCOMES,
+  PLAYER_PROPS_OU_NAMES,
+  PLAYER_PROPS_YN_NAMES,
+  getOutcomeName,
+} from './outcome-constants';
+
 // Custom Hooks
 export {
   useMarkets,

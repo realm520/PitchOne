@@ -343,10 +343,11 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   };
 
   const handleApprove = async () => {
-    if (!marketId || !betAmount) return;
+    if (!marketId) return;
 
     try {
-      await approve(marketId as `0x${string}`, betAmount);
+      // 授权最大值，避免用户反复授权（DeFi 标准做法）
+      await approve(marketId as `0x${string}`, 'max');
     } catch (error: any) {
       console.error('Approve error:', error);
       if (approveToastId) {
@@ -605,12 +606,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                           const amountUSDC = parseFloat(order.amount);
                           // shares 是 BigInt 字符串（未格式化），使用 USDC 精度（6 位小数）
                           const sharesInUSDC = parseFloat(order.shares) / 1e6;
+                          // 获取选项名称
+                          const outcomeName = outcomes?.[order.outcome]?.name || `结果 ${order.outcome}`;
 
                           return (
                             <tr key={order.id} className="hover:bg-dark-card/50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-400">{formatDate(order.timestamp)}</td>
                               <td className="px-6 py-4">
-                                <Badge variant="info">结果 {order.outcome}</Badge>
+                                <Badge variant="info">{outcomeName}</Badge>
                               </td>
                               <td className="px-6 py-4 text-sm font-medium text-white">{amountUSDC.toFixed(2)} USDC</td>
                               <td className="px-6 py-4 text-sm font-medium text-neon-green">

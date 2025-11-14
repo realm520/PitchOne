@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { formatEther } from 'viem';
-import { useAccount, useUserPositions, MarketStatus } from '@pitchone/web3';
+import { formatUnits } from 'viem';
+import {
+  useAccount,
+  useUserPositions,
+  MarketStatus,
+  TOKEN_DECIMALS,
+  getOutcomeName as getOutcomeNameFromConstants,
+} from '@pitchone/web3';
 import {
   Container,
   Card,
@@ -27,6 +33,20 @@ export function PortfolioClient() {
     setMounted(true);
   }, []);
 
+  // 调试日志：查看实际加载的头寸数据
+  useEffect(() => {
+    if (positions && positions.length > 0) {
+      console.log('[Portfolio] 加载的头寸数据:', positions);
+      console.log('[Portfolio] 第一个头寸详情:', {
+        id: positions[0].id,
+        balance: positions[0].balance,
+        totalInvested: positions[0].totalInvested,
+        averageCost: positions[0].averageCost,
+        market: positions[0].market,
+      });
+    }
+  }, [positions]);
+
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
     return date.toLocaleString('zh-CN', {
@@ -37,9 +57,36 @@ export function PortfolioClient() {
     });
   };
 
-  const getOutcomeName = (outcomeId: number) => {
-    const names = ['主胜', '平局', '客胜'];
-    return names[outcomeId] || `结果 ${outcomeId}`;
+
+  const calculateExpectedPayout = (position: typeof positions[0]) => {
+    try {
+      // 预期收益 = 持有份额（假设赢了的话，1 share = 1 USDC）
+      // balance 存储的是 USDC 单位（6 位小数），不是 ETH（18 位小数）
+      if (!position.balance || position.balance === '0') {
+        // 如果 balance 为 0，尝试使用 totalInvested 估算（假设赔率约 2.0）
+        if (position.totalInvested) {
+          const invested = parseFloat(position.totalInvested);
+          return invested * 1.8; // 估算 80% 收益
+        }
+        return 0;
+      }
+
+      // 将 balance（USDC）转换为标准单位
+      const balanceInUSDC = BigInt(position.balance);
+      const shares = parseFloat(formatUnits(balanceInUSDC, TOKEN_DECIMALS.USDC));
+
+      console.log('[Portfolio] 头寸收益计算:', {
+        positionId: position.id,
+        balance: position.balance,
+        shares,
+        totalInvested: position.totalInvested,
+      });
+
+      return shares;
+    } catch (error) {
+      console.error('[Portfolio] 计算预期收益失败:', error, position);
+      return 0;
+    }
   };
 
   const getStatusBadge = (status: MarketStatus) => {
@@ -145,7 +192,8 @@ export function PortfolioClient() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-white">
-                          市场 {position.market.matchId}
+                          {position.market.homeTeam || '主队'} vs{' '}
+                          {position.market.awayTeam || '客队'}
                         </h3>
                         {getStatusBadge(position.market.state)}
                         {position.market.winnerOutcome !== undefined &&
@@ -153,18 +201,44 @@ export function PortfolioClient() {
                             <Badge variant="success">赢</Badge>
                           )}
                       </div>
-                      <p className="text-sm text-gray-400 mb-1">
-                        结果: {getOutcomeName(position.outcome)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        创建时间: {formatDate(position.createdAt)}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-400">
+                          <span className="font-medium">投注方向:</span>{' '}
+                          {getOutcomeNameFromConstants(position.market.templateId, position.outcome)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          创建时间: {formatDate(position.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500 mb-1">持有份额</p>
-                      <p className="text-xl font-bold text-neon">
-                        {parseFloat(formatEther(BigInt(position.balance))).toFixed(2)}
-                      </p>
+                    <div className="text-right space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">投注额</p>
+                        <p className="text-lg font-bold text-white">
+                          {position.totalInvested
+                            ? parseFloat(position.totalInvested).toFixed(2)
+                            : position.averageCost && position.balance
+                            ? (
+                                parseFloat(position.averageCost) *
+                                parseFloat(formatUnits(BigInt(position.balance), TOKEN_DECIMALS.USDC))
+                              ).toFixed(2)
+                            : '数据加载中...'}{' '}
+                          {position.totalInvested || (position.averageCost && position.balance)
+                            ? 'USDC'
+                            : ''}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">预期收益</p>
+                        <p className="text-lg font-bold text-neon">
+                          {(() => {
+                            const payout = calculateExpectedPayout(position);
+                            return payout > 0
+                              ? `${payout.toFixed(2)} USDC`
+                              : '数据加载中...';
+                          })()}
+                        </p>
+                      </div>
                       {position.market.state === MarketStatus.Resolved &&
                         position.market.winnerOutcome === position.outcome && (
                           <Button variant="neon" size="sm" className="mt-2">

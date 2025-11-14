@@ -13,14 +13,14 @@ cd /home/harry/code/PitchOne/subgraph
 
 # 1. 停止并清理 Graph Node
 echo "1. 清理 Graph Node..."
-docker-compose down -v
+docker compose down -v
 sleep 2
 echo "  ✅ 清理完成"
 echo ""
 
 # 2. 启动 Graph Node
 echo "2. 启动 Graph Node..."
-docker-compose up -d
+docker compose up -d
 echo "  ⏳ 等待服务启动..."
 sleep 15
 echo "  ✅ Graph Node 已启动"
@@ -35,19 +35,19 @@ echo ""
 
 # 4. 创建和部署 Subgraph
 echo "4. 部署 Subgraph..."
-graph create --node http://localhost:8020/ sportsbook-local 2>/dev/null || echo "  ⚠️  Subgraph 已存在，跳过创建"
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph create --node http://localhost:8020/ pitchone-local 2>/dev/null || echo "  ⚠️  Subgraph 已存在，跳过创建"
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-local
 echo "  ✅ Subgraph 部署完成"
 echo ""
 
 echo "========================================"
 echo "  Subgraph 信息"
 echo "========================================"
-echo "  GraphQL: http://localhost:8000/subgraphs/name/sportsbook-local"
-echo "  GraphiQL: http://localhost:8000/subgraphs/name/sportsbook-local/graphql"
+echo "  GraphQL: http://localhost:8010/subgraphs/name/pitchone-local"
+echo "  GraphiQL: http://localhost:8010/subgraphs/name/pitchone-local/graphql"
 echo ""
 echo "测试查询："
 echo "  curl -X POST -H 'Content-Type: application/json' \\"
-echo "    http://localhost:8000/subgraphs/name/sportsbook-local/graphql \\"
-echo "    -d '{\"query\": \"{markets { id status }}\"}'  "
+echo "    http://localhost:8010/subgraphs/name/pitchone-local \\"
+echo "    -d '{\"query\": \"{markets { id state }}\"}'  "
 echo ""

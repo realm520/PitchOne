@@ -86,7 +86,8 @@ export function ParlayBuilder({
     try {
       // 先检查是否需要授权
       if (needsApproval && addresses) {
-        await approve(addresses.basket, stakeAmount);
+        // 授权最大值，避免用户反复授权（DeFi 标准做法）
+        await approve(addresses.basket, 'max');
         return;
       }
 

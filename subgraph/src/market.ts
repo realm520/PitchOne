@@ -19,6 +19,7 @@ import { OU_Template } from "../generated/templates/OUMarket/OU_Template";
 import { OU_MultiLine } from "../generated/templates/OUMultiMarket/OU_MultiLine";
 import { OddEven_Template } from "../generated/templates/OddEvenMarket/OddEven_Template";
 import { PlayerProps_Template } from "../generated/templates/PlayerPropsMarket/PlayerProps_Template";
+import { AH_Template } from "../generated/templates/AHMarket/AH_Template";
 import {
   LiquidityAdded as LiquidityAddedEvent,
 } from "../generated/OldMarket1_MUN_vs_MCI/MarketBase";
@@ -250,6 +251,67 @@ export function handleOddEvenMarketCreated(event: MarketCreatedEvent): void {
   stats.activeMarkets = stats.activeMarkets + 1;
   stats.lastUpdatedAt = event.block.timestamp;
   stats.save();
+}
+
+// AH_Template MarketCreated event
+// event AHMarketCreated(indexed string matchId, string homeTeam, string awayTeam, uint256 kickoffTime, int256 handicap, uint8 handicapType, uint8 direction, address pricingEngine)
+export function handleAHMarketCreated(event: MarketCreatedEvent): void {
+  const marketAddress = event.address;
+  const homeTeam = event.params.homeTeam;
+  const awayTeam = event.params.awayTeam;
+  const kickoffTime = event.params.kickoffTime;
+
+  // 加载或创建市场实体
+  let market = Market.load(marketAddress.toHexString());
+  let isNewMarket = market === null;
+
+  if (isNewMarket) {
+    // 从合约读取 matchId（因为 indexed string 在事件中是 keccak256 哈希）
+    let marketContract = AH_Template.bind(event.address);
+
+    // 创建市场实体
+    market = new Market(marketAddress.toHexString());
+    market.templateId = "AH"; // AH 让球模板
+    market.matchId = marketContract.matchId();
+    market.homeTeam = homeTeam;
+    market.awayTeam = awayTeam;
+    market.kickoffTime = kickoffTime;
+    market.ruleVer = Bytes.empty();
+    market.state = "Open";
+    market.createdAt = event.block.timestamp;
+    market.totalVolume = ZERO_BD;
+    market.feeAccrued = ZERO_BD;
+    market.lpLiquidity = ZERO_BD;
+    market.uniqueBettors = 0;
+    market.oracle = null;
+    market.pricingEngine = null; // Set to null for AH markets
+  }
+
+  // 无论是新建还是已存在，都更新 line 字段（存储 handicap）
+  // 从事件参数读取 handicap（让球数，千分位表示）
+  const eventParams = event.parameters;
+  if (eventParams.length > 4) {
+    // handicap 是第 5 个参数（索引 4），类型是 int256
+    market!.line = eventParams[4].value.toBigInt();
+
+    // 存储 isHalfLine 标志（通过检查是否为半球盘）
+    // handicapType: 0 = HALF, 1 = WHOLE, 2 = QUARTER
+    if (eventParams.length > 5) {
+      const handicapType = eventParams[5].value.toI32();
+      market!.isHalfLine = handicapType == 0; // HALF = 0
+    }
+  }
+
+  market!.save();
+
+  // 只有新市场才更新全局统计
+  if (isNewMarket) {
+    let stats = loadOrCreateGlobalStats();
+    stats.totalMarkets = stats.totalMarkets + 1;
+    stats.activeMarkets = stats.activeMarkets + 1;
+    stats.lastUpdatedAt = event.block.timestamp;
+    stats.save();
+  }
 }
 
 // ============================================================================
