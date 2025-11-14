@@ -104,6 +104,313 @@ graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbo
 graph deploy --studio sportsbook
 ```
 
+## 开发测试完整流程
+
+### 🚀 快速启动（一键式）
+
+**标准测试环境准备** - 按顺序执行以下命令：
+
+#### 1. 启动本地测试链
+```bash
+# 启动 Anvil（在单独终端窗口运行）
+cd contracts/
+anvil --host 0.0.0.0
+
+# 或使用后台运行
+pkill anvil && sleep 2 && anvil --host 0.0.0.0 &
+```
+
+#### 2. 部署全部合约
+```bash
+# 部署所有核心合约和 7 种市场模板
+cd contracts/
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 部署完成后会输出：
+# - USDC、Vault、FeeRouter、Factory 等核心合约地址
+# - 7 种市场模板地址和 Template ID
+# - 这些地址需要更新到 subgraph/subgraph.yaml
+```
+
+**重要提示**：部署完成后，需要将输出的合约地址更新到：
+- `contracts/deployments/localhost.json` - 自动生成
+- `subgraph/subgraph.yaml` - 手动更新 Factory 和 FeeRouter 地址
+
+#### 3. 创建测试市场
+```bash
+# 创建所有 7 种类型的测试市场（每种 3 个，共 21 个市场）
+cd contracts/
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 创建的市场类型：
+# - WDL (胜平负): 3 个
+# - OU (大小球): 3 个
+# - AH (让球): 3 个
+# - OddEven (单双): 3 个
+# - Score (精确比分): 3 个
+# - OU_MultiLine (多线大小球): 3 个
+# - PlayerProps (球员道具): 3 个
+```
+
+#### 4. 模拟下注数据
+```bash
+# 使用多个测试账户模拟下注，生成测试数据
+cd contracts/
+NUM_BETTORS=5 \
+  MIN_BET_AMOUNT=10 \
+  MAX_BET_AMOUNT=100 \
+  BETS_PER_USER=2 \
+  OUTCOME_DISTRIBUTION=balanced \
+  forge script script/SimulateBets.s.sol:SimulateBets \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 环境变量说明：
+# - NUM_BETTORS: 下注用户数（默认 10，最多 10）
+# - MIN_BET_AMOUNT: 最小下注金额（USDC）
+# - MAX_BET_AMOUNT: 最大下注金额（USDC）
+# - BETS_PER_USER: 每个用户下注次数
+# - OUTCOME_DISTRIBUTION: 下注分布策略
+#   - balanced: 均匀分布
+#   - skewed: 倾斜分布（热门选项占比高）
+#   - random: 完全随机
+```
+
+#### 5. 部署/重建 Subgraph
+```bash
+# 方式 1: 完整重建（清理旧数据）
+cd subgraph/
+./reset-subgraph.sh
+
+# 方式 2: 初次部署（自动启动 Graph Node）
+cd subgraph/
+./deploy-local.sh
+
+# 方式 3: 仅重新部署（Graph Node 已运行）
+cd subgraph/
+graph codegen
+graph build
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+```
+
+#### 6. 验证数据流
+```bash
+# 查询 Subgraph 数据
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data '{"query": "{ markets { id status } users { id totalBets } globalStats { totalMarkets totalVolume } }"}' \
+  http://localhost:8000/subgraphs/name/sportsbook-local
+
+# 或访问 GraphQL Playground
+# http://localhost:8000/subgraphs/name/sportsbook-local/graphql
+```
+
+### 📋 一键式完整流程
+
+按以下顺序在不同终端执行命令，或复制以下命令块到脚本中运行：
+
+```bash
+# ========================================
+# 终端 1: 启动 Anvil
+# ========================================
+cd contracts/
+anvil --host 0.0.0.0
+
+# ========================================
+# 终端 2: 部署和初始化
+# ========================================
+
+# 1. 部署合约
+cd contracts/
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 2. 创建测试市场
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 3. 模拟下注
+NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
+  OUTCOME_DISTRIBUTION=balanced \
+  forge script script/SimulateBets.s.sol:SimulateBets \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 4. 部署 Subgraph（使用现有脚本）
+cd ../subgraph/
+./reset-subgraph.sh
+# 或使用: ./deploy-local.sh
+
+echo "环境启动完成！"
+echo "GraphQL Playground: http://localhost:8000/subgraphs/name/sportsbook-local/graphql"
+```
+
+**现有脚本说明**：
+- `subgraph/reset-subgraph.sh` - 清理并重建 Subgraph（推荐用于完全重置）
+- `subgraph/deploy-local.sh` - 首次部署 Subgraph（包含完整检查和启动流程）
+- `contracts/test_e2e.sh` - 端到端测试脚本（查询链上状态）
+
+### 🔄 日常开发流程
+
+#### 场景 1：仅修改合约，重新部署
+```bash
+# 1. 清理并重启 Anvil
+pkill anvil && sleep 2 && anvil --host 0.0.0.0 &
+
+# 2. 重新部署
+cd contracts/
+forge build
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+
+# 3. 重新创建市场和数据
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes --rpc-url http://localhost:8545 --broadcast
+
+# 4. 重建 Subgraph
+cd ../subgraph/
+./reset-subgraph.sh
+```
+
+#### 场景 2：仅修改 Subgraph Schema
+```bash
+cd subgraph/
+
+# 1. 修改 schema.graphql 或 mapping.ts
+# 2. 重新生成代码
+graph codegen
+
+# 3. 重新构建
+graph build
+
+# 4. 重新部署
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+
+# 5. 验证
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"query": "{ _meta { block { number } } }"}' \
+  http://localhost:8000/subgraphs/name/sportsbook-local
+```
+
+#### 场景 3：添加新的市场类型
+```bash
+# 1. 开发新模板合约（如 NewTemplate.sol）
+cd contracts/src/templates/
+# ... 编写合约代码
+
+# 2. 运行单元测试
+cd ../../
+forge test --match-contract NewTemplateTest -vvv
+
+# 3. 更新 Deploy.s.sol，添加新模板注册逻辑
+# 4. 更新 CreateAllMarketTypes.s.sol，添加创建函数
+# 5. 重新部署
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+
+# 6. 创建测试市场
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes --rpc-url http://localhost:8545 --broadcast
+
+# 7. 更新 Subgraph（如果需要新的事件处理）
+cd ../subgraph/
+# 修改 schema.graphql 和 src/mappings/*.ts
+graph codegen && graph build
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+```
+
+### 🛠️ 常用调试命令
+
+#### 查看链上状态
+```bash
+# 查询市场数量
+cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 "getMarketCount()" --rpc-url http://localhost:8545
+
+# 查询某个市场地址
+cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 "getMarket(uint256)" 0 --rpc-url http://localhost:8545
+
+# 查询市场状态
+cast call <MARKET_ADDRESS> "status()" --rpc-url http://localhost:8545
+
+# 查询 Vault 总资产
+cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 "totalAssets()" --rpc-url http://localhost:8545
+```
+
+#### 查看 Subgraph 状态
+```bash
+# 查看索引进度
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data '{"query": "{ indexingStatusForCurrentVersion(subgraphName: \"sportsbook-local\") { synced health chains { latestBlock { number } } } }"}' \
+  http://localhost:8030/graphql
+
+# 查看 Graph Node 日志
+docker logs -f graph-node
+
+# 查看 PostgreSQL 数据
+docker exec -it graph-postgres psql -U graph-node -d graph-node -c "SELECT * FROM subgraphs.subgraph;"
+```
+
+### 📝 注意事项
+
+1. **合约地址更新**：每次重新部署合约后，必须更新 `subgraph/subgraph.yaml` 中的地址
+2. **Anvil 状态重置**：重启 Anvil 会清空所有链上数据，需要重新部署
+3. **Subgraph 同步延迟**：部署 Subgraph 后，需要等待几秒钟进行区块同步
+4. **私钥安全**：示例中使用的是 Anvil 默认私钥（仅限本地测试）
+5. **市场授权**：CreateAllMarketTypes.s.sol 会自动将所有市场授权到 Vault
+6. **并发限制**：SimulateBets.s.sol 使用的测试账户数量限制为 10 个（Anvil 默认账户数）
+
+### 🐛 常见问题排查
+
+#### 问题 1：Subgraph 无法索引市场
+**原因**：未通过 Factory 创建市场，或 subgraph.yaml 中的 Factory 地址不正确
+
+**解决**：
+```bash
+# 1. 检查 Factory 地址
+grep "address:" subgraph/subgraph.yaml
+
+# 2. 确认所有市场都通过 Factory 创建
+cast call <FACTORY_ADDRESS> "getMarketCount()" --rpc-url http://localhost:8545
+```
+
+#### 问题 2：下注失败（Insufficient liquidity）
+**原因**：Vault 中没有足够的流动性
+
+**解决**：
+```bash
+# 检查 Vault 余额
+cast call <VAULT_ADDRESS> "totalAssets()" --rpc-url http://localhost:8545
+
+# Deploy.s.sol 默认会初始化 1M USDC，如果不够可以手动添加
+```
+
+#### 问题 3：Graph Node 无法启动
+**原因**：端口被占用或 Docker 服务未启动
+
+**解决**：
+```bash
+# 检查端口占用
+lsof -i :8020
+lsof -i :8000
+lsof -i :5001
+
+# 清理并重启
+cd subgraph/
+docker-compose down -v
+docker-compose up -d
+```
+
 ## 核心架构
 
 ### 📊 项目进度：100% 核心开发完成（19/19 合约，912 测试全部通过）
