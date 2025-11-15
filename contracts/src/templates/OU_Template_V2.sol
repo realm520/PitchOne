@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../core/MarketBase_V2.sol";
 import "../interfaces/IPricingEngine.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OU_Template_V2
@@ -38,12 +39,6 @@ contract OU_Template_V2 is MarketBase_V2 {
     /// @notice OU 市场固定为 2 个结果 (Over/Under)
     uint256 private constant OUTCOME_COUNT = 2;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值（与 SimpleCPMM.VIRTUAL_RESERVE_INIT 保持一致）
-    uint256 private constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC
-
     /// @notice Outcome IDs
     uint256 public constant OVER = 0;
     uint256 public constant UNDER = 1;
@@ -55,6 +50,12 @@ contract OU_Template_V2 is MarketBase_V2 {
     string[2] public outcomeNames = ["Over", "Under"];
 
     // ============ 状态变量 ============
+
+    /// @notice 默认初始借款金额（从 Vault 借出）- 根据代币精度动态计算
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（与 SimpleCPMM 保持一致）- 根据代币精度动态计算
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎（SimpleCPMM）
     IPricingEngine public pricingEngine;
@@ -149,6 +150,12 @@ contract OU_Template_V2 is MarketBase_V2 {
             _uri
         );
 
+        // 获取代币精度并计算相关值
+        uint8 decimals = IERC20Metadata(_settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;  // 100k tokens
+        virtualReserveInit = 100_000 * tokenUnit;   // 100k tokens
+
         // 设置状态变量
         matchId = _matchId;
         homeTeam = _homeTeam;
@@ -160,7 +167,7 @@ contract OU_Template_V2 is MarketBase_V2 {
         // 初始化虚拟储备（Over 和 Under 均等）
         virtualReserves = new uint256[](OUTCOME_COUNT);
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            virtualReserves[i] = VIRTUAL_RESERVE_INIT;
+            virtualReserves[i] = virtualReserveInit;
         }
 
         emit MarketCreated(
@@ -189,16 +196,16 @@ contract OU_Template_V2 is MarketBase_V2 {
     {
         require(outcomeId < OUTCOME_COUNT, "OU_V2: Invalid outcome ID");
 
-        // 调用定价引擎计算份额
+        // 1. 调用定价引擎计算份额
         shares = pricingEngine.calculateShares(outcomeId, netAmount, virtualReserves);
 
-        // 更新虚拟储备：
-        // 买入 → 目标储备减少，对手盘储备增加
-        virtualReserves[outcomeId] -= shares;
-
-        // 对手盘储备增加买入金额
-        uint256 opponentId = outcomeId == OVER ? UNDER : OVER;
-        virtualReserves[opponentId] += netAmount;
+        // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+        virtualReserves = pricingEngine.updateReserves(
+            outcomeId,
+            netAmount,
+            shares,
+            virtualReserves
+        );
 
         emit VirtualReservesUpdated(virtualReserves);
 
@@ -209,8 +216,8 @@ contract OU_Template_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     /**

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../core/MarketBase_V2.sol";
 import "../interfaces/IPricingEngine.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title OddEven_Template_V2
@@ -36,12 +37,6 @@ contract OddEven_Template_V2 is MarketBase_V2 {
     /// @notice 市场固定为 2 个结果 (Odd/Even)
     uint256 private constant OUTCOME_COUNT = 2;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值（与 SimpleCPMM.VIRTUAL_RESERVE_INIT 保持一致）
-    uint256 private constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC
-
     /// @notice Outcome IDs
     uint256 public constant ODD = 0;
     uint256 public constant EVEN = 1;
@@ -50,6 +45,12 @@ contract OddEven_Template_V2 is MarketBase_V2 {
     string[2] public outcomeNames = ["Odd", "Even"];
 
     // ============ 状态变量 ============
+
+    /// @notice 默认初始借款金额（从 Vault 借出）- 根据代币精度动态计算
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（与 SimpleCPMM 保持一致）- 根据代币精度动态计算
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎（SimpleCPMM）
     IPricingEngine public pricingEngine;
@@ -102,6 +103,7 @@ contract OddEven_Template_V2 is MarketBase_V2 {
      * @param _pricingEngine 定价引擎地址
      * @param _vault Vault 地址
      * @param _uri ERC-1155 元数据 URI
+     * @param _virtualReservePerSide 初始虚拟储备（每个结果）。设为 0 表示使用 Parimutuel 定价
      */
     function initialize(
         string memory _matchId,
@@ -114,7 +116,8 @@ contract OddEven_Template_V2 is MarketBase_V2 {
         uint256 _disputePeriod,
         address _pricingEngine,
         address _vault,
-        string memory _uri
+        string memory _uri,
+        uint256 _virtualReservePerSide
     ) external initializer {
         // 验证参数
         require(bytes(_matchId).length > 0, "OddEven_V2: Invalid match ID");
@@ -134,18 +137,28 @@ contract OddEven_Template_V2 is MarketBase_V2 {
             _uri
         );
 
+        // 设置定价引擎
+        pricingEngine = IPricingEngine(_pricingEngine);
+
+        // 使用定价引擎提供的初始储备（完全抽象化）
+        virtualReserves = pricingEngine.getInitialReserves(OUTCOME_COUNT);
+
+        // 保存第一个储备值作为参考（用于计算借款金额）
+        virtualReserveInit = virtualReserves.length > 0 ? virtualReserves[0] : 0;
+
+        // 如果虚拟储备为 0（Parimutuel 模式），借款金额也为 0
+        // 否则使用虚拟储备的 10%作为初始借款（保守策略）
+        if (virtualReserveInit == 0) {
+            defaultBorrowAmount = 0;  // Parimutuel 不需要初始流动性
+        } else {
+            defaultBorrowAmount = virtualReserveInit / 10;  // CPMM 借出 10% 作为缓冲
+        }
+
         // 设置状态变量
         matchId = _matchId;
         homeTeam = _homeTeam;
         awayTeam = _awayTeam;
         kickoffTime = _kickoffTime;
-        pricingEngine = IPricingEngine(_pricingEngine);
-
-        // 初始化虚拟储备（Odd 和 Even 均等）
-        virtualReserves = new uint256[](OUTCOME_COUNT);
-        for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            virtualReserves[i] = VIRTUAL_RESERVE_INIT;
-        }
 
         emit MarketCreated(
             _matchId,
@@ -160,10 +173,15 @@ contract OddEven_Template_V2 is MarketBase_V2 {
     // ============ 实现抽象函数 ============
 
     /**
-     * @notice 计算份额（使用虚拟储备定价）
+     * @notice 计算份额（完全由定价引擎决定逻辑）
      * @param outcomeId 结果ID（0=Odd, 1=Even）
      * @param netAmount 净金额（已扣除手续费）
      * @return shares 获得的份额
+     *
+     * @dev 完全抽象化的实现：
+     *      - 定价引擎负责计算份额
+     *      - 定价引擎负责更新储备
+     *      - 市场模板无需知道具体的定价逻辑
      */
     function _calculateShares(uint256 outcomeId, uint256 netAmount)
         internal
@@ -172,16 +190,16 @@ contract OddEven_Template_V2 is MarketBase_V2 {
     {
         require(outcomeId < OUTCOME_COUNT, "OddEven_V2: Invalid outcome ID");
 
-        // 调用定价引擎计算份额
+        // 1. 调用定价引擎计算份额
         shares = pricingEngine.calculateShares(outcomeId, netAmount, virtualReserves);
 
-        // 更新虚拟储备：
-        // 买入 → 目标储备减少，对手盘储备增加
-        virtualReserves[outcomeId] -= shares;
-
-        // 对手盘储备增加买入金额
-        uint256 opponentId = outcomeId == ODD ? EVEN : ODD;
-        virtualReserves[opponentId] += netAmount;
+        // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+        virtualReserves = pricingEngine.updateReserves(
+            outcomeId,
+            netAmount,
+            shares,
+            virtualReserves
+        );
 
         emit VirtualReservesUpdated(virtualReserves);
 
@@ -192,8 +210,8 @@ contract OddEven_Template_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     // ============ 只读函数 ============

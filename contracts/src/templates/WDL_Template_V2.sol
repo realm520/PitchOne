@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../core/MarketBase_V2.sol";
 import "../interfaces/IPricingEngine.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title WDL_Template_V2
@@ -26,16 +27,16 @@ contract WDL_Template_V2 is MarketBase_V2 {
     /// @notice WDL 市场固定为 3 个结果
     uint256 private constant OUTCOME_COUNT = 3;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值（与 SimpleCPMM.VIRTUAL_RESERVE_INIT 保持一致）
-    uint256 private constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC
-
     /// @notice Outcome 名称
     string[3] public outcomeNames = ["Win", "Draw", "Loss"];
 
     // ============ 状态变量 ============
+
+    /// @notice 默认初始借款金额（从 Vault 借出）- 根据代币精度动态计算
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（与 SimpleCPMM 保持一致）- 根据代币精度动态计算
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎（SimpleCPMM）
     IPricingEngine public pricingEngine;
@@ -117,6 +118,12 @@ contract WDL_Template_V2 is MarketBase_V2 {
         require(_kickoffTime > block.timestamp, "WDL_V2: Kickoff time in past");
         require(_pricingEngine != address(0), "WDL_V2: Invalid pricing engine");
 
+        // 获取代币精度并计算相关值
+        uint8 decimals = IERC20Metadata(_settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;  // 100k tokens
+        virtualReserveInit = 100_000 * tokenUnit;   // 100k tokens
+
         // 设置状态变量
         matchId = _matchId;
         homeTeam = _homeTeam;
@@ -127,7 +134,7 @@ contract WDL_Template_V2 is MarketBase_V2 {
         // 初始化虚拟储备（所有 outcome 均等）
         virtualReserves = new uint256[](OUTCOME_COUNT);
         for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            virtualReserves[i] = VIRTUAL_RESERVE_INIT;
+            virtualReserves[i] = virtualReserveInit;
         }
 
         emit MarketCreated(_matchId, _homeTeam, _awayTeam, _kickoffTime, _pricingEngine, _vault);
@@ -146,21 +153,16 @@ contract WDL_Template_V2 is MarketBase_V2 {
         override
         returns (uint256 shares)
     {
-        // 调用定价引擎计算份额
+        // 1. 调用定价引擎计算份额
         shares = pricingEngine.calculateShares(outcomeId, netAmount, virtualReserves);
 
-        // 更新虚拟储备：
-        // 买入 → 目标储备减少，对手盘储备增加
-        virtualReserves[outcomeId] -= shares;
-
-        // 对手盘储备均分买入金额
-        uint256 opponentCount = OUTCOME_COUNT - 1;
-        uint256 amountPerOpponent = netAmount / opponentCount;
-        for (uint256 i = 0; i < OUTCOME_COUNT; i++) {
-            if (i != outcomeId) {
-                virtualReserves[i] += amountPerOpponent;
-            }
-        }
+        // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+        virtualReserves = pricingEngine.updateReserves(
+            outcomeId,
+            netAmount,
+            shares,
+            virtualReserves
+        );
 
         emit VirtualReservesUpdated(virtualReserves);
 
@@ -171,8 +173,8 @@ contract WDL_Template_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     // ============ 只读函数 ============

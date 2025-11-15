@@ -49,12 +49,12 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
     /// @notice 最大比分范围 (0-9, 即 0-0 到 9-9)
     uint8 public constant MAX_SCORE_RANGE = 9;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
     // ============================================================================
     // 状态变量
     // ============================================================================
+
+    /// @notice 默认初始借款金额（从 Vault 借出，动态计算）
+    uint256 private defaultBorrowAmount;
 
     /// @notice LMSR 定价引擎
     LMSR public lmsrEngine;
@@ -170,6 +170,11 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
             _uri
         );
 
+        // 计算动态代币精度参数
+        uint8 decimals = IERC20Metadata(_settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;
+
         // 设置市场信息
         matchId = _matchId;
         homeTeam = _homeTeam;
@@ -232,12 +237,12 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
         uint256 decimals = IERC20Metadata(address(settlementToken)).decimals();
         uint256 amountWAD = (amount * 1e18) / (10 ** decimals);
 
-        // 调用 LMSR 计算 shares（使用索引）
+        // 1. 调用 LMSR 计算 shares（使用索引）
         uint256[] memory reserves = new uint256[](0); // LMSR 不使用此参数
         shares = lmsrEngine.calculateShares(outcomeId, amountWAD, reserves);
 
-        // 更新 LMSR 持仓量（使用索引）
-        lmsrEngine.updateQuantity(outcomeId, shares);
+        // 2. 调用定价引擎更新储备（LMSR 内部更新 quantityShares）
+        lmsrEngine.updateReserves(outcomeId, amountWAD, shares, reserves);
 
         // 发出比分下注事件
         (uint8 homeGoals, uint8 awayGoals) = _decodeOutcomeId(actualOutcomeId);
@@ -250,8 +255,8 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     /**

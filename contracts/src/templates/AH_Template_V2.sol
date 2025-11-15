@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "../core/MarketBase_V2.sol";
 import "../interfaces/IPricingEngine.sol";
 import "../interfaces/IAH_Template.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title AH_Template_V2
@@ -50,12 +51,6 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
     /// @notice 整球盘为 3 个结果（主队赢盘/客队赢盘/退款）
     uint256 private constant WHOLE_HANDICAP_OUTCOME_COUNT = 3;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值（与 SimpleCPMM.VIRTUAL_RESERVE_INIT 保持一致）
-    uint256 private constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC
-
     /// @notice Outcome IDs
     uint256 public constant HOME_COVER = 0;  // 主队赢盘
     uint256 public constant AWAY_COVER = 1;  // 客队赢盘
@@ -67,6 +62,12 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
     // ============================================================================
     // 状态变量
     // ============================================================================
+
+    /// @notice 默认初始借款金额（从 Vault 借出）- 根据代币精度动态计算
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（与 SimpleCPMM 保持一致）- 根据代币精度动态计算
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎（SimpleCPMM）
     IPricingEngine public pricingEngine;
@@ -167,6 +168,12 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
             _uri
         );
 
+        // 获取代币精度并计算相关值
+        uint8 decimals = IERC20Metadata(_settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;  // 100k tokens
+        virtualReserveInit = 100_000 * tokenUnit;   // 100k tokens
+
         // 设置状态变量
         matchId = _matchId;
         homeTeam = _homeTeam;
@@ -186,7 +193,7 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
         uint256 outcomeCountForPricing = _handicapType == HandicapType.HALF ? 2 : 2;
         virtualReserves = new uint256[](outcomeCountForPricing);
         for (uint256 i = 0; i < outcomeCountForPricing; i++) {
-            virtualReserves[i] = VIRTUAL_RESERVE_INIT;
+            virtualReserves[i] = virtualReserveInit;
         }
 
         emit AHMarketCreated(
@@ -231,16 +238,16 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
             return netAmount;
         }
 
-        // 调用定价引擎计算份额
+        // 1. 调用定价引擎计算份额
         shares = pricingEngine.calculateShares(outcomeId, netAmount, virtualReserves);
 
-        // 更新虚拟储备：
-        // 买入 → 目标储备减少，对手盘储备增加
-        virtualReserves[outcomeId] -= shares;
-
-        // 对手盘储备增加买入金额
-        uint256 opponentId = outcomeId == HOME_COVER ? AWAY_COVER : HOME_COVER;
-        virtualReserves[opponentId] += netAmount;
+        // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+        virtualReserves = pricingEngine.updateReserves(
+            outcomeId,
+            netAmount,
+            shares,
+            virtualReserves
+        );
 
         emit VirtualReservesUpdated(virtualReserves);
 
@@ -251,8 +258,8 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     // ============================================================================

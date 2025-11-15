@@ -48,12 +48,6 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
     /// @notice 每条线的结果数量 (Over/Under)
     uint256 private constant OUTCOMES_PER_LINE = 2;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值
-    uint256 private constant VIRTUAL_RESERVE_INIT = 50_000 * 1e6; // 50k USDC per outcome
-
     /// @notice Outcome 方向
     uint256 public constant OVER = 0;
     uint256 public constant UNDER = 1;
@@ -62,6 +56,12 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
     uint256 private constant LINE_PRECISION = 1000;
 
     // ============ 状态变量 ============
+
+    /// @notice 默认初始借款金额（从 Vault 借出，动态计算）
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（动态计算）
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎
     IPricingEngine public pricingEngine;
@@ -180,6 +180,12 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
             params.uri
         );
 
+        // 计算动态代币精度参数
+        uint8 decimals = IERC20Metadata(params.settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;
+        virtualReserveInit = 50_000 * tokenUnit;
+
         // 设置状态变量
         matchId = params.matchId;
         homeTeam = params.homeTeam;
@@ -200,7 +206,7 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
 
         // 初始化虚拟储备（所有 outcomes 均等）
         for (uint256 i = 0; i < params.lines.length * OUTCOMES_PER_LINE; i++) {
-            virtualReserves[i] = VIRTUAL_RESERVE_INIT;
+            virtualReserves[i] = virtualReserveInit;
         }
 
         emit MarketCreated(
@@ -252,17 +258,23 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
         if (reserves[0] == 0) reserves[0] = minReserve;
         if (reserves[1] == 0) reserves[1] = minReserve;
 
-        // 调用定价引擎（direction 是 0 或 1）
+        // 1. 调用定价引擎计算份额（direction 是 0 或 1）
         shares = pricingEngine.calculateShares(direction, netAmount, reserves);
 
-        // 更新虚拟储备：
-        // 买入 → 目标储备减少，对手盘储备增加
-        virtualReserves[outcomeId] -= shares;
-        uint256 opponentId = outcomeId == overOutcomeId ? underOutcomeId : overOutcomeId;
-        virtualReserves[opponentId] += netAmount;
+        // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+        uint256[] memory newReserves = pricingEngine.updateReserves(
+            direction,
+            netAmount,
+            shares,
+            reserves
+        );
 
-        emit VirtualReservesUpdated(outcomeId, virtualReserves[outcomeId]);
-        emit VirtualReservesUpdated(opponentId, virtualReserves[opponentId]);
+        // 3. 将更新后的储备写回映射
+        virtualReserves[overOutcomeId] = newReserves[0];
+        virtualReserves[underOutcomeId] = newReserves[1];
+
+        emit VirtualReservesUpdated(overOutcomeId, virtualReserves[overOutcomeId]);
+        emit VirtualReservesUpdated(underOutcomeId, virtualReserves[underOutcomeId]);
 
         return shares;
     }
@@ -271,8 +283,8 @@ contract OU_MultiLine_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     /**

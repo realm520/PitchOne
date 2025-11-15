@@ -62,13 +62,13 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
     uint256 private constant OUTCOME_YES = 0;
     uint256 private constant OUTCOME_NO = 1;
 
-    /// @notice 默认初始借款金额（从 Vault 借出）
-    uint256 private constant DEFAULT_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
-
-    /// @notice 虚拟储备初始值（SimpleCPMM 使用）
-    uint256 private constant VIRTUAL_RESERVE_INIT = 50_000 * 1e6; // 50k USDC per outcome
-
     // ============ 状态变量 ============
+
+    /// @notice 默认初始借款金额（从 Vault 借出，动态计算）
+    uint256 private defaultBorrowAmount;
+
+    /// @notice 虚拟储备初始值（SimpleCPMM 使用，动态计算）
+    uint256 private virtualReserveInit;
 
     /// @notice 定价引擎（SimpleCPMM 或 LMSR）
     IPricingEngine public pricingEngine;
@@ -202,6 +202,12 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
             data.uri
         );
 
+        // 计算动态代币精度参数
+        uint8 decimals = IERC20Metadata(data.settlementToken).decimals();
+        uint256 tokenUnit = 10 ** decimals;
+        defaultBorrowAmount = 100_000 * tokenUnit;
+        virtualReserveInit = 100_000 * tokenUnit;
+
         // 初始化定价引擎
         if (_isLMSRType(data.propType)) {
             // LMSR 初始化
@@ -215,7 +221,7 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
             } else {
                 // 使用默认值
                 for (uint256 i = 0; i < _outcomeCount; i++) {
-                    virtualReserves[i] = VIRTUAL_RESERVE_INIT;
+                    virtualReserves[i] = virtualReserveInit;
                 }
             }
         }
@@ -245,10 +251,12 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
         if (_isLMSRType(propType)) {
             // LMSR 定价
             uint256[] memory reserves = new uint256[](0); // LMSR 不使用此参数
+
+            // 1. 调用 LMSR 计算 shares
             shares = pricingEngine.calculateShares(outcomeId, amountWAD, reserves);
 
-            // 更新 LMSR 持仓量
-            LMSR(address(pricingEngine)).updateQuantity(outcomeId, shares);
+            // 2. 调用定价引擎更新储备（LMSR 内部更新 quantityShares）
+            pricingEngine.updateReserves(outcomeId, amountWAD, shares, reserves);
         } else {
             // SimpleCPMM 定价
             uint256[] memory reserves = new uint256[](outcomeCount);
@@ -256,28 +264,22 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
                 reserves[i] = virtualReserves[i];
             }
 
+            // 1. 调用定价引擎计算份额
             shares = pricingEngine.calculateShares(outcomeId, amountWAD, reserves);
 
-            // 更新虚拟储备：
-            // 买入 → 目标储备减少，对手盘储备增加
-            virtualReserves[outcomeId] -= shares;
+            // 2. 调用定价引擎更新储备（由引擎决定更新逻辑）
+            uint256[] memory newReserves = pricingEngine.updateReserves(
+                outcomeId,
+                amountWAD,
+                shares,
+                reserves
+            );
 
-            // 更新对手方储备
-            if (outcomeCount == 2) {
-                uint256 opponentId = 1 - outcomeId;
-                virtualReserves[opponentId] += amount;
-                emit VirtualReservesUpdated(opponentId, virtualReserves[opponentId]);
-            } else if (outcomeCount == 3) {
-                // 三向市场：均匀分配到对手盘
-                for (uint256 i = 0; i < 3; i++) {
-                    if (i != outcomeId) {
-                        virtualReserves[i] += amount / 2;
-                        emit VirtualReservesUpdated(i, virtualReserves[i]);
-                    }
-                }
+            // 3. 将更新后的储备写回数组
+            for (uint256 i = 0; i < outcomeCount; i++) {
+                virtualReserves[i] = newReserves[i];
+                emit VirtualReservesUpdated(i, virtualReserves[i]);
             }
-
-            emit VirtualReservesUpdated(outcomeId, virtualReserves[outcomeId]);
         }
 
         // 发出下注事件
@@ -296,8 +298,8 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
      * @notice 获取初始借款金额
      * @return 需要从 Vault 借出的金额
      */
-    function _getInitialBorrowAmount() internal pure override returns (uint256) {
-        return DEFAULT_BORROW_AMOUNT;
+    function _getInitialBorrowAmount() internal view override returns (uint256) {
+        return defaultBorrowAmount;
     }
 
     /**
