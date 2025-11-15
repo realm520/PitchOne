@@ -42,6 +42,33 @@ contract SimpleCPMM is IPricingEngine {
     ///           18位小数 → 10_000_000 * 1e18 = 1000万 DAI
     uint256 public constant MAX_RESERVE_MULTIPLIER = 10_000_000;
 
+    // ============ 不可变状态 ============
+
+    /// @notice 每个结果的默认初始储备值
+    /// @dev 通过构造函数设置,影响价格敏感度
+    ///      - 小储备(如 1,000 USDC): 高滑点,价格变化快
+    ///      - 大储备(如 100,000 USDC): 低滑点,价格稳定
+    uint256 public immutable defaultReservePerSide;
+
+    // ============ 构造函数 ============
+
+    /**
+     * @notice 构造函数 - 设置默认储备值
+     * @param _defaultReservePerSide 每个结果的默认初始储备
+     *
+     * @dev 示例:
+     *      - USDC (6 decimals): 100_000 * 10^6 = 100,000 USDC
+     *      - DAI (18 decimals): 100_000 * 10^18 = 100,000 DAI
+     *
+     *      影响:
+     *      - 小储备: 价格敏感,滑点高,适合小交易量市场
+     *      - 大储备: 价格稳定,滑点低,适合高交易量市场
+     */
+    constructor(uint256 _defaultReservePerSide) {
+        require(_defaultReservePerSide > 0, "CPMM: Invalid default reserve");
+        defaultReservePerSide = _defaultReservePerSide;
+    }
+
     // ============ 核心函数 ============
 
     /**
@@ -161,6 +188,109 @@ contract SimpleCPMM is IPricingEngine {
         require(price > 0 && price < 10000, "CPMM: Invalid price");
 
         return price;
+    }
+
+    /**
+     * @notice 更新储备（在用户下注后调用）
+     * @param outcomeId 结果ID
+     * @param amount 净金额（已扣除手续费）
+     * @param shares 用户获得的份额（由 calculateShares 计算）
+     * @param reserves 当前储备
+     * @return newReserves 更新后的储备
+     *
+     * @dev SimpleCPMM 储备更新逻辑：
+     *      1. 目标结果储备减少（用户买走份额）
+     *         newReserves[outcomeId] -= shares
+     *      2. 对手盘储备增加（用户支付金额）
+     *         - 二向市场: newReserves[opponent] += amount
+     *         - 三向市场: 对手盘平均分配 amount/2
+     *
+     *      这是 CPMM 的核心特征，与 Parimutuel 完全不同
+     *
+     * 示例（二向市场）：
+     *      初始状态: [100_000, 100_000]
+     *      用户投注 1,000 USDC 到 Outcome 0，获得 985 shares
+     *      → newReserves[0] = 100_000 - 985 = 99_015
+     *      → newReserves[1] = 100_000 + 1_000 = 101_000
+     *      → k = 99_015 × 101_000 ≈ 10^10 (守恒)
+     *
+     * 示例（三向市场）：
+     *      初始状态: [100_000, 100_000, 100_000]
+     *      用户投注 1,000 USDC 到 Outcome 0，获得 1,250 shares
+     *      → newReserves[0] = 100_000 - 1_250 = 98_750
+     *      → newReserves[1] = 100_000 + 500 = 100_500
+     *      → newReserves[2] = 100_000 + 500 = 100_500
+     */
+    function updateReserves(
+        uint256 outcomeId,
+        uint256 amount,
+        uint256 shares,
+        uint256[] memory reserves
+    ) external pure override returns (uint256[] memory newReserves) {
+        uint256 n = reserves.length;
+        require(n >= 2 && n <= 3, "CPMM: Invalid outcome count");
+        require(outcomeId < n, "CPMM: Invalid outcome ID");
+        require(amount > 0, "CPMM: Zero amount");
+        require(shares > 0, "CPMM: Zero shares");
+
+        // 创建新数组并复制储备
+        newReserves = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            newReserves[i] = reserves[i];
+        }
+
+        // 1. 目标结果储备减少（用户买走份额）
+        require(newReserves[outcomeId] >= shares, "CPMM: Insufficient reserve");
+        newReserves[outcomeId] -= shares;
+
+        // 2. 对手盘储备增加（用户支付金额）
+        if (n == 2) {
+            // 二向市场：对手盘全部接收
+            uint256 opponentId = 1 - outcomeId;
+            newReserves[opponentId] += amount;
+        } else {
+            // 三向市场：对手盘平均分配
+            uint256 amountPerOpponent = amount / 2;
+            for (uint256 i = 0; i < 3; i++) {
+                if (i != outcomeId) {
+                    newReserves[i] += amountPerOpponent;
+                }
+            }
+        }
+
+        return newReserves;
+    }
+
+    /**
+     * @notice 获取初始储备配置
+     * @param outcomeCount 结果数量（2 或 3）
+     * @return initialReserves 初始储备数组
+     *
+     * @dev 使用构造函数设置的默认储备值
+     *      - 二向市场: [defaultReservePerSide, defaultReservePerSide]
+     *      - 三向市场: [defaultReservePerSide, defaultReservePerSide, defaultReservePerSide]
+     *
+     * 示例：
+     *      如果 defaultReservePerSide = 100_000 * 10^6 (100k USDC)
+     *      → 二向市场: [100_000_000_000, 100_000_000_000]
+     *      → 三向市场: [100_000_000_000, 100_000_000_000, 100_000_000_000]
+     *
+     *      初始价格均为 50% (二向) 或 33.33% (三向)
+     */
+    function getInitialReserves(uint256 outcomeCount)
+        external
+        view
+        override
+        returns (uint256[] memory initialReserves)
+    {
+        require(outcomeCount >= 2 && outcomeCount <= 3, "CPMM: Invalid outcome count");
+
+        initialReserves = new uint256[](outcomeCount);
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            initialReserves[i] = defaultReservePerSide;
+        }
+
+        return initialReserves;
     }
 
     // ============ 内部计算函数 ============
@@ -331,31 +461,4 @@ contract SimpleCPMM is IPricingEngine {
         return adjustments;
     }
 
-    /**
-     * @notice 计算初始虚拟储备值（基于代币精度）
-     * @param outcomeCount 结果数量
-     * @param decimals 代币精度
-     * @param multiplier 倍数（默认 100,000）
-     * @return initialReserves 初始储备数组
-     * @dev 例如：decimals=6, multiplier=100,000 → 100,000 * 1e6 = 100,000 USDC
-     *           decimals=18, multiplier=100,000 → 100,000 * 1e18 = 100,000 DAI
-     */
-    function getInitialReserves(
-        uint256 outcomeCount,
-        uint8 decimals,
-        uint256 multiplier
-    ) external pure returns (uint256[] memory initialReserves) {
-        require(outcomeCount >= 2 && outcomeCount <= 3, "CPMM: Invalid outcome count");
-        require(decimals <= 18, "CPMM: Decimals too high");
-        require(multiplier > 0, "CPMM: Invalid multiplier");
-
-        initialReserves = new uint256[](outcomeCount);
-        uint256 initialReserve = multiplier * (10 ** decimals);
-
-        for (uint256 i = 0; i < outcomeCount; i++) {
-            initialReserves[i] = initialReserve;
-        }
-
-        return initialReserves;
-    }
 }
