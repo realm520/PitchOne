@@ -36,7 +36,11 @@ echo ""
 # 4. 创建和部署 Subgraph
 echo "4. 部署 Subgraph..."
 graph create --node http://localhost:8020/ pitchone-local 2>/dev/null || echo "  ⚠️  Subgraph 已存在，跳过创建"
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-local
+
+# 使用时间戳作为版本标签，避免交互式提示
+VERSION_LABEL="v$(date +%Y%m%d-%H%M%S)"
+echo "  版本标签: $VERSION_LABEL"
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label $VERSION_LABEL pitchone-local
 echo "  ✅ Subgraph 部署完成"
 echo ""
 

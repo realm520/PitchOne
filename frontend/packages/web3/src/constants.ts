@@ -79,3 +79,23 @@ export function getOddsDecimals(): number {
 export function getBPSDecimals(): number {
   return BUSINESS_DECIMALS.BPS;
 }
+
+/**
+ * USDC 缩放因子 (10^6)
+ * 用于将 wei 值转换为 USDC 显示值
+ */
+export const USDC_SCALE = Math.pow(10, TOKEN_DECIMALS.USDC);
+
+/**
+ * 将 USDC wei 值转换为显示值
+ *
+ * @param weiValue - USDC wei 值（BigInt 字符串或数字）
+ * @returns USDC 显示值（数字）
+ *
+ * @example
+ * formatUSDCFromWei('1000000') // => 1
+ * formatUSDCFromWei(1000000) // => 1
+ */
+export function formatUSDCFromWei(weiValue: string | number): number {
+  return Number(weiValue) / USDC_SCALE;
+}

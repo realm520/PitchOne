@@ -26,7 +26,12 @@ export { graphqlClient } from './graphql';
 export * from './graphql';
 
 // Constants (Decimals)
-export { TOKEN_DECIMALS, BUSINESS_DECIMALS } from './constants';
+export {
+  TOKEN_DECIMALS,
+  BUSINESS_DECIMALS,
+  USDC_SCALE,
+  formatUSDCFromWei,
+} from './constants';
 
 // Outcome Constants
 export {

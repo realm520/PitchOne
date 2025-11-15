@@ -16,6 +16,7 @@ import {
   useWatchBetPlaced,
   useMarketOutcomes,
   useMarketFullData,
+  formatUSDCFromWei,
 } from '@pitchone/web3';
 import {
   Container,
@@ -602,10 +603,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                       </thead>
                       <tbody className="divide-y divide-dark-border">
                         {orders.map((order) => {
-                          // Subgraph 返回的 amount 是 BigDecimal 字符串（已格式化）
-                          const amountUSDC = parseFloat(order.amount);
-                          // shares 是 BigInt 字符串（未格式化），使用 USDC 精度（6 位小数）
-                          const sharesInUSDC = parseFloat(order.shares) / 1e6;
+                          // Subgraph 返回的 amount 和 shares 都是 BigInt 字符串（原始 wei 值）
+                          // 使用统一的精度转换函数
+                          const amountUSDC = formatUSDCFromWei(order.amount);
+                          const sharesInUSDC = formatUSDCFromWei(order.shares);
                           // 获取选项名称
                           const outcomeName = outcomes?.[order.outcome]?.name || `结果 ${order.outcome}`;
 

@@ -14,6 +14,9 @@ import { WDLMarket, OUMarket, OUMultiMarket, OddEvenMarket, AHMarket, ScoreMarke
 import { WDL_Template_V2 } from '../generated/MarketFactory/WDL_Template_V2';
 import { OU_Template } from '../generated/templates/OUMarket/OU_Template';
 import { OddEven_Template } from '../generated/templates/OddEvenMarket/OddEven_Template';
+import { AH_Template } from '../generated/templates/AHMarket/AH_Template';
+import { ScoreTemplate } from '../generated/templates/ScoreMarket/ScoreTemplate';
+import { PlayerProps_Template } from '../generated/templates/PlayerPropsMarket/PlayerProps_Template';
 import { MarketBase } from '../generated/templates/WDLMarket/MarketBase';
 import { Template, GlobalStats, Market } from '../generated/schema';
 import { loadOrCreateGlobalStats, ZERO_BD } from './helpers';
@@ -75,15 +78,15 @@ export function handleMarketCreatedFromRegistry(event: MarketCreatedFromRegistry
   } else if (templateName != null && templateName == 'AH') {
     log.info('Registry: Creating AH market data source for {}', [marketAddress.toHexString()]);
     AHMarket.create(marketAddress);
-    createBasicMarketEntity(marketAddress, 'AH', event);
+    createAHMarketEntity(marketAddress, event);
   } else if (templateName != null && templateName == 'Score') {
     log.info('Registry: Creating Score market data source for {}', [marketAddress.toHexString()]);
     ScoreMarket.create(marketAddress);
-    createBasicMarketEntity(marketAddress, 'Score', event);
+    createScoreMarketEntity(marketAddress, event);
   } else if (templateName != null && templateName == 'PlayerProps') {
     log.info('Registry: Creating PlayerProps market data source for {}', [marketAddress.toHexString()]);
     PlayerPropsMarket.create(marketAddress);
-    createBasicMarketEntity(marketAddress, 'PlayerProps', event);
+    createPlayerPropsMarketEntity(marketAddress, event);
   } else {
     log.warning('Registry: Unknown template name {} for market {}', [
       templateName !== null ? templateName! : 'null',
@@ -343,24 +346,15 @@ function createAHMarketEntity(marketAddress: Address, event: MarketCreatedFromRe
     return;
   }
 
-  // 使用 MarketBase ABI 读取通用字段
-  let marketContract = MarketBase.bind(marketAddress);
-  let matchIdResult = marketContract.try_matchId();
-  let homeTeamResult = marketContract.try_homeTeam();
-  let awayTeamResult = marketContract.try_awayTeam();
-  let kickoffTimeResult = marketContract.try_kickoffTime();
-
-  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
-    log.warning('Registry: Failed to read market data for AH market {}, skipping', [marketAddress.toHexString()]);
-    return;
-  }
+  // 使用 AH_Template ABI 读取市场字段
+  let marketContract = AH_Template.bind(marketAddress);
 
   market = new Market(marketAddress.toHexString());
   market.templateId = "AH";
-  market.matchId = matchIdResult.value;
-  market.homeTeam = homeTeamResult.value;
-  market.awayTeam = awayTeamResult.value;
-  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.matchId = marketContract.matchId();
+  market.homeTeam = marketContract.homeTeam();
+  market.awayTeam = marketContract.awayTeam();
+  market.kickoffTime = marketContract.kickoffTime();
   market.ruleVer = Bytes.empty();
   market.state = "Open";
   market.createdAt = event.block.timestamp;
@@ -369,7 +363,7 @@ function createAHMarketEntity(marketAddress: Address, event: MarketCreatedFromRe
   market.lpLiquidity = ZERO_BD;
   market.uniqueBettors = 0;
   market.oracle = null;
-  market.pricingEngine = null;
+  market.pricingEngine = marketContract.pricingEngine();
   market.save();
 
   log.info('Registry: Created AH market entity: {} vs {}', [market.homeTeam, market.awayTeam]);
@@ -391,23 +385,15 @@ function createScoreMarketEntity(marketAddress: Address, event: MarketCreatedFro
     return;
   }
 
-  let marketContract = MarketBase.bind(marketAddress);
-  let matchIdResult = marketContract.try_matchId();
-  let homeTeamResult = marketContract.try_homeTeam();
-  let awayTeamResult = marketContract.try_awayTeam();
-  let kickoffTimeResult = marketContract.try_kickoffTime();
-
-  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
-    log.warning('Registry: Failed to read market data for Score market {}, skipping', [marketAddress.toHexString()]);
-    return;
-  }
+  // 使用 ScoreTemplate ABI 读取市场字段
+  let marketContract = ScoreTemplate.bind(marketAddress);
 
   market = new Market(marketAddress.toHexString());
   market.templateId = "Score";
-  market.matchId = matchIdResult.value;
-  market.homeTeam = homeTeamResult.value;
-  market.awayTeam = awayTeamResult.value;
-  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.matchId = marketContract.matchId();
+  market.homeTeam = marketContract.homeTeam();
+  market.awayTeam = marketContract.awayTeam();
+  market.kickoffTime = marketContract.kickoffTime();
   market.ruleVer = Bytes.empty();
   market.state = "Open";
   market.createdAt = event.block.timestamp;
@@ -438,23 +424,15 @@ function createPlayerPropsMarketEntity(marketAddress: Address, event: MarketCrea
     return;
   }
 
-  let marketContract = MarketBase.bind(marketAddress);
-  let matchIdResult = marketContract.try_matchId();
-  let homeTeamResult = marketContract.try_homeTeam();
-  let awayTeamResult = marketContract.try_awayTeam();
-  let kickoffTimeResult = marketContract.try_kickoffTime();
-
-  if (matchIdResult.reverted || homeTeamResult.reverted || awayTeamResult.reverted) {
-    log.warning('Registry: Failed to read market data for PlayerProps market {}, skipping', [marketAddress.toHexString()]);
-    return;
-  }
+  // 使用 PlayerProps_Template ABI 读取市场字段
+  let marketContract = PlayerProps_Template.bind(marketAddress);
 
   market = new Market(marketAddress.toHexString());
   market.templateId = "PlayerProps";
-  market.matchId = matchIdResult.value;
-  market.homeTeam = homeTeamResult.value;
-  market.awayTeam = awayTeamResult.value;
-  market.kickoffTime = kickoffTimeResult.reverted ? event.block.timestamp : kickoffTimeResult.value;
+  market.matchId = marketContract.matchId();
+  market.homeTeam = ""; // PlayerProps 没有 homeTeam/awayTeam，因为是球员相关
+  market.awayTeam = "";
+  market.kickoffTime = marketContract.kickoffTime();
   market.ruleVer = Bytes.empty();
   market.state = "Open";
   market.createdAt = event.block.timestamp;
@@ -466,7 +444,7 @@ function createPlayerPropsMarketEntity(marketAddress: Address, event: MarketCrea
   market.pricingEngine = null;
   market.save();
 
-  log.info('Registry: Created PlayerProps market entity: {} vs {}', [market.homeTeam, market.awayTeam]);
+  log.info('Registry: Created PlayerProps market entity: {}', [market.matchId]);
 
   let stats = loadOrCreateGlobalStats();
   stats.totalMarkets = stats.totalMarkets + 1;

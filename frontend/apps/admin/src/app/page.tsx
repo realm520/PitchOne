@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY, ConnectButton } from '@pitchone/web3';
+import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY, ConnectButton, formatUSDCFromWei } from '@pitchone/web3';
 import { Card, LoadingSpinner, ErrorState, Button } from '@pitchone/ui';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -216,7 +216,8 @@ function RecentOrdersList({ orders }: { orders: any[] }) {
     );
   }
 
-  const totalAmount = orders.reduce((sum, order) => sum + Number(order.amount), 0);
+  // order.amount 是原始 wei 值（BigInt），使用统一的精度转换函数
+  const totalAmount = orders.reduce((sum, order) => sum + formatUSDCFromWei(order.amount), 0);
   const avgAmount = totalAmount / orders.length;
 
   return (
@@ -274,7 +275,7 @@ function RecentOrdersList({ orders }: { orders: any[] }) {
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="font-semibold text-gray-900 dark:text-white">
-                      {Number(order.amount).toFixed(2)}
+                      {formatUSDCFromWei(order.amount).toFixed(2)}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">USDC</span>
                   </td>
