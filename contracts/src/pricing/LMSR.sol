@@ -516,4 +516,69 @@ contract LMSR is IPricingEngine, Ownable {
     function getCurrentCost() external view returns (uint256 cost) {
         return _calculateCost();
     }
+
+    // ============================================================================
+    // IPricingEngine 新增接口方法（定价引擎抽象化）
+    // ============================================================================
+
+    /**
+     * @notice 更新储备量（LMSR 使用内部 quantityShares 管理）
+     * @param outcomeId 结果ID
+     * @param amount 投注金额（未使用，LMSR 直接使用 shares）
+     * @param shares 增加的份额
+     * @param reserves 当前储备（输入参数，LMSR 不使用）
+     * @return newReserves 更新后的储备（返回当前所有持仓量）
+     *
+     * @dev LMSR 的储备实际上就是累计持仓量（quantityShares）
+     *      - 更新内部的 quantityShares[outcomeId]
+     *      - 返回所有结果的持仓量作为 "储备"
+     */
+    function updateReserves(
+        uint256 outcomeId,
+        uint256 amount,
+        uint256 shares,
+        uint256[] memory reserves
+    ) external override returns (uint256[] memory newReserves) {
+        require(outcomeId < outcomeCount, "LMSR: Invalid outcome ID");
+        require(shares > 0, "LMSR: Zero shares");
+
+        // 更新内部持仓量
+        uint256 oldQuantity = quantityShares[outcomeId];
+        uint256 newQuantity = oldQuantity + shares;
+        quantityShares[outcomeId] = newQuantity;
+
+        emit QuantityUpdated(outcomeId, oldQuantity, newQuantity);
+
+        // 返回所有结果的持仓量作为 "储备"
+        newReserves = new uint256[](outcomeCount);
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            newReserves[i] = quantityShares[i];
+        }
+
+        return newReserves;
+    }
+
+    /**
+     * @notice 获取初始储备配置
+     * @param _outcomeCount 结果数量（应等于构造函数中的 outcomeCount）
+     * @return initialReserves 初始储备数组（LMSR 初始持仓量为 0）
+     *
+     * @dev LMSR 的初始储备为全零数组
+     *      - 市场开始时，所有结果的持仓量都是 0
+     *      - 随着用户下注，持仓量逐渐增加
+     */
+    function getInitialReserves(uint256 _outcomeCount)
+        external
+        view
+        override
+        returns (uint256[] memory initialReserves)
+    {
+        require(_outcomeCount == outcomeCount, "LMSR: Outcome count mismatch");
+
+        // 返回零数组（初始持仓量为 0）
+        initialReserves = new uint256[](_outcomeCount);
+        // 所有元素默认为 0，无需额外初始化
+
+        return initialReserves;
+    }
 }
