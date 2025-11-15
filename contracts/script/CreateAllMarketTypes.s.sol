@@ -5,6 +5,9 @@ import "forge-std/Script.sol";
 import "../src/core/MarketFactory_v2.sol";
 import "../src/liquidity/LiquidityVault.sol";
 import "../src/interfaces/IAH_Template.sol";
+import "../src/pricing/LinkedLinesController.sol";
+import "../src/templates/OU_MultiLine.sol";
+import "../src/templates/PlayerProps_Template.sol";
 
 /**
  * @title CreateAllMarketTypes
@@ -36,6 +39,10 @@ contract CreateAllMarketTypes is Script {
             "PRIVATE_KEY",
             uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
         );
+
+        // 获取 USDC 精度
+        uint8 usdcDecimals = getTokenDecimals(USDC);
+        uint256 usdcUnit = 10 ** usdcDecimals;
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -79,9 +86,9 @@ contract CreateAllMarketTypes is Script {
 
         // 6. 创建 Score 市场 (3 个)
         console.log("6. Creating Score Markets (Exact Score)...");
-        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_1", "Liverpool", "Brighton", 15));
-        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_2", "Man Utd", "Aston Villa", 16));
-        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_3", "Chelsea", "Wolves", 17));
+        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_1", "Liverpool", "Brighton", 15, usdcUnit));
+        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_2", "Man Utd", "Aston Villa", 16, usdcUnit));
+        createdMarkets.push(createScoreMarket(factory, "EPL_2024_SC_3", "Chelsea", "Wolves", 17, usdcUnit));
         console.log("   Created 3 Score markets\n");
 
         // 7. 创建 OU_MultiLine 市场 (3 个)
@@ -93,9 +100,9 @@ contract CreateAllMarketTypes is Script {
 
         // 8. 创建 PlayerProps 市场 (3 个)
         console.log("8. Creating PlayerProps Markets...");
-        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_1", "Man City", "Chelsea", "Erling Haaland", 21));
-        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_2", "Liverpool", "Arsenal", "Mohamed Salah", 22));
-        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_3", "Tottenham", "Newcastle", "Harry Kane", 23));
+        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_1", "Man City", "Chelsea", "Erling Haaland", 21, usdcUnit));
+        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_2", "Liverpool", "Arsenal", "Mohamed Salah", 22, usdcUnit));
+        createdMarkets.push(createPlayerPropsMarket(factory, "EPL_2024_PP_3", "Tottenham", "Newcastle", "Harry Kane", 23, usdcUnit));
         console.log("   Created 3 PlayerProps markets\n");
 
         // 授权所有市场到 Vault
@@ -185,25 +192,34 @@ contract CreateAllMarketTypes is Script {
         string memory awayTeam,
         uint256 dayOffset
     ) internal returns (address) {
+        // 部署 LinkedLinesController
+        LinkedLinesController controller = new LinkedLinesController(OWNER, address(0));
+
         uint256[] memory lines = new uint256[](3);
         lines[0] = 1500; // 1.5
         lines[1] = 2500; // 2.5
         lines[2] = 3500; // 3.5
 
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(string,string,string,uint256,uint256[],address,address,uint256,uint256,address,string,address)",
-            matchId,
-            homeTeam,
-            awayTeam,
-            block.timestamp + dayOffset * 1 days,
-            lines,
-            USDC,
-            FEE_ROUTER,
-            200,
-            2 hours,
-            SIMPLE_CPMM,
-            string(abi.encodePacked(homeTeam, " vs ", awayTeam, " O/U MultiLine")),
-            OWNER
+        // 使用结构体编码
+        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
+            matchId: matchId,
+            homeTeam: homeTeam,
+            awayTeam: awayTeam,
+            kickoffTime: block.timestamp + dayOffset * 1 days,
+            lines: lines,
+            settlementToken: USDC,
+            feeRecipient: FEE_ROUTER,
+            feeRate: 200,
+            disputePeriod: 2 hours,
+            pricingEngine: SIMPLE_CPMM,
+            linkedLinesController: address(controller),
+            uri: string(abi.encodePacked(homeTeam, " vs ", awayTeam, " O/U MultiLine")),
+            owner: OWNER
+        });
+
+        bytes memory initData = abi.encodeWithSelector(
+            OU_MultiLine.initialize.selector,
+            params
         );
         return factory.createMarket(OU_MULTILINE_TEMPLATE_ID, initData);
     }
@@ -264,7 +280,8 @@ contract CreateAllMarketTypes is Script {
         string memory matchId,
         string memory homeTeam,
         string memory awayTeam,
-        uint256 dayOffset
+        uint256 dayOffset,
+        uint256 usdcUnit
     ) internal returns (address) {
         // 创建初始概率数组 (37 个结果: 0-0 到 5-5 + Other)
         uint256[] memory probs = new uint256[](37);
@@ -284,7 +301,7 @@ contract CreateAllMarketTypes is Script {
             FEE_ROUTER,           // feeRecipient
             200,                  // feeRate
             2 hours,              // disputePeriod
-            1000 * 1e18,          // liquidityB (LMSR parameter)
+            1000 * 1e18,          // liquidityB (LMSR parameter, 必须使用 WAD 单位)
             probs,                // initialProbabilities
             string(abi.encodePacked(homeTeam, " vs ", awayTeam, " Score")), // uri
             OWNER                 // owner
@@ -298,26 +315,57 @@ contract CreateAllMarketTypes is Script {
         string memory homeTeam,
         string memory awayTeam,
         string memory playerName,
-        uint256 dayOffset
+        uint256 dayOffset,
+        uint256 usdcUnit
     ) internal returns (address) {
-        // PropType.GOALS_OU = 0 (球员进球数 O/U 0.5)
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(string,string,string,uint256,uint8,string,uint256,address,address,uint256,uint256,address,string,address)",
-            matchId,
-            homeTeam,
-            awayTeam,
-            block.timestamp + dayOffset * 1 days,
-            uint8(0), // GOALS_OU
-            playerName,
-            500, // 0.5 goals
-            USDC,
-            FEE_ROUTER,
-            200,
-            2 hours,
-            SIMPLE_CPMM,
-            string(abi.encodePacked(playerName, " Goals O/U 0.5")),
-            OWNER
+        // 创建初始储备数组（SimpleCPMM 二向市场）
+        uint256[] memory initialReserves = new uint256[](2);
+        initialReserves[0] = 100000 * usdcUnit; // 100k USDC for Over（使用动态精度）
+        initialReserves[1] = 100000 * usdcUnit; // 100k USDC for Under（使用动态精度）
+
+        // 空数组（FIRST_SCORER 专用）
+        string[] memory emptyPlayerIds = new string[](0);
+        string[] memory emptyPlayerNames = new string[](0);
+
+        // 使用结构体编码
+        PlayerProps_Template.PlayerPropsInitData memory data = PlayerProps_Template.PlayerPropsInitData({
+            matchId: string(abi.encodePacked(homeTeam, "_vs_", awayTeam)),
+            playerId: string(abi.encodePacked("player_", playerName)),
+            playerName: playerName,
+            propType: PlayerProps_Template.PropType.GOALS_OU,
+            line: 500, // 0.5 goals (半球盘)
+            kickoffTime: block.timestamp + dayOffset * 1 days,
+            settlementToken: USDC,
+            feeRecipient: FEE_ROUTER,
+            feeRate: 200,
+            disputePeriod: 2 hours,
+            uri: string(abi.encodePacked(playerName, " Goals O/U 0.5")),
+            owner: OWNER,
+            pricingEngineAddr: SIMPLE_CPMM,
+            initialReserves: initialReserves,
+            playerIds: emptyPlayerIds,
+            playerNames: emptyPlayerNames
+        });
+
+        bytes memory initData = abi.encodeWithSelector(
+            PlayerProps_Template.initialize.selector,
+            data
         );
         return factory.createMarket(PLAYERPROPS_TEMPLATE_ID, initData);
+    }
+
+    /**
+     * @notice 获取 ERC20 代币的精度
+     * @param token 代币地址
+     * @return 代币精度（decimals）
+     */
+    function getTokenDecimals(address token) internal view returns (uint8) {
+        // 使用低级别调用来获取 decimals
+        (bool success, bytes memory data) = token.staticcall(
+            abi.encodeWithSignature("decimals()")
+        );
+
+        require(success && data.length >= 32, "Failed to get token decimals");
+        return abi.decode(data, (uint8));
     }
 }

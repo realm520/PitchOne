@@ -69,9 +69,14 @@ contract SimulateBets is Script {
         string memory deploymentJson = vm.readFile(DEPLOYMENT_FILE);
         address factoryAddr = vm.parseJsonAddress(deploymentJson, ".contracts.factory");
         address usdcAddr = vm.parseJsonAddress(deploymentJson, ".contracts.usdc");
+
+        // 获取 USDC 精度
+        uint8 usdcDecimals = getTokenDecimals(usdcAddr);
+        uint256 usdcUnit = 10 ** usdcDecimals;
+
         uint256 numBettors = vm.envOr("NUM_BETTORS", uint256(10));
-        uint256 minBetAmount = vm.envOr("MIN_BET_AMOUNT", uint256(5)) * 1e6;
-        uint256 maxBetAmount = vm.envOr("MAX_BET_AMOUNT", uint256(50)) * 1e6;
+        uint256 minBetAmount = vm.envOr("MIN_BET_AMOUNT", uint256(5)) * usdcUnit;
+        uint256 maxBetAmount = vm.envOr("MAX_BET_AMOUNT", uint256(50)) * usdcUnit;
         uint256 betsPerUser = vm.envOr("BETS_PER_USER", uint256(3));
         bool skipLocked = vm.envOr("SKIP_LOCKED_MARKETS", true);
 
@@ -83,19 +88,21 @@ contract SimulateBets is Script {
             console.log("Warning: NUM_BETTORS limited to", testPrivateKeys.length);
         }
 
+        MockERC20 usdc = MockERC20(usdcAddr);
+
         console.log("Configuration:");
         console.log("  Factory:", factoryAddr);
         console.log("  USDC:", usdcAddr);
+        console.log("  USDC Decimals:", usdcDecimals);
         console.log("  Bettors:", numBettors);
-        console.log("  Min Bet Amount (USDC):", minBetAmount / 1e6);
-        console.log("  Max Bet Amount (USDC):", maxBetAmount / 1e6);
+        console.log("  Min Bet Amount (USDC):", minBetAmount / usdcUnit);
+        console.log("  Max Bet Amount (USDC):", maxBetAmount / usdcUnit);
         console.log("  Bets per User:", betsPerUser);
         console.log("  Distribution:", distribution);
         console.log("  Skip Locked:", skipLocked);
         console.log("");
 
         MarketFactory_v2 factory = MarketFactory_v2(factoryAddr);
-        MockERC20 usdc = MockERC20(usdcAddr);
 
         // 获取所有市场
         uint256 marketCount = factory.getMarketCount();
@@ -209,7 +216,7 @@ contract SimulateBets is Script {
                     userVolume += betAmount;
 
                     console.log("  Bet placed successfully");
-                    console.log("    Amount (USDC):", betAmount / 1e6);
+                    console.log("    Amount (USDC):", betAmount / usdcUnit);
                     console.log("    Outcome:", outcomeId);
                     console.log("    Shares:", shares / 1e18);
                 } catch Error(string memory reason) {
@@ -224,7 +231,7 @@ contract SimulateBets is Script {
             }
 
             console.log("  Total bets:", userBets);
-            console.log("  Total volume (USDC):", userVolume / 1e6);
+            console.log("  Total volume (USDC):", userVolume / usdcUnit);
             console.log("");
 
             vm.stopBroadcast();
@@ -240,8 +247,8 @@ contract SimulateBets is Script {
         console.log("  - Successful:", stats.successfulBets);
         console.log("  - Failed:", stats.failedBets);
         console.log("  - Success Rate:", stats.successfulBets * 100 / stats.totalBets, "%");
-        console.log("Total Volume:", stats.totalVolume / 1e6, "USDC");
-        console.log("Average Bet Size:", stats.totalVolume / stats.successfulBets / 1e6, "USDC");
+        console.log("Total Volume:", stats.totalVolume / usdcUnit, "USDC");
+        console.log("Average Bet Size:", stats.totalVolume / stats.successfulBets / usdcUnit, "USDC");
         console.log("Skipped Markets:", stats.skippedMarkets);
         console.log("\nDistribution Strategy:", distribution);
         console.log("Active Bettors:", numBettors);
@@ -282,5 +289,15 @@ contract SimulateBets is Script {
             // random: 完全随机
             return rand % outcomeCount;
         }
+    }
+
+    /**
+     * @notice 获取 ERC20 代币的精度
+     * @param token 代币地址
+     * @return 代币精度（decimals）
+     */
+    function getTokenDecimals(address token) internal view returns (uint8) {
+        // 调用 decimals() 方法，如果失败则直接 revert
+        return MockERC20(token).decimals();
     }
 }

@@ -15,6 +15,7 @@ import "../src/core/FeeRouter.sol";
 import "../src/core/ReferralRegistry.sol";
 import "../src/pricing/SimpleCPMM.sol";
 import "../src/pricing/LMSR.sol";
+import "../src/pricing/ParimutuelPricing.sol";
 import "../src/pricing/LinkedLinesController.sol";
 import "../test/mocks/MockERC20.sol";
 
@@ -56,6 +57,7 @@ contract Deploy is Script {
         address usdc;
         address vault;
         address cpmm;
+        address parimutuel;
         address feeRouter;
         address referralRegistry;
         address factory;
@@ -98,7 +100,7 @@ contract Deploy is Script {
         console.log("========================================");
         console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);
-        console.log("Balance:", deployer.balance / 1e18, "ETH");
+        console.log("Balance:", deployer.balance / 1 ether, "ETH");
         console.log("\n");
 
         // 获取部署配置
@@ -124,6 +126,10 @@ contract Deploy is Script {
             console.log("Using existing USDC:", usdc);
         }
 
+        // 获取 USDC 精度
+        uint8 usdcDecimals = getTokenDecimals(usdc);
+        uint256 usdcUnit = 10 ** usdcDecimals;
+
         // ========================================
         // 2. 部署基础设施合约
         // ========================================
@@ -138,9 +144,13 @@ contract Deploy is Script {
         );
         console.log("LiquidityVault:", address(vault));
 
-        // Deploy SimpleCPMM
-        SimpleCPMM cpmm = new SimpleCPMM();
+        // Deploy SimpleCPMM (默认储备: 100,000 USDC)
+        SimpleCPMM cpmm = new SimpleCPMM(100_000 * 10**6);
         console.log("SimpleCPMM:", address(cpmm));
+
+        // Deploy ParimutuelPricing (零虚拟储备模式)
+        ParimutuelPricing parimutuel = new ParimutuelPricing();
+        console.log("ParimutuelPricing:", address(parimutuel));
 
         // Deploy ReferralRegistry
         ReferralRegistry referralRegistry = new ReferralRegistry(deployer);
@@ -227,12 +237,12 @@ contract Deploy is Script {
 
             MockERC20 mockUsdc = MockERC20(usdc);
             mockUsdc.mint(deployer, config.initialLpAmount);
-            console.log("Minted USDC:", config.initialLpAmount / 1e6, "USDC");
+            console.log("Minted USDC:", config.initialLpAmount / usdcUnit, "USDC");
 
             IERC20(usdc).approve(address(vault), config.initialLpAmount);
             vault.deposit(config.initialLpAmount, deployer);
-            console.log("Deposited to Vault:", config.initialLpAmount / 1e6, "USDC");
-            console.log("LP Shares received:", vault.balanceOf(deployer) / 1e6);
+            console.log("Deposited to Vault:", config.initialLpAmount / usdcUnit, "USDC");
+            console.log("LP Shares received:", vault.balanceOf(deployer) / usdcUnit);
         }
 
         vm.stopBroadcast();
@@ -247,6 +257,7 @@ contract Deploy is Script {
         console.log("  USDC:", usdc);
         console.log("  LiquidityVault:", address(vault));
         console.log("  SimpleCPMM:", address(cpmm));
+        console.log("  ParimutuelPricing:", address(parimutuel));
         console.log("  FeeRouter:", address(feeRouter));
         console.log("  ReferralRegistry:", address(referralRegistry));
         console.log("  MarketFactory_v2:", address(factory));
@@ -271,8 +282,8 @@ contract Deploy is Script {
 
         if (config.usdc == address(0)) {
             console.log("\nVault Status:");
-            console.log("  Total Assets:", vault.totalAssets() / 1e6, "USDC");
-            console.log("  Available Liquidity:", vault.availableLiquidity() / 1e6, "USDC");
+            console.log("  Total Assets:", vault.totalAssets() / usdcUnit, "USDC");
+            console.log("  Available Liquidity:", vault.availableLiquidity() / usdcUnit, "USDC");
         }
 
         console.log("\n========================================");
@@ -290,6 +301,7 @@ contract Deploy is Script {
             usdc: usdc,
             vault: address(vault),
             cpmm: address(cpmm),
+            parimutuel: address(parimutuel),
             feeRouter: address(feeRouter),
             referralRegistry: address(referralRegistry),
             factory: address(factory),
@@ -324,10 +336,15 @@ contract Deploy is Script {
             : usdcAddresses[block.chainid];
 
         // 读取初始 LP 金额（默认 1M USDC，仅测试网使用）
-        uint256 initialLpAmount = vm.envOr("INITIAL_LP_AMOUNT", uint256(1_000_000 * 1e6));
+        uint256 initialLpAmount;
         if (usdc != address(0)) {
             // 主网不自动初始化 LP
             initialLpAmount = 0;
+        } else {
+            // 测试网：USDC 精度默认为 6
+            uint8 decimals = 6;
+            // 1M USDC 足够支持 21 个市场（每个市场借 10k USDC，总需求 210k）
+            initialLpAmount = vm.envOr("INITIAL_LP_AMOUNT", uint256(1_000_000 * (10 ** decimals)));
         }
 
         // 读取费用接收地址（可选）
@@ -344,5 +361,15 @@ contract Deploy is Script {
             insuranceFund: insuranceFund,
             treasury: treasury
         });
+    }
+
+    /**
+     * @notice 获取 ERC20 代币的精度
+     * @param token 代币地址
+     * @return 代币精度（decimals）
+     */
+    function getTokenDecimals(address token) internal view returns (uint8) {
+        // 调用 decimals() 方法，如果失败则直接 revert
+        return MockERC20(token).decimals();
     }
 }
