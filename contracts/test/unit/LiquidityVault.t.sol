@@ -491,4 +491,358 @@ contract LiquidityVaultTest is BaseTest {
         uint256 yieldAfter = vault.getCurrentYield(user1);
         assertApproxEqAbs(yieldAfter, 110_000 * 1e6, 10, "Yield increased by ~10k");
     }
+
+    // ============ 多市场借款额度边界测试 ============
+
+    /**
+     * @notice 测试21个市场同时借款（模拟真实场景）
+     * @dev 验证：1M USDC Vault可以支持21个市场每个借10k
+     */
+    function test_MultipleMarkets_21MarketsEachBorrow10k() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 创建并授权21个市场地址
+        address[] memory markets = new address[](21);
+        for (uint256 i = 0; i < 21; i++) {
+            markets[i] = address(uint160(0x3000 + i));
+            vault.authorizeMarket(markets[i]);
+            usdc.mint(markets[i], 20_000 * 1e6); // 每个市场铸造20k用于还款
+        }
+
+        // 3. 所有21个市场每个借10k USDC
+        for (uint256 i = 0; i < 21; i++) {
+            vm.prank(markets[i]);
+            vault.borrow(10_000 * 1e6);
+        }
+
+        // 4. 验证总借款金额
+        assertEq(vault.totalBorrowed(), 210_000 * 1e6, "Total borrowed should be 210k");
+
+        // 5. 验证利用率
+        uint256 utilization = vault.utilizationRate();
+        // 210k / 1M = 21%
+        assertEq(utilization, 2100, "Utilization should be 21% (2100 bps)");
+
+        // 6. 验证可用流动性
+        assertEq(vault.availableLiquidity(), 790_000 * 1e6, "Available should be 790k");
+    }
+
+    /**
+     * @notice 测试接近90%利用率的边界情况
+     * @dev 验证：1M Vault最多可借出900k（90%）
+     */
+    function test_MultipleMarkets_BorrowUpTo90Percent() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 创建9个市场，每个借100k = 900k总计
+        address[] memory markets = new address[](9);
+        for (uint256 i = 0; i < 9; i++) {
+            markets[i] = address(uint160(0x4000 + i));
+            vault.authorizeMarket(markets[i]);
+        }
+
+        // 3. 前8个市场每个借100k
+        for (uint256 i = 0; i < 8; i++) {
+            vm.prank(markets[i]);
+            vault.borrow(100_000 * 1e6);
+        }
+
+        // 4. 第9个市场借100k（总计900k，正好90%）
+        vm.prank(markets[8]);
+        vault.borrow(100_000 * 1e6);
+
+        // 5. 验证总借款和利用率
+        assertEq(vault.totalBorrowed(), 900_000 * 1e6, "Should borrow exactly 900k");
+        assertEq(vault.utilizationRate(), 9000, "Should be exactly 90% (9000 bps)");
+        assertEq(vault.availableLiquidity(), 100_000 * 1e6, "Should have 100k left");
+    }
+
+    /**
+     * @notice 测试超过90%利用率限制失败
+     * @dev 验证：借款总额超过90%时应该失败
+     */
+    function testRevert_MultipleMarkets_ExceedsUtilization() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 创建10个市场
+        address[] memory markets = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            markets[i] = address(uint160(0x5000 + i));
+            vault.authorizeMarket(markets[i]);
+        }
+
+        // 3. 前9个市场每个借100k = 900k（正好90%）
+        for (uint256 i = 0; i < 9; i++) {
+            vm.prank(markets[i]);
+            vault.borrow(100_000 * 1e6);
+        }
+
+        // 4. 第10个市场尝试借100k应该失败（总计会超过90%）
+        vm.prank(markets[9]);
+        vm.expectRevert(); // ExceedsUtilizationLimit
+        vault.borrow(100_000 * 1e6);
+    }
+
+    /**
+     * @notice 测试多个市场借款后的可用额度计算
+     * @dev 验证：getMarketBorrowInfo在多市场场景下的正确性
+     */
+    function test_MultipleMarkets_BorrowInfoAfterPartialBorrow() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 授权2个市场
+        vault.authorizeMarket(mockMarket2);
+
+        // 3. market1借200k, market2借300k
+        vm.prank(mockMarket1);
+        vault.borrow(200_000 * 1e6);
+
+        vm.prank(mockMarket2);
+        vault.borrow(300_000 * 1e6);
+
+        // 4. 查询market1的借款信息
+        (uint256 borrowed1, uint256 limit1, uint256 available1) =
+            vault.getMarketBorrowInfo(mockMarket1);
+
+        assertEq(borrowed1, 200_000 * 1e6, "Market1 borrowed 200k");
+        assertEq(limit1, 500_000 * 1e6, "Market1 limit should be 50% of 1M = 500k");
+        assertEq(available1, 300_000 * 1e6, "Market1 can borrow 300k more (500k limit - 200k borrowed)");
+
+        // 5. 查询market2的借款信息
+        (uint256 borrowed2, uint256 limit2, uint256 available2) =
+            vault.getMarketBorrowInfo(mockMarket2);
+
+        assertEq(borrowed2, 300_000 * 1e6, "Market2 borrowed 300k");
+        assertEq(limit2, 500_000 * 1e6, "Market2 limit should be 50% of 1M = 500k");
+        assertEq(available2, 200_000 * 1e6, "Market2 can borrow 200k more (500k limit - 300k borrowed)");
+    }
+
+    /**
+     * @notice 测试多个小额市场借款的累积效应
+     * @dev 验证：21个市场每个借10k，总利用率21%，仍有充足流动性
+     */
+    function test_MultipleMarkets_SmallBorrowsAccumulation() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 创建21个市场，每个借10k
+        for (uint256 i = 0; i < 21; i++) {
+            address market = address(uint160(0x6000 + i));
+            vault.authorizeMarket(market);
+            usdc.mint(market, 15_000 * 1e6);
+
+            vm.prank(market);
+            vault.borrow(10_000 * 1e6);
+        }
+
+        // 3. 验证累积借款
+        assertEq(vault.totalBorrowed(), 210_000 * 1e6, "Total borrowed: 210k");
+
+        // 4. 验证仍有大量可用流动性
+        uint256 available = vault.availableLiquidity();
+        assertEq(available, 790_000 * 1e6, "Should have 790k available");
+
+        // 5. 验证利用率远低于90%
+        uint256 utilization = vault.utilizationRate();
+        assertLt(utilization, 9000, "Utilization should be < 90%");
+        assertEq(utilization, 2100, "Utilization should be 21%");
+    }
+
+    // ============ 单市场50%限制 + 总体90%利用率组合测试 ============
+
+    /**
+     * @notice 测试单个市场借满50%限制（500k）
+     * @dev 验证：单市场可以借到其最大限制50%
+     */
+    function test_SingleMarket_BorrowUpTo50Percent() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. market1借500k（正好50%限制）
+        vm.prank(mockMarket1);
+        vault.borrow(500_000 * 1e6);
+
+        // 3. 验证借款
+        assertEq(vault.totalBorrowed(), 500_000 * 1e6, "Should borrow 500k");
+        (uint256 borrowed, uint256 limit, uint256 available) = vault.getMarketBorrowInfo(mockMarket1);
+
+        assertEq(borrowed, 500_000 * 1e6, "Market borrowed 500k");
+        assertEq(limit, 500_000 * 1e6, "Limit is 50% of 1M = 500k");
+        assertEq(available, 0, "No more available for this market (reached limit)");
+
+        // 4. 验证总利用率
+        assertEq(vault.utilizationRate(), 5000, "Utilization should be 50%");
+    }
+
+    /**
+     * @notice 测试单市场达到50%后无法再借
+     * @dev 验证：单市场借款超过50%会失败
+     */
+    function testRevert_SingleMarket_ExceedsSingleMarketLimit() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. market1先借450k
+        vm.prank(mockMarket1);
+        vault.borrow(450_000 * 1e6);
+
+        // 3. market1尝试再借100k（总计550k，超过500k限制）
+        vm.prank(mockMarket1);
+        vm.expectRevert(); // ExceedsMarketBorrowLimit
+        vault.borrow(100_000 * 1e6);
+    }
+
+    /**
+     * @notice 测试两个市场各借50%，总计100%（应该失败）
+     * @dev 验证：总利用率限制（90%）优先于单市场限制
+     */
+    function testRevert_TwoMarkets_Each50Percent_ExceedsTotal() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 授权market2
+        vault.authorizeMarket(mockMarket2);
+
+        // 3. market1借500k（50%单市场限制）
+        vm.prank(mockMarket1);
+        vault.borrow(500_000 * 1e6);
+
+        // 4. market2尝试借500k（单市场限制允许，但总计1M会超过90%限制）
+        vm.prank(mockMarket2);
+        vm.expectRevert(); // ExceedsUtilizationLimit
+        vault.borrow(500_000 * 1e6);
+    }
+
+    /**
+     * @notice 测试达到90%总利用率的最大单市场组合
+     * @dev 验证：market1借500k + market2借400k = 900k（正好90%）
+     */
+    function test_TwoLargeMarkets_ReachExactly90Percent() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 授权market2
+        vault.authorizeMarket(mockMarket2);
+
+        // 3. market1借500k（50%单市场限制）
+        vm.prank(mockMarket1);
+        vault.borrow(500_000 * 1e6);
+
+        // 4. market2借400k（总计900k，正好90%）
+        vm.prank(mockMarket2);
+        vault.borrow(400_000 * 1e6);
+
+        // 5. 验证总借款和利用率
+        assertEq(vault.totalBorrowed(), 900_000 * 1e6, "Total borrowed: 900k");
+        assertEq(vault.utilizationRate(), 9000, "Utilization: exactly 90%");
+
+        // 6. 验证各市场借款信息
+        (uint256 borrowed1,,) = vault.getMarketBorrowInfo(mockMarket1);
+        (uint256 borrowed2,,) = vault.getMarketBorrowInfo(mockMarket2);
+
+        assertEq(borrowed1, 500_000 * 1e6, "Market1: 500k (50% limit)");
+        assertEq(borrowed2, 400_000 * 1e6, "Market2: 400k (40%)");
+    }
+
+    /**
+     * @notice 测试多个市场分别达到接近50%限制
+     * @dev 验证：market1借480k + market2借420k，两个都接近50%限制
+     */
+    function test_TwoMarkets_BothNear50PercentLimit() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 授权market2
+        vault.authorizeMarket(mockMarket2);
+
+        // 3. market1借480k（接近50%限制）
+        vm.prank(mockMarket1);
+        vault.borrow(480_000 * 1e6);
+
+        // 4. market2借420k（总计900k，正好90%）
+        vm.prank(mockMarket2);
+        vault.borrow(420_000 * 1e6);
+
+        // 5. 验证两个市场都还能借一点
+        (, uint256 limit1, uint256 available1) = vault.getMarketBorrowInfo(mockMarket1);
+        (, uint256 limit2, uint256 available2) = vault.getMarketBorrowInfo(mockMarket2);
+
+        assertEq(limit1, 500_000 * 1e6, "Market1 limit: 500k");
+        assertEq(available1, 20_000 * 1e6, "Market1 can borrow 20k more to reach limit");
+
+        assertEq(limit2, 500_000 * 1e6, "Market2 limit: 500k");
+        assertEq(available2, 80_000 * 1e6, "Market2 can borrow 80k more to reach limit");
+
+        // 6. 但总利用率已达90%，实际都不能再借
+        assertEq(vault.availableLiquidity(), 100_000 * 1e6, "Only 100k total available");
+        assertEq(vault.utilizationRate(), 9000, "Utilization: 90%");
+    }
+
+    /**
+     * @notice 测试单市场达到50%后其他市场仍可借款
+     * @dev 验证：market1满50%后，market2仍可借到40%使总利用率达90%
+     */
+    function test_OneMarketFull_OtherCanStillBorrow() public {
+        // 1. LP存入 1M USDC
+        vm.startPrank(user1);
+        usdc.approve(address(vault), 1_000_000 * 1e6);
+        vault.deposit(1_000_000 * 1e6, user1);
+        vm.stopPrank();
+
+        // 2. 授权market2
+        vault.authorizeMarket(mockMarket2);
+
+        // 3. market1借满500k
+        vm.prank(mockMarket1);
+        vault.borrow(500_000 * 1e6);
+
+        // 4. 验证market1已达限制
+        (, , uint256 available1) = vault.getMarketBorrowInfo(mockMarket1);
+        assertEq(available1, 0, "Market1 reached limit, cannot borrow more");
+
+        // 5. market2仍可借400k
+        vm.prank(mockMarket2);
+        vault.borrow(400_000 * 1e6);
+
+        (, , uint256 available2) = vault.getMarketBorrowInfo(mockMarket2);
+        assertEq(available2, 100_000 * 1e6, "Market2 can still borrow 100k more");
+
+        // 6. 验证总利用率
+        assertEq(vault.totalBorrowed(), 900_000 * 1e6, "Total: 900k");
+        assertEq(vault.utilizationRate(), 9000, "Utilization: 90%");
+    }
 }

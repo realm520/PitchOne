@@ -48,7 +48,7 @@ contract OU_IntegrationTest is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
 
         // 部署定价引擎
-        pricingEngine = new SimpleCPMM();
+        pricingEngine = new SimpleCPMM(100_000 * 10**6);
 
         // 部署预言机
         oracle = new MockOracle(owner);

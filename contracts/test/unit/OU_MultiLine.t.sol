@@ -429,7 +429,7 @@ contract OU_MultiLineTest is BaseTest {
     // ============ Management Function Tests ============
 
     function test_SetPricingEngine() public {
-        SimpleCPMM newCpmm = new SimpleCPMM();
+        SimpleCPMM newCpmm = new SimpleCPMM(100_000 * 10**6);
 
         market.setPricingEngine(address(newCpmm));
 
@@ -437,7 +437,7 @@ contract OU_MultiLineTest is BaseTest {
     }
 
     function testRevert_SetPricingEngine_NotOwner() public {
-        SimpleCPMM newCpmm = new SimpleCPMM();
+        SimpleCPMM newCpmm = new SimpleCPMM(100_000 * 10**6);
 
         vm.prank(user1);
         vm.expectRevert();

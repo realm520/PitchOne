@@ -19,7 +19,7 @@ contract SimpleCPMMTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        engine = new SimpleCPMM();
+        engine = new SimpleCPMM(100_000 * 10**6);
     }
 
     // ============ 核心验证：买入后价格上升 ============
@@ -85,7 +85,7 @@ contract SimpleCPMMTest is BaseTest {
     // ============ 初始价格测试 ============
 
     function test_InitialPrice_TwoOutcomes_Balanced() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000); // USDC 6 decimals
+        uint256[] memory reserves = engine.getInitialReserves(2); // USDC 6 decimals
 
         uint256 price0 = engine.getPrice(0, reserves);
         uint256 price1 = engine.getPrice(1, reserves);
@@ -96,7 +96,7 @@ contract SimpleCPMMTest is BaseTest {
     }
 
     function test_InitialPrice_ThreeOutcomes_Balanced() public {
-        uint256[] memory reserves = engine.getInitialReserves(3, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(3);
 
         uint256 price0 = engine.getPrice(0, reserves);
         uint256 price1 = engine.getPrice(1, reserves);
@@ -185,7 +185,7 @@ contract SimpleCPMMTest is BaseTest {
     // ============ 份额计算测试 ============
 
     function test_CalculateShares_ReturnsPositive() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(2);
         uint256 amount = 1_000 * 1e6;
 
         uint256 shares = engine.calculateShares(0, amount, reserves);
@@ -195,7 +195,7 @@ contract SimpleCPMMTest is BaseTest {
     }
 
     function test_CalculateShares_LargerAmount_LargerShares() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(2);
 
         uint256 shares1 = engine.calculateShares(0, 1_000 * 1e6, reserves);
         uint256 shares2 = engine.calculateShares(0, 2_000 * 1e6, reserves);
@@ -206,7 +206,7 @@ contract SimpleCPMMTest is BaseTest {
     }
 
     function test_CalculateShares_ThreeOutcomes_Consistent() public {
-        uint256[] memory reserves = engine.getInitialReserves(3, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(3);
         uint256 amount = 5_000 * 1e6;
 
         // 同样金额买入不同结果，均衡市场应该给相同份额
@@ -221,7 +221,7 @@ contract SimpleCPMMTest is BaseTest {
     // ============ 滑点测试 ============
 
     function test_Slippage_LargeTradeHigherSlippage() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(2);
         uint256[] memory reservesCopy = new uint256[](2);
         reservesCopy[0] = reserves[0];
         reservesCopy[1] = reserves[1];
@@ -309,7 +309,7 @@ contract SimpleCPMMTest is BaseTest {
     }
 
     function testRevert_ZeroAmount() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(2);
 
         vm.expectRevert("CPMM: Zero amount");
         engine.calculateShares(0, 0, reserves);
@@ -318,7 +318,7 @@ contract SimpleCPMMTest is BaseTest {
     // ============ 辅助函数测试 ============
 
     function test_GetInitialReserves_TwoOutcomes() public {
-        uint256[] memory reserves = engine.getInitialReserves(2, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(2);
 
         assertEq(reserves.length, 2, "Should have 2 reserves");
         assertEq(reserves[0], VIRTUAL_RESERVE_INIT, "Reserve 0 = INIT");
@@ -326,7 +326,7 @@ contract SimpleCPMMTest is BaseTest {
     }
 
     function test_GetInitialReserves_ThreeOutcomes() public {
-        uint256[] memory reserves = engine.getInitialReserves(3, 6, 100_000);
+        uint256[] memory reserves = engine.getInitialReserves(3);
 
         assertEq(reserves.length, 3, "Should have 3 reserves");
         assertEq(reserves[0], VIRTUAL_RESERVE_INIT, "Reserve 0 = INIT");
@@ -336,7 +336,7 @@ contract SimpleCPMMTest is BaseTest {
 
     function testRevert_GetInitialReserves_InvalidCount() public {
         vm.expectRevert("CPMM: Invalid outcome count");
-        engine.getInitialReserves(4, 6, 100_000);
+        engine.getInitialReserves(4);
     }
 
     // ============ Fuzz测试 ============

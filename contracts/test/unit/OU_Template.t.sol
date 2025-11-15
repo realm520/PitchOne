@@ -636,7 +636,7 @@ contract OU_TemplateTest is BaseTest {
     // ============ Admin Function Tests ============
 
     function test_SetPricingEngine() public {
-        SimpleCPMM newEngine = new SimpleCPMM();
+        SimpleCPMM newEngine = new SimpleCPMM(100_000 * 10**6);
 
         market.setPricingEngine(address(newEngine));
 
@@ -646,7 +646,7 @@ contract OU_TemplateTest is BaseTest {
     function testRevert_SetPricingEngine_AfterLock() public {
         market.lock();
 
-        SimpleCPMM newEngine = new SimpleCPMM();
+        SimpleCPMM newEngine = new SimpleCPMM(100_000 * 10**6);
 
         vm.expectRevert("MarketBase: Invalid status");
         market.setPricingEngine(address(newEngine));

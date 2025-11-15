@@ -56,7 +56,7 @@ contract BaseTest is Test {
         feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
         // Deploy SimpleCPMM
-        cpmm = new SimpleCPMM();
+        cpmm = new SimpleCPMM(100_000 * 10**6);
 
         // Mint tokens to test users
         usdc.mint(user1, INITIAL_BALANCE);

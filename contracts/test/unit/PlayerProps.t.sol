@@ -38,7 +38,7 @@ contract PlayerPropsTest is Test {
         usdc = new MockERC20("USD Coin", "USDC", USDC_DECIMALS);
 
         // 部署定价引擎
-        simpleCPMM = new SimpleCPMM();
+        simpleCPMM = new SimpleCPMM(100_000 * 10**6);
         lmsr = new LMSR(5000 * 1e18, 10); // liquidityB = 5000, 10 个结果
 
         // 给用户分配 USDC

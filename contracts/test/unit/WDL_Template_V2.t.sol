@@ -265,7 +265,7 @@ contract WDL_Template_V2Test is BaseTest {
     }
 
     function test_SetPricingEngine_UpdatesEngine() public {
-        SimpleCPMM newEngine = new SimpleCPMM();
+        SimpleCPMM newEngine = new SimpleCPMM(100_000 * 10**6);
 
         vm.prank(owner);
         market.setPricingEngine(address(newEngine));

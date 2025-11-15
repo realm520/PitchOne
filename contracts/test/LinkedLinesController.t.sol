@@ -33,9 +33,9 @@ contract LinkedLinesControllerTest is Test {
         controller.grantRole(controller.OPERATOR_ROLE(), operator);
 
         // 部署 CPMM 实例
-        cpmm20 = new SimpleCPMM();
-        cpmm25 = new SimpleCPMM();
-        cpmm30 = new SimpleCPMM();
+        cpmm20 = new SimpleCPMM(100_000 * 10**6);
+        cpmm25 = new SimpleCPMM(100_000 * 10**6);
+        cpmm30 = new SimpleCPMM(100_000 * 10**6);
     }
 
     /*//////////////////////////////////////////////////////////////

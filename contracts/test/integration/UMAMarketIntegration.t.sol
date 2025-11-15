@@ -56,7 +56,7 @@ contract UMAMarketIntegrationTest is Test {
             treasury: address(0x300)
         });
         feeRouter = new FeeRouter(recipients, address(0x400)); // Mock referral registry
-        cpmm = new SimpleCPMM();
+        cpmm = new SimpleCPMM(100_000 * 10**6);
 
         // Deploy UMA Oracle Adapter
         vm.prank(owner);

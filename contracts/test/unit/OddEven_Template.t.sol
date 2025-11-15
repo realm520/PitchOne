@@ -36,7 +36,7 @@ contract OddEven_TemplateTest is Test {
 
     function setUp() public {
         usdc = new MockERC20("USDC", "USDC", 6);
-        cpmm = new SimpleCPMM();
+        cpmm = new SimpleCPMM(100_000 * 10**6);
         oracle = new MockOracle(address(this));
 
         market = new OddEven_Template();
@@ -451,7 +451,7 @@ contract OddEven_TemplateTest is Test {
     // ============ 管理函数测试 ============
 
     function test_SetPricingEngine() public {
-        SimpleCPMM newCpmm = new SimpleCPMM();
+        SimpleCPMM newCpmm = new SimpleCPMM(100_000 * 10**6);
 
         market.setPricingEngine(address(newCpmm));
         assertEq(address(market.pricingEngine()), address(newCpmm));
@@ -460,7 +460,7 @@ contract OddEven_TemplateTest is Test {
     function testRevert_SetPricingEngine_AfterLock() public {
         market.lock();
 
-        SimpleCPMM newCpmm = new SimpleCPMM();
+        SimpleCPMM newCpmm = new SimpleCPMM(100_000 * 10**6);
 
         vm.expectRevert("MarketBase: Invalid status");
         market.setPricingEngine(address(newCpmm));

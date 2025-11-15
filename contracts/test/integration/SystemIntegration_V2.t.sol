@@ -60,7 +60,7 @@ contract SystemIntegration_V2Test is Test {
         // 2. 部署基础设施
         usdc = new MockERC20("USDC", "USDC", 6);
         vault = new LiquidityVault(IERC20(address(usdc)), "PitchOne LP", "pLP");
-        cpmm = new SimpleCPMM();
+        cpmm = new SimpleCPMM(100_000 * 10**6);
 
         // 创建FeeRouter（需要FeeRecipients结构体）
         FeeRouter.FeeRecipients memory feeRecipients = FeeRouter.FeeRecipients({

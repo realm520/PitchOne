@@ -36,9 +36,9 @@ contract LinkedLinesController_GasComparisonTest is Test {
         controllerOptimized = new LinkedLinesController_Optimized(admin, address(paramController));
 
         // 部署 3 条线的 CPMM（无参数构造）
-        cpmmLine20 = new SimpleCPMM();
-        cpmmLine25 = new SimpleCPMM();
-        cpmmLine30 = new SimpleCPMM();
+        cpmmLine20 = new SimpleCPMM(100_000 * 10**6);
+        cpmmLine25 = new SimpleCPMM(100_000 * 10**6);
+        cpmmLine30 = new SimpleCPMM(100_000 * 10**6);
 
         // 创建线组
         groupId = keccak256("OU_MATCH_123");
@@ -185,7 +185,7 @@ contract LinkedLinesController_GasComparisonTest is Test {
 
         // 再配置每条线
         for (uint256 i = 0; i < 10; i++) {
-            SimpleCPMM cpmm = new SimpleCPMM();
+            SimpleCPMM cpmm = new SimpleCPMM(100_000 * 10**6);
             controllerOriginal.configureLine(bigGroupId, bigLines[i], address(cpmm), 1 ether, 1 ether);
         }
 
@@ -214,7 +214,7 @@ contract LinkedLinesController_GasComparisonTest is Test {
 
         // 再配置每条线
         for (uint256 i = 0; i < 10; i++) {
-            SimpleCPMM cpmm = new SimpleCPMM();
+            SimpleCPMM cpmm = new SimpleCPMM(100_000 * 10**6);
             controllerOptimized.configureLine(bigGroupId, bigLines[i], address(cpmm), 1 ether, 1 ether);
         }
 
