@@ -113,8 +113,9 @@ contract OU_Template_V2 is MarketBase_V2 {
      * @param _feeRate 手续费率（基点）
      * @param _disputePeriod 争议期（秒）
      * @param _pricingEngine 定价引擎地址
-     * @param _vault Vault 地址
+     * @param _vault Vault 地址（或 LiquidityProvider）
      * @param _uri ERC-1155 元数据 URI
+     * @param _virtualReservePerSide 每个结果的虚拟储备量（0 = Parimutuel 彩票池模式）
      */
     function initialize(
         string memory _matchId,
@@ -128,7 +129,8 @@ contract OU_Template_V2 is MarketBase_V2 {
         uint256 _disputePeriod,
         address _pricingEngine,
         address _vault,
-        string memory _uri
+        string memory _uri,
+        uint256 _virtualReservePerSide
     ) external initializer {
         // 验证参数
         require(bytes(_matchId).length > 0, "OU_V2: Invalid match ID");
@@ -153,8 +155,14 @@ contract OU_Template_V2 is MarketBase_V2 {
         // 获取代币精度并计算相关值
         uint8 decimals = IERC20Metadata(_settlementToken).decimals();
         uint256 tokenUnit = 10 ** decimals;
-        defaultBorrowAmount = 100_000 * tokenUnit;  // 100k tokens
-        virtualReserveInit = 100_000 * tokenUnit;   // 100k tokens
+
+        // 设置虚拟储备（支持 Parimutuel 模式）
+        virtualReserveInit = _virtualReservePerSide;
+
+        // 设置默认借款金额
+        // Parimutuel 模式（virtualReservePerSide = 0）不需要借款
+        // 其他模式使用虚拟储备量作为初始借款量
+        defaultBorrowAmount = _virtualReservePerSide;
 
         // 设置状态变量
         matchId = _matchId;

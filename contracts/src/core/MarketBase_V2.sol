@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFeeDiscountOracle.sol";
 import "../interfaces/IResultOracle.sol";
-import "../liquidity/LiquidityVault.sol";
+import "../interfaces/ILiquidityProvider.sol";
 
 /**
  * @title MarketBase_V2
@@ -70,8 +70,8 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
     // ============ Vault 集成新增 ============
 
-    /// @notice 流动性金库地址
-    LiquidityVault public vault;
+    /// @notice 流动性提供者接口
+    ILiquidityProvider public liquidityProvider;
 
     /// @notice 从 Vault 借出的金额
     uint256 public borrowedAmount;
@@ -140,7 +140,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @param _feeRecipient 费用接收地址
      * @param _feeRate 手续费率（基点）
      * @param _disputePeriod 争议期（秒）
-     * @param _vault Vault 地址
+     * @param _liquidityProvider 流动性提供者地址
      * @param _uri ERC-1155 元数据 URI
      */
     function __MarketBase_init(
@@ -149,7 +149,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         address _feeRecipient,
         uint256 _feeRate,
         uint256 _disputePeriod,
-        address _vault,
+        address _liquidityProvider,
         string memory _uri
     ) internal onlyInitializing {
         __ERC1155_init(_uri);
@@ -160,14 +160,14 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         require(_settlementToken != address(0), "MarketBase_V2: Invalid token");
         require(_feeRecipient != address(0), "MarketBase_V2: Invalid fee recipient");
         require(_feeRate <= 1000, "MarketBase_V2: Fee rate too high"); // 最大 10%
-        require(_vault != address(0), "MarketBase_V2: Invalid vault");
+        require(_liquidityProvider != address(0), "MarketBase_V2: Invalid liquidity provider");
 
         outcomeCount = _outcomeCount;
         settlementToken = IERC20(_settlementToken);
         feeRecipient = _feeRecipient;
         feeRate = _feeRate;
         disputePeriod = _disputePeriod;
-        vault = LiquidityVault(_vault);
+        liquidityProvider = ILiquidityProvider(_liquidityProvider);
         status = MarketStatus.Open;
     }
 
@@ -411,15 +411,22 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @notice 从 Vault 借出初始流动性
      * @dev 由 placeBet() 在首次下注时自动调用
      *      子合约必须实现 _getInitialBorrowAmount() 返回需要借出的金额
+     *      如果返回 0（Parimutuel 模式），跳过借款但标记为已借（避免重复调用）
      */
     function _borrowInitialLiquidity() internal virtual {
         require(!liquidityBorrowed, "MarketBase_V2: Already borrowed");
 
         uint256 amount = _getInitialBorrowAmount();
-        require(amount > 0, "MarketBase_V2: Zero borrow amount");
 
-        // 从 Vault 借出
-        vault.borrow(amount);
+        // Parimutuel 模式：amount = 0，不需要初始流动性
+        if (amount == 0) {
+            liquidityBorrowed = true; // 标记为已借，避免重复调用
+            emit LiquidityBorrowed(0, block.timestamp); // 记录事件（金额为 0）
+            return;
+        }
+
+        // CPMM 模式：从流动性提供者借出
+        liquidityProvider.borrow(amount);
 
         borrowedAmount = amount;
         totalLiquidity = amount; // 初始流动性仅来自 Vault
@@ -442,11 +449,11 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         uint256 principal = currentBalance < borrowedAmount ? currentBalance : borrowedAmount;
 
         if (principal > 0) {
-            // 授权 Vault 扣款
-            settlementToken.approve(address(vault), principal);
+            // 授权流动性提供者扣款
+            settlementToken.approve(address(liquidityProvider), principal);
 
-            // 归还给 Vault（revenue = 0）
-            vault.repay(principal, 0);
+            // 归还给流动性提供者（revenue = 0）
+            liquidityProvider.repay(principal, 0);
         }
 
         liquidityRepaid = true;
@@ -474,11 +481,11 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         if (principal > 0 || revenue > 0) {
             uint256 totalRepayment = principal + revenue;
 
-            // 授权 Vault 扣款
-            settlementToken.approve(address(vault), totalRepayment);
+            // 授权流动性提供者扣款
+            settlementToken.approve(address(liquidityProvider), totalRepayment);
 
-            // 归还给 Vault
-            vault.repay(principal, revenue);
+            // 归还给流动性提供者
+            liquidityProvider.repay(principal, revenue);
         }
 
         liquidityRepaid = true;

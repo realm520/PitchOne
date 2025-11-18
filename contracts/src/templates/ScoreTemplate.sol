@@ -6,6 +6,19 @@ import "../pricing/LMSR.sol";
 import "../interfaces/IResultOracle.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
+// ============================================================================
+// Custom Errors
+// ============================================================================
+
+error InvalidMatchId();
+error InvalidTeamName();
+error KickoffTimeInPast();
+error InvalidScoreRange();
+error InvalidOutcomeIndex();
+error InvalidOutcomeId();
+error ProbabilitiesLengthMismatch();
+error ProbabilitiesSumInvalid();
+
 /**
  * @title ScoreTemplate
  * @notice 精确比分市场模板
@@ -140,14 +153,13 @@ contract ScoreTemplate is MarketBase {
         string memory _uri,
         address _owner
     ) public initializer {
-        require(bytes(_matchId).length > 0, "Score: Invalid match ID");
-        require(bytes(_homeTeam).length > 0, "Score: Invalid home team");
-        require(bytes(_awayTeam).length > 0, "Score: Invalid away team");
-        require(_kickoffTime > block.timestamp, "Score: Kickoff time in past");
-        require(
-            _maxGoals >= MIN_SCORE_RANGE && _maxGoals <= MAX_SCORE_RANGE,
-            "Score: Invalid score range"
-        );
+        if (bytes(_matchId).length == 0) revert InvalidMatchId();
+        if (bytes(_homeTeam).length == 0) revert InvalidTeamName();
+        if (bytes(_awayTeam).length == 0) revert InvalidTeamName();
+        if (_kickoffTime <= block.timestamp) revert KickoffTimeInPast();
+        if (_maxGoals < MIN_SCORE_RANGE || _maxGoals > MAX_SCORE_RANGE) {
+            revert InvalidScoreRange();
+        }
 
         // 计算结果数量: (maxGoals+1)^2 + 1 (Other)
         uint256 _outcomeCount = uint256(_maxGoals + 1) * uint256(_maxGoals + 1) + 1;
@@ -217,7 +229,7 @@ contract ScoreTemplate is MarketBase {
         returns (uint256 shares)
     {
         // outcomeId 是索引，需要映射到实际的比分编码
-        require(outcomeId < validOutcomeIds.length, "Score: Invalid outcome index");
+        if (outcomeId >= validOutcomeIds.length) revert InvalidOutcomeIndex();
         uint256 actualOutcomeId = validOutcomeIds[outcomeId];
 
         // 将 USDC (6 decimals) 转换为 WAD (18 decimals)
@@ -248,7 +260,7 @@ contract ScoreTemplate is MarketBase {
         view
         returns (uint256 price)
     {
-        require(outcomeId < validOutcomeIds.length, "Score: Invalid outcome ID");
+        if (outcomeId >= validOutcomeIds.length) revert InvalidOutcomeId();
 
         uint256[] memory reserves = new uint256[](0);
         return lmsrEngine.getPrice(outcomeId, reserves);
@@ -419,14 +431,14 @@ contract ScoreTemplate is MarketBase {
             return quantities;
         }
 
-        require(probabilities.length == count, "Score: Probabilities length mismatch");
+        if (probabilities.length != count) revert ProbabilitiesLengthMismatch();
 
         // 验证概率总和 ≈ 100%
         uint256 totalProb = 0;
         for (uint256 i = 0; i < count; i++) {
             totalProb += probabilities[i];
         }
-        require(totalProb >= 9900 && totalProb <= 10100, "Score: Probabilities sum invalid");
+        if (totalProb < 9900 || totalProb > 10100) revert ProbabilitiesSumInvalid();
 
         // 转换概率为持仓量
         // 简化方案：q_i = baseQuantity * (p_i / avgProb)
@@ -483,34 +495,4 @@ contract ScoreTemplate is MarketBase {
         return lmsrEngine.getCurrentCost();
     }
 
-    /**
-     * @notice 批量查询多个比分的价格
-     * @param scores 比分数组（每两个元素为一组：homeGoals, awayGoals）
-     * @return outcomeIds 对应的结果ID数组
-     * @return prices 对应的价格数组（基点）
-     */
-    function queryScorePrices(uint8[] memory scores)
-        external
-        view
-        returns (uint256[] memory outcomeIds, uint256[] memory prices)
-    {
-        require(scores.length % 2 == 0, "Score: Invalid scores length");
-
-        uint256 count = scores.length / 2;
-        outcomeIds = new uint256[](count);
-        prices = new uint256[](count);
-
-        uint256[] memory reserves = new uint256[](0);
-
-        for (uint256 i = 0; i < count; i++) {
-            uint8 homeGoals = scores[i * 2];
-            uint8 awayGoals = scores[i * 2 + 1];
-            uint256 outcomeId = determineWinningOutcome(homeGoals, awayGoals);
-
-            outcomeIds[i] = outcomeId;
-            prices[i] = lmsrEngine.getPrice(outcomeId, reserves);
-        }
-
-        return (outcomeIds, prices);
-    }
 }
