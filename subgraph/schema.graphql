@@ -1434,3 +1434,260 @@ type BudgetUsage @entity(immutable: false) {
   "交易哈希"
   transactionHash: Bytes!
 }
+
+# ============================================================
+# Liquidity Provider Entities
+# ============================================================
+
+"""
+LiquidityProvider - 流动性提供者
+记录各类 Provider 实例（ERC4626、Parimutuel 等）
+"""
+type LiquidityProvider @entity(immutable: false) {
+  "Provider 合约地址"
+  id: ID!
+
+  "Provider 类型（ERC4626, Parimutuel）"
+  providerType: String!
+
+  "底层资产（USDC）"
+  asset: Bytes!
+
+  "总流动性"
+  totalLiquidity: BigDecimal!
+
+  "可用流动性"
+  availableLiquidity: BigDecimal!
+
+  "已借出流动性"
+  totalBorrowed: BigDecimal!
+
+  "利用率（基点，0-10000）"
+  utilizationRate: Int!
+
+  "已授权的市场列表"
+  authorizedMarkets: [Bytes!]!
+
+  "借贷事件"
+  borrowEvents: [LiquidityBorrowEvent!]! @derivedFrom(field: "provider")
+
+  "池贡献记录（仅 Parimutuel）"
+  contributions: [PoolContribution!]! @derivedFrom(field: "provider")
+
+  "部署者地址"
+  deployer: Bytes!
+
+  "部署时间"
+  createdAt: BigInt!
+
+  "部署区块号"
+  createdAtBlock: BigInt!
+
+  "部署交易哈希"
+  createdAtTransaction: Bytes!
+
+  "是否已暂停"
+  isPaused: Boolean!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+
+  "最后更新区块号"
+  lastUpdatedAtBlock: BigInt!
+}
+
+"""
+LiquidityProviderFactory - 流动性提供者工厂
+记录 Factory 合约的状态和部署历史
+"""
+type LiquidityProviderFactory @entity(immutable: false) {
+  "Factory 合约地址"
+  id: ID!
+
+  "所有者地址"
+  owner: Bytes!
+
+  "已注册的 Provider 类型"
+  registeredTypes: [ProviderTypeRegistration!]! @derivedFrom(field: "factory")
+
+  "已部署的 Provider 列表"
+  deployedProviders: [ProviderDeployment!]! @derivedFrom(field: "factory")
+
+  "已授权的 Deployer 列表"
+  authorizedDeployers: [Bytes!]!
+
+  "总部署数量"
+  totalDeployments: BigInt!
+
+  "创建时间"
+  createdAt: BigInt!
+
+  "创建区块号"
+  createdAtBlock: BigInt!
+}
+
+"""
+ProviderTypeRegistration - Provider 类型注册
+记录 Factory 中注册的 Provider 类型
+"""
+type ProviderTypeRegistration @entity(immutable: false) {
+  "ID: factoryAddress-providerType"
+  id: ID!
+
+  "关联的 Factory"
+  factory: LiquidityProviderFactory!
+
+  "Provider 类型名称"
+  providerType: String!
+
+  "实现合约地址"
+  implementation: Bytes!
+
+  "注册时间"
+  registeredAt: BigInt!
+
+  "注册区块号"
+  registeredAtBlock: BigInt!
+
+  "注册交易哈希"
+  registeredAtTransaction: Bytes!
+}
+
+"""
+ProviderDeployment - Provider 部署记录
+记录通过 Factory 部署的 Provider 实例
+"""
+type ProviderDeployment @entity(immutable: true) {
+  "部署 ID（txHash-logIndex）"
+  id: ID!
+
+  "关联的 Factory"
+  factory: LiquidityProviderFactory!
+
+  "部署的 Provider 地址"
+  provider: Bytes!
+
+  "Provider 类型"
+  providerType: String!
+
+  "部署者地址"
+  deployer: Bytes!
+
+  "部署索引（在 Factory 中的序号）"
+  deploymentIndex: BigInt!
+
+  "部署时间"
+  deployedAt: BigInt!
+
+  "部署区块号"
+  deployedAtBlock: BigInt!
+
+  "部署交易哈希"
+  deployedAtTransaction: Bytes!
+}
+
+"""
+LiquidityBorrowEvent - 流动性借贷事件
+记录市场从 Provider 借入和归还流动性的事件
+"""
+type LiquidityBorrowEvent @entity(immutable: true) {
+  "事件 ID（txHash-logIndex）"
+  id: ID!
+
+  "Provider"
+  provider: LiquidityProvider!
+
+  "市场地址"
+  market: Bytes!
+
+  "事件类型（Borrow / Repay）"
+  eventType: LiquidityEventType!
+
+  "借入/归还本金"
+  principal: BigDecimal!
+
+  "归还收益（仅 Repay）"
+  revenue: BigDecimal
+
+  "事件发生时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+
+  "事件发生后 Provider 状态快照"
+  snapshotTotalLiquidity: BigDecimal!
+  snapshotAvailableLiquidity: BigDecimal!
+  snapshotUtilizationRate: Int!
+}
+
+"""
+LiquidityEventType - 流动性事件类型枚举
+"""
+enum LiquidityEventType {
+  "借入流动性"
+  Borrow
+
+  "归还流动性"
+  Repay
+}
+
+"""
+PoolContribution - 彩池贡献（仅 Parimutuel Provider）
+记录用户向 Parimutuel 彩池的贡献
+"""
+type PoolContribution @entity(immutable: true) {
+  "贡献 ID（txHash-logIndex）"
+  id: ID!
+
+  "Provider"
+  provider: LiquidityProvider!
+
+  "贡献者地址"
+  contributor: Bytes!
+
+  "贡献金额"
+  amount: BigDecimal!
+
+  "贡献者的累计贡献占比（基点）"
+  contributionShareBps: Int!
+
+  "贡献时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+MarketAuthorization - 市场授权事件
+记录 Provider 对市场的授权/撤销授权事件
+"""
+type MarketAuthorization @entity(immutable: true) {
+  "授权事件 ID（txHash-logIndex）"
+  id: ID!
+
+  "Provider"
+  provider: LiquidityProvider!
+
+  "市场地址"
+  market: Bytes!
+
+  "是否授权（true=授权, false=撤销）"
+  authorized: Boolean!
+
+  "授权时间"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}

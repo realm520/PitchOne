@@ -12,7 +12,7 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
+      address: "0xA7c59f010700930003b33aB25a7a0679C860f29c"
       abi: MarketFactory_v2
       startBlock: 0
     mapping:
@@ -28,6 +28,21 @@ dataSources:
           file: ../contracts/out/MarketFactory_v2.sol/MarketFactory_v2.json
         - name: WDL_Template_V2
           file: ../contracts/out/WDL_Template_V2.sol/WDL_Template_V2.json
+        - name: OU_Template_V2
+          file: ../contracts/out/OU_Template_V2.sol/OU_Template_V2.json
+        - name: OU_MultiLine_V2
+          file: ../contracts/out/OU_MultiLine_V2.sol/OU_MultiLine_V2.json
+        - name: OddEven_Template_V2
+          file: ../contracts/out/OddEven_Template_V2.sol/OddEven_Template_V2.json
+        - name: AH_Template_V2
+          file: ../contracts/out/AH_Template_V2.sol/AH_Template_V2.json
+        - name: ScoreTemplate_V2
+          file: ../contracts/out/ScoreTemplate_V2.sol/ScoreTemplate_V2.json
+        - name: PlayerProps_Template_V2
+          file: ../contracts/out/PlayerProps_Template_V2.sol/PlayerProps_Template_V2.json
+        # 非 V2 版本的模板 ABI（用于 registry.ts 中的合约调用）
+        - name: WDL_Template
+          file: ../contracts/out/WDL_Template.sol/WDL_Template.json
         - name: OU_Template
           file: ../contracts/out/OU_Template.sol/OU_Template.json
         - name: OU_MultiLine
@@ -57,7 +72,7 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+      address: "0x22753E4264FDDc6181dc7cce468904A80a363E44"
       abi: FeeRouter
       startBlock: 0
     mapping:
@@ -76,6 +91,113 @@ dataSources:
         - event: FeeRouted(indexed address,uint256,indexed address,uint256,uint256,uint256,uint256,uint256)
           handler: handleFeeRouted
       file: ./src/fee.ts
+
+  # ============================================================================
+  # LiquidityProviderFactory - 流动性提供者工厂
+  # 地址来源: 需要从 Deploy.s.sol 部署输出更新
+  # ============================================================================
+  - kind: ethereum/contract
+    name: LiquidityProviderFactory
+    network: localhost
+    source:
+      address: "0x4b6aB5F819A515382B0dEB6935D793817bB4af28"
+      abi: LiquidityProviderFactory
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProviderFactory
+        - ProviderTypeRegistration
+        - ProviderDeployment
+        - LiquidityProvider
+      abis:
+        - name: LiquidityProviderFactory
+          file: ./abis/LiquidityProviderFactory.json
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: ProviderTypeRegistered(indexed string,address)
+          handler: handleProviderTypeRegistered
+        - event: ProviderDeployed(indexed address,indexed string,indexed address,uint256)
+          handler: handleProviderDeployed
+        - event: DeployerAuthorized(indexed address,bool)
+          handler: handleDeployerAuthorized
+      file: ./src/provider.ts
+
+  # ============================================================================
+  # ERC4626LiquidityProvider - ERC-4626 标准流动性提供者（默认）
+  # 地址来源: 需要从 Deploy.s.sol 部署输出更新
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ERC4626LiquidityProvider
+    network: localhost
+    source:
+      address: "0xCace1b78160AE76398F486c8a18044da0d66d86D"
+      abi: ERC4626LiquidityProvider
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProvider
+        - LiquidityBorrowEvent
+        - MarketAuthorization
+      abis:
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: LiquidityBorrowed(indexed address,uint256,uint256)
+          handler: handleLiquidityBorrowed
+        - event: LiquidityRepaid(indexed address,uint256,uint256,uint256)
+          handler: handleLiquidityRepaid
+        - event: MarketAuthorizationChanged(indexed address,bool)
+          handler: handleMarketAuthorizationChanged
+        - event: Paused(address)
+          handler: handlePaused
+        - event: Unpaused(address)
+          handler: handleUnpaused
+      file: ./src/provider.ts
+
+  # ============================================================================
+  # ParimutuelLiquidityProvider - 彩池模式流动性提供者（备用）
+  # 地址来源: 需要从 Deploy.s.sol 部署输出更新
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ParimutuelLiquidityProvider
+    network: localhost
+    source:
+      address: "0xD5ac451B0c50B9476107823Af206eD814a2e2580"
+      abi: ParimutuelLiquidityProvider
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProvider
+        - LiquidityBorrowEvent
+        - PoolContribution
+        - MarketAuthorization
+      abis:
+        - name: ParimutuelLiquidityProvider
+          file: ./abis/ParimutuelLiquidityProvider.json
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: LiquidityBorrowed(indexed address,uint256,uint256)
+          handler: handleLiquidityBorrowed
+        - event: LiquidityRepaid(indexed address,uint256,uint256,uint256)
+          handler: handleLiquidityRepaid
+        - event: PoolContribution(indexed address,uint256,uint256)
+          handler: handlePoolContribution
+        - event: RevenueDistributed(uint256,uint256)
+          handler: handleRevenueDistributed
+        - event: MarketAuthorizationChanged(indexed address,bool)
+          handler: handleMarketAuthorizationChanged
+      file: ./src/provider.ts
 
 # ============================================================================
 # 动态模板配置 - 用于自动索引新创建的市场
