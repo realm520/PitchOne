@@ -13,7 +13,7 @@ contract SimpleCPMMTest is BaseTest {
     SimpleCPMM public engine;
 
     // 测试常量（USDC 6 位小数）
-    uint256 constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100,000 USDC
+    // VIRTUAL_RESERVE_INIT 继承自 BaseTest.sol
     uint256 constant MIN_RESERVE = 1000 * 1e6; // 1,000 USDC
     uint256 constant MAX_RESERVE = 10_000_000 * 1e6; // 10M USDC
 

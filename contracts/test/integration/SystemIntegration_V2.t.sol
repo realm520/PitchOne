@@ -36,6 +36,7 @@ contract SystemIntegration_V2Test is Test {
     address public feeRecipient;
 
     // ============ 常量 ============
+    uint256 constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC - Virtual reserve for AMM mode
     uint256 constant INITIAL_LP_DEPOSIT = 1_000_000 * 1e6; // 1M USDC
     uint256 constant MARKET_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
     uint256 constant BET_AMOUNT = 10_000 * 1e6; // 10k USDC
@@ -87,7 +88,8 @@ contract SystemIntegration_V2Test is Test {
             DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "" // WDL_Template_V2 没有 owner 参数
+            "", // WDL_Template_V2 没有 owner 参数
+            VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         bytes32 templateId = factory.registerTemplate("WDL", "V2", address(wdlImplementation));
@@ -128,7 +130,8 @@ contract SystemIntegration_V2Test is Test {
             DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "ipfs://test" // WDL_Template_V2 没有 owner 参数
+            "ipfs://test", // WDL_Template_V2 没有 owner 参数
+            VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         // 授权市场从Vault借款

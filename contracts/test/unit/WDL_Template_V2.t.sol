@@ -16,7 +16,7 @@ contract WDL_Template_V2Test is BaseTest {
     LiquidityVault public vault;
 
     // 测试常量
-    uint256 constant VIRTUAL_RESERVE_INIT = 100_000 * 1e6; // 100k USDC
+    // VIRTUAL_RESERVE_INIT 继承自 BaseTest.sol
     uint256 constant INITIAL_VAULT_DEPOSIT = 500_000 * 1e6;
     uint256 constant BET_AMOUNT = 1_000 * 1e6;
 
@@ -51,7 +51,8 @@ contract WDL_Template_V2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm), // SimpleCPMM
             address(vault),
-            "https://metadata.com/{id}"
+            "https://metadata.com/{id}",
+            100_000 * 1e6  // virtualReservePerSide (100k USDC, AMM mode)
         );
 
         // 授权 Market
@@ -115,7 +116,8 @@ contract WDL_Template_V2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+            100_000 * 1e6  // virtualReservePerSide
         );
     }
 
@@ -134,7 +136,8 @@ contract WDL_Template_V2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+            100_000 * 1e6  // virtualReservePerSide
         );
     }
 

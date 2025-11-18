@@ -44,7 +44,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         // 注册模板
@@ -67,7 +69,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -211,7 +215,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         // 注册到 factory
@@ -239,7 +245,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -268,7 +276,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -289,7 +299,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(user1); // 没有 MARKET_CREATOR_ROLE
@@ -312,7 +324,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -336,7 +350,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -365,7 +381,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         // 转移 ownership 给 factory（以便 factory 可以管理）
@@ -394,7 +412,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         externalMarket.transferOwnership(address(factory));
@@ -421,7 +441,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         WDL_Template_V2 market2 = new WDL_Template_V2();
@@ -436,7 +458,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.startPrank(owner);
@@ -489,7 +513,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -511,7 +537,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -539,7 +567,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -566,7 +596,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -590,7 +622,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         bytes32 expectedId = keccak256(abi.encode("OU", "1.0.0"));
@@ -622,7 +656,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -654,7 +690,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.prank(owner);
@@ -682,7 +720,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         WDL_Template_V2 market2 = new WDL_Template_V2();
@@ -697,7 +737,9 @@ contract MarketFactory_v2Test is BaseTest {
             DEFAULT_DISPUTE_PERIOD,
             address(cpmm),
             address(vault),
-            "uri"
+            "uri",
+
+                VIRTUAL_RESERVE_INIT  // virtualReservePerSide
         );
 
         vm.startPrank(owner);

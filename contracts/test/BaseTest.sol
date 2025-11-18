@@ -30,6 +30,8 @@ contract BaseTest is Test {
     uint256 public constant INITIAL_BALANCE = 100_000e6; // 100k USDC
     uint256 public constant DEFAULT_FEE_RATE = 200; // 2%
     uint256 public constant DEFAULT_DISPUTE_PERIOD = 24 hours;
+    uint256 public constant VIRTUAL_RESERVE_INIT = 100_000e6; // 100k USDC - Default virtual reserve for AMM mode
+    uint256 public constant PARIMUTUEL_RESERVE = 0; // 0 = Pure Parimutuel mode (no virtual reserves)
 
     function setUp() public virtual {
         // Setup accounts

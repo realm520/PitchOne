@@ -102,7 +102,7 @@ contract ScoreTemplateTest is Test {
         ScoreTemplate newMarket = new ScoreTemplate();
         uint256[] memory initialProbs = new uint256[](0);
 
-        vm.expectRevert("Score: Invalid match ID");
+        vm.expectRevert(abi.encodeWithSignature("InvalidMatchId()"));
         newMarket.initialize(
             "",  // 空 matchId
             HOME_TEAM,
@@ -124,7 +124,7 @@ contract ScoreTemplateTest is Test {
         ScoreTemplate newMarket = new ScoreTemplate();
         uint256[] memory initialProbs = new uint256[](0);
 
-        vm.expectRevert("Score: Kickoff time in past");
+        vm.expectRevert(abi.encodeWithSignature("KickoffTimeInPast()"));
         newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
@@ -146,7 +146,7 @@ contract ScoreTemplateTest is Test {
         ScoreTemplate newMarket = new ScoreTemplate();
         uint256[] memory initialProbs = new uint256[](0);
 
-        vm.expectRevert("Score: Invalid score range");
+        vm.expectRevert(abi.encodeWithSignature("InvalidScoreRange()"));
         newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
@@ -168,7 +168,7 @@ contract ScoreTemplateTest is Test {
         ScoreTemplate newMarket = new ScoreTemplate();
         uint256[] memory initialProbs = new uint256[](0);
 
-        vm.expectRevert("Score: Invalid score range");
+        vm.expectRevert(abi.encodeWithSignature("InvalidScoreRange()"));
         newMarket.initialize(
             MATCH_ID,
             HOME_TEAM,
@@ -381,31 +381,33 @@ contract ScoreTemplateTest is Test {
         assertGt(priceAfter, priceBefore);
     }
 
-    function test_QueryScorePrices_Batch() public {
-        // 查询多个比分: 0-0, 1-0, 1-1, 2-1
-        uint8[] memory scores = new uint8[](8);
-        scores[0] = 0; scores[1] = 0; // 0-0
-        scores[2] = 1; scores[3] = 0; // 1-0
-        scores[4] = 1; scores[5] = 1; // 1-1
-        scores[6] = 2; scores[7] = 1; // 2-1
-
-        (uint256[] memory outcomeIds, uint256[] memory prices) = market.queryScorePrices(scores);
-
-        assertEq(outcomeIds.length, 4);
-        assertEq(prices.length, 4);
-
-        // 验证结果ID正确
-        assertEq(outcomeIds[0], 0);   // 0-0
-        assertEq(outcomeIds[1], 10);  // 1-0
-        assertEq(outcomeIds[2], 11);  // 1-1
-        assertEq(outcomeIds[3], 21);  // 2-1
-
-        // 验证所有价格有效
-        for (uint256 i = 0; i < prices.length; i++) {
-            assertGt(prices[i], 0);
-            assertLt(prices[i], BPS_BASE);
-        }
-    }
+    // 注释：queryScorePrices 函数已被移除以减小合约大小
+    // 前端可以通过多次调用 getPriceByScore 或 getCurrentPrice 来实现批量查询
+    // function test_QueryScorePrices_Batch() public {
+    //     // 查询多个比分: 0-0, 1-0, 1-1, 2-1
+    //     uint8[] memory scores = new uint8[](8);
+    //     scores[0] = 0; scores[1] = 0; // 0-0
+    //     scores[2] = 1; scores[3] = 0; // 1-0
+    //     scores[4] = 1; scores[5] = 1; // 1-1
+    //     scores[6] = 2; scores[7] = 1; // 2-1
+    //
+    //     (uint256[] memory outcomeIds, uint256[] memory prices) = market.queryScorePrices(scores);
+    //
+    //     assertEq(outcomeIds.length, 4);
+    //     assertEq(prices.length, 4);
+    //
+    //     // 验证结果ID正确
+    //     assertEq(outcomeIds[0], 0);   // 0-0
+    //     assertEq(outcomeIds[1], 10);  // 1-0
+    //     assertEq(outcomeIds[2], 11);  // 1-1
+    //     assertEq(outcomeIds[3], 21);  // 2-1
+    //
+    //     // 验证所有价格有效
+    //     for (uint256 i = 0; i < prices.length; i++) {
+    //         assertGt(prices[i], 0);
+    //         assertLt(prices[i], BPS_BASE);
+    //     }
+    // }
 
     // ============================================================================
     // 结算测试
@@ -528,7 +530,7 @@ contract ScoreTemplateTest is Test {
     }
 
     function test_GetCurrentPrice_RevertIf_InvalidOutcome() public {
-        vm.expectRevert("Score: Invalid outcome ID");
+        vm.expectRevert(abi.encodeWithSignature("InvalidOutcomeId()"));
         market.getCurrentPrice(60); // 6-0 无效
     }
 
