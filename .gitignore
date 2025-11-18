@@ -93,3 +93,9 @@ backend/pkg/db/test_*.sql
 
 # Shell测试脚本
 subgraph/test-*.sh
+
+# 临时修复/迁移脚本（开发工具，不应提交）
+contracts/batch_fix.py
+contracts/fix_*.py
+contracts/fix_*.pl
+contracts/fix_*.sh
