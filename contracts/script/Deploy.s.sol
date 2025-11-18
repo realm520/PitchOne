@@ -4,13 +4,16 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "../src/core/MarketFactory_v2.sol";
 import "../src/templates/WDL_Template_V2.sol";
-import "../src/templates/OU_Template.sol";
-import "../src/templates/OU_MultiLine.sol";
-import "../src/templates/AH_Template.sol";
-import "../src/templates/OddEven_Template.sol";
-import "../src/templates/ScoreTemplate.sol";
-import "../src/templates/PlayerProps_Template.sol";
-import "../src/liquidity/LiquidityVault.sol";
+import "../src/templates/OU_Template_V2.sol";
+import "../src/templates/OU_MultiLine_V2.sol";
+import "../src/templates/AH_Template_V2.sol";
+import "../src/templates/OddEven_Template_V2.sol";
+import "../src/templates/ScoreTemplate_V2.sol";
+import "../src/templates/PlayerProps_Template_V2.sol";
+import "../src/liquidity/LiquidityVault.sol"; // Deprecated - use ERC4626LiquidityProvider
+import "../src/liquidity/ERC4626LiquidityProvider.sol";
+import "../src/liquidity/ParimutuelLiquidityProvider.sol";
+import "../src/liquidity/LiquidityProviderFactory.sol";
 import "../src/core/FeeRouter.sol";
 import "../src/core/ReferralRegistry.sol";
 import "../src/pricing/SimpleCPMM.sol";
@@ -55,7 +58,10 @@ contract Deploy is Script {
     // 部署结果
     struct DeployedContracts {
         address usdc;
-        address vault;
+        address vault; // Deprecated - kept for backward compatibility
+        address erc4626Provider; // New: ERC4626LiquidityProvider
+        address parimutuelProvider; // New: ParimutuelLiquidityProvider
+        address providerFactory; // New: LiquidityProviderFactory
         address cpmm;
         address parimutuel;
         address feeRouter;
@@ -131,18 +137,41 @@ contract Deploy is Script {
         uint256 usdcUnit = 10 ** usdcDecimals;
 
         // ========================================
-        // 2. 部署基础设施合约
+        // 2. 部署流动性提供者基础设施
         // ========================================
-        console.log("\nStep 2: Deploy Infrastructure");
+        console.log("\nStep 2: Deploy Liquidity Provider Infrastructure");
         console.log("----------------------------------------");
 
-        // Deploy LiquidityVault
-        LiquidityVault vault = new LiquidityVault(
+        // Deploy LiquidityProviderFactory
+        LiquidityProviderFactory providerFactory = new LiquidityProviderFactory();
+        console.log("LiquidityProviderFactory:", address(providerFactory));
+
+        // Deploy ERC4626LiquidityProvider 作为默认 Provider
+        ERC4626LiquidityProvider erc4626Provider = new ERC4626LiquidityProvider(
             IERC20(usdc),
             "PitchOne Liquidity",
             "pLP"
         );
-        console.log("LiquidityVault:", address(vault));
+        console.log("ERC4626LiquidityProvider (default):", address(erc4626Provider));
+
+        // Deploy ParimutuelLiquidityProvider 作为备用 Provider
+        ParimutuelLiquidityProvider parimutuelProvider = new ParimutuelLiquidityProvider(
+            IERC20(usdc)
+        );
+        console.log("ParimutuelLiquidityProvider:", address(parimutuelProvider));
+
+        // 注册 Provider 类型到 Factory
+        providerFactory.registerProviderType("ERC4626", address(erc4626Provider));
+        providerFactory.registerProviderType("Parimutuel", address(parimutuelProvider));
+        console.log("Registered 2 Provider types to Factory");
+
+        // Deploy deprecated LiquidityVault for backward compatibility
+        LiquidityVault vault = new LiquidityVault(
+            IERC20(usdc),
+            "PitchOne Liquidity (Deprecated)",
+            "pLP-old"
+        );
+        console.log("LiquidityVault (Deprecated):", address(vault));
 
         // Deploy SimpleCPMM (默认储备: 100,000 USDC)
         SimpleCPMM cpmm = new SimpleCPMM(100_000 * 10**6);
@@ -156,10 +185,10 @@ contract Deploy is Script {
         ReferralRegistry referralRegistry = new ReferralRegistry(deployer);
         console.log("ReferralRegistry:", address(referralRegistry));
 
-        // Deploy FeeRouter
+        // Deploy FeeRouter (使用新的 ERC4626Provider)
         FeeRouter feeRouter = new FeeRouter(
             FeeRouter.FeeRecipients({
-                lpVault: config.lpVault != address(0) ? config.lpVault : address(vault),
+                lpVault: config.lpVault != address(0) ? config.lpVault : address(erc4626Provider),
                 promoPool: config.promoPool != address(0) ? config.promoPool : deployer,
                 insuranceFund: config.insuranceFund != address(0) ? config.insuranceFund : deployer,
                 treasury: config.treasury != address(0) ? config.treasury : deployer
@@ -189,43 +218,46 @@ contract Deploy is Script {
         console.log("WDL_Template_V2 Implementation:", address(wdlTemplate));
         console.log("WDL Template ID:", vm.toString(wdlTemplateId));
 
-        // OU Template - 部署未初始化的实现合约
-        OU_Template ouTemplate = new OU_Template();
-        bytes32 ouTemplateId = factory.registerTemplate("OU", "1.0.0", address(ouTemplate));
-        console.log("OU_Template Implementation:", address(ouTemplate));
+        // OU Template V2 - 部署未初始化的实现合约
+        OU_Template_V2 ouTemplate = new OU_Template_V2();
+        bytes32 ouTemplateId = factory.registerTemplate("OU", "V2", address(ouTemplate));
+        console.log("OU_Template_V2 Implementation:", address(ouTemplate));
         console.log("OU Template ID:", vm.toString(ouTemplateId));
 
-        // OddEven Template - 部署未初始化的实现合约
-        OddEven_Template oddEvenTemplate = new OddEven_Template();
-        bytes32 oddEvenTemplateId = factory.registerTemplate("OddEven", "1.0.0", address(oddEvenTemplate));
-        console.log("OddEven_Template Implementation:", address(oddEvenTemplate));
+        // OddEven Template V2 - 部署未初始化的实现合约
+        OddEven_Template_V2 oddEvenTemplate = new OddEven_Template_V2();
+        bytes32 oddEvenTemplateId = factory.registerTemplate("OddEven", "V2", address(oddEvenTemplate));
+        console.log("OddEven_Template_V2 Implementation:", address(oddEvenTemplate));
         console.log("OddEven Template ID:", vm.toString(oddEvenTemplateId));
 
-        // OU_MultiLine Template - 部署未初始化的实现合约
-        OU_MultiLine ouMultiLineTemplate = new OU_MultiLine();
-        bytes32 ouMultiLineTemplateId = factory.registerTemplate("OU_MultiLine", "1.0.0", address(ouMultiLineTemplate));
-        console.log("OU_MultiLine_Template Implementation:", address(ouMultiLineTemplate));
+        // OU_MultiLine Template V2 - 部署未初始化的实现合约
+        OU_MultiLine_V2 ouMultiLineTemplate = new OU_MultiLine_V2();
+        bytes32 ouMultiLineTemplateId = factory.registerTemplate("OU_MultiLine", "V2", address(ouMultiLineTemplate));
+        console.log("OU_MultiLine_V2 Implementation:", address(ouMultiLineTemplate));
         console.log("OU_MultiLine Template ID:", vm.toString(ouMultiLineTemplateId));
 
-        // AH Template - 部署未初始化的实现合约
-        AH_Template ahTemplate = new AH_Template();
-        bytes32 ahTemplateId = factory.registerTemplate("AH", "1.0.0", address(ahTemplate));
-        console.log("AH_Template Implementation:", address(ahTemplate));
+        // AH Template V2 - 部署未初始化的实现合约
+        AH_Template_V2 ahTemplate = new AH_Template_V2();
+        bytes32 ahTemplateId = factory.registerTemplate("AH", "V2", address(ahTemplate));
+        console.log("AH_Template_V2 Implementation:", address(ahTemplate));
         console.log("AH Template ID:", vm.toString(ahTemplateId));
 
-        // ScoreTemplate - 部署未初始化的实现合约
-        ScoreTemplate scoreTemplate = new ScoreTemplate();
-        bytes32 scoreTemplateId = factory.registerTemplate("Score", "1.0.0", address(scoreTemplate));
-        console.log("ScoreTemplate Implementation:", address(scoreTemplate));
-        console.log("Score Template ID:", vm.toString(scoreTemplateId));
+        // ScoreTemplate V2 - 暂时跳过部署（合约大小超过 24KB 限制）
+        // TODO: 优化 ScoreTemplate_V2 大小后重新启用
+        // ScoreTemplate_V2 scoreTemplate = new ScoreTemplate_V2();
+        // bytes32 scoreTemplateId = factory.registerTemplate("Score", "V2", address(scoreTemplate));
+        address scoreTemplate = address(0);
+        bytes32 scoreTemplateId = bytes32(0);
+        console.log("ScoreTemplate_V2: SKIPPED (exceeds 24KB limit)");
 
-        // PlayerProps Template - 部署未初始化的实现合约
-        PlayerProps_Template playerPropsTemplate = new PlayerProps_Template();
-        bytes32 playerPropsTemplateId = factory.registerTemplate("PlayerProps", "1.0.0", address(playerPropsTemplate));
-        console.log("PlayerProps_Template Implementation:", address(playerPropsTemplate));
+        // PlayerProps Template V2 - 部署未初始化的实现合约
+        PlayerProps_Template_V2 playerPropsTemplate = new PlayerProps_Template_V2();
+        bytes32 playerPropsTemplateId = factory.registerTemplate("PlayerProps", "V2", address(playerPropsTemplate));
+        console.log("PlayerProps_Template_V2 Implementation:", address(playerPropsTemplate));
         console.log("PlayerProps Template ID:", vm.toString(playerPropsTemplateId));
 
-        console.log("\nAll 7 Market Templates Registered!");
+        console.log("\n6 out of 7 Market Templates Registered!");
+        console.log("(ScoreTemplate_V2 temporarily skipped due to 24KB size limit)");
         console.log("\nNote: LMSR and LinkedLinesController will be deployed per-market as needed");
 
         // ========================================
@@ -239,10 +271,16 @@ contract Deploy is Script {
             mockUsdc.mint(deployer, config.initialLpAmount);
             console.log("Minted USDC:", config.initialLpAmount / usdcUnit, "USDC");
 
-            IERC20(usdc).approve(address(vault), config.initialLpAmount);
-            vault.deposit(config.initialLpAmount, deployer);
-            console.log("Deposited to Vault:", config.initialLpAmount / usdcUnit, "USDC");
-            console.log("LP Shares received:", vault.balanceOf(deployer) / usdcUnit);
+            // 存入 ERC4626Provider
+            IERC20(usdc).approve(address(erc4626Provider), config.initialLpAmount);
+            erc4626Provider.deposit(config.initialLpAmount, deployer);
+            console.log("Deposited to ERC4626Provider:", config.initialLpAmount / usdcUnit, "USDC");
+            console.log("LP Shares received:", erc4626Provider.balanceOf(deployer) / usdcUnit);
+
+            console.log("\nProvider Status:");
+            console.log("  Total Liquidity:", erc4626Provider.totalLiquidity() / usdcUnit, "USDC");
+            console.log("  Available Liquidity:", erc4626Provider.availableLiquidity() / usdcUnit, "USDC");
+            console.log("  Utilization Rate:", erc4626Provider.utilizationRate() / 100, "%");
         }
 
         vm.stopBroadcast();
@@ -253,22 +291,27 @@ contract Deploy is Script {
         console.log("\n========================================");
         console.log("  Deployment Summary");
         console.log("========================================");
+        console.log("\nLiquidity Provider Contracts:");
+        console.log("  LiquidityProviderFactory:", address(providerFactory));
+        console.log("  ERC4626LiquidityProvider (default):", address(erc4626Provider));
+        console.log("  ParimutuelLiquidityProvider:", address(parimutuelProvider));
+        console.log("  LiquidityVault (Deprecated):", address(vault));
+
         console.log("\nCore Contracts:");
         console.log("  USDC:", usdc);
-        console.log("  LiquidityVault:", address(vault));
         console.log("  SimpleCPMM:", address(cpmm));
         console.log("  ParimutuelPricing:", address(parimutuel));
         console.log("  FeeRouter:", address(feeRouter));
         console.log("  ReferralRegistry:", address(referralRegistry));
         console.log("  MarketFactory_v2:", address(factory));
 
-        console.log("\nMarket Templates (7 types):");
+        console.log("\nMarket Templates (6 out of 7 deployed):");
         console.log("  1. WDL_Template_V2:", address(wdlTemplate));
         console.log("  2. OU_Template:", address(ouTemplate));
         console.log("  3. OU_MultiLine_Template:", address(ouMultiLineTemplate));
         console.log("  4. AH_Template:", address(ahTemplate));
         console.log("  5. OddEven_Template:", address(oddEvenTemplate));
-        console.log("  6. ScoreTemplate:", address(scoreTemplate));
+        console.log("  6. ScoreTemplate: SKIPPED (24KB limit)");
         console.log("  7. PlayerProps_Template:", address(playerPropsTemplate));
 
         console.log("\nTemplate IDs (for CreateAllMarketTypes.s.sol):");
@@ -281,9 +324,10 @@ contract Deploy is Script {
         console.log("  PlayerProps:", vm.toString(playerPropsTemplateId));
 
         if (config.usdc == address(0)) {
-            console.log("\nVault Status:");
-            console.log("  Total Assets:", vault.totalAssets() / usdcUnit, "USDC");
-            console.log("  Available Liquidity:", vault.availableLiquidity() / usdcUnit, "USDC");
+            console.log("\nERC4626Provider Status:");
+            console.log("  Total Assets:", erc4626Provider.totalAssets() / usdcUnit, "USDC");
+            console.log("  Available Liquidity:", erc4626Provider.availableLiquidity() / usdcUnit, "USDC");
+            console.log("  Utilization Rate:", erc4626Provider.utilizationRate() / 100, "%");
         }
 
         console.log("\n========================================");
@@ -292,14 +336,17 @@ contract Deploy is Script {
         console.log("1. Update subgraph/subgraph.yaml:");
         console.log("   - Factory address:", address(factory));
         console.log("   - FeeRouter address:", address(feeRouter));
-        console.log("2. Run CreateAllMarketTypes.s.sol to create 36 test markets");
-        console.log("   (All 7 market types, 3+ markets each)");
+        console.log("2. Run CreateAllMarketTypes.s.sol to create test markets");
+        console.log("   (6 out of 7 market types, 3 markets each = 18 total)");
         console.log("3. Run SimulateBets.s.sol to generate test data");
         console.log("========================================\n");
 
         return DeployedContracts({
             usdc: usdc,
-            vault: address(vault),
+            vault: address(vault), // Deprecated
+            erc4626Provider: address(erc4626Provider),
+            parimutuelProvider: address(parimutuelProvider),
+            providerFactory: address(providerFactory),
             cpmm: address(cpmm),
             parimutuel: address(parimutuel),
             feeRouter: address(feeRouter),

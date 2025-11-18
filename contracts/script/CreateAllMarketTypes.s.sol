@@ -6,8 +6,8 @@ import "../src/core/MarketFactory_v2.sol";
 import "../src/liquidity/LiquidityVault.sol";
 import "../src/interfaces/IAH_Template.sol";
 import "../src/pricing/LinkedLinesController.sol";
-import "../src/templates/OU_MultiLine.sol";
-import "../src/templates/PlayerProps_Template.sol";
+import "../src/templates/OU_MultiLine_V2.sol";
+import "../src/templates/PlayerProps_Template_V2.sol";
 
 /**
  * @title CreateAllMarketTypes
@@ -16,21 +16,21 @@ import "../src/templates/PlayerProps_Template.sol";
  */
 contract CreateAllMarketTypes is Script {
     // 从 deployments/localhost.json 读取的地址
-    address constant FACTORY = 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707;
-    address constant USDC = 0x5FbDB2315678afecb367f032d93F642f64180aa3;
-    address constant VAULT = 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512;
-    address constant FEE_ROUTER = 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9;
-    address constant SIMPLE_CPMM = 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0;
+    address constant FACTORY = 0xF85895D097B2C25946BB95C4d11E2F3c035F8f0C;
+    address constant USDC = 0xDf951d2061b12922BFbF22cb17B17f3b39183570;
+    address constant VAULT = 0x67baFF31318638F497f4c4894Cd73918563942c8;
+    address constant FEE_ROUTER = 0x2b639Cc84e1Ad3aA92D4Ee7d2755A6ABEf300D72;
+    address constant SIMPLE_CPMM = 0x6533158b042775e2FdFeF3cA1a782EFDbB8EB9b1;
     address constant OWNER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
     // Template IDs
     bytes32 constant WDL_TEMPLATE_ID = 0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc;
-    bytes32 constant OU_TEMPLATE_ID = 0x6441bdfa8f4495d4dd881afce0e761e3a05085b4330b9db35c684a348ef2697f;
-    bytes32 constant OU_MULTILINE_TEMPLATE_ID = 0x69ba3dae7b66ebb64049fc9c8571fbcbdee40e6fcd6e08c4af73fc9f9b24faad;
-    bytes32 constant AH_TEMPLATE_ID = 0x042c80233717c236ab1e837fcd85b710ad76f98d7388137da07154db2c58ccef;
-    bytes32 constant ODDEVEN_TEMPLATE_ID = 0xf1d71fd4a1d5c765ed93ae053cb712e5c2d053fc61d39d01a15c3aadf1da027b;
-    bytes32 constant SCORE_TEMPLATE_ID = 0xe6fe3ae76e2c116a886e641a6320e0324fb6596f3250d75d79b753f3f7276266;
-    bytes32 constant PLAYERPROPS_TEMPLATE_ID = 0xec35ff5e222bed7eecf8134bb0a82de4133815bcd7d7083a09f6673b10d0e735;
+    bytes32 constant OU_TEMPLATE_ID = 0xe67f7459aae2aac2006ad1a632fdc210987272f30ee3c19e06f269c8ca6ddab3;
+    bytes32 constant OU_MULTILINE_TEMPLATE_ID = 0xa9798a26825135172b018de8fbdb5b83d020c306bdf806095ca7f9c127f0fae1;
+    bytes32 constant AH_TEMPLATE_ID = 0x46369e63a26fb5fac75d4b12fa68444dbdb66451018df0754d91a002ce6c9ed3;
+    bytes32 constant ODDEVEN_TEMPLATE_ID = 0x19f060b034dda7e3c77551a040d04d36852227b98032ee3737738fa9528c99cb;
+    bytes32 constant SCORE_TEMPLATE_ID = 0x0000000000000000000000000000000000000000000000000000000000000000;
+    bytes32 constant PLAYERPROPS_TEMPLATE_ID = 0x54c152168f7e17883823ba6f159b58151878f27a60e3dcaa19d23908ddd44c6e;
 
     address[] public createdMarkets;
 
@@ -201,7 +201,7 @@ contract CreateAllMarketTypes is Script {
         lines[2] = 3500; // 3.5
 
         // 使用结构体编码
-        OU_MultiLine.InitializeParams memory params = OU_MultiLine.InitializeParams({
+        OU_MultiLine_V2.InitializeParams memory params = OU_MultiLine_V2.InitializeParams({
             matchId: matchId,
             homeTeam: homeTeam,
             awayTeam: awayTeam,
@@ -213,12 +213,12 @@ contract CreateAllMarketTypes is Script {
             disputePeriod: 2 hours,
             pricingEngine: SIMPLE_CPMM,
             linkedLinesController: address(controller),
-            uri: string(abi.encodePacked(homeTeam, " vs ", awayTeam, " O/U MultiLine")),
-            owner: OWNER
+            vault: VAULT,
+            uri: string(abi.encodePacked(homeTeam, " vs ", awayTeam, " O/U MultiLine"))
         });
 
         bytes memory initData = abi.encodeWithSelector(
-            OU_MultiLine.initialize.selector,
+            OU_MultiLine_V2.initialize.selector,
             params
         );
         return factory.createMarket(OU_MULTILINE_TEMPLATE_ID, initData);
@@ -328,19 +328,19 @@ contract CreateAllMarketTypes is Script {
         string[] memory emptyPlayerNames = new string[](0);
 
         // 使用结构体编码
-        PlayerProps_Template.PlayerPropsInitData memory data = PlayerProps_Template.PlayerPropsInitData({
+        PlayerProps_Template_V2.PlayerPropsInitData memory data = PlayerProps_Template_V2.PlayerPropsInitData({
             matchId: string(abi.encodePacked(homeTeam, "_vs_", awayTeam)),
             playerId: string(abi.encodePacked("player_", playerName)),
             playerName: playerName,
-            propType: PlayerProps_Template.PropType.GOALS_OU,
+            propType: PlayerProps_Template_V2.PropType.GOALS_OU,
             line: 500, // 0.5 goals (半球盘)
             kickoffTime: block.timestamp + dayOffset * 1 days,
             settlementToken: USDC,
             feeRecipient: FEE_ROUTER,
             feeRate: 200,
             disputePeriod: 2 hours,
+            vault: VAULT,
             uri: string(abi.encodePacked(playerName, " Goals O/U 0.5")),
-            owner: OWNER,
             pricingEngineAddr: SIMPLE_CPMM,
             initialReserves: initialReserves,
             playerIds: emptyPlayerIds,
@@ -348,7 +348,7 @@ contract CreateAllMarketTypes is Script {
         });
 
         bytes memory initData = abi.encodeWithSelector(
-            PlayerProps_Template.initialize.selector,
+            PlayerProps_Template_V2.initialize.selector,
             data
         );
         return factory.createMarket(PLAYERPROPS_TEMPLATE_ID, initData);
