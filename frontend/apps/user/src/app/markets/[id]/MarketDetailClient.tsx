@@ -336,11 +336,98 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
   };
 
+  /**
+   * 计算预期收益（基于实际奖池分布）
+   *
+   * 对于 Parimutuel（奖池）模式：
+   * - 预期收益 = (总奖池 + 投注金额) × (1 - 手续费) × (投注金额 / (该结果投注额 + 投注金额))
+   *
+   * 对于 CPMM 模式：
+   * - 计算用户能获得的 shares（使用精确的 CPMM 公式）
+   * - 预期收益 = shares（因为赢的情况下 1 share = 1 USDC）
+   */
   const calculatePayout = () => {
-    if (!betAmount || selectedOutcome === null || !outcomes) return '0.00';
+    if (!betAmount || selectedOutcome === null || !outcomes || !marketFullData) return '0.00';
+
     const amount = parseFloat(betAmount);
-    const odds = parseFloat(outcomes[selectedOutcome].odds);
-    return (amount * odds).toFixed(2);
+    const feeRate = Number(marketFullData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）
+    const netAmount = amount * (1 - feeRate); // 扣除手续费后的净投注额
+
+    if (marketFullData.isParimutel) {
+      // ===== Parimutuel 奖池模式 =====
+      // 投注后的总奖池
+      const newTotalPool = Number(marketFullData.totalLiquidity) + amount * 1e6; // 转换为 wei
+
+      // 投注后该结果的投注额
+      const currentOutcomeBets = Number(marketFullData.outcomeLiquidity[selectedOutcome]);
+      const newOutcomeBets = currentOutcomeBets + amount * 1e6; // 转换为 wei
+
+      // 扣除手续费后的奖池
+      const netPool = newTotalPool * (1 - feeRate);
+
+      // 用户的预期收益 = 净奖池 × 用户投注占该结果的比例
+      if (newOutcomeBets > 0) {
+        const payout = (netPool * (amount * 1e6)) / newOutcomeBets;
+        return (payout / 1e6).toFixed(2); // 转换回 USDC
+      }
+
+      return '0.00';
+    } else {
+      // ===== CPMM 做市商模式 =====
+      // 使用精确的 CPMM 公式计算 shares
+      const outcomeCount = Number(marketFullData.outcomeCount);
+      const reserves = marketFullData.outcomeLiquidity.map(r => Number(r));
+
+      let shares = 0;
+
+      if (outcomeCount === 2) {
+        // 二向市场精确公式
+        const r_target = reserves[selectedOutcome];
+        const r_other = reserves[1 - selectedOutcome];
+
+        // k = r₀ × r₁
+        const k = r_target * r_other;
+
+        // 新的对手盘储备：r_other' = r_other + netAmount (wei)
+        const r_other_new = r_other + netAmount * 1e6;
+
+        // 保持 k 不变：r_target' = k / r_other'
+        const r_target_new = k / r_other_new;
+
+        // shares = r_target - r_target'
+        shares = r_target - r_target_new;
+      } else if (outcomeCount === 3) {
+        // 三向市场近似公式
+        const r_target = reserves[selectedOutcome];
+
+        // 计算所有对手盘储备总和
+        let opponent_total = 0;
+        for (let i = 0; i < 3; i++) {
+          if (i !== selectedOutcome) {
+            opponent_total += reserves[i];
+          }
+        }
+
+        // 使用二向市场公式的近似：k_approx = r_target × opponent_total
+        const k_approx = r_target * opponent_total;
+
+        // 新的对手盘总储备：每个对手盘增加 amount/2
+        const opponent_total_new = opponent_total + netAmount * 1e6;
+
+        // 保持 k_approx 不变：r_target' = k_approx / opponent_total'
+        const r_target_new = k_approx / opponent_total_new;
+
+        // shares = r_target - r_target'
+        shares = r_target - r_target_new;
+      } else {
+        // 多结果市场（如 Score、PlayerProps）：使用当前赔率作为近似
+        const odds = parseFloat(outcomes[selectedOutcome].odds);
+        return (amount * odds).toFixed(2);
+      }
+
+      // 预期收益 = shares（因为赢的情况下 1 share = 1 USDC）
+      return (shares / 1e6).toFixed(2); // 转换回 USDC
+    }
   };
 
   const handleApprove = async () => {
@@ -468,7 +555,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               <p className="text-xl font-bold text-neon-blue">{Number(market.totalVolume).toFixed(2)} USDC</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-1">流动性</p>
+              <p className="text-sm text-gray-500 mb-1">
+                {marketFullData?.isParimutel ? '奖池总额' : '流动性'}
+              </p>
               <p className="text-xl font-bold text-neon-green">
                 {marketFullData?.totalLiquidity
                   ? Number(formatUnits(marketFullData.totalLiquidity, 6)).toFixed(2)
@@ -610,6 +699,29 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                           // 获取选项名称
                           const outcomeName = outcomes?.[order.outcome]?.name || `结果 ${order.outcome}`;
 
+                          // 计算预期收益（根据市场模式）
+                          let expectedPayout = sharesInUSDC; // 默认值（CPMM 模式或无数据时）
+                          let netProfit = sharesInUSDC - amountUSDC;
+
+                          if (marketFullData?.isParimutel) {
+                            // Parimutuel 模式：计算基于奖池分布的预期收益
+                            const totalPool = Number(formatUnits(marketFullData.totalLiquidity, 6));
+                            const outcomePool = Number(formatUnits(marketFullData.outcomeLiquidity[order.outcome], 6));
+
+                            if (outcomePool > 0) {
+                              // 预期赔率 = 总奖池 / 该结果投注额
+                              const odds = totalPool / outcomePool;
+                              // 预期回报 = shares × 赔率
+                              expectedPayout = sharesInUSDC * odds;
+                              // 净利润 = 预期回报 - 投入金额
+                              netProfit = expectedPayout - amountUSDC;
+                            } else {
+                              // 如果该结果还没有投注（理论上不应该发生），显示 shares
+                              expectedPayout = sharesInUSDC;
+                              netProfit = 0;
+                            }
+                          }
+
                           return (
                             <tr key={order.id} className="hover:bg-dark-card/50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-400">{formatDate(order.timestamp)}</td>
@@ -617,8 +729,15 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                                 <Badge variant="info">{outcomeName}</Badge>
                               </td>
                               <td className="px-6 py-4 text-sm font-medium text-white">{amountUSDC.toFixed(2)} USDC</td>
-                              <td className="px-6 py-4 text-sm font-medium text-neon-green">
-                                +{sharesInUSDC.toFixed(2)} USDC
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm font-medium text-neon-green">
+                                    {expectedPayout.toFixed(2)} USDC
+                                  </span>
+                                  <span className={`text-xs ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    ({netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)} USDC)
+                                  </span>
+                                </div>
                               </td>
                             </tr>
                           );

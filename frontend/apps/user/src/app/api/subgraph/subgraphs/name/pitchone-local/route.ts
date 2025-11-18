@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     // 读取请求体（GraphQL 查询）
     const body = await request.json();
 
-    // 转发到本地 Graph Node
-    const graphNodeUrl = 'http://localhost:8010/subgraphs/name/pitchone-local';
+    // 转发到本地 Graph Node（使用 127.0.0.1 而不是 localhost，避免 DNS 解析问题）
+    const graphNodeUrl = process.env.GRAPH_NODE_URL || 'http://127.0.0.1:8010/subgraphs/name/pitchone-local';
 
     const response = await fetch(graphNodeUrl, {
       method: 'POST',

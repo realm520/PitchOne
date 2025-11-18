@@ -1,9 +1,8 @@
 'use client';
 
-import { useReadContracts } from 'wagmi';
+import { useReadContracts, useAccount as useWagmiAccount } from 'wagmi';
 import { MarketBaseABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
-import { useAccount } from 'wagmi';
 import { useOutcomeCount } from './contract-hooks';
 
 /**
@@ -16,6 +15,7 @@ export interface MarketFullData {
   outcomeLiquidity: bigint[];
   feeRate: bigint;
   userBalances?: bigint[]; // 用户在每个结果的头寸
+  isParimutel: boolean; // 是否为 Parimutuel（奖池）模式
 }
 
 /**
@@ -27,6 +27,10 @@ export interface MarketFullData {
  */
 export function useMarketFullData(marketAddress?: Address, userAddress?: Address) {
   console.log('[useMarketFullData] 开始查询:', { marketAddress, userAddress });
+
+  // 获取当前链 ID，用于读取合约地址
+  const { chain } = useWagmiAccount();
+  const chainId = chain?.id || 31337; // 默认 Anvil
 
   const {
     data: count,
@@ -64,16 +68,30 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
         address: marketAddress,
         abi: MarketBaseABI,
         functionName: 'feeRate',
+      },
+      {
+        address: marketAddress,
+        // pricingEngine 是模板合约的公共变量，需要手动定义 ABI
+        abi: [
+          {
+            inputs: [],
+            name: 'pricingEngine',
+            outputs: [{ internalType: 'address', name: '', type: 'address' }],
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ],
+        functionName: 'pricingEngine',
       }
     );
 
-    // 为每个结果查询流动性
+    // 为每个结果查询虚拟储备（V2 模板使用 virtualReserves）
     if (outcomeCountNumber > 0) {
       for (let i = 0; i < outcomeCountNumber; i++) {
         contracts.push({
           address: marketAddress,
           abi: MarketBaseABI,
-          functionName: 'outcomeLiquidity',
+          functionName: 'virtualReserves',
           args: [BigInt(i)],
         });
       }
@@ -126,21 +144,28 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   const status = data[0]?.result as number;
   const totalLiquidity = data[1]?.result as bigint;
   const feeRate = data[2]?.result as bigint;
+  const pricingEngine = (data[3]?.result as string)?.toLowerCase();
 
   // 提取流动性数据
   const outcomeLiquidity: bigint[] = [];
   for (let i = 0; i < outcomeCountNumber; i++) {
-    outcomeLiquidity.push((data[3 + i]?.result as bigint) || 0n);
+    outcomeLiquidity.push((data[4 + i]?.result as bigint) || 0n);
   }
 
   // 提取用户头寸数据
   let userBalances: bigint[] | undefined;
-  if (userAddress && data.length > 3 + outcomeCountNumber) {
+  if (userAddress && data.length > 4 + outcomeCountNumber) {
     userBalances = [];
     for (let i = 0; i < outcomeCountNumber; i++) {
-      userBalances.push((data[3 + outcomeCountNumber + i]?.result as bigint) || 0n);
+      userBalances.push((data[4 + outcomeCountNumber + i]?.result as bigint) || 0n);
     }
   }
+
+  // 判断是否为 Parimutuel 模式
+  // 通过对比定价引擎地址来判断（最可靠的方法）
+  // 从配置中读取 Parimutuel 引擎地址（支持多链）
+  const parimutuelAddress = getContractAddresses(chainId).parimutuel.toLowerCase();
+  const isParimutel = pricingEngine === parimutuelAddress;
 
   const fullData: MarketFullData = {
     status,
@@ -149,7 +174,17 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
     outcomeLiquidity,
     feeRate,
     userBalances,
+    isParimutel,
   };
+
+  console.log('[useMarketFullData] 解析完成:', {
+    status,
+    totalLiquidity: totalLiquidity.toString(),
+    pricingEngine,
+    parimutuelAddress,
+    isParimutel,
+    outcomeLiquidity: outcomeLiquidity.map(r => r.toString()),
+  });
 
   return { data: fullData, isLoading, error, refetch };
 }
@@ -334,17 +369,104 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
   const outcomes: OutcomeData[] = [];
 
   for (let i = 0; i < outcomeCount; i++) {
-    const liquidity = outcomeLiquidity[i];
+    const reserve = outcomeLiquidity[i];
 
-    // 计算隐含概率（流动性占比）
-    const probability = totalLiquidity > 0n
-      ? Number(liquidity) / Number(totalLiquidity)
-      : 1 / outcomeCount; // 如果没有流动性，使用平均概率
+    let probability = 0;
+    let directOdds: number | null = null; // Parimutuel 直接计算的赔率
 
-    // 计算赔率（1 / 概率，考虑手续费）
-    const feeRate = Number(marketData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）
-    const effectiveProbability = probability * (1 - feeRate);
-    const odds = effectiveProbability > 0 ? 1 / effectiveProbability : 99.99;
+    // 根据定价模式使用不同的公式
+    if (marketData.isParimutel) {
+      // ===== Parimutuel 奖池模式 =====
+      // 直接计算赔率：odds = (totalPool * (1 - fee)) / myBets
+      // 不使用概率转换，避免误导性的赔率
+      const totalPool = Number(totalLiquidity);
+      const myBets = Number(reserve);
+      const feeRate = Number(marketData.feeRate) / 10000;
+
+      if (totalPool > 0 && myBets > 0) {
+        // 赔率 = 扣费后的总奖池 / 该结果投注额
+        directOdds = (totalPool * (1 - feeRate)) / myBets;
+      } else if (totalPool > 0 && myBets === 0) {
+        // 该结果没有投注，赔率为上限（99.99）
+        directOdds = 99.99;
+      } else {
+        // 初始状态：默认赔率
+        directOdds = 1 / outcomeCount;
+      }
+
+      // 为了后续逻辑兼容，也计算一个"等效概率"
+      // 但这个概率仅用于显示，不影响赔率计算
+      probability = directOdds > 0 ? 1 / directOdds : 0;
+    } else {
+      // ===== CPMM 做市商模式 =====
+      // 使用虚拟储备计算隐含概率
+      // 对于二向市场：price_i = reserves[1-i] / (reserves[0] + reserves[1])
+      // 对于三向市场：price_i = (reserves[j] * reserves[k]) / (r0*r1 + r0*r2 + r1*r2)
+
+      if (outcomeCount === 2) {
+        // 二向市场
+        const opponentReserve = outcomeLiquidity[1 - i];
+        const sumReserves = Number(outcomeLiquidity[0]) + Number(outcomeLiquidity[1]);
+
+        if (sumReserves > 0) {
+          probability = Number(opponentReserve) / sumReserves;
+        } else {
+          // 初始状态：平均概率
+          probability = 0.5;
+        }
+      } else if (outcomeCount === 3) {
+        // 三向市场
+        const [r0, r1, r2] = outcomeLiquidity;
+        let numerator = 0n;
+        let denominator = r0 * r1 + r0 * r2 + r1 * r2;
+
+        if (i === 0) {
+          numerator = r1 * r2;
+        } else if (i === 1) {
+          numerator = r0 * r2;
+        } else {
+          numerator = r0 * r1;
+        }
+
+        if (denominator > 0n) {
+          probability = Number(numerator) / Number(denominator);
+        } else {
+          // 初始状态：平均概率
+          probability = 1 / 3;
+        }
+      } else {
+        // 多结果市场（如 Score、PlayerProps）：使用简化的倒数求和法
+        // price_i = (1/r_i) / Σ(1/r_j)
+        let sumInverse = 0;
+        for (let j = 0; j < outcomeCount; j++) {
+          const r = Number(outcomeLiquidity[j]);
+          if (r > 0) {
+            sumInverse += 1 / r;
+          }
+        }
+
+        const currentReserve = Number(reserve);
+        if (currentReserve > 0 && sumInverse > 0) {
+          probability = (1 / currentReserve) / sumInverse;
+        } else {
+          // 初始状态或储备为0：平均概率
+          probability = 1 / outcomeCount;
+        }
+      }
+    }
+
+    // 计算赔率
+    let odds: number;
+
+    if (directOdds !== null) {
+      // Parimutuel 模式：使用直接计算的赔率
+      odds = directOdds;
+    } else {
+      // CPMM 模式：从概率计算赔率（考虑手续费）
+      const feeRate = Number(marketData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）
+      const effectiveProbability = probability * (1 - feeRate);
+      odds = effectiveProbability > 0 ? 1 / effectiveProbability : 99.99;
+    }
 
     // 根据模板类型获取 outcome 名称
     const name = getOutcomeName(i, templateType || 'WDL');
@@ -364,7 +486,7 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
       name,
       odds: odds.toFixed(2),
       color,
-      liquidity,
+      liquidity: reserve,
       probability,
     });
   }

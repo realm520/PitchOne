@@ -30,6 +30,7 @@ export interface ContractAddresses {
   referralRegistry: Address;
   usdc: Address;
   simpleCPMM: Address;
+  parimutuel: Address;          // Parimutuel 定价引擎
   // 管理功能合约（可选）
   paramController?: Address;
   campaign?: Address;
