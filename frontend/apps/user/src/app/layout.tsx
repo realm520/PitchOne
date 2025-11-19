@@ -6,6 +6,7 @@ import { Header, Footer } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
 import { ParlayProvider } from "../lib/parlay-store";
 import { ParlayCart } from "../components/parlay";
+import { ReferralBinder } from "../components/referral";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -25,6 +26,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <ParlayProvider>
+            {/* 推荐系统 - URL 参数检测和自动绑定 */}
+            <ReferralBinder />
+
             <div className="flex flex-col min-h-screen">
             <Header
               logo={
@@ -46,6 +50,9 @@ export default function RootLayout({
                   </Link>
                   <Link href="/parlay" className="text-gray-300 hover:text-neon-green transition-colors">
                     串关
+                  </Link>
+                  <Link href="/referral" className="text-gray-300 hover:text-orange-400 transition-colors">
+                    推荐
                   </Link>
                 </div>
               }
