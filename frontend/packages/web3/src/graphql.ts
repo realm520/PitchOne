@@ -474,3 +474,115 @@ export const QUEST_STATS_QUERY = `
     }
   }
 `;
+
+// ============================================
+// 推荐系统查询
+// ============================================
+
+/**
+ * 获取用户的推荐人
+ */
+export const USER_REFERRER_QUERY = `
+  query UserReferrer($userId: ID!) {
+    user(id: $userId) {
+      id
+      referrer
+    }
+  }
+`;
+
+/**
+ * 获取推荐人统计数据
+ */
+export const REFERRER_STATS_QUERY = `
+  query ReferrerStats($referrerId: ID!) {
+    referrerStats(id: $referrerId) {
+      id
+      referrer {
+        id
+        totalBetAmount
+        totalBets
+      }
+      referralCount
+      totalRewards
+      validReferralCount
+      lastUpdatedAt
+    }
+  }
+`;
+
+/**
+ * 获取推荐人的被推荐人列表
+ */
+export const REFERRER_REFERRALS_QUERY = `
+  query ReferrerReferrals($referrerId: ID!, $first: Int, $skip: Int) {
+    referrerStats(id: $referrerId) {
+      id
+      referrals(
+        first: $first
+        skip: $skip
+        orderBy: boundAt
+        orderDirection: desc
+      ) {
+        id
+        referee {
+          id
+          totalBetAmount
+          totalBets
+        }
+        campaignId
+        boundAt
+        blockNumber
+        transactionHash
+      }
+    }
+  }
+`;
+
+/**
+ * 获取推荐返佣历史记录
+ */
+export const REFERRAL_REWARDS_QUERY = `
+  query ReferralRewards($referrerId: ID!, $first: Int) {
+    referrerStats(id: $referrerId) {
+      id
+      rewardRecords(
+        first: $first
+        orderBy: timestamp
+        orderDirection: desc
+      ) {
+        id
+        referee {
+          id
+        }
+        amount
+        timestamp
+        blockNumber
+        transactionHash
+      }
+    }
+  }
+`;
+
+/**
+ * 获取推荐排行榜（按总返佣排序）
+ */
+export const REFERRAL_LEADERBOARD_QUERY = `
+  query ReferralLeaderboard($first: Int) {
+    referrerStats(
+      first: $first
+      orderBy: totalRewards
+      orderDirection: desc
+      where: { totalRewards_gt: "0" }
+    ) {
+      id
+      referrer {
+        id
+      }
+      referralCount
+      totalRewards
+      validReferralCount
+      lastUpdatedAt
+    }
+  }
+`;
