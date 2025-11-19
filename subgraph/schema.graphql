@@ -1691,3 +1691,97 @@ type MarketAuthorization @entity(immutable: true) {
   "交易哈希"
   transactionHash: Bytes!
 }
+
+# ============================================================================
+# 推荐系统实体
+# ============================================================================
+
+"""
+Referral - 推荐关系
+记录用户推荐关系的绑定
+"""
+type Referral @entity(immutable: true) {
+  "推荐关系 ID（referrer-referee）"
+  id: ID!
+
+  "推荐人"
+  referrer: User!
+
+  "被推荐人"
+  referee: User!
+
+  "推荐人统计（用于 @derivedFrom）"
+  referrerStats: ReferrerStats!
+
+  "活动 ID（0 = 常规推荐）"
+  campaignId: BigInt!
+
+  "绑定时间"
+  boundAt: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+"""
+ReferrerStats - 推荐人统计
+聚合推荐人的统计数据
+"""
+type ReferrerStats @entity(immutable: false) {
+  "推荐人地址"
+  id: ID!
+
+  "推荐人"
+  referrer: User!
+
+  "推荐人数"
+  referralCount: Int!
+
+  "累计返佣（USDC）"
+  totalRewards: BigDecimal!
+
+  "有效推荐人数（已下注用户）"
+  validReferralCount: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
+
+  "推荐关系列表"
+  referrals: [Referral!]! @derivedFrom(field: "referrerStats")
+
+  "返佣记录"
+  rewardRecords: [ReferralReward!]! @derivedFrom(field: "referrerStats")
+}
+
+"""
+ReferralReward - 返佣记录
+记录推荐返佣的详细信息
+"""
+type ReferralReward @entity(immutable: true) {
+  "返佣 ID（txHash-logIndex）"
+  id: ID!
+
+  "推荐人"
+  referrer: User!
+
+  "被推荐人"
+  referee: User!
+
+  "推荐人统计（用于 @derivedFrom）"
+  referrerStats: ReferrerStats!
+
+  "返佣金额（USDC）"
+  amount: BigDecimal!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}

@@ -199,6 +199,36 @@ dataSources:
           handler: handleMarketAuthorizationChanged
       file: ./src/provider.ts
 
+  # ============================================================================
+  # ReferralRegistry - 推荐关系注册表
+  # 地址来源: 0x07882Ae1ecB7429a84f1D53048d35c4bB2056877
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ReferralRegistry
+    network: localhost
+    source:
+      address: "0x07882Ae1ecB7429a84f1D53048d35c4bB2056877"
+      abi: ReferralRegistry
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Referral
+        - ReferrerStats
+        - ReferralReward
+        - User
+      abis:
+        - name: ReferralRegistry
+          file: ../contracts/out/ReferralRegistry.sol/ReferralRegistry.json
+      eventHandlers:
+        - event: ReferralBound(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleReferralBound
+        - event: ReferralAccrued(indexed address,indexed address,uint256,uint256)
+          handler: handleReferralAccrued
+      file: ./src/referral.ts
+
 # ============================================================================
 # 动态模板配置 - 用于自动索引新创建的市场
 # ============================================================================
