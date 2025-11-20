@@ -197,6 +197,10 @@ contract Deploy is Script {
         );
         console.log("FeeRouter:", address(feeRouter));
 
+        // 授权 FeeRouter 调用 ReferralRegistry
+        referralRegistry.setAuthorizedCaller(address(feeRouter), true);
+        console.log("Authorized FeeRouter to call ReferralRegistry");
+
         // ========================================
         // 3. 部署 MarketFactory
         // ========================================

@@ -24,7 +24,8 @@ import "../test/mocks/MockERC20.sol";
  *      forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
  *
  * 模拟参数说明：
- *   - NUM_BETTORS: 参与下注的用户数量（默认 10）
+ *   - NUM_BETTORS: 参与下注的用户数量（默认 9，使用账户 #1-9）
+ *     注意：账户 #0 是推荐人，不参与下注，最多支持 9 个下注用户
  *   - MIN/MAX_BET_AMOUNT: 单次下注金额范围（默认 5-50 USDC）
  *   - BETS_PER_USER: 每个用户平均下注次数（默认 3）
  *   - OUTCOME_DISTRIBUTION:
@@ -74,7 +75,7 @@ contract SimulateBets is Script {
         uint8 usdcDecimals = getTokenDecimals(usdcAddr);
         uint256 usdcUnit = 10 ** usdcDecimals;
 
-        uint256 numBettors = vm.envOr("NUM_BETTORS", uint256(10));
+        uint256 numBettors = vm.envOr("NUM_BETTORS", uint256(9));  // 默认 9（账户 #1-9）
         uint256 minBetAmount = vm.envOr("MIN_BET_AMOUNT", uint256(5)) * usdcUnit;
         uint256 maxBetAmount = vm.envOr("MAX_BET_AMOUNT", uint256(50)) * usdcUnit;
         uint256 betsPerUser = vm.envOr("BETS_PER_USER", uint256(3));
@@ -82,10 +83,10 @@ contract SimulateBets is Script {
 
         string memory distribution = vm.envOr("OUTCOME_DISTRIBUTION", string("balanced"));
 
-        // 限制用户数量
-        if (numBettors > testPrivateKeys.length) {
-            numBettors = testPrivateKeys.length;
-            console.log("Warning: NUM_BETTORS limited to", testPrivateKeys.length);
+        // 限制用户数量（账户 #0 是推荐人，不参与下注）
+        if (numBettors > testPrivateKeys.length - 1) {
+            numBettors = testPrivateKeys.length - 1;
+            console.log("Warning: NUM_BETTORS limited to", testPrivateKeys.length - 1);
         }
 
         MockERC20 usdc = MockERC20(usdcAddr);
@@ -145,11 +146,13 @@ contract SimulateBets is Script {
         console.log("========================================\n");
 
         // 为每个用户模拟下注
-        for (uint256 u = 0; u < numBettors; u++) {
+        // 注意：跳过账户 #0（它是推荐人，自己下注不会产生返佣）
+        // 只使用账户 #1-9 下注（它们都绑定了推荐人 #0）
+        for (uint256 u = 1; u <= numBettors && u < testPrivateKeys.length; u++) {
             uint256 privateKey = testPrivateKeys[u];
             address bettor = vm.addr(privateKey);
 
-            console.log("User #", u + 1, "-", bettor);
+            console.log("User #", u, "-", bettor);
 
             vm.startBroadcast(privateKey);
 

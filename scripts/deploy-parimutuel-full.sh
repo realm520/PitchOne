@@ -709,6 +709,7 @@ CURRENT_FEE_ROUTER=$(grep -A5 "name: FeeRouter" "$SUBGRAPH_DIR/subgraph.yaml" | 
 CURRENT_PROVIDER_FACTORY=$(grep -A5 "name: LiquidityProviderFactory" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
 CURRENT_ERC4626=$(grep -A5 "name: ERC4626LiquidityProvider" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
 CURRENT_PARIMUTUEL=$(grep -A5 "name: ParimutuelLiquidityProvider" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
+CURRENT_REFERRAL=$(grep -A5 "name: ReferralRegistry" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
 
 echo "  MarketFactory 地址:"
 echo "    旧: ${CURRENT_FACTORY:-未找到}"
@@ -730,6 +731,10 @@ echo "  ParimutuelLiquidityProvider 地址:"
 echo "    旧: ${CURRENT_PARIMUTUEL:-未找到}"
 echo "    新: $PARIMUTUEL_PROVIDER"
 
+echo "  ReferralRegistry 地址:"
+echo "    旧: ${CURRENT_REFERRAL:-未找到}"
+echo "    新: $REFERRAL_REGISTRY"
+
 # 使用基于上下文的精确替换（在特定的 dataSources 块内）
 # 替换 MarketFactory 地址
 sed -i "/name: MarketFactory$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$FACTORY\"|" "$SUBGRAPH_DIR/subgraph.yaml"
@@ -746,7 +751,10 @@ sed -i "/name: ERC4626LiquidityProvider$/,/startBlock:/ s|address: \"0x[a-fA-F0-
 # 替换 ParimutuelLiquidityProvider 地址
 sed -i "/name: ParimutuelLiquidityProvider$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$PARIMUTUEL_PROVIDER\"|" "$SUBGRAPH_DIR/subgraph.yaml"
 
-echo -e "${GREEN}✓ subgraph.yaml 已更新（5 个合约地址）${NC}"
+# 替换 ReferralRegistry 地址
+sed -i "/name: ReferralRegistry$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$REFERRAL_REGISTRY\"|" "$SUBGRAPH_DIR/subgraph.yaml"
+
+echo -e "${GREEN}✓ subgraph.yaml 已更新（6 个合约地址）${NC}"
 echo ""
 
 ###############################################################################
@@ -931,7 +939,7 @@ echo "等待 Subgraph 索引（15 秒）..."
 sleep 15
 
 echo "查询 Subgraph 数据..."
-SUBGRAPH_QUERY='{"query": "{ markets(first: 5) { id state marketType pricingEngine totalVolume } globalStats { id totalMarkets totalVolume } }"}'
+SUBGRAPH_QUERY='{"query": "{ markets(first: 5) { id state templateId pricingEngine totalVolume } globalStats(id: \"global\") { id totalMarkets totalVolume } }"}'
 
 if SUBGRAPH_RESULT=$(curl -s -X POST \
     -H "Content-Type: application/json" \
@@ -983,18 +991,17 @@ echo ""
 
 # 查询推荐人统计
 echo "推荐人统计："
-STATS=$(cast call "$REFERRAL_REGISTRY" "getReferrerStats(address)" "$REFERRER" --rpc-url "$RPC_URL" 2>/dev/null)
 
-if [ -z "$STATS" ]; then
+# 分别查询推荐人数和累计返佣（更可靠的方法）
+REFERRAL_COUNT_HEX=$(cast call "$REFERRAL_REGISTRY" "referralCount(address)" "$REFERRER" --rpc-url "$RPC_URL" 2>/dev/null)
+TOTAL_REWARDS_HEX=$(cast call "$REFERRAL_REGISTRY" "totalReferralRewards(address)" "$REFERRER" --rpc-url "$RPC_URL" 2>/dev/null)
+
+if [ -z "$REFERRAL_COUNT_HEX" ] || [ -z "$TOTAL_REWARDS_HEX" ]; then
     echo -e "${YELLOW}⚠ 无法查询推荐人统计${NC}"
 else
-    # 解析返回值（两个 uint256，空格分隔）
-    REFERRAL_COUNT_HEX=$(echo $STATS | awk '{print $1}')
-    TOTAL_REWARDS_HEX=$(echo $STATS | awk '{print $2}')
-
     # 转换为十进制
-    REFERRAL_COUNT_DEC=$(printf "%d" $REFERRAL_COUNT_HEX 2>/dev/null || echo "0")
-    TOTAL_REWARDS_DEC=$(printf "%d" $TOTAL_REWARDS_HEX 2>/dev/null || echo "0")
+    REFERRAL_COUNT_DEC=$(cast --to-dec "$REFERRAL_COUNT_HEX" 2>/dev/null || echo "0")
+    TOTAL_REWARDS_DEC=$(cast --to-dec "$TOTAL_REWARDS_HEX" 2>/dev/null || echo "0")
 
     # USDC 是 6 位小数
     if command -v bc > /dev/null 2>&1; then
@@ -1066,7 +1073,7 @@ echo "访问 GraphQL Playground："
 echo "  http://localhost:8010/subgraphs/name/pitchone-local/graphql"
 echo ""
 echo "测试查询："
-echo '  { markets { id state marketType pricingEngine } }'
+echo '  { markets { id state templateId pricingEngine } }'
 echo ""
 echo -e "${CYAN}Parimutuel 市场的特点：${NC}"
 echo "  - 零虚拟储备（virtualReservePerSide = 0）"
