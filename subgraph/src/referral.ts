@@ -8,7 +8,7 @@ import {
   ReferralBound as ReferralBoundEvent,
   ReferralAccrued as ReferralAccruedEvent,
 } from '../generated/ReferralRegistry/ReferralRegistry';
-import { Referral, ReferrerStats, ReferralReward, User } from '../generated/schema';
+import { Referral, ReferrerStat, ReferralReward, User } from '../generated/schema';
 
 // 常量
 const ZERO_BD = BigDecimal.zero();
@@ -31,12 +31,12 @@ export function handleReferralBound(event: ReferralBoundEvent): void {
   const referralId = `${referrerId}-${refereeId}`;
 
   // ============================================
-  // 1. 确保 ReferrerStats 存在（先创建/加载，后续会更新）
+  // 1. 确保 ReferrerStat 存在（先创建/加载，后续会更新）
   // ============================================
-  let stats = ReferrerStats.load(referrerId);
+  let stats = ReferrerStat.load(referrerId);
   if (stats == null) {
     // 如果统计实体不存在，创建新的
-    stats = new ReferrerStats(referrerId);
+    stats = new ReferrerStat(referrerId);
     stats.referrer = referrerId;
     stats.referralCount = 0;
     stats.totalRewards = ZERO_BD;
@@ -51,7 +51,7 @@ export function handleReferralBound(event: ReferralBoundEvent): void {
   let referral = new Referral(referralId);
   referral.referrer = referrerId;
   referral.referee = refereeId;
-  referral.referrerStats = referrerId; // 关联到 ReferrerStats
+  referral.referrerStat = referrerId; // 关联到 ReferrerStat
   referral.campaignId = event.params.campaignId;
   referral.boundAt = event.params.timestamp;
   referral.blockNumber = event.block.number;
@@ -89,7 +89,7 @@ export function handleReferralBound(event: ReferralBoundEvent): void {
   }
 
   // ============================================
-  // 5. 更新 ReferrerStats 统计
+  // 5. 更新 ReferrerStat 统计
   // ============================================
   // 推荐人数 +1
   stats.referralCount = stats.referralCount + 1;
@@ -107,12 +107,12 @@ export function handleReferralAccrued(event: ReferralAccruedEvent): void {
   const rewardId = `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`;
 
   // ============================================
-  // 1. 确保 ReferrerStats 存在
+  // 1. 确保 ReferrerStat 存在
   // ============================================
-  let stats = ReferrerStats.load(referrerId);
+  let stats = ReferrerStat.load(referrerId);
   if (stats == null) {
     // 如果统计实体不存在（理论上不应该发生，但做防御性编程）
-    stats = new ReferrerStats(referrerId);
+    stats = new ReferrerStat(referrerId);
     stats.referrer = referrerId;
     stats.referralCount = 0;
     stats.totalRewards = ZERO_BD;
@@ -127,7 +127,7 @@ export function handleReferralAccrued(event: ReferralAccruedEvent): void {
   let reward = new ReferralReward(rewardId);
   reward.referrer = referrerId;
   reward.referee = refereeId;
-  reward.referrerStats = referrerId; // 关联到 ReferrerStats
+  reward.referrerStat = referrerId; // 关联到 ReferrerStat
   reward.amount = convertUSDCToBigDecimal(event.params.amount);
   reward.timestamp = event.params.timestamp;
   reward.blockNumber = event.block.number;
@@ -135,7 +135,7 @@ export function handleReferralAccrued(event: ReferralAccruedEvent): void {
   reward.save();
 
   // ============================================
-  // 3. 更新 ReferrerStats 实体的累计返佣
+  // 3. 更新 ReferrerStat 实体的累计返佣
   // ============================================
   // 累加返佣金额
   stats.totalRewards = stats.totalRewards.plus(reward.amount);

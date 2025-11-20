@@ -1711,7 +1711,7 @@ type Referral @entity(immutable: true) {
   referee: User!
 
   "推荐人统计（用于 @derivedFrom）"
-  referrerStats: ReferrerStats!
+  referrerStat: ReferrerStat!
 
   "活动 ID（0 = 常规推荐）"
   campaignId: BigInt!
@@ -1727,10 +1727,10 @@ type Referral @entity(immutable: true) {
 }
 
 """
-ReferrerStats - 推荐人统计
+ReferrerStat - 推荐人统计
 聚合推荐人的统计数据
 """
-type ReferrerStats @entity(immutable: false) {
+type ReferrerStat @entity(immutable: false) {
   "推荐人地址"
   id: ID!
 
@@ -1750,10 +1750,10 @@ type ReferrerStats @entity(immutable: false) {
   lastUpdatedAt: BigInt!
 
   "推荐关系列表"
-  referrals: [Referral!]! @derivedFrom(field: "referrerStats")
+  referrals: [Referral!]! @derivedFrom(field: "referrerStat")
 
   "返佣记录"
-  rewardRecords: [ReferralReward!]! @derivedFrom(field: "referrerStats")
+  rewardRecords: [ReferralReward!]! @derivedFrom(field: "referrerStat")
 }
 
 """
@@ -1771,7 +1771,7 @@ type ReferralReward @entity(immutable: true) {
   referee: User!
 
   "推荐人统计（用于 @derivedFrom）"
-  referrerStats: ReferrerStats!
+  referrerStat: ReferrerStat!
 
   "返佣金额（USDC）"
   amount: BigDecimal!
