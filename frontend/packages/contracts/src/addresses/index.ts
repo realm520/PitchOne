@@ -15,14 +15,23 @@ import type { Address, ContractAddresses } from '../index';
 // Anvil 本地测试链地址
 // 部署时间: 2025-11-18 (自动生成)
 // 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-20 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-20 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-20 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
 export const ANVIL_ADDRESSES: ContractAddresses = {
-  marketTemplateRegistry: '0xA7c59f010700930003b33aB25a7a0679C860f29c', // MarketFactory_v2
-  vault: '0xc96304e3c037f81dA488ed9dEa1D8F2a48278a75',               // LiquidityVault (deprecated)
-  usdc: '0x18E317A7D70d8fBf8e6E893616b52390EbBdb629',               // MockUSDC
-  feeRouter: '0x22753E4264FDDc6181dc7cce468904A80a363E44',           // FeeRouter
-  simpleCPMM: '0x34B40BA116d5Dec75548a9e9A8f15411461E8c70',          // SimpleCPMM
-  parimutuel: '0xD0141E899a65C95a556fE2B27e5982A6DE7fDD7A',         // Parimutuel
-  referralRegistry: '0x07882Ae1ecB7429a84f1D53048d35c4bB2056877',   // ReferralRegistry
+  marketTemplateRegistry: '0x9fD16eA9E31233279975D99D5e8Fc91dd214c7Da', // MarketFactory_v2
+  vault: '0xeAd789bd8Ce8b9E94F5D0FCa99F8787c7e758817',               // LiquidityVault (deprecated)
+  usdc: '0x547382C0D1b23f707918D3c83A77317B71Aa8470',               // MockUSDC
+  feeRouter: '0x512F7469BcC83089497506b5df64c6E246B39925',           // FeeRouter
+  simpleCPMM: '0x95775fD3Afb1F4072794CA4ddA27F2444BCf8Ac3',          // SimpleCPMM
+  parimutuel: '0xd9fEc8238711935D6c8d79Bef2B9546ef23FC046',         // Parimutuel
+  referralRegistry: '0xd3FFD73C53F139cEBB80b6A524bE280955b3f4db',   // ReferralRegistry
   basket: '0x0000000000000000000000000000000000000000',            // 待部署
   correlationGuard: '0x0000000000000000000000000000000000000000',   // 待部署
   rewardsDistributor: '0x0000000000000000000000000000000000000000', // 待部署
