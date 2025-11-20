@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFeeDiscountOracle.sol";
 import "../interfaces/IResultOracle.sol";
+import "../interfaces/IFeeRouter.sol";
 
 /**
  * @title MarketBase
@@ -160,7 +161,14 @@ abstract contract MarketBase is Initializable, IMarket, ERC1155SupplyUpgradeable
         // 3. 转账
         settlementToken.safeTransferFrom(msg.sender, address(this), netAmount);
         if (fee > 0) {
-            settlementToken.safeTransferFrom(msg.sender, feeRecipient, fee);
+            // 先将手续费转给合约自己，然后调用 FeeRouter.routeFee()
+            settlementToken.safeTransferFrom(msg.sender, address(this), fee);
+
+            // 授权 FeeRouter 提取手续费
+            settlementToken.approve(feeRecipient, fee);
+
+            // 调用 FeeRouter 处理返佣和分配
+            IFeeRouter(feeRecipient).routeFee(address(settlementToken), msg.sender, fee);
         }
 
         // 4. 更新状态

@@ -13,6 +13,7 @@ import "../interfaces/IMarket.sol";
 import "../interfaces/IFeeDiscountOracle.sol";
 import "../interfaces/IResultOracle.sol";
 import "../interfaces/ILiquidityProvider.sol";
+import "../interfaces/IFeeRouter.sol";
 
 /**
  * @title MarketBase_V2
@@ -247,7 +248,14 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         // 4. 转账
         settlementToken.safeTransferFrom(msg.sender, address(this), netAmount);
         if (fee > 0) {
-            settlementToken.safeTransferFrom(msg.sender, feeRecipient, fee);
+            // 先将手续费转给合约自己，然后调用 FeeRouter.routeFee()
+            settlementToken.safeTransferFrom(msg.sender, address(this), fee);
+
+            // 授权 FeeRouter 提取手续费
+            settlementToken.approve(feeRecipient, fee);
+
+            // 调用 FeeRouter 处理返佣和分配
+            IFeeRouter(feeRecipient).routeFee(address(settlementToken), msg.sender, fee);
         }
 
         // 5. 更新流动性（用户下注金额）
