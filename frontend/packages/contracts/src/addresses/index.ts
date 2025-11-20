@@ -1,37 +1,18 @@
 import type { Address, ContractAddresses } from '../index';
 
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-17 (自动同步)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-18 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-18 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-18 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-18 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// ============================================================================
 // Anvil 本地测试链地址
 // 部署时间: 2025-11-20 (自动生成)
 // 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-20 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-20 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// ============================================================================
 export const ANVIL_ADDRESSES: ContractAddresses = {
-  marketTemplateRegistry: '0x9fD16eA9E31233279975D99D5e8Fc91dd214c7Da', // MarketFactory_v2
-  vault: '0xeAd789bd8Ce8b9E94F5D0FCa99F8787c7e758817',               // LiquidityVault (deprecated)
-  usdc: '0x547382C0D1b23f707918D3c83A77317B71Aa8470',               // MockUSDC
-  feeRouter: '0x512F7469BcC83089497506b5df64c6E246B39925',           // FeeRouter
-  simpleCPMM: '0x95775fD3Afb1F4072794CA4ddA27F2444BCf8Ac3',          // SimpleCPMM
-  parimutuel: '0xd9fEc8238711935D6c8d79Bef2B9546ef23FC046',         // Parimutuel
-  referralRegistry: '0xd3FFD73C53F139cEBB80b6A524bE280955b3f4db',   // ReferralRegistry
+  marketTemplateRegistry: '0x7A5EC257391817ef241ef8451642cC6b222d4f8C', // MarketFactory_v2
+  vault: '0x4c04377f90Eb1E42D845AB21De874803B8773669',               // LiquidityVault (deprecated)
+  usdc: '0xE401FBb0d6828e9f25481efDc9dd18Da9E500983',               // MockUSDC
+  feeRouter: '0xCA87833e830652C2ab07E1e03eBa4F2c246D3b58',           // FeeRouter
+  simpleCPMM: '0xf93b0549cD50c849D792f0eAE94A598fA77C7718',          // SimpleCPMM
+  parimutuel: '0x8CeA85eC7f3D314c4d144e34F2206C8Ac0bbadA1',         // Parimutuel
+  referralRegistry: '0x29023DE63D7075B4cC2CE30B55f050f9c67548d4',   // ReferralRegistry
   basket: '0x0000000000000000000000000000000000000000',            // 待部署
   correlationGuard: '0x0000000000000000000000000000000000000000',   // 待部署
   rewardsDistributor: '0x0000000000000000000000000000000000000000', // 待部署

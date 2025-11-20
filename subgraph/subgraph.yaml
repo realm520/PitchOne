@@ -12,7 +12,7 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0x51C65cd0Cdb1A8A8b79dfc2eE965B1bA0bb8fc89"
+      address: "0x7A5EC257391817ef241ef8451642cC6b222d4f8C"
       abi: MarketFactory_v2
       startBlock: 0
     mapping:
@@ -72,7 +72,7 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0x87006e75a5B6bE9D1bbF61AC8Cd84f05D9140589"
+      address: "0xCA87833e830652C2ab07E1e03eBa4F2c246D3b58"
       abi: FeeRouter
       startBlock: 0
     mapping:
@@ -100,7 +100,7 @@ dataSources:
     name: LiquidityProviderFactory
     network: localhost
     source:
-      address: "0x56fC17a65ccFEC6B7ad0aDe9BD9416CB365B9BE8"
+      address: "0xb6aA91E8904d691a10372706e57aE1b390D26353"
       abi: LiquidityProviderFactory
       startBlock: 0
     mapping:
@@ -134,7 +134,7 @@ dataSources:
     name: ERC4626LiquidityProvider
     network: localhost
     source:
-      address: "0x2625760C4A8e8101801D3a48eE64B2bEA42f1E96"
+      address: "0x6fFa22292b86D678fF6621eEdC9B15e68dC44DcD"
       abi: ERC4626LiquidityProvider
       startBlock: 0
     mapping:
@@ -169,7 +169,7 @@ dataSources:
     name: ParimutuelLiquidityProvider
     network: localhost
     source:
-      address: "0xFE5f411481565fbF70D8D33D992C78196E014b90"
+      address: "0x11632F9766Ee9d9317F95562a6bD529652ead78f"
       abi: ParimutuelLiquidityProvider
       startBlock: 0
     mapping:
@@ -201,13 +201,13 @@ dataSources:
 
   # ============================================================================
   # ReferralRegistry - 推荐关系注册表
-  # 地址来源: 0x07882Ae1ecB7429a84f1D53048d35c4bB2056877
+  # 地址来源: frontend/packages/contracts/src/addresses/index.ts
   # ============================================================================
   - kind: ethereum/contract
     name: ReferralRegistry
     network: localhost
     source:
-      address: "0xFE5f411481565fbF70D8D33D992C78196E014b90"
+      address: "0x29023DE63D7075B4cC2CE30B55f050f9c67548d4"
       abi: ReferralRegistry
       startBlock: 0
     mapping:
