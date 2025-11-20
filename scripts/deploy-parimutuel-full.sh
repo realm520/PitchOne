@@ -1,9 +1,10 @@
 #!/bin/bash
 
 ###############################################################################
-# PitchOne Parimutuel Markets 完整部署脚本（增强版 v2.3）
+# PitchOne Parimutuel Markets 完整部署脚本（增强版 v2.4）
 #
-# 功能：在现有 Anvil 链上部署所有合约、创建彩票池类型市场、模拟投注、重建 Subgraph
+# 功能：在现有 Anvil 链上部署所有合约、创建彩票池类型市场、建立推荐关系、模拟投注、
+#       验证推荐返佣、重建 Subgraph
 # 符合 docs/design/AUTOMATED_DATA_FLOW.md 的自动化原则
 #
 # 改进点：
@@ -18,6 +19,7 @@
 #   9. 自动清除旧 Subgraph 数据（v2.1 新增）- 解决链重启后前端显示旧市场问题
 #  10. 完全重置 Subgraph 环境（v2.2 新增）- 删除 Docker volumes，确保每次部署显示最新数据
 #  11. 修复步骤编号问题和命令失败问题（v2.3 新增）- 修复脚本提前退出的 bug
+#  12. 推荐系统集成（v2.4 新增）- 建立推荐关系、验证推荐返佣功能
 #
 # 使用方法：
 #   ./scripts/deploy-parimutuel-full.sh
@@ -25,6 +27,7 @@
 # 前提条件：
 #   1. Anvil 正在运行（http://localhost:8545）
 #   2. 已安装 foundry、graph-cli、docker、jq、bc、curl、lsof
+#   3. contracts/.test-accounts 文件存在（包含测试账户私钥）
 #
 # 版本历史：
 #   v1.0 - 初始版本（基础部署流程）
@@ -34,6 +37,10 @@
 #   v2.3 - 修复两个关键 bug：
 #          a) 步骤 3.5 中 outcomeReserves → virtualReserves，避免函数调用失败
 #          b) 步骤 3.6 中 grep -A2 → grep -A5，确保能正确提取合约地址
+#   v2.4 - 推荐系统集成：
+#          a) 加载 .test-accounts 测试账户私钥
+#          b) 步骤 2.7 建立推荐关系（账户 #0 → #1-9）
+#          c) 步骤 6 验证推荐返佣结果
 ###############################################################################
 
 set -e  # 遇到错误立即退出
@@ -55,6 +62,16 @@ RPC_URL="http://localhost:8545"
 PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 DEPLOYMENT_FILE="$CONTRACTS_DIR/deployments/localhost.json"
 BROADCAST_FILE="$CONTRACTS_DIR/broadcast/Deploy.s.sol/31337/run-latest.json"
+
+# 加载测试账户私钥
+if [ -f "$CONTRACTS_DIR/.test-accounts" ]; then
+    source "$CONTRACTS_DIR/.test-accounts"
+    echo -e "${CYAN}已加载测试账户私钥${NC}"
+else
+    echo -e "${YELLOW}未找到 .test-accounts 文件，将使用默认私钥${NC}"
+    ACCOUNT_0_PRIVATE_KEY=$PRIVATE_KEY
+    ACCOUNT_0_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+fi
 
 # 重试配置
 MAX_RETRIES=3
@@ -599,9 +616,28 @@ if [ "$MARKET_COUNT_DEC" -ge 1 ]; then
 fi
 
 ###############################################################################
+# 步骤 2.7: 建立推荐关系
+###############################################################################
+echo -e "${BLUE}步骤 2.7: 建立推荐关系（账户 #0 → 账户 #1-9）...${NC}"
+echo ""
+
+echo "运行 SetupReferrals.s.sol..."
+cd "$CONTRACTS_DIR"
+if ! forge script script/SetupReferrals.s.sol:SetupReferrals \
+    --rpc-url "$RPC_URL" \
+    --broadcast \
+    --legacy \
+    -v 2>&1 | grep -E "(Account|Referrer|SUCCESS|FAILED|Summary)"; then
+    echo -e "${YELLOW}⚠ 推荐关系设置输出未包含预期内容${NC}"
+fi
+
+echo -e "${GREEN}✓ 推荐关系建立完成${NC}"
+echo ""
+
+###############################################################################
 # 步骤 3: 模拟投注
 ###############################################################################
-echo -e "${BLUE}步骤 3: 模拟多用户投注...${NC}"
+echo -e "${BLUE}步骤 3: 模拟多用户投注（含推荐返佣）...${NC}"
 echo ""
 
 echo "运行 SimulateBets.s.sol..."
@@ -924,6 +960,83 @@ fi
 echo ""
 
 ###############################################################################
+# 步骤 6: 验证推荐返佣
+###############################################################################
+echo -e "${BLUE}步骤 6: 验证推荐返佣结果...${NC}"
+echo ""
+
+# 读取合约地址
+if [ ! -f "$DEPLOYMENT_FILE" ]; then
+    echo -e "${RED}✗ 未找到部署文件: $DEPLOYMENT_FILE${NC}"
+    exit 1
+fi
+
+REFERRAL_REGISTRY=$(jq -r '.contracts.referralRegistry' "$DEPLOYMENT_FILE")
+USDC=$(jq -r '.contracts.usdc' "$DEPLOYMENT_FILE")
+REFERRER=${ACCOUNT_0_ADDRESS:-"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
+
+echo "合约地址："
+echo "  ReferralRegistry: $REFERRAL_REGISTRY"
+echo "  USDC: $USDC"
+echo "  推荐人: $REFERRER"
+echo ""
+
+# 查询推荐人统计
+echo "推荐人统计："
+STATS=$(cast call "$REFERRAL_REGISTRY" "getReferrerStats(address)" "$REFERRER" --rpc-url "$RPC_URL" 2>/dev/null)
+
+if [ -z "$STATS" ]; then
+    echo -e "${YELLOW}⚠ 无法查询推荐人统计${NC}"
+else
+    # 解析返回值（两个 uint256，空格分隔）
+    REFERRAL_COUNT_HEX=$(echo $STATS | awk '{print $1}')
+    TOTAL_REWARDS_HEX=$(echo $STATS | awk '{print $2}')
+
+    # 转换为十进制
+    REFERRAL_COUNT_DEC=$(printf "%d" $REFERRAL_COUNT_HEX 2>/dev/null || echo "0")
+    TOTAL_REWARDS_DEC=$(printf "%d" $TOTAL_REWARDS_HEX 2>/dev/null || echo "0")
+
+    # USDC 是 6 位小数
+    if command -v bc > /dev/null 2>&1; then
+        TOTAL_REWARDS_USDC=$(echo "scale=6; $TOTAL_REWARDS_DEC / 1000000" | bc)
+    else
+        TOTAL_REWARDS_USDC=$(awk "BEGIN {printf \"%.6f\", $TOTAL_REWARDS_DEC / 1000000}")
+    fi
+
+    echo "  推荐人数: $REFERRAL_COUNT_DEC"
+    echo "  累计返佣: $TOTAL_REWARDS_USDC USDC"
+    echo ""
+
+    # 查询推荐人 USDC 余额
+    echo "推荐人当前余额："
+    REFERRER_BALANCE_HEX=$(cast call "$USDC" "balanceOf(address)" "$REFERRER" --rpc-url "$RPC_URL" 2>/dev/null)
+    REFERRER_BALANCE_DEC=$(printf "%d" $REFERRER_BALANCE_HEX 2>/dev/null || echo "0")
+
+    if command -v bc > /dev/null 2>&1; then
+        REFERRER_BALANCE_USDC=$(echo "scale=6; $REFERRER_BALANCE_DEC / 1000000" | bc)
+    else
+        REFERRER_BALANCE_USDC=$(awk "BEGIN {printf \"%.6f\", $REFERRER_BALANCE_DEC / 1000000}")
+    fi
+
+    echo "  USDC 余额: $REFERRER_BALANCE_USDC USDC"
+    echo ""
+
+    # 判断是否收到返佣
+    if [ "$TOTAL_REWARDS_DEC" -gt 0 ]; then
+        echo -e "${GREEN}✓ 推荐返佣功能正常！${NC}"
+        echo "  推荐人已收到 $TOTAL_REWARDS_USDC USDC 返佣"
+    else
+        echo -e "${YELLOW}⚠ 推荐返佣为 0${NC}"
+        echo "  可能原因："
+        echo "  1. 被推荐人尚未下注"
+        echo "  2. 下注金额太小，返佣被四舍五入为 0"
+        echo "  3. 推荐关系未正确建立"
+    fi
+fi
+
+echo ""
+
+###############################################################################
 # 完成总结
 ###############################################################################
 echo ""
@@ -933,7 +1046,8 @@ echo "========================================"
 echo ""
 echo -e "${GREEN}✓ 合约部署完成${NC}"
 echo -e "${GREEN}✓ Parimutuel 市场创建完成 ($MARKET_COUNT_DEC 个市场)${NC}"
-echo -e "${GREEN}✓ 投注模拟完成${NC}"
+echo -e "${GREEN}✓ 推荐关系建立完成${NC}"
+echo -e "${GREEN}✓ 投注模拟完成（含推荐返佣）${NC}"
 echo -e "${GREEN}✓ Subgraph 数据已完全重置并重新索引${NC}"
 echo ""
 echo "关键信息："
@@ -959,4 +1073,17 @@ echo "  - 零虚拟储备（virtualReservePerSide = 0）"
 echo "  - 赔率由实际投注分布决定（类似传统彩票池）"
 echo "  - 无需初始流动性借款"
 echo "  - 适合传统博彩体验"
+echo ""
+echo -e "${CYAN}推荐系统验证：${NC}"
+echo "  - 推荐关系：账户 #0 作为推荐人，账户 #1-9 作为被推荐人"
+echo "  - 返佣计算：手续费 × 8%（800 bps）"
+echo "  - 手续费率：下注金额 × 2%（200 bps）"
+echo "  - 示例：100 USDC 下注 → 2 USDC 手续费 → 0.16 USDC 推荐返佣"
+echo ""
+echo -e "${CYAN}查询推荐数据：${NC}"
+echo "  # 链上查询推荐人统计"
+echo "  cast call $REFERRAL_REGISTRY \"getReferrerStats(address)\" $REFERRER --rpc-url $RPC_URL"
+echo ""
+echo "  # Subgraph 查询推荐关系"
+echo '  { referrals { id referrer { id totalReferralRewards } referee { id totalVolume } } }'
 echo ""
