@@ -42,6 +42,9 @@ contract ReferralRegistry is Ownable, Pausable {
     /// @notice 最大推荐层级（暂时仅支持1层）
     uint256 public constant MAX_REFERRAL_DEPTH = 1;
 
+    /// @notice 授权调用者映射（允许调用 accrueReferralReward 的地址）
+    mapping(address => bool) public authorizedCallers;
+
     // ============================================================================
     // 事件
     // ============================================================================
@@ -81,6 +84,13 @@ contract ReferralRegistry is Ownable, Pausable {
      */
     event ParameterUpdated(string param, uint256 value);
 
+    /**
+     * @notice 授权调用者变更事件
+     * @param caller 调用者地址
+     * @param authorized 是否授权
+     */
+    event AuthorizedCallerUpdated(address indexed caller, bool authorized);
+
     // ============================================================================
     // 错误定义
     // ============================================================================
@@ -91,6 +101,21 @@ contract ReferralRegistry is Ownable, Pausable {
     error InvalidReferrer(address referrer);
     error ReferralExpired(address user, uint256 boundAt, uint256 validUntil);
     error InvalidFeeBps(uint256 bps);
+    error UnauthorizedCaller(address caller);
+
+    // ============================================================================
+    // 修饰符
+    // ============================================================================
+
+    /**
+     * @notice 仅授权调用者可以调用
+     */
+    modifier onlyAuthorized() {
+        if (!authorizedCallers[msg.sender] && msg.sender != owner()) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+        _;
+    }
 
     // ============================================================================
     // 构造函数
@@ -154,7 +179,7 @@ contract ReferralRegistry is Ownable, Pausable {
         address _referrer,
         address user,
         uint256 amount
-    ) external onlyOwner {
+    ) external onlyAuthorized {
         if (_referrer == address(0)) return;
 
         totalReferralRewards[_referrer] += amount;
@@ -256,6 +281,17 @@ contract ReferralRegistry is Ownable, Pausable {
         }
         referralFeeBps = newFeeBps;
         emit ParameterUpdated("referralFeeBps", newFeeBps);
+    }
+
+    /**
+     * @notice 设置授权调用者
+     * @param caller 调用者地址
+     * @param authorized 是否授权
+     * @dev 通常用于授权 FeeRouter 等合约调用 accrueReferralReward
+     */
+    function setAuthorizedCaller(address caller, bool authorized) external onlyOwner {
+        authorizedCallers[caller] = authorized;
+        emit AuthorizedCallerUpdated(caller, authorized);
     }
 
     /**
