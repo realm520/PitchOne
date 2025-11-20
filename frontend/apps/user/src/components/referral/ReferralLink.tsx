@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { Card, Button } from '@pitchone/ui';
 
@@ -29,6 +29,12 @@ import { Card, Button } from '@pitchone/ui';
 export function ReferralLink() {
   const { address, isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 避免 hydration 错误：等待客户端挂载后再渲染
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 生成推荐链接
   const getReferralLink = (): string => {
@@ -74,6 +80,18 @@ export function ReferralLink() {
       window.open(shareUrl, '_blank', 'noopener,noreferrer');
     }
   };
+
+  // 在客户端挂载前，显示加载状态（避免 hydration 错误）
+  if (!mounted) {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-8">
+          <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
+          <p className="text-gray-400 text-sm">加载中...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!isConnected) {
     return (

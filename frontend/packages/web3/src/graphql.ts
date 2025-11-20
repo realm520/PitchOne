@@ -496,13 +496,8 @@ export const USER_REFERRER_QUERY = `
  */
 export const REFERRER_STATS_QUERY = `
   query ReferrerStats($referrerId: ID!) {
-    referrerStats(id: $referrerId) {
+    referrerStat(id: $referrerId) {
       id
-      referrer {
-        id
-        totalBetAmount
-        totalBets
-      }
       referralCount
       totalRewards
       validReferralCount
@@ -516,7 +511,7 @@ export const REFERRER_STATS_QUERY = `
  */
 export const REFERRER_REFERRALS_QUERY = `
   query ReferrerReferrals($referrerId: ID!, $first: Int, $skip: Int) {
-    referrerStats(id: $referrerId) {
+    referrerStat(id: $referrerId) {
       id
       referrals(
         first: $first
@@ -527,8 +522,6 @@ export const REFERRER_REFERRALS_QUERY = `
         id
         referee {
           id
-          totalBetAmount
-          totalBets
         }
         campaignId
         boundAt
@@ -544,7 +537,7 @@ export const REFERRER_REFERRALS_QUERY = `
  */
 export const REFERRAL_REWARDS_QUERY = `
   query ReferralRewards($referrerId: ID!, $first: Int) {
-    referrerStats(id: $referrerId) {
+    referrerStat(id: $referrerId) {
       id
       rewardRecords(
         first: $first
@@ -576,9 +569,6 @@ export const REFERRAL_LEADERBOARD_QUERY = `
       where: { totalRewards_gt: "0" }
     ) {
       id
-      referrer {
-        id
-      }
       referralCount
       totalRewards
       validReferralCount

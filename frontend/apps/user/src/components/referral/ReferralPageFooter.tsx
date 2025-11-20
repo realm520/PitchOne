@@ -1,0 +1,71 @@
+'use client';
+
+import { useReferralParams } from '@pitchone/web3';
+
+/**
+ * ReferralPageFooter 组件
+ *
+ * 功能：
+ * 1. 显示推荐系统使用说明
+ * 2. 动态显示从合约读取的返佣比例
+ *
+ * @example
+ * ```tsx
+ * import { ReferralPageFooter } from '@/components/referral/ReferralPageFooter';
+ *
+ * export default function ReferralPage() {
+ *   return <ReferralPageFooter />;
+ * }
+ * ```
+ */
+export function ReferralPageFooter() {
+  const { feeBps } = useReferralParams();
+
+  const feePercentage = feeBps
+    ? (Number(feeBps) / 100).toFixed(2)
+    : '8.00'; // 默认值
+
+  return (
+    <div className="mt-8 p-6 bg-dark-card border border-dark-border rounded-lg">
+      <div className="flex items-start gap-4">
+        <svg
+          className="w-6 h-6 text-neon-blue flex-shrink-0 mt-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <h3 className="text-lg font-bold text-white mb-2">如何获得推荐奖励？</h3>
+          <ol className="space-y-2 text-sm text-gray-400">
+            <li className="flex gap-2">
+              <span className="text-neon-blue">1.</span>
+              <span>复制您的专属推荐链接</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-neon-blue">2.</span>
+              <span>分享给好友，好友通过链接访问并连接钱包完成绑定</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-neon-blue">3.</span>
+              <span>
+                好友每次下注，您将获得其手续费的{' '}
+                <span className="text-neon-green font-semibold">{feePercentage}%</span> 作为返佣
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-neon-blue">4.</span>
+              <span>返佣将自动发放到您的钱包地址，无需手动领取</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -116,7 +116,7 @@ export function useGetReferrer(userAddress?: Address) {
   const { chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
-  return useReadContract({
+  const result = useReadContract({
     address: addresses?.referralRegistry,
     abi: ReferralRegistryABI,
     functionName: 'getReferrer',
@@ -125,6 +125,11 @@ export function useGetReferrer(userAddress?: Address) {
       enabled: !!addresses?.referralRegistry && !!userAddress,
     },
   });
+
+  return {
+    ...result,
+    refetch: result.refetch,
+  };
 }
 
 /**
@@ -304,7 +309,7 @@ export function useReferrerStats(referrerAddress?: Address) {
           referrerId,
         });
 
-        setStats(data.referrerStats);
+        setStats(data.referrerStat);
       } catch (err) {
         console.error('[useReferrerStats] 查询失败:', err);
         setError(err instanceof Error ? err : new Error('查询推荐统计失败'));
@@ -351,7 +356,7 @@ export function useReferrals(referrerAddress?: Address, first = 20, skip = 0) {
           skip,
         });
 
-        setReferrals(data.referrerStats?.referrals || []);
+        setReferrals(data.referrerStat?.referrals || []);
       } catch (err) {
         console.error('[useReferrals] 查询失败:', err);
         setError(err instanceof Error ? err : new Error('查询推荐列表失败'));
@@ -396,7 +401,7 @@ export function useReferralRewards(referrerAddress?: Address, first = 50) {
           first,
         });
 
-        setRewards(data.referrerStats?.rewardRecords || []);
+        setRewards(data.referrerStat?.rewardRecords || []);
       } catch (err) {
         console.error('[useReferralRewards] 查询失败:', err);
         setError(err instanceof Error ? err : new Error('查询返佣历史失败'));

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
-import { useReferrals } from '@pitchone/web3';
+import { useReferrals, useReferrerStats } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
 
 /**
@@ -12,6 +12,7 @@ import { Card, Badge } from '@pitchone/ui';
  * 1. 显示当前用户的被推荐人列表
  * 2. 显示每个被推荐人的基本信息（地址、绑定时间、下注统计）
  * 3. 支持分页加载
+ * 4. 显示总推荐人数和总页数
  *
  * @example
  * ```tsx
@@ -25,13 +26,34 @@ import { Card, Badge } from '@pitchone/ui';
 export function ReferralList() {
   const { address, isConnected } = useAccount();
   const [page, setPage] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const pageSize = 10;
 
+  // 避免 hydration 错误
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 获取推荐列表（分页）
   const { referrals, loading, error } = useReferrals(
     address,
     pageSize,
     page * pageSize
   );
+
+  // 获取推荐人统计（包含总人数）
+  const { stats, loading: statsLoading } = useReferrerStats(address);
+
+  if (!mounted) {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-8">
+          <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
+          <p className="text-gray-400 text-sm">加载中...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!isConnected) {
     return (
@@ -124,22 +146,48 @@ export function ReferralList() {
     );
   }
 
+  // 计算总页数
+  const totalReferrals = stats?.referralCount || 0;
+  const totalPages = Math.ceil(totalReferrals / pageSize);
+  const hasNextPage = referrals.length === pageSize;
+  const hasPrevPage = page > 0;
+
   return (
     <Card padding="none">
       {/* 标题 */}
       <div className="px-6 py-4 border-b border-dark-border">
-        <h3 className="text-lg font-bold text-white">推荐列表</h3>
-        <p className="text-sm text-gray-400 mt-1">
-          共 {referrals.length} 位用户
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-white">推荐列表</h3>
+            <p className="text-sm text-gray-400 mt-1">
+              {statsLoading ? (
+                '加载中...'
+              ) : (
+                <>
+                  共 <span className="text-neon-blue font-semibold">{totalReferrals}</span> 位用户
+                  {totalPages > 1 && (
+                    <span className="text-gray-500 ml-2">
+                      · 第 {page + 1}/{totalPages} 页
+                    </span>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 列表 */}
       <div className="divide-y divide-dark-border">
         {referrals.map((referral: any, index: number) => {
           const boundDate = new Date(Number(referral.boundAt) * 1000);
-          const totalBets = referral.referee?.totalBets || 0;
-          const totalBetAmount = referral.referee?.totalBetAmount || '0';
+          const refereeAddress = referral.referee?.id;
+
+          // 防御性检查：如果 referee 为空，跳过该记录
+          if (!refereeAddress) {
+            console.warn('[ReferralList] 跳过无效的推荐记录:', referral.id);
+            return null;
+          }
 
           return (
             <div
@@ -150,18 +198,13 @@ export function ReferralList() {
                 {/* 用户信息 */}
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-sm font-bold">
-                    {referral.referee.id.slice(2, 4).toUpperCase()}
+                    {refereeAddress.slice(2, 4).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <p className="text-sm font-medium text-white">
-                        {referral.referee.id.slice(0, 6)}...{referral.referee.id.slice(-4)}
+                        {refereeAddress.slice(0, 6)}...{refereeAddress.slice(-4)}
                       </p>
-                      {totalBets > 0 && (
-                        <Badge variant="success" size="sm">
-                          活跃
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-xs text-gray-500">
                       绑定时间: {boundDate.toLocaleDateString('zh-CN')}
@@ -171,11 +214,8 @@ export function ReferralList() {
 
                 {/* 统计信息 */}
                 <div className="text-right">
-                  <p className="text-sm font-medium text-white">
-                    {totalBets} 笔下注
-                  </p>
                   <p className="text-xs text-gray-500">
-                    总额: {Number(totalBetAmount).toFixed(2)} USDC
+                    Campaign: {referral.campaignId.toString()}
                   </p>
                 </div>
               </div>
@@ -194,27 +234,87 @@ export function ReferralList() {
       </div>
 
       {/* 分页控制 */}
-      {referrals.length >= pageSize && (
-        <div className="px-6 py-4 border-t border-dark-border flex items-center justify-between">
-          <button
-            onClick={() => setPage(Math.max(0, page - 1))}
-            disabled={page === 0}
-            className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            上一页
-          </button>
+      {totalPages > 1 && (
+        <div className="px-6 py-4 border-t border-dark-border">
+          <div className="flex items-center justify-between">
+            {/* 上一页按钮 */}
+            <button
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={!hasPrevPage}
+              className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              上一页
+            </button>
 
-          <p className="text-sm text-gray-400">
-            第 {page + 1} 页
-          </p>
+            {/* 页码指示器 */}
+            <div className="flex items-center gap-2">
+              {/* 显示前后页码 */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i;
+                } else if (page < 2) {
+                  pageNum = i;
+                } else if (page > totalPages - 3) {
+                  pageNum = totalPages - 5 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
 
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={referrals.length < pageSize}
-            className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            下一页
-          </button>
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      pageNum === page
+                        ? 'bg-neon-blue text-white'
+                        : 'text-gray-400 hover:bg-dark-card hover:text-white'
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 下一页按钮 */}
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={!hasNextPage}
+              className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              下一页
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 快速跳转（如果页数很多） */}
+          {totalPages > 5 && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+              <span className="text-gray-500">跳转到</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder={(page + 1).toString()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const target = parseInt((e.target as HTMLInputElement).value) - 1;
+                    if (target >= 0 && target < totalPages) {
+                      setPage(target);
+                    }
+                  }
+                }}
+                className="w-16 px-2 py-1 bg-dark-card border border-dark-border rounded text-white text-center focus:outline-none focus:border-neon-blue"
+              />
+              <span className="text-gray-500">页</span>
+            </div>
+          )}
         </div>
       )}
     </Card>

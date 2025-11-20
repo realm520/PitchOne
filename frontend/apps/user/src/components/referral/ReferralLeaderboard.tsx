@@ -162,6 +162,12 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
           const { icon, gradient, color } = getRankBadge(rank);
           const isTopThree = rank <= 3;
 
+          // 防御性检查：如果 ID 为空，跳过该记录
+          if (!entry.id) {
+            console.warn('[ReferralLeaderboard] 跳过无效的排行榜记录:', entry);
+            return null;
+          }
+
           return (
             <div
               key={entry.id}
@@ -179,13 +185,13 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
 
                 {/* 用户头像 */}
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-sm font-bold">
-                  {entry.referrer.id.slice(2, 4).toUpperCase()}
+                  {entry.id.slice(2, 4).toUpperCase()}
                 </div>
 
                 {/* 用户信息 */}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${color} truncate`}>
-                    {entry.referrer.id.slice(0, 6)}...{entry.referrer.id.slice(-4)}
+                    {entry.id.slice(0, 6)}...{entry.id.slice(-4)}
                   </p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-gray-500">

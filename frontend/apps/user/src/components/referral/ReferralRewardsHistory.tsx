@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { useReferralRewards } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
@@ -23,7 +24,24 @@ import { Card, Badge } from '@pitchone/ui';
  */
 export function ReferralRewardsHistory() {
   const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const { rewards, loading, error } = useReferralRewards(address, 50);
+
+  // 避免 hydration 错误
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-8">
+          <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
+          <p className="text-gray-400 text-sm">加载中...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!isConnected) {
     return (
@@ -149,6 +167,13 @@ export function ReferralRewardsHistory() {
       <div className="max-h-96 overflow-y-auto divide-y divide-dark-border">
         {rewards.map((reward: any) => {
           const rewardDate = new Date(Number(reward.timestamp) * 1000);
+          const refereeAddress = reward.referee?.id;
+
+          // 防御性检查：如果 referee 为空，跳过该记录
+          if (!refereeAddress) {
+            console.warn('[ReferralRewardsHistory] 跳过无效的返佣记录:', reward.id);
+            return null;
+          }
 
           return (
             <div
@@ -176,8 +201,8 @@ export function ReferralRewardsHistory() {
                   <div>
                     <p className="text-sm font-medium text-white">
                       来自{' '}
-                      {reward.referee.id.slice(0, 6)}...
-                      {reward.referee.id.slice(-4)}
+                      {refereeAddress.slice(0, 6)}...
+                      {refereeAddress.slice(-4)}
                     </p>
                     <p className="text-xs text-gray-500">
                       {rewardDate.toLocaleString('zh-CN')}

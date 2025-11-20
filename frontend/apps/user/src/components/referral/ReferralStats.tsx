@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import {
   useReferrerStatsOnChain,
@@ -29,6 +30,12 @@ import { formatUnits } from 'viem';
  */
 export function ReferralStats() {
   const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
+
+  // 避免 hydration 错误
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 链上查询：推荐统计（实时准确）
   const { data: onChainStats, isLoading: onChainLoading } = useReferrerStatsOnChain(address);
@@ -38,6 +45,17 @@ export function ReferralStats() {
 
   // 推荐系统参数
   const { feeBps, minVolume, validityWindow, isLoading: paramsLoading } = useReferralParams();
+
+  if (!mounted) {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-8">
+          <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
+          <p className="text-gray-400 text-sm">加载中...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!isConnected) {
     return (
