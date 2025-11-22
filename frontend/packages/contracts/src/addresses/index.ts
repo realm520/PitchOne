@@ -5,17 +5,30 @@ import type { Address, ContractAddresses } from '../index';
 // 部署时间: 2025-11-20 (自动生成)
 // 来源: scripts/deploy-parimutuel-full.sh 自动同步
 // ============================================================================
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-21 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-21 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-22 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-22 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
 export const ANVIL_ADDRESSES: ContractAddresses = {
-  marketTemplateRegistry: '0x7A5EC257391817ef241ef8451642cC6b222d4f8C', // MarketFactory_v2
-  vault: '0x4c04377f90Eb1E42D845AB21De874803B8773669',               // LiquidityVault (deprecated)
-  usdc: '0xE401FBb0d6828e9f25481efDc9dd18Da9E500983',               // MockUSDC
-  feeRouter: '0xCA87833e830652C2ab07E1e03eBa4F2c246D3b58',           // FeeRouter
-  simpleCPMM: '0xf93b0549cD50c849D792f0eAE94A598fA77C7718',          // SimpleCPMM
-  parimutuel: '0x8CeA85eC7f3D314c4d144e34F2206C8Ac0bbadA1',         // Parimutuel
-  referralRegistry: '0x29023DE63D7075B4cC2CE30B55f050f9c67548d4',   // ReferralRegistry
+  marketTemplateRegistry: '0x08677Af0A7F54fE2a190bb1F75DE682fe596317e', // MarketFactory_v2
+  vault: '0x02121128f1Ed0AdA5Df3a87f42752fcE4Ad63e59',               // LiquidityVault (deprecated)
+  usdc: '0x6858dF5365ffCbe31b5FE68D9E6ebB81321F7F86',               // MockUSDC
+  feeRouter: '0x1E53bea57Dd5dDa7bFf1a1180a2f64a5c9e222f5',           // FeeRouter
+  simpleCPMM: '0x95D7fF1684a8F2e202097F28Dc2e56F773A55D02',          // SimpleCPMM
+  parimutuel: '0x897945A56464616a525C9e5F11a8D400a72a8f3A',         // Parimutuel
+  referralRegistry: '0x633a7eB9b8912b22f3616013F3153de687F96074',   // ReferralRegistry
   basket: '0x0000000000000000000000000000000000000000',            // 待部署
   correlationGuard: '0x0000000000000000000000000000000000000000',   // 待部署
   rewardsDistributor: '0x0000000000000000000000000000000000000000', // 待部署
+  paramController: '0x17f4B55A352Be71CC03856765Ad04147119Aa09B',          // ParamController
 };
 
 // Sepolia 测试网地址 (待部署)
@@ -31,6 +44,8 @@ export function getContractAddresses(chainId: number): ContractAddresses {
     case 11155111: // Sepolia
       return SEPOLIA_ADDRESSES as ContractAddresses;
     default:
-      throw new Error(`Unsupported chain ID: ${chainId}`);
+      // 开发环境下，未知链默认使用 Anvil 地址
+      console.warn(`Unknown chain ID: ${chainId}, falling back to Anvil addresses`);
+      return ANVIL_ADDRESSES;
   }
 }

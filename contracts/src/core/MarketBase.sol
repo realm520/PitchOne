@@ -167,8 +167,8 @@ abstract contract MarketBase is Initializable, IMarket, ERC1155SupplyUpgradeable
             // 授权 FeeRouter 提取手续费
             settlementToken.approve(feeRecipient, fee);
 
-            // 调用 FeeRouter 处理返佣和分配
-            IFeeRouter(feeRecipient).routeFee(address(settlementToken), msg.sender, fee);
+            // 调用 FeeRouter 处理返佣和分配（传递下注总金额用于追踪交易量）
+            IFeeRouter(feeRecipient).routeFee(address(settlementToken), msg.sender, fee, amount);
         }
 
         // 4. 更新状态

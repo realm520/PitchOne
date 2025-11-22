@@ -20,12 +20,15 @@ const getConnectors = () => {
   return connectors;
 };
 
+// Anvil RPC URL - 支持环境变量配置（用于 ngrok 等场景）
+const anvilRpcUrl = process.env.NEXT_PUBLIC_ANVIL_RPC_URL || 'http://192.168.50.251:8545';
+
 // 创建 wagmi 配置
 export const config = createConfig({
   chains,
   connectors: getConnectors(),
   transports: {
-    [anvil.id]: http('http://127.0.0.1:8545'),
+    [anvil.id]: http(anvilRpcUrl),
     [sepolia.id]: http(),
   },
   ssr: false, // dApp 应用禁用 SSR（依赖客户端 Web3 provider）

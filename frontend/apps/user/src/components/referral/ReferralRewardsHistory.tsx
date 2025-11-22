@@ -164,7 +164,7 @@ export function ReferralRewardsHistory() {
       </div>
 
       {/* 返佣记录列表 */}
-      <div className="max-h-96 overflow-y-auto divide-y divide-dark-border">
+      <div className="max-h-96 overflow-y-auto divide-y divide-dark-border scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
         {rewards.map((reward: any) => {
           const rewardDate = new Date(Number(reward.timestamp) * 1000);
           const refereeAddress = reward.referee?.id;

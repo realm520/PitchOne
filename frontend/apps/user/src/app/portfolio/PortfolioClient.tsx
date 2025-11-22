@@ -33,11 +33,11 @@ export function PortfolioClient() {
     setMounted(true);
   }, []);
 
-  // 调试日志：查看实际加载的头寸数据
+  // 调试日志：查看实际加载的预测数据
   useEffect(() => {
     if (positions && positions.length > 0) {
-      console.log('[Portfolio] 加载的头寸数据:', positions);
-      console.log('[Portfolio] 第一个头寸详情:', {
+      console.log('[Portfolio] 加载的预测数据:', positions);
+      console.log('[Portfolio] 第一个预测详情:', {
         id: positions[0].id,
         balance: positions[0].balance,
         totalInvested: positions[0].totalInvested,
@@ -75,7 +75,7 @@ export function PortfolioClient() {
       const balanceInUSDC = BigInt(position.balance);
       const shares = parseFloat(formatUnits(balanceInUSDC, TOKEN_DECIMALS.USDC));
 
-      console.log('[Portfolio] 头寸收益计算:', {
+      console.log('[Portfolio] 预测收益计算:', {
         positionId: position.id,
         balance: position.balance,
         shares,
@@ -113,7 +113,7 @@ export function PortfolioClient() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载头寸数据..." />
+        <LoadingSpinner size="lg" text="加载预测数据..." />
       </div>
     );
   }
@@ -121,7 +121,7 @@ export function PortfolioClient() {
   if (error) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message="无法加载头寸数据" />
+        <ErrorState message="无法加载预测数据" />
       </div>
     );
   }
@@ -131,8 +131,8 @@ export function PortfolioClient() {
       <Container size="lg">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">我的头寸</h1>
-          <p className="text-gray-400">管理您的所有市场头寸</p>
+          <h1 className="text-4xl font-bold text-white mb-2">我的预测</h1>
+          <p className="text-gray-400">管理您的所有市场预测</p>
         </div>
 
         {/* Tabs */}
@@ -168,14 +168,14 @@ export function PortfolioClient() {
                 </svg>
               }
               title="请先连接钱包"
-              description="连接钱包后即可查看您的头寸"
+              description="连接钱包后即可查看您的预测"
             />
           </Card>
         ) : !filteredPositions || filteredPositions.length === 0 ? (
           <Card padding="xl">
             <EmptyState
-              title={`暂无${activeTab === 'active' ? '活跃' : activeTab === 'settled' ? '已结算的' : ''}头寸`}
-              description="您还没有任何头寸，去市场页面下注吧"
+              title={`暂无${activeTab === 'active' ? '活跃' : activeTab === 'settled' ? '已结算的' : ''}预测`}
+              description="您还没有任何预测，去市场页面下注吧"
               action={
                 <Link href="/markets">
                   <Button variant="neon">浏览市场</Button>

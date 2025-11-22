@@ -46,11 +46,13 @@ export default function RootLayout({
                     市场
                   </Link>
                   <Link href="/portfolio" className="text-gray-300 hover:text-neon-purple transition-colors">
-                    头寸
+                    我的
                   </Link>
+{/* 暂时隐藏串关功能
                   <Link href="/parlay" className="text-gray-300 hover:text-neon-green transition-colors">
                     串关
                   </Link>
+*/}
                   <Link href="/referral" className="text-gray-300 hover:text-orange-400 transition-colors">
                     推荐
                   </Link>

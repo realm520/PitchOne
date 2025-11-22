@@ -178,7 +178,7 @@ export function ReferralList() {
       </div>
 
       {/* 列表 */}
-      <div className="divide-y divide-dark-border">
+      <div className="max-h-96 overflow-y-auto divide-y divide-dark-border scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
         {referrals.map((referral: any, index: number) => {
           const boundDate = new Date(Number(referral.boundAt) * 1000);
           const refereeAddress = referral.referee?.id;

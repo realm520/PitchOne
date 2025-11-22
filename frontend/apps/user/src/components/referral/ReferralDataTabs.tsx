@@ -238,7 +238,7 @@ export function ReferralDataTabs() {
             ) : (
               <>
                 {/* 推荐列表 */}
-                <div className="divide-y divide-dark-border">
+                <div className="max-h-[400px] overflow-y-auto divide-y divide-dark-border scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                   {referrals.map((referral: any) => {
                     const boundDate = new Date(Number(referral.boundAt) * 1000);
                     const refereeAddress = referral.referee?.id;
@@ -406,7 +406,7 @@ export function ReferralDataTabs() {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[400px] overflow-y-auto divide-y divide-dark-border">
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-dark-border scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 {rewards.map((reward: any) => {
                   const rewardDate = new Date(Number(reward.timestamp) * 1000);
                   const refereeAddress = reward.referee?.id;

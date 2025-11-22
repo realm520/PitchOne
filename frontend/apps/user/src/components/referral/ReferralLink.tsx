@@ -44,12 +44,33 @@ export function ReferralLink() {
     return `${baseUrl}/?ref=${address}`;
   };
 
-  // 复制到剪贴板
+  // 复制到剪贴板（含 fallback 支持非安全上下文）
   const handleCopy = async () => {
     const link = getReferralLink();
 
     try {
-      await navigator.clipboard.writeText(link);
+      // 优先使用现代 Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        // Fallback: 使用传统方法（支持 HTTP 环境）
+        const textArea = document.createElement('textarea');
+        textArea.value = link;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        if (!successful) {
+          throw new Error('execCommand copy failed');
+        }
+      }
+
       setCopied(true);
 
       // 2秒后重置复制状态
@@ -58,6 +79,8 @@ export function ReferralLink() {
       }, 2000);
     } catch (err) {
       console.error('复制失败:', err);
+      // 可选：给用户提示
+      alert('复制失败，请手动选择链接复制');
     }
   };
 
