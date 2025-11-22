@@ -16,6 +16,7 @@ import "../src/liquidity/ParimutuelLiquidityProvider.sol";
 import "../src/liquidity/LiquidityProviderFactory.sol";
 import "../src/core/FeeRouter.sol";
 import "../src/core/ReferralRegistry.sol";
+import "../src/governance/ParamController.sol";
 import "../src/pricing/SimpleCPMM.sol";
 import "../src/pricing/LMSR.sol";
 import "../src/pricing/ParimutuelPricing.sol";
@@ -67,6 +68,7 @@ contract Deploy is Script {
         address feeRouter;
         address referralRegistry;
         address factory;
+        address paramController; // ParamController for governance
         address wdlTemplate;
         address ouTemplate;
         address ouMultiLineTemplate;
@@ -200,6 +202,22 @@ contract Deploy is Script {
         // 授权 FeeRouter 调用 ReferralRegistry
         referralRegistry.setAuthorizedCaller(address(feeRouter), true);
         console.log("Authorized FeeRouter to call ReferralRegistry");
+
+        // ========================================
+        // 2.5. 部署 ParamController (治理合约)
+        // ========================================
+        console.log("\nStep 2.5: Deploy ParamController");
+        console.log("----------------------------------------");
+
+        // Timelock 延迟：测试环境 1 小时，生产环境建议 2 天
+        uint256 timelockDelay = block.chainid == 31337 ? 1 hours : 2 days;
+
+        ParamController paramController = new ParamController(
+            deployer,  // admin (Safe multisig in production)
+            timelockDelay
+        );
+        console.log("ParamController:", address(paramController));
+        console.log("Timelock Delay:", timelockDelay / 3600, "hours");
 
         // ========================================
         // 3. 部署 MarketFactory
@@ -356,6 +374,7 @@ contract Deploy is Script {
             feeRouter: address(feeRouter),
             referralRegistry: address(referralRegistry),
             factory: address(factory),
+            paramController: address(paramController),
             wdlTemplate: address(wdlTemplate),
             ouTemplate: address(ouTemplate),
             ouMultiLineTemplate: address(ouMultiLineTemplate),
