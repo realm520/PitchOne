@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount, useCreateMarket } from '@pitchone/web3';
 import { getContractAddresses } from '@pitchone/contracts';
 import { Card, Button, LoadingSpinner } from '@pitchone/ui';
-import { encodeAbiParameters, parseAbiParameters, keccak256 } from 'viem';
+import { encodeFunctionData, parseAbiParameters } from 'viem';
 import Link from 'next/link';
 
 // 市场模板类型
@@ -60,6 +60,7 @@ export default function CreateMarketPage() {
   const { createMarket, isPending, isConfirming, isSuccess, error, hash } = useCreateMarket();
 
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 本地提交状态
   const [formData, setFormData] = useState<MarketFormData>({
     templateType: '',
     matchId: '',
@@ -101,16 +102,81 @@ export default function CreateMarketPage() {
     }
   };
 
-  // 生成 initData (使用 encodeAbiParameters 匹配脚本行为)
+  // WDL_Template_V2 的 initialize ABI
+  const WDL_INITIALIZE_ABI = [
+    {
+      type: 'function',
+      name: 'initialize',
+      inputs: [
+        { name: '_matchId', type: 'string' },
+        { name: '_homeTeam', type: 'string' },
+        { name: '_awayTeam', type: 'string' },
+        { name: '_kickoffTime', type: 'uint256' },
+        { name: '_settlementToken', type: 'address' },
+        { name: '_feeRecipient', type: 'address' },
+        { name: '_feeRate', type: 'uint256' },
+        { name: '_disputePeriod', type: 'uint256' },
+        { name: '_pricingEngine', type: 'address' },
+        { name: '_vault', type: 'address' },
+        { name: '_uri', type: 'string' },
+        { name: '_virtualReservePerSide', type: 'uint256' },
+      ],
+    },
+  ] as const;
+
+  // OU_Template 的 initialize ABI (12 个参数)
+  const OU_INITIALIZE_ABI = [
+    {
+      type: 'function',
+      name: 'initialize',
+      inputs: [
+        { name: '_matchId', type: 'string' },
+        { name: '_homeTeam', type: 'string' },
+        { name: '_awayTeam', type: 'string' },
+        { name: '_kickoffTime', type: 'uint256' },
+        { name: '_line', type: 'uint256' },
+        { name: '_settlementToken', type: 'address' },
+        { name: '_feeRecipient', type: 'address' },
+        { name: '_feeRate', type: 'uint256' },
+        { name: '_disputePeriod', type: 'uint256' },
+        { name: '_pricingEngine', type: 'address' },
+        { name: '_uri', type: 'string' },
+        { name: '_owner', type: 'address' },
+      ],
+    },
+  ] as const;
+
+  // OddEven_Template 的 initialize ABI (11 个参数)
+  const ODDEVEN_INITIALIZE_ABI = [
+    {
+      type: 'function',
+      name: 'initialize',
+      inputs: [
+        { name: '_matchId', type: 'string' },
+        { name: '_homeTeam', type: 'string' },
+        { name: '_awayTeam', type: 'string' },
+        { name: '_kickoffTime', type: 'uint256' },
+        { name: '_settlementToken', type: 'address' },
+        { name: '_feeRecipient', type: 'address' },
+        { name: '_feeRate', type: 'uint256' },
+        { name: '_disputePeriod', type: 'uint256' },
+        { name: '_pricingEngine', type: 'address' },
+        { name: '_uri', type: 'string' },
+        { name: '_owner', type: 'address' },
+      ],
+    },
+  ] as const;
+
+  // 生成 initData (使用 encodeFunctionData 包含函数选择器)
   const generateInitData = () => {
     const kickoffTimestamp = BigInt(Math.floor(new Date(formData.kickoffTime).getTime() / 1000));
 
     if (formData.templateType === 'WDL') {
-      // WDL_Template_V2.initialize() - 11 个参数
-      // 匹配 CreateMarkets.s.sol:312-325
-      return encodeAbiParameters(
-        parseAbiParameters('string, string, string, uint256, address, address, uint256, uint256, address, address, string'),
-        [
+      // WDL_Template_V2.initialize() - 12 个参数
+      return encodeFunctionData({
+        abi: WDL_INITIALIZE_ABI,
+        functionName: 'initialize',
+        args: [
           formData.matchId,           // _matchId
           formData.homeTeam,          // _homeTeam
           formData.awayTeam,          // _awayTeam
@@ -120,49 +186,52 @@ export default function CreateMarketPage() {
           BigInt(formData.feeRate),   // _feeRate
           BigInt(formData.disputePeriod), // _disputePeriod
           addresses!.simpleCPMM,      // _pricingEngine
-          addresses!.vault!,          // _vault ⭐ 添加
-          `https://api.pitchone.io/metadata/wdl/${formData.matchId}` // _uri
-        ]
-      );
+          addresses!.vault!,          // _vault
+          `https://api.pitchone.io/metadata/wdl/${formData.matchId}`, // _uri
+          BigInt(7200) * BigInt(10) ** BigInt(6), // _virtualReservePerSide (7200 USDC)
+        ],
+      });
     } else if (formData.templateType === 'OU') {
-      // OU_Template.initialize() - 12 个参数 (含 _owner)
-      // 匹配 CreateMarkets.s.sol:349-363
-      const lineInBps = BigInt(Math.floor(parseFloat(formData.line!) * 1000)); // 2.5 -> 2500
-      return encodeAbiParameters(
-        parseAbiParameters('string, string, string, uint256, uint256, address, address, uint256, uint256, address, string, address'),
-        [
+      // OU_Template.initialize() - 12 个参数
+      // _line: 必须是半球盘（如 2500 = 2.5 球），单位是 1/1000
+      const lineInBps = BigInt(Math.floor(parseFloat(formData.line!) * 1000));
+      return encodeFunctionData({
+        abi: OU_INITIALIZE_ABI,
+        functionName: 'initialize',
+        args: [
           formData.matchId,           // _matchId
           formData.homeTeam,          // _homeTeam
           formData.awayTeam,          // _awayTeam
           kickoffTimestamp,           // _kickoffTime
-          lineInBps,                  // _line
+          lineInBps,                  // _line (2500 = 2.5 球)
           addresses!.usdc,            // _settlementToken
           addresses!.feeRouter,       // _feeRecipient
           BigInt(formData.feeRate),   // _feeRate
           BigInt(formData.disputePeriod), // _disputePeriod
           addresses!.simpleCPMM,      // _pricingEngine
           `https://api.pitchone.io/metadata/ou/${formData.matchId}`, // _uri
-          address!                     // _owner ⭐ 添加
-        ]
-      );
+          address!,                   // _owner
+        ],
+      });
     } else if (formData.templateType === 'OddEven') {
-      // OddEven_Template.initialize() - 11 个参数 (含 _owner)
-      return encodeAbiParameters(
-        parseAbiParameters('string, string, string, uint256, address, address, uint256, uint256, address, string, address'),
-        [
-          formData.matchId,
-          formData.homeTeam,
-          formData.awayTeam,
-          kickoffTimestamp,
-          addresses!.usdc,
-          addresses!.feeRouter,
-          BigInt(formData.feeRate),
-          BigInt(formData.disputePeriod),
-          addresses!.simpleCPMM,
-          `https://api.pitchone.io/metadata/oddeven/${formData.matchId}`,
-          address!  // _owner
-        ]
-      );
+      // OddEven_Template.initialize() - 11 个参数
+      return encodeFunctionData({
+        abi: ODDEVEN_INITIALIZE_ABI,
+        functionName: 'initialize',
+        args: [
+          formData.matchId,           // _matchId
+          formData.homeTeam,          // _homeTeam
+          formData.awayTeam,          // _awayTeam
+          kickoffTimestamp,           // _kickoffTime
+          addresses!.usdc,            // _settlementToken
+          addresses!.feeRouter,       // _feeRecipient
+          BigInt(formData.feeRate),   // _feeRate
+          BigInt(formData.disputePeriod), // _disputePeriod
+          addresses!.simpleCPMM,      // _pricingEngine
+          `https://api.pitchone.io/metadata/oddeven/${formData.matchId}`, // _uri
+          address!,                   // _owner
+        ],
+      });
     }
 
     throw new Error('Unsupported template type');
@@ -177,6 +246,12 @@ export default function CreateMarketPage() {
 
   // 提交创建市场
   const handleSubmit = async () => {
+    // 防止重复提交
+    if (isSubmitting || isPending || isConfirming) {
+      console.warn('[CreateMarket] 阻止重复提交');
+      return;
+    }
+
     if (!isConnected || !addresses) {
       alert('请先连接钱包');
       return;
@@ -191,6 +266,9 @@ export default function CreateMarketPage() {
     }
 
     try {
+      // 立即设置提交状态，防止快速双击
+      setIsSubmitting(true);
+
       const templateId = getTemplateId();
       const initData = generateInitData();
 
@@ -203,16 +281,27 @@ export default function CreateMarketPage() {
       await createMarket(templateId, initData);
     } catch (err) {
       console.error('创建市场失败:', err);
-      alert(`创建失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      alert(`创建失败: ${err instanceof Error ? err.message : '未知错误'}\n\n如果遇到 nonce 错误，请刷新页面重试。`);
+      setIsSubmitting(false); // 失败时重置状态
     }
   };
 
+  // 监听交易状态，重置提交状态
+  useEffect(() => {
+    if (isSuccess || error) {
+      setIsSubmitting(false);
+    }
+  }, [isSuccess, error]);
+
   // 交易成功后跳转
-  if (isSuccess && hash) {
-    setTimeout(() => {
-      router.push('/markets');
-    }, 2000);
-  }
+  useEffect(() => {
+    if (isSuccess && hash) {
+      const timer = setTimeout(() => {
+        router.push('/markets');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, hash, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -547,9 +636,9 @@ export default function CreateMarketPage() {
               <Button
                 variant="outline"
                 onClick={handleSubmit}
-                disabled={!isConnected || isPending || isConfirming || isSuccess}
+                disabled={!isConnected || isSubmitting || isPending || isConfirming || isSuccess}
               >
-                {isPending || isConfirming ? '创建中...' : '创建市场'}
+                {isSubmitting || isPending || isConfirming ? '创建中...' : '创建市场'}
               </Button>
             )}
           </div>

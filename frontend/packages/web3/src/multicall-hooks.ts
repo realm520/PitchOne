@@ -16,6 +16,7 @@ export interface MarketFullData {
   feeRate: bigint;
   userBalances?: bigint[]; // 用户在每个结果的头寸
   isParimutel: boolean; // 是否为 Parimutuel（奖池）模式
+  line?: bigint; // 盘口线（OU/AH 市场的球数线，千分位表示）
 }
 
 /**
@@ -82,6 +83,20 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
           },
         ],
         functionName: 'pricingEngine',
+      },
+      {
+        address: marketAddress,
+        // line 是 OU/AH 模板的公共变量（千分位表示的盘口线）
+        abi: [
+          {
+            inputs: [],
+            name: 'line',
+            outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ],
+        functionName: 'line',
       }
     );
 
@@ -145,19 +160,22 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   const totalLiquidity = data[1]?.result as bigint;
   const feeRate = data[2]?.result as bigint;
   const pricingEngine = (data[3]?.result as string)?.toLowerCase();
+  // line 可能在非 OU/AH 市场中不存在，所以需要处理错误情况
+  const lineResult = data[4]?.result;
+  const line = lineResult !== undefined && lineResult !== null ? (lineResult as bigint) : undefined;
 
-  // 提取流动性数据
+  // 提取流动性数据（索引从5开始，因为添加了 line 查询）
   const outcomeLiquidity: bigint[] = [];
   for (let i = 0; i < outcomeCountNumber; i++) {
-    outcomeLiquidity.push((data[4 + i]?.result as bigint) || 0n);
+    outcomeLiquidity.push((data[5 + i]?.result as bigint) || 0n);
   }
 
   // 提取用户头寸数据
   let userBalances: bigint[] | undefined;
-  if (userAddress && data.length > 4 + outcomeCountNumber) {
+  if (userAddress && data.length > 5 + outcomeCountNumber) {
     userBalances = [];
     for (let i = 0; i < outcomeCountNumber; i++) {
-      userBalances.push((data[4 + outcomeCountNumber + i]?.result as bigint) || 0n);
+      userBalances.push((data[5 + outcomeCountNumber + i]?.result as bigint) || 0n);
     }
   }
 
@@ -175,6 +193,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
     feeRate,
     userBalances,
     isParimutel,
+    line,
   };
 
   console.log('[useMarketFullData] 解析完成:', {
@@ -183,6 +202,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
     pricingEngine,
     parimutuelAddress,
     isParimutel,
+    line: line?.toString(),
     outcomeLiquidity: outcomeLiquidity.map(r => r.toString()),
   });
 
@@ -341,8 +361,9 @@ export interface OutcomeData {
  *
  * @param marketAddress 市场合约地址
  * @param templateType 市场模板类型（WDL, OU, AH等）
+ * @param line 盘口线（可选，用于 OU/AH 市场显示完整名称，如 "2.5 球"）
  */
-export function useMarketOutcomes(marketAddress?: Address, templateType?: string) {
+export function useMarketOutcomes(marketAddress?: Address, templateType?: string, line?: string) {
   console.log('[useMarketOutcomes] 开始查询:', { marketAddress, templateType });
 
   const { data: marketData, isLoading, error, refetch } = useMarketFullData(marketAddress);
@@ -469,7 +490,11 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
     }
 
     // 根据模板类型获取 outcome 名称
-    const name = getOutcomeName(i, templateType || 'WDL');
+    // 优先使用从合约获取的 line 值，如果没有则使用传入的参数
+    const effectiveLine = marketData.line !== undefined
+      ? marketData.line.toString()
+      : line;
+    const name = getOutcomeName(i, templateType || 'WDL', effectiveLine);
 
     // 根据 outcome ID 设置颜色
     const colors = [
@@ -500,9 +525,25 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
 }
 
 /**
- * 根据模板类型和 outcome ID 获取名称
+ * 将千分位表示的盘口线转换为显示数字
+ * 例如：2500 -> 2.5, 3000 -> 3.0
  */
-function getOutcomeName(outcomeId: number, templateType: string): string {
+function parseLineValue(lineStr?: string): number | null {
+  if (!lineStr) return null;
+  try {
+    return parseFloat(lineStr) / 1000;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 根据模板类型和 outcome ID 获取名称
+ * @param outcomeId 结果 ID
+ * @param templateType 模板类型
+ * @param line 盘口线（千分位表示，如 "2500" = 2.5 球）
+ */
+function getOutcomeName(outcomeId: number, templateType: string, line?: string): string {
   // OU_MULTI 特殊处理：outcomeId = lineIndex * 2 + direction（仅半球盘）
   if (templateType === 'OU_MULTI') {
     const lineIndex = Math.floor(outcomeId / 2);
@@ -510,18 +551,52 @@ function getOutcomeName(outcomeId: number, templateType: string): string {
 
     // 常见的线配置（2.5, 3.5, 4.5）
     const lines = [2.5, 3.5, 4.5];
-    const lineName = lines[lineIndex] || lineIndex;
+    const lineValue = lines[lineIndex] || lineIndex;
 
-    const directionNames = ['大', '小'];
-    const directionName = directionNames[direction] || '?';
+    if (direction === 0) {
+      return `大于 ${lineValue} 球`;
+    } else {
+      return `小于 ${lineValue} 球`;
+    }
+  }
 
-    return `${lineName}球 ${directionName}`;
+  // OU（单线大小球）：显示完整的盘口线信息
+  if (templateType === 'OU') {
+    const lineValue = parseLineValue(line);
+    if (lineValue !== null) {
+      const lineDisplay = lineValue % 1 === 0 ? lineValue.toFixed(1) : lineValue.toString();
+      if (outcomeId === 0) {
+        return `大于 ${lineDisplay} 球`;
+      } else {
+        return `小于 ${lineDisplay} 球`;
+      }
+    }
+    // 如果没有盘口线信息，使用默认名称
+    return outcomeId === 0 ? '大球' : '小球';
+  }
+
+  // AH（让球）：显示让球数
+  if (templateType === 'AH') {
+    const lineValue = parseLineValue(line);
+    if (lineValue !== null) {
+      const absValue = Math.abs(lineValue);
+      const lineDisplay = absValue % 1 === 0 ? absValue.toFixed(1) : absValue.toString();
+      // 让球市场：outcomeId 0 = 主队赢盘, 1 = 客队赢盘, 2 = 走盘（整球盘）
+      if (outcomeId === 0) {
+        return `主队让 ${lineDisplay} 球赢盘`;
+      } else if (outcomeId === 1) {
+        return `客队受让 ${lineDisplay} 球赢盘`;
+      } else {
+        return '走盘（退款）';
+      }
+    }
+    // 没有盘口线信息时的默认名称
+    const ahNames = ['主队赢盘', '客队赢盘', '走盘'];
+    return ahNames[outcomeId] || `结果 ${outcomeId}`;
   }
 
   const nameMap: Record<string, string[]> = {
     WDL: ['主胜', '平局', '客胜'],
-    OU: ['大球', '小球'],
-    AH: ['主队赢盘', '客队赢盘', '走盘'], // 修正：使用正确的术语，并添加"走盘"选项
     OddEven: ['单数', '双数'],
     Score: [], // 精确比分需要特殊处理
   };

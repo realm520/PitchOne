@@ -50,9 +50,11 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { data: allOrders, refetch: refetchAllOrders } = useMarketAllOrders(marketId);
 
   // 获取真实的 outcome 数据（包括实时赔率）
+  // 传递盘口线信息（如果有），用于 OU/AH 市场显示完整的投注提示
   const { data: outcomes, isLoading: outcomesLoading, refetch: refetchOutcomes } = useMarketOutcomes(
     marketId as `0x${string}`,
-    market?._displayInfo?.templateType || 'WDL'
+    market?._displayInfo?.templateType || 'WDL',
+    market?.line // 传递盘口线（千分位表示）
   );
 
   // 获取实时的市场流动性数据（直接从合约读取）
@@ -810,16 +812,35 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             )}
 
             {/* Amount Input */}
-            <Input
-              type="number"
-              label="投注金额 (USDC)"
-              placeholder="输入金额"
-              value={betAmount}
-              onChange={(e) => setBetAmount(e.target.value)}
-              min="1"
-              max="10000"
-              fullWidth
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                投注金额 (USDC)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  placeholder="输入金额"
+                  value={betAmount}
+                  onChange={(e) => setBetAmount(e.target.value)}
+                  min="1"
+                  max="10000"
+                  className="w-full px-4 py-3 pr-16 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (usdcBalance !== undefined) {
+                      const maxAmount = formatUnits(usdcBalance, 6);
+                      setBetAmount(maxAmount);
+                    }
+                  }}
+                  disabled={usdcBalance === undefined || usdcBalance === 0n}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-semibold text-neon-blue hover:text-white hover:bg-neon-blue/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  MAX
+                </button>
+              </div>
+            </div>
 
             {/* Expected Payout */}
             {betAmount && (

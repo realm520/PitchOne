@@ -20,9 +20,28 @@ const statusFilters = [
   { label: '已结算', value: MarketStatus.Resolved },
 ] as const;
 
+const typeFilters = [
+  { label: '全部类型', value: undefined },
+  { label: '胜平负', value: 'WDL' },
+  { label: '大小球', value: 'OU' },
+  { label: '单双号', value: 'OddEven' },
+] as const;
+
 export default function MarketsPage() {
   const [statusFilter, setStatusFilter] = useState<MarketStatus[] | undefined>();
+  const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const { data: markets, isLoading, error, refetch } = useMarkets(statusFilter);
+
+  // 根据类型过滤市场
+  const filteredMarkets = markets?.filter((market) => {
+    if (!typeFilter) return true;
+    const templateType = market._displayInfo?.templateType;
+    if (typeFilter === 'OU') {
+      // 大小球包括单线和多线
+      return templateType === 'OU' || templateType === 'OU_MULTI';
+    }
+    return templateType === typeFilter;
+  });
 
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
@@ -55,24 +74,45 @@ export default function MarketsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2">
-          {statusFilters.map((filter) => (
-            <Button
-              key={filter.label}
-              variant={
-                (filter.value === undefined && statusFilter === undefined) ||
-                (statusFilter && statusFilter[0] === filter.value)
-                  ? 'neon'
-                  : 'ghost'
-              }
-              size="sm"
-              onClick={() =>
-                setStatusFilter(filter.value ? [filter.value] : undefined)
-              }
-            >
-              {filter.label}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* 状态过滤 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">状态:</span>
+            {statusFilters.map((filter) => (
+              <Button
+                key={filter.label}
+                variant={
+                  (filter.value === undefined && statusFilter === undefined) ||
+                  (statusFilter && statusFilter[0] === filter.value)
+                    ? 'neon'
+                    : 'ghost'
+                }
+                size="sm"
+                onClick={() =>
+                  setStatusFilter(filter.value ? [filter.value] : undefined)
+                }
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="w-px h-6 bg-dark-border" />
+
+          {/* 类型过滤 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">类型:</span>
+            {typeFilters.map((filter) => (
+              <Button
+                key={filter.label}
+                variant={typeFilter === filter.value ? 'neon' : 'ghost'}
+                size="sm"
+                onClick={() => setTypeFilter(filter.value)}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
@@ -85,7 +125,7 @@ export default function MarketsPage() {
             message="无法加载市场数据，请检查网络连接或稍后重试"
             onRetry={() => refetch()}
           />
-        ) : !markets || markets.length === 0 ? (
+        ) : !filteredMarkets || filteredMarkets.length === 0 ? (
           <EmptyState
             icon={
               <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,14 +140,17 @@ export default function MarketsPage() {
             title="暂无市场"
             description="当前没有符合条件的市场，请稍后再来或更改筛选条件"
             action={
-              <Button variant="primary" onClick={() => setStatusFilter(undefined)}>
+              <Button variant="primary" onClick={() => {
+                setStatusFilter(undefined);
+                setTypeFilter(undefined);
+              }}>
                 查看全部市场
               </Button>
             }
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {markets.map((market) => (
+            {filteredMarkets.map((market) => (
               <Link key={market.id} href={`/markets/${market.id}`}>
                 <Card hoverable variant="neon" padding="lg">
                   {/* Match Info */}
@@ -133,7 +176,7 @@ export default function MarketsPage() {
 
                   {/* Market Stats */}
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                    <span>交易量: {Number(market.totalVolume).toFixed(2)} USDC</span>
+                    <span>预测总金额: {Number(market.totalVolume).toFixed(2)} USDC</span>
                     <span>{market.uniqueBettors} 人参与</span>
                   </div>
 
@@ -166,7 +209,7 @@ export default function MarketsPage() {
         )}
 
         {/* Pagination Placeholder */}
-        {markets && markets.length > 0 && (
+        {filteredMarkets && filteredMarkets.length > 0 && (
           <div className="mt-12 flex justify-center">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" disabled>
