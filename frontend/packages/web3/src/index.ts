@@ -148,3 +148,21 @@ export {
   type ReferrerStats,
   type ReferralParams,
 } from './referral-hooks';
+
+// ParamController 治理 Hooks
+export {
+  useTimelockDelay,
+  useReadParam,
+  useReadParams,
+  useTryGetParam,
+  useReadProposal,
+  useProposalCount,
+  useIsParamRegistered,
+  useProposeChange,
+  useExecuteProposal,
+  useCancelProposal,
+  useRegisterParam,
+  paramNameToKey,
+  type Proposal,
+  type ParamDefinition,
+} from './param-controller-hooks';

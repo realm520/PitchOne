@@ -4,7 +4,19 @@ import { Card, Badge, Button } from '@pitchone/ui';
 import { formatDistanceToNow, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import {
+  useAccount,
+  ConnectButton,
+  useReadParams,
+  useTimelockDelay,
+  paramNameToKey,
+  useProposeChange,
+  useExecuteProposal,
+  useCancelProposal,
+  type Proposal,
+} from '@pitchone/web3';
+import type { Hex } from 'viem';
 
 // 参数类别
 type ParamCategory = 'fee' | 'limit' | 'pricing' | 'referral' | 'other';
@@ -14,70 +26,55 @@ interface ParamDefinition {
   key: string;
   name: string;
   category: ParamCategory;
-  currentValue: number;
   unit: string;
   description: string;
   validator?: string;
+  defaultValue: bigint;
 }
 
-// 提案定义
-interface Proposal {
-  id: string;
-  key: string;
-  paramName: string;
-  oldValue: number;
-  newValue: number;
-  status: 'pending' | 'executed' | 'cancelled';
-  proposer: string;
-  reason: string;
-  createdAt: Date;
-  eta: Date;
-  executedAt?: Date;
-}
-
-// 模拟参数数据
-const MOCK_PARAMS: ParamDefinition[] = [
+// 所有参数定义（与合约中的参数对应）
+const PARAM_DEFINITIONS: ParamDefinition[] = [
   // 费用参数
   {
     key: 'FEE_RATE',
     name: '基础费率',
     category: 'fee',
-    currentValue: 200,
-    unit: 'bp (2%)',
+    unit: 'bp',
     description: '下注时收取的基础手续费率',
-    validator: '0.1% - 5%'
+    validator: '0.1% - 5%',
+    defaultValue: BigInt(200), // 2%
   },
   {
     key: 'LP_SHARE',
     name: 'LP 分成',
     category: 'fee',
-    currentValue: 6000,
-    unit: 'bp (60%)',
-    description: '手续费中分配给 LP 的比例'
+    unit: 'bp',
+    description: '手续费中分配给 LP 的比例',
+    defaultValue: BigInt(6000), // 60%
   },
   {
     key: 'PROMO_SHARE',
     name: '推广池分成',
     category: 'fee',
-    currentValue: 2000,
-    unit: 'bp (20%)',
-    description: '手续费中分配给推广池的比例'
+    unit: 'bp',
+    description: '手续费中分配给推广池的比例',
+    defaultValue: BigInt(2000), // 20%
   },
   {
     key: 'INSURANCE_SHARE',
     name: '保险金分成',
     category: 'fee',
-    currentValue: 1000,
-    unit: 'bp (10%)',
-    description: '手续费中分配给保险金的比例'
+    unit: 'bp',
+    description: '手续费中分配给保险金的比例',
+    defaultValue: BigInt(1000), // 10%
   },
   {
     key: 'TREASURY_SHARE',
     name: '国库分成',
     category: 'fee',
-    currentValue: 1000,
-    unit: 'bp (10%)',
-    description: '手续费中分配给国库的比例'
+    unit: 'bp',
+    description: '手续费中分配给国库的比例',
+    defaultValue: BigInt(1000), // 10%
   },
 
   // 限额参数
@@ -85,25 +82,25 @@ const MOCK_PARAMS: ParamDefinition[] = [
     key: 'MIN_BET',
     name: '最小下注额',
     category: 'limit',
-    currentValue: 1000000,
-    unit: 'USDC (1)',
-    description: '单笔下注的最小金额'
+    unit: 'USDC',
+    description: '单笔下注的最小金额',
+    defaultValue: BigInt(1000000), // 1 USDC (6 decimals)
   },
   {
     key: 'MAX_BET',
     name: '最大下注额',
     category: 'limit',
-    currentValue: 10000000000,
-    unit: 'USDC (10,000)',
-    description: '单笔下注的最大金额'
+    unit: 'USDC',
+    description: '单笔下注的最大金额',
+    defaultValue: BigInt(10000000000), // 10,000 USDC
   },
   {
     key: 'MAX_USER_EXPOSURE',
     name: '单用户敞口',
     category: 'limit',
-    currentValue: 50000000000,
-    unit: 'USDC (50,000)',
-    description: '单个用户在单个市场的最大敞口'
+    unit: 'USDC',
+    description: '单个用户在单个市场的最大敞口',
+    defaultValue: BigInt(50000000000), // 50,000 USDC
   },
 
   // 联动定价参数
@@ -111,17 +108,17 @@ const MOCK_PARAMS: ParamDefinition[] = [
     key: 'OU_LINK_COEFF_2_0_TO_2_5',
     name: '大小球 2.0-2.5 联动系数',
     category: 'pricing',
-    currentValue: 8500,
-    unit: 'bp (0.85)',
-    description: '相邻盘口线的价格联动系数'
+    unit: 'bp',
+    description: '相邻盘口线的价格联动系数',
+    defaultValue: BigInt(8500), // 0.85
   },
   {
     key: 'SPREAD_GUARD_BPS',
     name: '价差保护阈值',
     category: 'pricing',
-    currentValue: 500,
-    unit: 'bp (5%)',
-    description: '套利检测的价差阈值'
+    unit: 'bp',
+    description: '套利检测的价差阈值',
+    defaultValue: BigInt(500), // 5%
   },
 
   // 推荐返佣参数
@@ -129,54 +126,25 @@ const MOCK_PARAMS: ParamDefinition[] = [
     key: 'REFERRAL_RATE_TIER1',
     name: '一级推荐返佣',
     category: 'referral',
-    currentValue: 2000,
-    unit: 'bp (20%)',
-    description: '直推用户的返佣比例'
+    unit: 'bp',
+    description: '直推用户的返佣比例',
+    defaultValue: BigInt(2000), // 20%
   },
   {
     key: 'REFERRAL_RATE_TIER2',
     name: '二级推荐返佣',
     category: 'referral',
-    currentValue: 1000,
-    unit: 'bp (10%)',
-    description: '间推用户的返佣比例'
+    unit: 'bp',
+    description: '间推用户的返佣比例',
+    defaultValue: BigInt(1000), // 10%
   },
   {
     key: 'MAX_REFERRAL_DEPTH',
     name: '最大推荐层级',
     category: 'referral',
-    currentValue: 2,
     unit: '层',
-    description: '推荐关系的最大深度'
-  },
-];
-
-// 模拟提案数据
-const MOCK_PROPOSALS: Proposal[] = [
-  {
-    id: '0x1234...5678',
-    key: 'FEE_RATE',
-    paramName: '基础费率',
-    oldValue: 200,
-    newValue: 150,
-    status: 'pending',
-    proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-    reason: '降低费率以吸引更多用户',
-    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12小时前
-    eta: new Date(Date.now() + 36 * 60 * 60 * 1000), // 36小时后
-  },
-  {
-    id: '0xabcd...ef01',
-    key: 'MAX_BET',
-    paramName: '最大下注额',
-    oldValue: 10000000000,
-    newValue: 50000000000,
-    status: 'executed',
-    proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-    reason: '提高限额以支持大额用户',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5天前
-    eta: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3天前
-    executedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    description: '推荐关系的最大深度',
+    defaultValue: BigInt(2),
   },
 ];
 
@@ -189,32 +157,21 @@ const CATEGORY_LABELS: Record<ParamCategory, { label: string; color: string }> =
   other: { label: '其他', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' },
 };
 
-// 提案状态
-const getProposalStatus = (proposal: Proposal) => {
-  if (proposal.status === 'executed') {
-    return {
-      label: '已执行',
-      color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      variant: 'success' as const
-    };
+// 格式化参数值显示
+function formatParamValue(value: bigint, unit: string): string {
+  if (unit === 'bp') {
+    return `${(Number(value) / 100).toFixed(2)}%`;
+  } else if (unit === 'USDC') {
+    return `${(Number(value) / 1_000_000).toLocaleString()} USDC`;
+  } else {
+    return value.toString();
   }
-  if (proposal.status === 'cancelled') {
-    return {
-      label: '已取消',
-      color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-      variant: 'secondary' as const
-    };
-  }
-  return {
-    label: '待执行',
-    color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    variant: 'warning' as const
-  };
-};
+}
 
 // 参数卡片组件
-function ParamCard({ param }: { param: ParamDefinition }) {
+function ParamCard({ param, value }: { param: ParamDefinition; value?: bigint }) {
   const category = CATEGORY_LABELS[param.category];
+  const displayValue = value !== undefined ? value : param.defaultValue;
 
   return (
     <Card className="p-5 hover:shadow-md transition-shadow">
@@ -238,7 +195,7 @@ function ParamCard({ param }: { param: ParamDefinition }) {
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-gray-500 dark:text-gray-400">当前值</span>
           <span className="text-lg font-bold text-gray-900 dark:text-white">
-            {param.unit}
+            {formatParamValue(displayValue, param.unit)}
           </span>
         </div>
 
@@ -261,34 +218,73 @@ function ParamCard({ param }: { param: ParamDefinition }) {
   );
 }
 
+// 提案状态
+const getProposalStatus = (proposal: Proposal) => {
+  if (proposal.executed) {
+    return {
+      label: '已执行',
+      color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      variant: 'success' as const
+    };
+  }
+  if (proposal.cancelled) {
+    return {
+      label: '已取消',
+      color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+      variant: 'secondary' as const
+    };
+  }
+  return {
+    label: '待执行',
+    color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    variant: 'warning' as const
+  };
+};
+
 // 提案行组件
-function ProposalRow({ proposal }: { proposal: Proposal }) {
+function ProposalRow({
+  proposalId,
+  proposal,
+  onExecute,
+  onCancel,
+  isExecuting,
+  isCancelling,
+}: {
+  proposalId: Hex;
+  proposal: Proposal;
+  onExecute: (id: Hex) => void;
+  onCancel: (id: Hex) => void;
+  isExecuting: boolean;
+  isCancelling: boolean;
+}) {
   const status = getProposalStatus(proposal);
-  const isPending = proposal.status === 'pending';
-  const timeRemaining = isPending
-    ? formatDistanceToNow(proposal.eta, { addSuffix: true, locale: zhCN })
-    : null;
+  const isPending = !proposal.executed && !proposal.cancelled;
+  const canExecute = isPending && Date.now() >= Number(proposal.eta) * 1000;
+
+  // 查找参数名称
+  const paramDef = PARAM_DEFINITIONS.find(p => paramNameToKey(p.key) === proposal.key);
+  const paramName = paramDef?.name || '未知参数';
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b dark:border-gray-700">
       <td className="py-4 px-4">
         <div className="flex flex-col">
           <span className="font-medium text-gray-900 dark:text-white">
-            {proposal.paramName}
+            {paramName}
           </span>
           <span className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
-            {proposal.key}
+            {proposal.key.slice(0, 10)}...
           </span>
         </div>
       </td>
       <td className="py-4 px-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600 dark:text-gray-300">
-            {proposal.oldValue}
+            {proposal.oldValue.toString()}
           </span>
           <span className="text-gray-400">→</span>
           <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-            {proposal.newValue}
+            {proposal.newValue.toString()}
           </span>
         </div>
       </td>
@@ -304,17 +300,14 @@ function ProposalRow({ proposal }: { proposal: Proposal }) {
       </td>
       <td className="py-4 px-4">
         <div className="flex flex-col">
-          <span className="text-sm text-gray-900 dark:text-white">
-            {format(proposal.createdAt, 'MM/dd HH:mm', { locale: zhCN })}
-          </span>
-          {isPending && timeRemaining && (
-            <span className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-              ETA {timeRemaining}
+          {isPending && (
+            <span className="text-xs text-orange-600 dark:text-orange-400">
+              ETA: {formatDistanceToNow(Number(proposal.eta) * 1000, { addSuffix: true, locale: zhCN })}
             </span>
           )}
-          {proposal.executedAt && (
-            <span className="text-xs text-green-600 dark:text-green-400 mt-1">
-              执行于 {format(proposal.executedAt, 'MM/dd HH:mm')}
+          {proposal.executed && (
+            <span className="text-xs text-green-600 dark:text-green-400">
+              已执行
             </span>
           )}
         </div>
@@ -324,23 +317,148 @@ function ProposalRow({ proposal }: { proposal: Proposal }) {
           {proposal.reason}
         </div>
       </td>
+      <td className="py-4 px-4">
+        <div className="flex gap-2">
+          {canExecute && (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => onExecute(proposalId)}
+              disabled={isExecuting}
+            >
+              {isExecuting ? '执行中...' : '执行'}
+            </Button>
+          )}
+          {isPending && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onCancel(proposalId)}
+              disabled={isCancelling}
+            >
+              {isCancelling ? '取消中...' : '取消'}
+            </Button>
+          )}
+        </div>
+      </td>
     </tr>
   );
 }
 
 export default function ParamsPage() {
+  const { address, isConnected } = useAccount();
   const [selectedCategory, setSelectedCategory] = useState<ParamCategory | 'all'>('all');
-  const [proposalFilter, setProposalFilter] = useState<'all' | 'pending' | 'executed'>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // 读取 Timelock 延迟
+  const { timelockDelay } = useTimelockDelay();
+
+  // 批量读取所有参数值
+  const paramKeys = useMemo(
+    () => PARAM_DEFINITIONS.map(p => p.key),
+    []
+  );
+  const { values: paramValues, refetch: refetchParams } = useReadParams(paramKeys);
+
+  // 提案操作 hooks
+  const { executeProposal, isPending: isExecuting } = useExecuteProposal();
+  const { cancelProposal, isPending: isCancelling } = useCancelProposal();
+  const { proposeChange, isPending: isProposing } = useProposeChange();
 
   // 按类别筛选参数
-  const filteredParams = MOCK_PARAMS.filter(param =>
-    selectedCategory === 'all' || param.category === selectedCategory
-  );
+  const filteredParams = useMemo(() => {
+    return PARAM_DEFINITIONS.filter(param =>
+      selectedCategory === 'all' || param.category === selectedCategory
+    );
+  }, [selectedCategory]);
 
-  // 按状态筛选提案
-  const filteredProposals = MOCK_PROPOSALS.filter(proposal =>
-    proposalFilter === 'all' || proposal.status === proposalFilter
-  );
+  // TODO: 从链上读取提案列表（需要事件监听或 Subgraph）
+  const proposals: Array<{ id: Hex; proposal: Proposal }> = [];
+
+  const handleExecuteProposal = async (proposalId: Hex) => {
+    try {
+      await executeProposal(proposalId);
+      // 刷新参数值
+      refetchParams();
+    } catch (error) {
+      console.error('执行提案失败:', error);
+    }
+  };
+
+  const handleCancelProposal = async (proposalId: Hex) => {
+    try {
+      await cancelProposal(proposalId);
+    } catch (error) {
+      console.error('取消提案失败:', error);
+    }
+  };
+
+  // 创建提案处理
+  const [selectedParam, setSelectedParam] = useState<ParamDefinition | null>(null);
+  const [newValueInput, setNewValueInput] = useState('');
+  const [reason, setReason] = useState('');
+
+  const handleCreateProposal = async () => {
+    if (!selectedParam || !newValueInput || !reason) {
+      alert('请填写完整信息');
+      return;
+    }
+
+    try {
+      // 根据单位转换输入值
+      let newValue: bigint;
+      if (selectedParam.unit === 'bp') {
+        // 百分比 -> bp (2.5% -> 250)
+        newValue = BigInt(Math.round(parseFloat(newValueInput) * 100));
+      } else if (selectedParam.unit === 'USDC') {
+        // USDC -> wei (100 USDC -> 100_000_000)
+        newValue = BigInt(Math.round(parseFloat(newValueInput) * 1_000_000));
+      } else {
+        // 其他类型直接转换
+        newValue = BigInt(newValueInput);
+      }
+
+      console.log('[handleCreateProposal] 创建提案:', {
+        param: selectedParam.key,
+        newValue,
+        reason,
+      });
+
+      await proposeChange(selectedParam.key, newValue, reason);
+
+      // 成功后重置表单并关闭模态框
+      setShowCreateModal(false);
+      setSelectedParam(null);
+      setNewValueInput('');
+      setReason('');
+
+      alert('提案创建成功！');
+    } catch (error: any) {
+      console.error('创建提案失败:', error);
+      alert(`创建提案失败: ${error.message || error}`);
+    }
+  };
+
+  // 当选择参数时，自动填充当前值
+  const handleParamSelect = (paramKey: string) => {
+    const param = PARAM_DEFINITIONS.find(p => p.key === paramKey);
+    if (!param) return;
+
+    setSelectedParam(param);
+
+    // 获取当前值
+    const paramIndex = PARAM_DEFINITIONS.findIndex(p => p.key === paramKey);
+    const currentValue = paramValues?.[paramIndex] || param.defaultValue;
+
+    // 根据单位格式化当前值
+    if (param.unit === 'bp') {
+      setNewValueInput((Number(currentValue) / 100).toString());
+    } else if (param.unit === 'USDC') {
+      setNewValueInput((Number(currentValue) / 1_000_000).toString());
+    } else {
+      setNewValueInput(currentValue.toString());
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -353,7 +471,8 @@ export default function ParamsPage() {
                 参数配置管理
               </h1>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                管理平台参数和 Timelock 提案 · Timelock 延迟: 2 天
+                管理平台参数和 Timelock 提案
+                {timelockDelay && ` · Timelock 延迟: ${Number(timelockDelay) / 86400} 天`}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -362,10 +481,19 @@ export default function ParamsPage() {
                   返回看板
                 </Button>
               </Link>
-              <Button variant="primary" disabled>
-                创建提案
-                <span className="ml-2 text-xs">(需要 Web3)</span>
-              </Button>
+              {isConnected ? (
+                <>
+                  <ConnectButton />
+                  <Button
+                    variant="primary"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    创建提案
+                  </Button>
+                </>
+              ) : (
+                <ConnectButton />
+              )}
             </div>
           </div>
         </div>
@@ -373,27 +501,29 @@ export default function ParamsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Web3 未连接提示 */}
-        <Card className="p-6 mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                演示模式
-              </h3>
-              <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                <p>
-                  当前显示的是模拟数据。未来将集成 Web3 钱包和 ParamController 合约，
-                  支持创建提案、执行变更等完整的链上治理功能。
-                </p>
+        {/* Web3 连接提示 */}
+        {!isConnected && (
+          <Card className="p-6 mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  请连接钱包
+                </h3>
+                <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                  <p>
+                    连接 Web3 钱包以查看实时参数值和创建治理提案。
+                    需要 PROPOSER_ROLE 权限才能创建提案。
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* 参数列表部分 */}
         <div className="mb-12">
@@ -412,10 +542,10 @@ export default function ParamsPage() {
                     : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                全部 ({MOCK_PARAMS.length})
+                全部 ({PARAM_DEFINITIONS.length})
               </button>
               {Object.entries(CATEGORY_LABELS).map(([key, { label }]) => {
-                const count = MOCK_PARAMS.filter(p => p.category === key).length;
+                const count = PARAM_DEFINITIONS.filter(p => p.category === key).length;
                 return (
                   <button
                     key={key}
@@ -435,8 +565,12 @@ export default function ParamsPage() {
 
           {/* 参数网格 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredParams.map((param) => (
-              <ParamCard key={param.key} param={param} />
+            {filteredParams.map((param, index) => (
+              <ParamCard
+                key={param.key}
+                param={param}
+                value={paramValues?.[index]}
+              />
             ))}
           </div>
         </div>
@@ -447,44 +581,10 @@ export default function ParamsPage() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               变更提案
             </h2>
-
-            {/* 提案筛选 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setProposalFilter('all')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  proposalFilter === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                全部
-              </button>
-              <button
-                onClick={() => setProposalFilter('pending')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  proposalFilter === 'pending'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                待执行
-              </button>
-              <button
-                onClick={() => setProposalFilter('executed')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  proposalFilter === 'executed'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                已执行
-              </button>
-            </div>
           </div>
 
           {/* 提案表格 */}
-          {filteredProposals.length > 0 ? (
+          {proposals.length > 0 ? (
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -508,11 +608,22 @@ export default function ParamsPage() {
                       <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         理由
                       </th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        操作
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProposals.map((proposal) => (
-                      <ProposalRow key={proposal.id} proposal={proposal} />
+                    {proposals.map(({ id, proposal }) => (
+                      <ProposalRow
+                        key={id}
+                        proposalId={id}
+                        proposal={proposal}
+                        onExecute={handleExecuteProposal}
+                        onCancel={handleCancelProposal}
+                        isExecuting={isExecuting}
+                        isCancelling={isCancelling}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -529,14 +640,184 @@ export default function ParamsPage() {
                 暂无提案
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {proposalFilter !== 'all'
-                  ? '没有符合筛选条件的提案'
-                  : '还没有创建任何参数变更提案'}
+                还没有创建任何参数变更提案
               </p>
             </Card>
           )}
         </div>
       </div>
+
+      {/* 创建提案模态框 */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* 标题 */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  创建参数变更提案
+                </h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* 表单 */}
+              <div className="space-y-6">
+                {/* 参数选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    选择参数
+                  </label>
+                  <select
+                    value={selectedParam?.key || ''}
+                    onChange={(e) => handleParamSelect(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">-- 请选择参数 --</option>
+                    {PARAM_DEFINITIONS.map((param) => {
+                      const category = CATEGORY_LABELS[param.category];
+                      return (
+                        <option key={param.key} value={param.key}>
+                          [{category.label}] {param.name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {selectedParam && (
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {selectedParam.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* 当前值显示 */}
+                {selectedParam && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        当前值
+                      </span>
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">
+                        {(() => {
+                          const paramIndex = PARAM_DEFINITIONS.findIndex(p => p.key === selectedParam.key);
+                          const currentValue = paramValues?.[paramIndex] || selectedParam.defaultValue;
+                          return formatParamValue(currentValue, selectedParam.unit);
+                        })()}
+                      </span>
+                    </div>
+                    {selectedParam.validator && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        验证范围: {selectedParam.validator}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 新值输入 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    新值
+                    {selectedParam && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({selectedParam.unit === 'bp' ? '百分比，如 2.5 表示 2.5%' : selectedParam.unit === 'USDC' ? 'USDC 数量' : '整数'})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={newValueInput}
+                    onChange={(e) => setNewValueInput(e.target.value)}
+                    placeholder={selectedParam?.unit === 'bp' ? '例如: 2.5' : selectedParam?.unit === 'USDC' ? '例如: 10000' : '例如: 2'}
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!selectedParam}
+                  />
+                  {selectedParam && newValueInput && (
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      将变更为:{' '}
+                      <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        {(() => {
+                          try {
+                            if (selectedParam.unit === 'bp') {
+                              return `${parseFloat(newValueInput).toFixed(2)}%`;
+                            } else if (selectedParam.unit === 'USDC') {
+                              return `${parseFloat(newValueInput).toLocaleString()} USDC`;
+                            } else {
+                              return newValueInput;
+                            }
+                          } catch {
+                            return '无效值';
+                          }
+                        })()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+
+                {/* 变更理由 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    变更理由
+                  </label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="请说明参数变更的原因和目的..."
+                    rows={4}
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    变更理由将公开显示在提案列表中，建议详细说明变更原因
+                  </p>
+                </div>
+
+                {/* Timelock 提示 */}
+                {timelockDelay && (
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Timelock 延迟
+                        </p>
+                        <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
+                          提案创建后需要等待 <strong>{Number(timelockDelay) / 86400} 天</strong> 才能执行，
+                          给社区足够时间审查和反应。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 操作按钮 */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t dark:border-gray-700">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateModal(false)}
+                    disabled={isProposing}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleCreateProposal}
+                    disabled={isProposing || !selectedParam || !newValueInput || !reason}
+                  >
+                    {isProposing ? '创建中...' : '创建提案'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
