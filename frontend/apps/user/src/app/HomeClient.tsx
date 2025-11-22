@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ConnectButton, useAccount } from '@pitchone/web3';
+import { useTranslation } from '@pitchone/i18n';
 
 export function HomeClient() {
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setMounted(true);
@@ -29,10 +31,10 @@ export function HomeClient() {
             <span className="ml-4">⚽</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-400 mb-4">
-            去中心化链上足球预测平台
+            {t('home.title')}
           </p>
           <p className="text-sm md:text-base text-gray-500 max-w-2xl mx-auto">
-            全链透明 · 非托管资产 · 自动化结算 · 乐观式预言机
+            {t('home.subtitle')}
           </p>
         </div>
 
@@ -46,7 +48,7 @@ export function HomeClient() {
           <div className="text-center mb-12 animate-fade-in">
             <div className="inline-block px-6 py-3 bg-glass rounded-full border border-neon-green">
               <p className="text-sm text-neon-green font-mono">
-                ✓ 已连接: {address.slice(0, 6)}...{address.slice(-4)}
+                ✓ {t('home.connected')}: {address.slice(0, 6)}...{address.slice(-4)}
               </p>
             </div>
           </div>
@@ -56,20 +58,20 @@ export function HomeClient() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
           <Link href="/markets" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon transition-colors">市场列表</h3>
-            <p className="text-gray-400 text-sm">浏览所有可预测的足球赛事市场</p>
+            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon transition-colors">{t('home.features.markets.title')}</h3>
+            <p className="text-gray-400 text-sm">{t('home.features.markets.desc')}</p>
           </Link>
 
           <Link href="/portfolio" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <div className="text-4xl mb-4">💼</div>
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-purple transition-colors">我的头寸</h3>
-            <p className="text-gray-400 text-sm">查看持仓、历史订单和盈亏统计</p>
+            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-purple transition-colors">{t('home.features.portfolio.title')}</h3>
+            <p className="text-gray-400 text-sm">{t('home.features.portfolio.desc')}</p>
           </Link>
 
           <Link href="/parlay" className="card-neon group cursor-pointer animate-slide-up" style={{ animationDelay: '0.3s' }}>
             <div className="text-4xl mb-4">🎯</div>
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-green transition-colors">串关预测</h3>
-            <p className="text-gray-400 text-sm">组合多场赛事预测，获取更高收益</p>
+            <h3 className="text-xl font-semibold mb-2 group-hover:text-neon-green transition-colors">{t('home.features.parlay.title')}</h3>
+            <p className="text-gray-400 text-sm">{t('home.features.parlay.desc')}</p>
           </Link>
         </div>
 

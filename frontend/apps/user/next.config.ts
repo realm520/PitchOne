@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: [
     "@pitchone/contracts",
+    "@pitchone/i18n",
     "@pitchone/ui",
     "@pitchone/web3",
     "@pitchone/utils",

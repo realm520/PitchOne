@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { useReferrals, useReferrerStats, useReferralRewards } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 type TabType = 'list' | 'rewards';
 
@@ -25,6 +26,7 @@ type TabType = 'list' | 'rewards';
  * ```
  */
 export function ReferralDataTabs() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [page, setPage] = useState(0);
@@ -59,7 +61,7 @@ export function ReferralDataTabs() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -82,7 +84,7 @@ export function ReferralDataTabs() {
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以查看推荐数据</p>
+          <p className="text-gray-400 text-sm">{t('referral.connectWalletForData')}</p>
         </div>
       </Card>
     );
@@ -121,7 +123,7 @@ export function ReferralDataTabs() {
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-              <span>推荐列表</span>
+              <span>{t('referral.tabs.referralList')}</span>
               {totalReferrals > 0 && (
                 <Badge variant="info" size="sm">
                   {totalReferrals}
@@ -150,7 +152,7 @@ export function ReferralDataTabs() {
                   d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span>返佣记录</span>
+              <span>{t('referral.tabs.rewardsHistory')}</span>
               {rewards.length > 0 && (
                 <Badge variant="success" size="sm">
                   {rewards.length}
@@ -173,13 +175,13 @@ export function ReferralDataTabs() {
             <div className="px-6 py-4 border-b border-dark-border">
               <p className="text-sm text-gray-400">
                 {statsLoading ? (
-                  '加载中...'
+                  t('referral.loading')
                 ) : (
                   <>
-                    共 <span className="text-neon-blue font-semibold">{totalReferrals}</span> 位用户
+                    {t('referral.list.totalUsers', { count: totalReferrals })}
                     {totalPages > 1 && (
                       <span className="text-gray-500 ml-2">
-                        · 第 {page + 1}/{totalPages} 页
+                        · {t('referral.list.pageInfo', { current: page + 1, total: totalPages })}
                       </span>
                     )}
                   </>
@@ -202,7 +204,7 @@ export function ReferralDataTabs() {
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-red-400 text-sm">加载推荐列表失败</p>
+                <p className="text-red-400 text-sm">{t('referral.list.loadError')}</p>
                 <p className="text-gray-500 text-xs mt-1">{referralsError.message}</p>
               </div>
             ) : referralsLoading && referrals.length === 0 ? (
@@ -232,8 +234,8 @@ export function ReferralDataTabs() {
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
-                <p className="text-gray-400 text-sm mb-2">暂无推荐用户</p>
-                <p className="text-gray-500 text-xs">分享您的推荐链接以邀请好友</p>
+                <p className="text-gray-400 text-sm mb-2">{t('referral.list.empty')}</p>
+                <p className="text-gray-500 text-xs">{t('referral.list.emptyDesc')}</p>
               </div>
             ) : (
               <>
@@ -262,13 +264,13 @@ export function ReferralDataTabs() {
                                 {refereeAddress.slice(0, 6)}...{refereeAddress.slice(-4)}
                               </p>
                               <p className="text-xs text-gray-500">
-                                绑定时间: {boundDate.toLocaleDateString('zh-CN')}
+                                {t('referral.list.bindTime')}: {boundDate.toLocaleDateString()}
                               </p>
                             </div>
                           </div>
                           {Number(referral.campaignId) > 0 && (
                             <Badge variant="info" size="sm">
-                              活动 #{referral.campaignId.toString()}
+                              {t('referral.list.campaign')} #{referral.campaignId.toString()}
                             </Badge>
                           )}
                         </div>
@@ -289,7 +291,7 @@ export function ReferralDataTabs() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
-                        上一页
+                        {t('referral.pagination.prev')}
                       </button>
 
                       <div className="flex items-center gap-2">
@@ -326,7 +328,7 @@ export function ReferralDataTabs() {
                         disabled={!hasNextPage}
                         className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                       >
-                        下一页
+                        {t('referral.pagination.next')}
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -344,10 +346,10 @@ export function ReferralDataTabs() {
             <div className="px-6 py-4 border-b border-dark-border">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-400">
-                  共 {rewards.length} 笔记录
+                  {t('referral.rewards.totalRecords', { count: rewards.length })}
                 </p>
                 <div className="text-right">
-                  <p className="text-xs text-gray-400">累计返佣</p>
+                  <p className="text-xs text-gray-400">{t('referral.rewards.totalRewards')}</p>
                   <p className="text-xl font-bold text-neon-green">
                     {totalRewards.toFixed(4)} USDC
                   </p>
@@ -370,7 +372,7 @@ export function ReferralDataTabs() {
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-red-400 text-sm">加载返佣历史失败</p>
+                <p className="text-red-400 text-sm">{t('referral.rewards.loadError')}</p>
                 <p className="text-gray-500 text-xs mt-1">{rewardsError.message}</p>
               </div>
             ) : rewardsLoading && rewards.length === 0 ? (
@@ -400,9 +402,9 @@ export function ReferralDataTabs() {
                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-gray-400 text-sm mb-2">暂无返佣记录</p>
+                <p className="text-gray-400 text-sm mb-2">{t('referral.rewards.empty')}</p>
                 <p className="text-gray-500 text-xs">
-                  当被推荐人下注后，您将获得返佣奖励
+                  {t('referral.rewards.emptyDesc')}
                 </p>
               </div>
             ) : (
@@ -439,10 +441,10 @@ export function ReferralDataTabs() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-white">
-                              来自 {refereeAddress.slice(0, 6)}...{refereeAddress.slice(-4)}
+                              {t('referral.rewards.from')} {refereeAddress.slice(0, 6)}...{refereeAddress.slice(-4)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {rewardDate.toLocaleString('zh-CN')}
+                              {rewardDate.toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -452,7 +454,7 @@ export function ReferralDataTabs() {
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-500">
-                          区块 #{reward.blockNumber.toString()}
+                          {t('referral.rewards.blockNumber')} #{reward.blockNumber.toString()}
                         </span>
                         <a
                           href={`https://etherscan.io/tx/${reward.transactionHash}`}
@@ -460,7 +462,7 @@ export function ReferralDataTabs() {
                           rel="noopener noreferrer"
                           className="text-neon-blue hover:text-neon-purple transition-colors"
                         >
-                          查看交易 ↗
+                          {t('referral.rewards.viewTx')} ↗
                         </a>
                       </div>
                     </div>

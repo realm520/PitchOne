@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useMarkets, MarketStatus } from '@pitchone/web3';
+import { useTranslation } from '@pitchone/i18n';
 import {
   Container,
   Card,
@@ -13,24 +14,26 @@ import {
   ErrorState,
 } from '@pitchone/ui';
 
-const statusFilters = [
-  { label: '全部', value: undefined },
-  { label: '进行中', value: MarketStatus.Open },
-  { label: '已锁盘', value: MarketStatus.Locked },
-  { label: '已结算', value: MarketStatus.Resolved },
-] as const;
-
-const typeFilters = [
-  { label: '全部类型', value: undefined },
-  { label: '胜平负', value: 'WDL' },
-  { label: '大小球', value: 'OU' },
-  { label: '单双号', value: 'OddEven' },
-] as const;
-
 export default function MarketsPage() {
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<MarketStatus[] | undefined>();
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const { data: markets, isLoading, error, refetch } = useMarkets(statusFilter);
+
+  // 动态生成过滤器选项
+  const statusFilters = [
+    { label: t('markets.filter.all'), value: undefined },
+    { label: t('markets.status.open'), value: MarketStatus.Open },
+    { label: t('markets.status.locked'), value: MarketStatus.Locked },
+    { label: t('markets.status.resolved'), value: MarketStatus.Resolved },
+  ] as const;
+
+  const typeFilters = [
+    { label: t('markets.allTypes'), value: undefined },
+    { label: t('markets.type.wdl'), value: 'WDL' },
+    { label: t('markets.type.ou'), value: 'OU' },
+    { label: t('markets.type.oddEven'), value: 'OddEven' },
+  ] as const;
 
   // 根据类型过滤市场
   const filteredMarkets = markets?.filter((market) => {
@@ -55,12 +58,12 @@ export default function MarketsPage() {
 
   const getStatusBadge = (state: MarketStatus) => {
     const variants = {
-      [MarketStatus.Open]: { variant: 'success' as const, label: '进行中' },
-      [MarketStatus.Locked]: { variant: 'warning' as const, label: '已锁盘' },
-      [MarketStatus.Resolved]: { variant: 'info' as const, label: '已结算' },
-      [MarketStatus.Finalized]: { variant: 'default' as const, label: '已完成' },
+      [MarketStatus.Open]: { variant: 'success' as const, label: t('markets.status.open') },
+      [MarketStatus.Locked]: { variant: 'warning' as const, label: t('markets.status.locked') },
+      [MarketStatus.Resolved]: { variant: 'info' as const, label: t('markets.status.resolved') },
+      [MarketStatus.Finalized]: { variant: 'default' as const, label: t('markets.status.finalized') },
     };
-    const config = variants[state] || { variant: 'default' as const, label: '未知' };
+    const config = variants[state] || { variant: 'default' as const, label: t('markets.unknown') };
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
   };
 
@@ -69,15 +72,15 @@ export default function MarketsPage() {
       <Container size="xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-neon mb-2">市场列表</h1>
-          <p className="text-gray-400">浏览所有可预测的足球赛事市场</p>
+          <h1 className="text-4xl font-bold text-neon mb-2">{t('markets.listTitle')}</h1>
+          <p className="text-gray-400">{t('markets.listDesc')}</p>
         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* 状态过滤 */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">状态:</span>
+            <span className="text-sm text-gray-500">{t('markets.statusLabel')}:</span>
             {statusFilters.map((filter) => (
               <Button
                 key={filter.label}
@@ -101,7 +104,7 @@ export default function MarketsPage() {
 
           {/* 类型过滤 */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">类型:</span>
+            <span className="text-sm text-gray-500">{t('markets.typeLabel')}:</span>
             {typeFilters.map((filter) => (
               <Button
                 key={filter.label}
@@ -118,11 +121,11 @@ export default function MarketsPage() {
         {/* Content */}
         {isLoading ? (
           <div className="flex justify-center py-20">
-            <LoadingSpinner size="lg" text="加载市场数据中..." />
+            <LoadingSpinner size="lg" text={t('markets.loading')} />
           </div>
         ) : error ? (
           <ErrorState
-            message="无法加载市场数据，请检查网络连接或稍后重试"
+            message={t('markets.errorLoading')}
             onRetry={() => refetch()}
           />
         ) : !filteredMarkets || filteredMarkets.length === 0 ? (
@@ -137,14 +140,14 @@ export default function MarketsPage() {
                 />
               </svg>
             }
-            title="暂无市场"
-            description="当前没有符合条件的市场，请稍后再来或更改筛选条件"
+            title={t('markets.empty.title')}
+            description={t('markets.empty.desc')}
             action={
               <Button variant="primary" onClick={() => {
                 setStatusFilter(undefined);
                 setTypeFilter(undefined);
               }}>
-                查看全部市场
+                {t('markets.empty.action')}
               </Button>
             }
           />
@@ -165,27 +168,27 @@ export default function MarketsPage() {
                       {market._displayInfo?.homeTeam || 'Team A'} vs {market._displayInfo?.awayTeam || 'Team B'}
                     </h3>
                     <p className="text-sm text-gray-400">
-                      创建时间: {formatDate(market.createdAt)}
+                      {t('markets.card.createdAt')}: {formatDate(market.createdAt)}
                     </p>
                     {market.lockedAt && (
                       <p className="text-xs text-orange-400 mt-1">
-                        锁盘: {formatDate(market.lockedAt)}
+                        {t('markets.card.lockedAt')}: {formatDate(market.lockedAt)}
                       </p>
                     )}
                   </div>
 
                   {/* Market Stats */}
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                    <span>预测总金额: {Number(market.totalVolume).toFixed(2)} USDC</span>
-                    <span>{market.uniqueBettors} 人参与</span>
+                    <span>{t('markets.card.totalVolume')}: {Number(market.totalVolume).toFixed(2)} USDC</span>
+                    <span>{market.uniqueBettors} {t('markets.card.participants')}</span>
                   </div>
 
                   {/* Market Type */}
                   <div className="flex items-center justify-between pt-4 border-t border-dark-border">
-                    <span className="text-sm text-gray-400">玩法类型</span>
+                    <span className="text-sm text-gray-400">{t('markets.card.marketType')}</span>
                     <div className="flex gap-2">
                       <Badge variant="neon" size="sm">
-                        {market._displayInfo?.templateTypeDisplay || '未知'}
+                        {market._displayInfo?.templateTypeDisplay || t('markets.unknown')}
                       </Badge>
                       {market._displayInfo?.lineDisplay && (
                         <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
@@ -199,7 +202,7 @@ export default function MarketsPage() {
                       variant={market.state === MarketStatus.Open ? 'neon' : 'secondary'}
                       fullWidth
                     >
-                      {market.state === MarketStatus.Open ? '立即预测' : '查看详情'}
+                      {market.state === MarketStatus.Open ? t('markets.card.placeBet') : t('markets.card.viewDetails')}
                     </Button>
                   </div>
                 </Card>
@@ -213,11 +216,11 @@ export default function MarketsPage() {
           <div className="mt-12 flex justify-center">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" disabled>
-                上一页
+                {t('markets.pagination.prev')}
               </Button>
-              <span className="px-4 py-2 text-sm text-gray-400">第 1 页</span>
+              <span className="px-4 py-2 text-sm text-gray-400">{t('markets.pagination.page', { page: 1 })}</span>
               <Button variant="ghost" size="sm" disabled>
-                下一页
+                {t('markets.pagination.next')}
               </Button>
             </div>
           </div>

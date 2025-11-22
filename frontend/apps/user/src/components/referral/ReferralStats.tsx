@@ -10,6 +10,7 @@ import {
 } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
 import { formatUnits } from 'viem';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralStats 组件
@@ -29,6 +30,7 @@ import { formatUnits } from 'viem';
  * ```
  */
 export function ReferralStats() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
 
@@ -51,7 +53,7 @@ export function ReferralStats() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -74,7 +76,7 @@ export function ReferralStats() {
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以查看推荐统计</p>
+          <p className="text-gray-400 text-sm">{t('referral.connectWalletForStats')}</p>
         </div>
       </Card>
     );
@@ -101,7 +103,7 @@ export function ReferralStats() {
       <Card padding="lg">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-sm text-gray-400 mb-1">推荐人数</p>
+            <p className="text-sm text-gray-400 mb-1">{t('referral.stats.referralCount')}</p>
             {isLoading ? (
               <div className="h-8 w-20 bg-gray-700 animate-pulse rounded" />
             ) : (
@@ -121,7 +123,7 @@ export function ReferralStats() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="info" size="sm">
-            有效: {validReferralCount}
+            {t('referral.stats.validCount')}: {validReferralCount}
           </Badge>
         </div>
       </Card>
@@ -130,7 +132,7 @@ export function ReferralStats() {
       <Card padding="lg">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-sm text-gray-400 mb-1">累计返佣</p>
+            <p className="text-sm text-gray-400 mb-1">{t('referral.stats.totalRewards')}</p>
             {isLoading ? (
               <div className="h-8 w-32 bg-gray-700 animate-pulse rounded" />
             ) : (
@@ -151,7 +153,7 @@ export function ReferralStats() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="success" size="sm">
-            {feePercentage}% 返佣率
+            {feePercentage}% {t('referral.stats.commissionRate')}
           </Badge>
         </div>
       </Card>
@@ -160,13 +162,13 @@ export function ReferralStats() {
       <Card padding="lg">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-sm text-gray-400 mb-1">系统参数</p>
+            <p className="text-sm text-gray-400 mb-1">{t('referral.stats.systemParams')}</p>
             {paramsLoading ? (
               <div className="h-8 w-20 bg-gray-700 animate-pulse rounded" />
             ) : (
               <h3 className="text-3xl font-bold text-neon-purple">{validityDays}</h3>
             )}
-            <p className="text-xs text-gray-500 mt-1">天有效期</p>
+            <p className="text-xs text-gray-500 mt-1">{t('referral.stats.daysValidity')}</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-neon-purple/20 flex items-center justify-center">
             <svg className="w-6 h-6 text-neon-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +184,7 @@ export function ReferralStats() {
         </div>
         <div className="space-y-1">
           <p className="text-xs text-gray-400">
-            最小交易量: {minVolumeFormatted} USDC
+            {t('referral.stats.minVolume')}: {minVolumeFormatted} USDC
           </p>
         </div>
       </Card>

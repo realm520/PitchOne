@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { Card, Button } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralLink 组件
@@ -27,6 +28,7 @@ import { Card, Button } from '@pitchone/ui';
  * ```
  */
 export function ReferralLink() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -78,16 +80,16 @@ export function ReferralLink() {
         setCopied(false);
       }, 2000);
     } catch (err) {
-      console.error('复制失败:', err);
+      console.error('Copy failed:', err);
       // 可选：给用户提示
-      alert('复制失败，请手动选择链接复制');
+      alert(t('referral.link.copyFailed'));
     }
   };
 
   // 分享到社交媒体（示例）
   const handleShare = (platform: 'twitter' | 'telegram') => {
     const link = getReferralLink();
-    const text = encodeURIComponent('加入 PitchOne，使用我的推荐链接获得更多奖励！');
+    const text = encodeURIComponent(t('referral.link.shareText'));
 
     let shareUrl = '';
     switch (platform) {
@@ -110,7 +112,7 @@ export function ReferralLink() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -133,7 +135,7 @@ export function ReferralLink() {
               d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以生成推荐链接</p>
+          <p className="text-gray-400 text-sm">{t('referral.connectWalletForLink')}</p>
         </div>
       </Card>
     );
@@ -145,9 +147,9 @@ export function ReferralLink() {
     <Card padding="lg">
       {/* 标题 */}
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-white mb-2">我的推荐链接</h3>
+        <h3 className="text-lg font-bold text-white mb-2">{t('referral.link.title')}</h3>
         <p className="text-sm text-gray-400">
-          分享此链接给好友，好友通过链接注册并下注，您将获得 8% 的返佣奖励
+          {t('referral.link.desc')}
         </p>
       </div>
 
@@ -174,7 +176,7 @@ export function ReferralLink() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                已复制
+                {t('referral.copied')}
               </>
             ) : (
               <>
@@ -186,7 +188,7 @@ export function ReferralLink() {
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                   />
                 </svg>
-                复制
+                {t('referral.copy')}
               </>
             )}
           </Button>
@@ -195,7 +197,7 @@ export function ReferralLink() {
 
       {/* 分享到社交媒体 */}
       <div className="pt-4 border-t border-dark-border">
-        <p className="text-sm text-gray-400 mb-3">分享到</p>
+        <p className="text-sm text-gray-400 mb-3">{t('referral.link.shareTo')}</p>
         <div className="flex gap-3">
           <button
             onClick={() => handleShare('twitter')}
@@ -226,11 +228,11 @@ export function ReferralLink() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-sm text-gray-300">
-            <p className="font-medium mb-1">推荐奖励规则</p>
+            <p className="font-medium mb-1">{t('referral.link.rulesTitle')}</p>
             <ul className="space-y-1 text-xs text-gray-400">
-              <li>• 好友通过您的链接访问并连接钱包完成绑定</li>
-              <li>• 好友每次下注，您将获得其手续费的 8% 作为返佣</li>
-              <li>• 返佣将自动发放到您的钱包地址</li>
+              <li>• {t('referral.link.rulesDesc1')}</li>
+              <li>• {t('referral.link.rulesDesc2')}</li>
+              <li>• {t('referral.link.rulesDesc3')}</li>
             </ul>
           </div>
         </div>

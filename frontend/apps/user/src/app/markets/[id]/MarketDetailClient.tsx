@@ -29,12 +29,14 @@ import {
   ErrorState,
   Modal,
 } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 import { LiveActivity } from '@/components/LiveActivity';
 import { betNotifications, marketNotifications } from '@/lib/notifications';
 import { useParlayStore } from '@/lib/parlay-store';
 import toast from 'react-hot-toast';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
+  const { t } = useTranslation();
   const { address, isConnected, chain } = useAccount();
   const { addOutcome, hasMarket, getOutcome } = useParlayStore();
 
@@ -329,10 +331,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
   const getStatusBadge = (status: MarketStatus) => {
     const variants = {
-      [MarketStatus.Open]: { variant: 'success' as const, label: '进行中' },
-      [MarketStatus.Locked]: { variant: 'warning' as const, label: '已锁盘' },
-      [MarketStatus.Resolved]: { variant: 'info' as const, label: '已结算' },
-      [MarketStatus.Finalized]: { variant: 'default' as const, label: '已完成' },
+      [MarketStatus.Open]: { variant: 'success' as const, label: t('markets.status.open') },
+      [MarketStatus.Locked]: { variant: 'warning' as const, label: t('markets.status.locked') },
+      [MarketStatus.Resolved]: { variant: 'info' as const, label: t('markets.status.resolved') },
+      [MarketStatus.Finalized]: { variant: 'default' as const, label: t('markets.status.finalized') },
     };
     const config = variants[status];
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
@@ -467,7 +469,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     const outcome = outcomes[outcomeId];
     const marketName = market._displayInfo?.homeTeam && market._displayInfo?.awayTeam
       ? `${market._displayInfo.homeTeam} vs ${market._displayInfo.awayTeam}`
-      : `市场 ${market.id.slice(0, 8)}...`;
+      : `${t('markets.unknown')} ${market.id.slice(0, 8)}...`;
 
     addOutcome({
       marketAddress: marketId as `0x${string}`,
@@ -477,7 +479,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       odds: outcome.odds,
     });
 
-    toast.success(`已添加到串关: ${outcome.name}`, {
+    toast.success(`${t('markets.detail.addedToParlay')}: ${outcome.name}`, {
       icon: '🎯',
       duration: 2000,
     });
@@ -487,7 +489,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   if (isLoading || outcomesLoading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载市场详情..." />
+        <LoadingSpinner size="lg" text={t('markets.detail.loadingDetail')} />
       </div>
     );
   }
@@ -496,7 +498,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   if (error) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message={`加载失败: ${(error as Error).message || '网络错误，请检查连接'}`} />
+        <ErrorState message={`${t('markets.detail.loadError')}: ${(error as Error).message || t('markets.errorLoading')}`} />
       </div>
     );
   }
@@ -505,7 +507,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   if (!market) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message="市场不存在，可能已被删除或 ID 不正确" />
+        <ErrorState message={t('markets.detail.notFound')} />
       </div>
     );
   }
@@ -514,7 +516,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   if (!outcomes) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message="无法加载市场赔率数据，请稍后重试" />
+        <ErrorState message={t('markets.detail.oddsLoadError')} />
       </div>
     );
   }
@@ -534,16 +536,16 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               </div>
               <p className="text-gray-400">{market._displayInfo?.league || 'Unknown League'}</p>
               <p className="text-sm text-gray-500 mt-1">
-                创建时间: {formatDate(market.createdAt)}
+                {t('markets.detail.createdAt')}: {formatDate(market.createdAt)}
               </p>
               {market.lockedAt && (
                 <p className="text-sm text-orange-400">
-                  锁盘时间: {formatDate(market.lockedAt)}
+                  {t('markets.detail.lockedAt')}: {formatDate(market.lockedAt)}
                 </p>
               )}
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || '未知'}</Badge>
+              <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || t('markets.unknown')}</Badge>
               {market._displayInfo?.lineDisplay && (
                 <Badge variant="info" size="lg">{market._displayInfo.lineDisplay}</Badge>
               )}
@@ -553,12 +555,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-dark-border">
             <div>
-              <p className="text-sm text-gray-500 mb-1">总投注量</p>
+              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.totalVolume')}</p>
               <p className="text-xl font-bold text-neon-blue">{Number(market.totalVolume).toFixed(2)} USDC</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">
-                {marketFullData?.isParimutel ? '奖池总额' : '流动性'}
+                {marketFullData?.isParimutel ? t('markets.detail.totalPool') : t('markets.detail.liquidity')}
               </p>
               <p className="text-xl font-bold text-neon-green">
                 {marketFullData?.totalLiquidity
@@ -567,7 +569,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-1">参与人数</p>
+              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.participants')}</p>
               <p className="text-xl font-bold text-neon-purple">{market.uniqueBettors}</p>
             </div>
           </div>
@@ -576,7 +578,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Outcomes */}
           <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-4">投注选项</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.betOptions')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {outcomes.map((outcome) => {
                 const isInParlay = hasMarket(marketId as `0x${string}`);
@@ -595,7 +597,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     <h3 className="text-xl font-bold text-white mb-2">{outcome.name}</h3>
                     <div className="flex items-baseline gap-2 mb-4">
                       <span className="text-3xl font-bold text-neon">{outcome.odds}</span>
-                      <span className="text-sm text-gray-500">赔率</span>
+                      <span className="text-sm text-gray-500">{t('markets.bet.odds')}</span>
                     </div>
 
                     {/* 按钮组 */}
@@ -613,7 +615,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                         size="sm"
                         className="w-full"
                       >
-                        {market.state === MarketStatus.Open ? '立即下注' : '已锁盘'}
+                        {market.state === MarketStatus.Open ? t('markets.detail.placeBetNow') : t('markets.detail.locked')}
                       </Button>
 
                       {/* 加入串关按钮 */}
@@ -632,14 +634,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                             <svg className="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
-                            已加入串关
+                            {t('markets.detail.addedToParlay')}
                           </>
                         ) : (
                           <>
                             <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            加入串关
+                            {t('markets.detail.addToParlay')}
                           </>
                         )}
                       </Button>
@@ -651,7 +653,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
             {/* Live Activity */}
             <div>
-              <h2 className="text-2xl font-bold text-white mb-4">实时活动</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.liveActivity')}</h2>
               <LiveActivity
                 events={allBetEvents}
                 outcomeNames={outcomes.map((o) => o.name)}
@@ -660,7 +662,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
             {/* Orders History */}
             <div>
-              <h2 className="text-2xl font-bold text-white mb-4">我的订单</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.myOrders')}</h2>
               {!isConnected ? (
                 <Card padding="lg">
                   <EmptyState
@@ -669,15 +671,15 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     }
-                    title="请先连接钱包"
-                    description="连接钱包后即可查看您的订单历史"
+                    title={t('markets.detail.connectFirst')}
+                    description={t('markets.detail.connectToViewOrders')}
                   />
                 </Card>
               ) : !orders || orders.length === 0 ? (
                 <Card padding="lg">
                   <EmptyState
-                    title="暂无订单"
-                    description="您还没有在这个市场进行预测"
+                    title={t('markets.detail.noOrders')}
+                    description={t('markets.detail.noOrdersDesc')}
                   />
                 </Card>
               ) : (
@@ -686,10 +688,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     <table className="w-full">
                       <thead className="bg-dark-card border-b border-dark-border">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">选项</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">金额</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">预期收益</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableTime')}</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableOption')}</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableAmount')}</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableExpected')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-dark-border">
@@ -699,7 +701,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                           const amountUSDC = formatUSDCFromWei(order.amount);
                           const sharesInUSDC = formatUSDCFromWei(order.shares);
                           // 获取选项名称
-                          const outcomeName = outcomes?.[order.outcome]?.name || `结果 ${order.outcome}`;
+                          const outcomeName = outcomes?.[order.outcome]?.name || `${t('markets.detail.result')} ${order.outcome}`;
 
                           // 计算预期收益（根据市场模式）
                           let expectedPayout = sharesInUSDC; // 默认值（CPMM 模式或无数据时）
@@ -755,26 +757,26 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           {/* Sidebar - Quick Stats */}
           <div className="lg:col-span-1">
             <Card variant="glass" padding="lg" className="sticky top-24">
-              <h3 className="text-lg font-bold text-white mb-4">市场信息</h3>
+              <h3 className="text-lg font-bold text-white mb-4">{t('markets.detail.marketInfo')}</h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">市场 ID</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.marketId')}</p>
                   <p className="text-xs font-mono text-gray-400 break-all">{market.id}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">状态</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('markets.statusLabel')}</p>
                   {getStatusBadge(market.state)}
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">手续费率</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.feeRate')}</p>
                   <p className="text-sm text-white">2%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">最小投注</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.minBet')}</p>
                   <p className="text-sm text-white">1 USDC</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">最大投注</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.maxBet')}</p>
                   <p className="text-sm text-white">10,000 USDC</p>
                 </div>
               </div>
@@ -790,14 +792,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           setShowBetModal(false);
           setBetAmount('');
         }}
-        title="确认预测"
+        title={t('markets.detail.confirmBet')}
         size="md"
       >
         {selectedOutcome !== null && outcomes && (
           <div className="space-y-6">
             {/* Selected Outcome */}
             <div className="p-4 bg-dark-bg rounded-lg border border-dark-border">
-              <p className="text-sm text-gray-500 mb-1">选择结果</p>
+              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.selectedOutcome')}</p>
               <div className="flex items-center justify-between">
                 <p className="text-xl font-bold text-white">{outcomes[selectedOutcome].name}</p>
                 <Badge variant="neon" size="lg">{outcomes[selectedOutcome].odds}x</Badge>
@@ -807,19 +809,19 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             {/* Balance Display */}
             {usdcBalance !== undefined && (
               <div className="text-sm text-gray-400">
-                余额: {formatUnits(usdcBalance, 6)} USDC
+                {t('markets.detail.balance')}: {formatUnits(usdcBalance, 6)} USDC
               </div>
             )}
 
             {/* Amount Input */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                投注金额 (USDC)
+                {t('markets.detail.betAmountLabel')}
               </label>
               <div className="relative">
                 <input
                   type="number"
-                  placeholder="输入金额"
+                  placeholder={t('markets.detail.inputAmount')}
                   value={betAmount}
                   onChange={(e) => setBetAmount(e.target.value)}
                   min="1"
@@ -845,9 +847,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             {/* Expected Payout */}
             {betAmount && (
               <div className="p-4 bg-gradient-to-r from-neon-blue/10 to-neon-purple/10 rounded-lg border border-neon-blue/30">
-                <p className="text-sm text-gray-400 mb-1">预期收益</p>
+                <p className="text-sm text-gray-400 mb-1">{t('markets.detail.expectedPayout')}</p>
                 <p className="text-3xl font-bold text-neon">{calculatePayout()} USDC</p>
-                <p className="text-xs text-gray-500 mt-1">净盈利: {(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)} USDC</p>
+                <p className="text-xs text-gray-500 mt-1">{t('markets.detail.netProfit')}: {(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)} USDC</p>
               </div>
             )}
 
@@ -862,7 +864,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 }}
                 disabled={isApproving || isApprovingConfirming || isBetting || isBettingConfirming}
               >
-                取消
+                {t('common.cancel')}
               </Button>
 
               {needsApproval ? (
@@ -873,7 +875,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
                   isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
                 >
-                  {isApproving || isApprovingConfirming ? '授权中...' : isAllowanceLoading ? '检查授权...' : '授权 USDC'}
+                  {isApproving || isApprovingConfirming ? t('markets.detail.approving') : isAllowanceLoading ? t('markets.detail.checkingApproval') : t('markets.detail.approveUSDC')}
                 </Button>
               ) : (
                 <Button
@@ -883,18 +885,18 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || (isAllowanceLoading && allowance === undefined)}
                   isLoading={isBetting || isBettingConfirming}
                 >
-                  {isBetting || isBettingConfirming ? '预测中...' : (isAllowanceLoading && allowance === undefined) ? '检查授权...' : '确认预测'}
+                  {isBetting || isBettingConfirming ? t('markets.detail.betting') : (isAllowanceLoading && allowance === undefined) ? t('markets.detail.checkingApproval') : t('markets.detail.confirmBetBtn')}
                 </Button>
               )}
             </div>
 
             {!isConnected && (
-              <p className="text-sm text-yellow-500 text-center">⚠️ 请先连接钱包</p>
+              <p className="text-sm text-yellow-500 text-center">⚠️ {t('markets.detail.connectWalletWarning')}</p>
             )}
 
             {needsApproval && (
               <p className="text-sm text-blue-400 text-center">
-                💡 首次预测需要授权 USDC
+                💡 {t('markets.detail.firstBetApproval')}
               </p>
             )}
           </div>

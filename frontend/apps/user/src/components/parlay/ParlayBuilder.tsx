@@ -12,6 +12,7 @@ import {
 } from '@pitchone/web3';
 import { getContractAddresses, type Address } from '@pitchone/contracts';
 import { Card, Button, Input, LoadingSpinner } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 import { parseUnits } from 'viem';
 
 export interface SelectedOutcome {

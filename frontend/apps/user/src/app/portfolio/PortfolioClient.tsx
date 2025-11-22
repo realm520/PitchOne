@@ -19,10 +19,12 @@ import {
   EmptyState,
   ErrorState,
 } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 type TabType = 'active' | 'settled' | 'all';
 
 export function PortfolioClient() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -91,10 +93,10 @@ export function PortfolioClient() {
 
   const getStatusBadge = (status: MarketStatus) => {
     const variants = {
-      [MarketStatus.Open]: { variant: 'success' as const, label: '进行中' },
-      [MarketStatus.Locked]: { variant: 'warning' as const, label: '已锁盘' },
-      [MarketStatus.Resolved]: { variant: 'info' as const, label: '可兑付' },
-      [MarketStatus.Finalized]: { variant: 'default' as const, label: '已完成' },
+      [MarketStatus.Open]: { variant: 'success' as const, label: t('portfolio.status.open') },
+      [MarketStatus.Locked]: { variant: 'warning' as const, label: t('portfolio.status.locked') },
+      [MarketStatus.Resolved]: { variant: 'info' as const, label: t('portfolio.status.resolved') },
+      [MarketStatus.Finalized]: { variant: 'default' as const, label: t('portfolio.status.finalized') },
     };
     const config = variants[status];
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
@@ -113,7 +115,7 @@ export function PortfolioClient() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载预测数据..." />
+        <LoadingSpinner size="lg" text={t('portfolio.loading')} />
       </div>
     );
   }
@@ -121,7 +123,7 @@ export function PortfolioClient() {
   if (error) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message="无法加载预测数据" />
+        <ErrorState message={t('portfolio.loadError')} />
       </div>
     );
   }
@@ -131,16 +133,16 @@ export function PortfolioClient() {
       <Container size="lg">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">我的预测</h1>
-          <p className="text-gray-400">管理您的所有市场预测</p>
+          <h1 className="text-4xl font-bold text-white mb-2">{t('portfolio.title')}</h1>
+          <p className="text-gray-400">{t('portfolio.subtitle')}</p>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
           {[
-            { key: 'active' as TabType, label: '活跃' },
-            { key: 'settled' as TabType, label: '已结算' },
-            { key: 'all' as TabType, label: '全部' },
+            { key: 'active' as TabType, label: t('portfolio.tabs.active') },
+            { key: 'settled' as TabType, label: t('portfolio.tabs.settled') },
+            { key: 'all' as TabType, label: t('portfolio.tabs.all') },
           ].map((tab) => (
             <Button
               key={tab.key}
@@ -167,18 +169,18 @@ export function PortfolioClient() {
                   />
                 </svg>
               }
-              title="请先连接钱包"
-              description="连接钱包后即可查看您的预测"
+              title={t('portfolio.connectWallet')}
+              description={t('portfolio.connectDesc')}
             />
           </Card>
         ) : !filteredPositions || filteredPositions.length === 0 ? (
           <Card padding="xl">
             <EmptyState
-              title={`暂无${activeTab === 'active' ? '活跃' : activeTab === 'settled' ? '已结算的' : ''}预测`}
-              description="您还没有任何预测，去市场页面下注吧"
+              title={activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
+              description={t('portfolio.emptyDesc')}
               action={
                 <Link href="/markets">
-                  <Button variant="neon">浏览市场</Button>
+                  <Button variant="neon">{t('portfolio.goToMarkets')}</Button>
                 </Link>
               }
             />
@@ -198,22 +200,22 @@ export function PortfolioClient() {
                         {getStatusBadge(position.market.state)}
                         {position.market.winnerOutcome !== undefined &&
                           position.market.winnerOutcome === position.outcome && (
-                            <Badge variant="success">赢</Badge>
+                            <Badge variant="success">{t('portfolio.win')}</Badge>
                           )}
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-400">
-                          <span className="font-medium">投注方向:</span>{' '}
+                          <span className="font-medium">{t('portfolio.betDirection')}:</span>{' '}
                           {getOutcomeNameFromConstants(position.market.templateId, position.outcome)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          创建时间: {formatDate(position.createdAt)}
+                          {t('portfolio.createdAt')}: {formatDate(position.createdAt)}
                         </p>
                       </div>
                     </div>
                     <div className="text-right space-y-2">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">投注额</p>
+                        <p className="text-xs text-gray-500 mb-1">{t('portfolio.betAmount')}</p>
                         <p className="text-lg font-bold text-white">
                           {position.totalInvested
                             ? parseFloat(position.totalInvested).toFixed(2)
@@ -222,27 +224,27 @@ export function PortfolioClient() {
                                 parseFloat(position.averageCost) *
                                 parseFloat(formatUnits(BigInt(position.balance), TOKEN_DECIMALS.USDC))
                               ).toFixed(2)
-                            : '数据加载中...'}{' '}
+                            : t('portfolio.dataLoading')}{' '}
                           {position.totalInvested || (position.averageCost && position.balance)
                             ? 'USDC'
                             : ''}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">预期收益</p>
+                        <p className="text-xs text-gray-500 mb-1">{t('portfolio.expectedPayout')}</p>
                         <p className="text-lg font-bold text-neon">
                           {(() => {
                             const payout = calculateExpectedPayout(position);
                             return payout > 0
                               ? `${payout.toFixed(2)} USDC`
-                              : '数据加载中...';
+                              : t('portfolio.dataLoading');
                           })()}
                         </p>
                       </div>
                       {position.market.state === MarketStatus.Resolved &&
                         position.market.winnerOutcome === position.outcome && (
                           <Button variant="neon" size="sm" className="mt-2">
-                            兑付
+                            {t('portfolio.redeem')}
                           </Button>
                         )}
                     </div>

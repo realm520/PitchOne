@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useReferralParams } from '@pitchone/web3';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralPageHeader 组件
@@ -20,6 +21,7 @@ import { useReferralParams } from '@pitchone/web3';
  * ```
  */
 export function ReferralPageHeader() {
+  const { t } = useTranslation();
   const { feeBps, isLoading } = useReferralParams();
   // 确保服务器端和客户端首次渲染一致，避免 hydration 错误
   const [isMounted, setIsMounted] = useState(false);
@@ -37,15 +39,9 @@ export function ReferralPageHeader() {
 
   return (
     <div className="mb-8">
-      <h1 className="text-3xl font-bold text-white mb-2">推荐中心</h1>
+      <h1 className="text-3xl font-bold text-white mb-2">{t('referral.pageTitle')}</h1>
       <p className="text-gray-400">
-        分享您的推荐链接，邀请好友加入 PitchOne，获得{' '}
-        {showLoading ? (
-          <span className="inline-block w-8 h-4 bg-gray-600 animate-pulse rounded" />
-        ) : (
-          <span className="text-neon-green font-semibold">{feePercentage}%</span>
-        )}{' '}
-        返佣奖励
+        {t('referral.headerDesc', { rate: showLoading ? '...' : feePercentage })}
       </p>
     </div>
   );

@@ -5,11 +5,13 @@ import { Container } from '@pitchone/ui';
 import { ParlayBuilder, ParlayList } from '../../components/parlay';
 import { useAccount } from '@pitchone/web3';
 import { useParlayStore } from '../../lib/parlay-store';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * 串关页面客户端组件
  */
 export function ParlayPageClient() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const { selectedOutcomes, removeOutcome, clearAll } = useParlayStore();
   const [activeTab, setActiveTab] = useState<'create' | 'my-parlays'>('create');
@@ -24,13 +26,13 @@ export function ParlayPageClient() {
     return (
       <Container className="min-h-screen py-12">
         <div className="max-w-2xl mx-auto text-center space-y-6">
-          <h1 className="text-4xl font-bold text-white">串关</h1>
+          <h1 className="text-4xl font-bold text-white">{t('parlay.title')}</h1>
           <p className="text-xl text-gray-400">
-            请先连接钱包以创建和查看串关
+            {t('parlay.connectWallet')}
           </p>
           <div className="pt-8">
             <div className="text-gray-500 text-sm">
-              串关允许你组合多场比赛进行投注，组合赔率更高，但需要全部正确才能获得赔付。
+              {t('parlay.connectDesc')}
             </div>
           </div>
         </div>
@@ -44,10 +46,10 @@ export function ParlayPageClient() {
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-5xl font-bold text-white">
-            串关投注
+            {t('parlay.pageTitle')}
           </h1>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            组合多场比赛，赔率相乘，全中获得更高回报！
+            {t('parlay.pageSubtitle')}
           </p>
         </div>
 
@@ -61,7 +63,7 @@ export function ParlayPageClient() {
                 : 'bg-dark-card text-gray-400 hover:text-white border border-dark-border'
             }`}
           >
-            创建串关
+            {t('parlay.tabs.create')}
           </button>
           <button
             onClick={() => setActiveTab('my-parlays')}
@@ -71,7 +73,7 @@ export function ParlayPageClient() {
                 : 'bg-dark-card text-gray-400 hover:text-white border border-dark-border'
             }`}
           >
-            我的串关
+            {t('parlay.tabs.myParlays')}
           </button>
         </div>
 
@@ -83,24 +85,24 @@ export function ParlayPageClient() {
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-dark-card border border-dark-border rounded-xl p-6">
                   <h2 className="text-xl font-bold text-white mb-4">
-                    如何创建串关？
+                    {t('parlay.howTo.title')}
                   </h2>
                   <ol className="space-y-3 text-gray-400">
                     <li className="flex items-start gap-3">
                       <span className="text-neon-blue font-bold">1.</span>
-                      <span>前往市场页面，选择至少 2 场比赛</span>
+                      <span>{t('parlay.howTo.step1')}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="text-neon-blue font-bold">2.</span>
-                      <span>在每场比赛中选择你的预测结果</span>
+                      <span>{t('parlay.howTo.step2')}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="text-neon-blue font-bold">3.</span>
-                      <span>返回串关页面，查看组合赔率</span>
+                      <span>{t('parlay.howTo.step3')}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="text-neon-blue font-bold">4.</span>
-                      <span>输入下注金额并创建串关</span>
+                      <span>{t('parlay.howTo.step4')}</span>
                     </li>
                   </ol>
 
@@ -109,7 +111,7 @@ export function ParlayPageClient() {
                       href="/markets"
                       className="inline-flex items-center gap-2 px-6 py-3 bg-neon-blue text-white rounded-lg font-semibold hover:bg-neon-blue/90 transition-colors"
                     >
-                      前往市场页面
+                      {t('parlay.goToMarkets')}
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -130,14 +132,14 @@ export function ParlayPageClient() {
                 {/* 串关规则说明 */}
                 <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6">
                   <h3 className="text-lg font-bold text-yellow-400 mb-3">
-                    ⚠️ 串关规则
+                    {t('parlay.rules.title')}
                   </h3>
                   <ul className="space-y-2 text-sm text-yellow-200">
-                    <li>• 最少 2 场，最多 10 场比赛</li>
-                    <li>• 组合赔率 = 各场赔率相乘</li>
-                    <li>• 全部正确才能获得赔付，任一错误全输</li>
-                    <li>• 相关性惩罚：同一比赛或相关比赛可能降低赔率</li>
-                    <li>• 所有比赛结束后才能结算</li>
+                    <li>• {t('parlay.rules.rule1')}</li>
+                    <li>• {t('parlay.rules.rule2')}</li>
+                    <li>• {t('parlay.rules.rule3')}</li>
+                    <li>• {t('parlay.rules.rule4')}</li>
+                    <li>• {t('parlay.rules.rule5')}</li>
                   </ul>
                 </div>
               </div>

@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@pitchone/i18n": "workspace:*",
     "@pitchone/ui": "workspace:*",
     "@pitchone/web3": "workspace:*",
     "clsx": "^2.1.1",
