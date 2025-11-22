@@ -1,0 +1,324 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "retry": "重试",
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "search": "搜索",
+    "noData": "暂无数据",
+    "connectWallet": "连接钱包"
+  },
+  "nav": {
+    "markets": "市场",
+    "portfolio": "我的",
+    "parlay": "串关",
+    "referral": "推荐"
+  },
+  "home": {
+    "title": "去中心化足球预测平台",
+    "subtitle": "全链透明 · 非托管资产 · 自动化结算 · 乐观式预言机",
+    "connected": "已连接",
+    "features": {
+      "markets": {
+        "title": "市场列表",
+        "desc": "浏览所有可预测的足球赛事市场"
+      },
+      "portfolio": {
+        "title": "我的头寸",
+        "desc": "查看持仓、历史订单和盈亏统计"
+      },
+      "parlay": {
+        "title": "串关预测",
+        "desc": "组合多场赛事预测，获取更高收益"
+      }
+    },
+    "hotMarkets": "热门市场",
+    "viewAll": "查看全部",
+    "stats": {
+      "totalVolume": "总交易量",
+      "totalMarkets": "活跃市场",
+      "totalUsers": "用户数"
+    }
+  },
+  "markets": {
+    "title": "预测市场",
+    "listTitle": "市场列表",
+    "listDesc": "浏览所有可预测的足球赛事市场",
+    "statusLabel": "状态",
+    "typeLabel": "类型",
+    "allTypes": "全部类型",
+    "loading": "加载市场数据中...",
+    "errorLoading": "无法加载市场数据，请检查网络连接或稍后重试",
+    "unknown": "未知",
+    "filter": {
+      "all": "全部",
+      "live": "进行中",
+      "upcoming": "即将开始",
+      "ended": "已结束"
+    },
+    "type": {
+      "wdl": "胜平负",
+      "ou": "大小球",
+      "ah": "让球",
+      "score": "精确比分",
+      "oddEven": "单双",
+      "playerProps": "球员数据"
+    },
+    "status": {
+      "open": "进行中",
+      "locked": "已锁盘",
+      "resolved": "已结算",
+      "finalized": "已完成"
+    },
+    "empty": {
+      "title": "暂无市场",
+      "desc": "当前没有符合条件的市场，请稍后再来或更改筛选条件",
+      "action": "查看全部市场"
+    },
+    "card": {
+      "createdAt": "创建时间",
+      "lockedAt": "锁盘",
+      "totalVolume": "预测总金额",
+      "participants": "人参与",
+      "marketType": "玩法类型",
+      "placeBet": "立即预测",
+      "viewDetails": "查看详情"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页",
+      "page": "第 {{page}} 页"
+    },
+    "bet": {
+      "placeBet": "下注",
+      "amount": "金额",
+      "odds": "赔率",
+      "potentialWin": "预计收益",
+      "confirm": "确认下注",
+      "success": "下注成功",
+      "failed": "下注失败"
+    },
+    "detail": {
+      "loadingDetail": "加载市场详情...",
+      "loadError": "加载失败",
+      "notFound": "市场不存在，可能已被删除或 ID 不正确",
+      "oddsLoadError": "无法加载市场赔率数据，请稍后重试",
+      "createdAt": "创建时间",
+      "lockedAt": "锁盘时间",
+      "totalVolume": "总投注量",
+      "totalPool": "奖池总额",
+      "liquidity": "流动性",
+      "participants": "参与人数",
+      "betOptions": "投注选项",
+      "placeBetNow": "立即下注",
+      "locked": "已锁盘",
+      "addedToParlay": "已加入串关",
+      "addToParlay": "加入串关",
+      "liveActivity": "实时活动",
+      "myOrders": "我的订单",
+      "connectFirst": "请先连接钱包",
+      "connectToViewOrders": "连接钱包后即可查看您的订单历史",
+      "noOrders": "暂无订单",
+      "noOrdersDesc": "您还没有在这个市场进行预测",
+      "tableTime": "时间",
+      "tableOption": "选项",
+      "tableAmount": "金额",
+      "tableExpected": "预期收益",
+      "marketInfo": "市场信息",
+      "marketId": "市场 ID",
+      "feeRate": "手续费率",
+      "minBet": "最小投注",
+      "maxBet": "最大投注",
+      "confirmBet": "确认预测",
+      "selectedOutcome": "选择结果",
+      "balance": "余额",
+      "betAmountLabel": "投注金额 (USDC)",
+      "inputAmount": "输入金额",
+      "expectedPayout": "预期收益",
+      "netProfit": "净盈利",
+      "approving": "授权中...",
+      "checkingApproval": "检查授权...",
+      "approveUSDC": "授权 USDC",
+      "betting": "预测中...",
+      "confirmBetBtn": "确认预测",
+      "connectWalletWarning": "请先连接钱包",
+      "firstBetApproval": "首次预测需要授权 USDC",
+      "result": "结果"
+    }
+  },
+  "portfolio": {
+    "title": "我的预测",
+    "subtitle": "管理您的所有市场预测",
+    "loading": "加载预测数据...",
+    "loadError": "无法加载预测数据",
+    "tabs": {
+      "active": "活跃",
+      "settled": "已结算",
+      "all": "全部",
+      "positions": "持仓",
+      "history": "历史"
+    },
+    "position": {
+      "market": "市场",
+      "outcome": "方向",
+      "shares": "份额",
+      "value": "价值",
+      "pnl": "盈亏"
+    },
+    "status": {
+      "open": "进行中",
+      "locked": "已锁盘",
+      "resolved": "可兑付",
+      "finalized": "已完成"
+    },
+    "connectWallet": "请先连接钱包",
+    "connectDesc": "连接钱包后即可查看您的预测",
+    "empty": "暂无持仓",
+    "emptyActive": "暂无活跃预测",
+    "emptySettled": "暂无已结算的预测",
+    "emptyAll": "暂无预测",
+    "emptyDesc": "您还没有任何预测，去市场页面下注吧",
+    "goToMarkets": "浏览市场",
+    "betDirection": "投注方向",
+    "createdAt": "创建时间",
+    "betAmount": "投注额",
+    "expectedPayout": "预期收益",
+    "dataLoading": "数据加载中...",
+    "win": "赢",
+    "redeem": "兑付"
+  },
+  "parlay": {
+    "title": "串关",
+    "pageTitle": "串关投注",
+    "pageSubtitle": "组合多场比赛，赔率相乘，全中获得更高回报！",
+    "cart": "串关单",
+    "empty": "请添加比赛到串关",
+    "legs": "串关腿数",
+    "totalOdds": "总赔率",
+    "maxPayout": "最高派彩",
+    "confirm": "确认串关",
+    "connectWallet": "请先连接钱包以创建和查看串关",
+    "connectDesc": "串关允许你组合多场比赛进行投注，组合赔率更高，但需要全部正确才能获得赔付。",
+    "tabs": {
+      "create": "创建串关",
+      "myParlays": "我的串关"
+    },
+    "howTo": {
+      "title": "如何创建串关？",
+      "step1": "前往市场页面，选择至少 2 场比赛",
+      "step2": "在每场比赛中选择你的预测结果",
+      "step3": "返回串关页面，查看组合赔率",
+      "step4": "输入下注金额并创建串关"
+    },
+    "rules": {
+      "title": "串关规则",
+      "rule1": "最少 2 场，最多 10 场比赛",
+      "rule2": "组合赔率 = 各场赔率相乘",
+      "rule3": "全部正确才能获得赔付，任一错误全输",
+      "rule4": "相关性惩罚：同一比赛或相关比赛可能降低赔率",
+      "rule5": "所有比赛结束后才能结算"
+    },
+    "goToMarkets": "前往市场页面"
+  },
+  "referral": {
+    "title": "推荐系统",
+    "pageTitle": "推荐中心",
+    "pageDesc": "分享推荐链接，邀请好友，获得返佣奖励",
+    "headerDesc": "分享您的推荐链接，邀请好友加入 PitchOne，获得 {{rate}}% 返佣奖励",
+    "myData": "我的推荐数据",
+    "leaderboard": "推荐排行榜",
+    "myCode": "我的推荐码",
+    "copyLink": "复制邀请链接",
+    "copied": "已复制",
+    "copy": "复制",
+    "loading": "加载中...",
+    "connectWalletForLink": "请先连接钱包以生成推荐链接",
+    "connectWalletForStats": "请先连接钱包以查看推荐统计",
+    "connectWalletForData": "请先连接钱包以查看推荐数据",
+    "link": {
+      "title": "我的推荐链接",
+      "desc": "分享此链接给好友，好友通过链接注册并下注，您将获得 8% 的返佣奖励",
+      "shareTo": "分享到",
+      "copyFailed": "复制失败，请手动选择链接复制",
+      "shareText": "加入 PitchOne，使用我的推荐链接获得更多奖励！",
+      "rulesTitle": "推荐奖励规则",
+      "rulesDesc1": "好友通过您的链接访问并连接钱包完成绑定",
+      "rulesDesc2": "好友每次下注，您将获得其手续费的 8% 作为返佣",
+      "rulesDesc3": "返佣将自动发放到您的钱包地址"
+    },
+    "stats": {
+      "invited": "已邀请",
+      "earnings": "累计收益",
+      "pending": "待领取",
+      "referralCount": "推荐人数",
+      "validCount": "有效",
+      "totalRewards": "累计返佣",
+      "commissionRate": "返佣率",
+      "systemParams": "系统参数",
+      "daysValidity": "天有效期",
+      "minVolume": "最小交易量"
+    },
+    "claim": "领取奖励",
+    "rules": {
+      "title": "推荐规则",
+      "rule1": "好友通过您的链接注册",
+      "rule2": "好友下注后您获得返佣",
+      "rule3": "返佣比例根据等级递增"
+    },
+    "tabs": {
+      "referralList": "推荐列表",
+      "rewardsHistory": "返佣记录"
+    },
+    "list": {
+      "totalUsers": "共 {{count}} 位用户",
+      "pageInfo": "第 {{current}}/{{total}} 页",
+      "loadError": "加载推荐列表失败",
+      "empty": "暂无推荐用户",
+      "emptyDesc": "分享您的推荐链接以邀请好友",
+      "bindTime": "绑定时间",
+      "campaign": "活动"
+    },
+    "rewards": {
+      "totalRecords": "共 {{count}} 笔记录",
+      "totalRewards": "累计返佣",
+      "loadError": "加载返佣历史失败",
+      "empty": "暂无返佣记录",
+      "emptyDesc": "当被推荐人下注后，您将获得返佣奖励",
+      "from": "来自",
+      "blockNumber": "区块",
+      "viewTx": "查看交易"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "statsPage": {
+      "title": "推荐统计",
+      "subtitle": "查看您的推荐数据和收益详情",
+      "referredUsers": "推荐用户",
+      "rewardsHistory": "返佣记录"
+    },
+    "dataInfo": {
+      "referralCount": "推荐人数",
+      "referralCountDesc": "统计所有通过您的推荐链接绑定的用户数量",
+      "validReferral": "有效推荐",
+      "validReferralDesc": "已下注且交易量达到最小要求的推荐用户",
+      "totalCommission": "累计返佣",
+      "totalCommissionDesc": "所有被推荐人下注产生的返佣总和（USDC）"
+    }
+  },
+  "footer": {
+    "about": "关于我们",
+    "docs": "文档",
+    "github": "GitHub",
+    "terms": "服务条款",
+    "privacy": "隐私政策"
+  }
+}

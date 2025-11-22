@@ -1,0 +1,324 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "noData": "No data",
+    "connectWallet": "Connect Wallet"
+  },
+  "nav": {
+    "markets": "Markets",
+    "portfolio": "Portfolio",
+    "parlay": "Parlay",
+    "referral": "Referral"
+  },
+  "home": {
+    "title": "Decentralized Football Prediction Platform",
+    "subtitle": "On-chain Transparent · Non-custodial · Auto Settlement · Optimistic Oracle",
+    "connected": "Connected",
+    "features": {
+      "markets": {
+        "title": "Markets",
+        "desc": "Browse all predictable football match markets"
+      },
+      "portfolio": {
+        "title": "My Positions",
+        "desc": "View positions, order history and P&L stats"
+      },
+      "parlay": {
+        "title": "Parlay Bets",
+        "desc": "Combine multiple predictions for higher returns"
+      }
+    },
+    "hotMarkets": "Hot Markets",
+    "viewAll": "View All",
+    "stats": {
+      "totalVolume": "Total Volume",
+      "totalMarkets": "Active Markets",
+      "totalUsers": "Users"
+    }
+  },
+  "markets": {
+    "title": "Prediction Markets",
+    "listTitle": "Markets",
+    "listDesc": "Browse all predictable football match markets",
+    "statusLabel": "Status",
+    "typeLabel": "Type",
+    "allTypes": "All Types",
+    "loading": "Loading markets...",
+    "errorLoading": "Failed to load markets. Please check your connection and try again.",
+    "unknown": "Unknown",
+    "filter": {
+      "all": "All",
+      "live": "Live",
+      "upcoming": "Upcoming",
+      "ended": "Ended"
+    },
+    "type": {
+      "wdl": "Win/Draw/Lose",
+      "ou": "Over/Under",
+      "ah": "Asian Handicap",
+      "score": "Correct Score",
+      "oddEven": "Odd/Even",
+      "playerProps": "Player Props"
+    },
+    "status": {
+      "open": "Open",
+      "locked": "Locked",
+      "resolved": "Resolved",
+      "finalized": "Finalized"
+    },
+    "empty": {
+      "title": "No Markets",
+      "desc": "No markets match your criteria. Please try again later or change your filters.",
+      "action": "View All Markets"
+    },
+    "card": {
+      "createdAt": "Created",
+      "lockedAt": "Locked",
+      "totalVolume": "Total Volume",
+      "participants": "participants",
+      "marketType": "Market Type",
+      "placeBet": "Place Bet",
+      "viewDetails": "View Details"
+    },
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}"
+    },
+    "bet": {
+      "placeBet": "Place Bet",
+      "amount": "Amount",
+      "odds": "Odds",
+      "potentialWin": "Potential Win",
+      "confirm": "Confirm Bet",
+      "success": "Bet Placed",
+      "failed": "Bet Failed"
+    },
+    "detail": {
+      "loadingDetail": "Loading market details...",
+      "loadError": "Failed to load",
+      "notFound": "Market not found. It may have been removed or the ID is incorrect",
+      "oddsLoadError": "Unable to load market odds data. Please try again later",
+      "createdAt": "Created at",
+      "lockedAt": "Locked at",
+      "totalVolume": "Total Volume",
+      "totalPool": "Total Pool",
+      "liquidity": "Liquidity",
+      "participants": "Participants",
+      "betOptions": "Betting Options",
+      "placeBetNow": "Place Bet",
+      "locked": "Locked",
+      "addedToParlay": "Added to Parlay",
+      "addToParlay": "Add to Parlay",
+      "liveActivity": "Live Activity",
+      "myOrders": "My Orders",
+      "connectFirst": "Connect Wallet First",
+      "connectToViewOrders": "Connect your wallet to view order history",
+      "noOrders": "No Orders",
+      "noOrdersDesc": "You haven't placed any bets on this market",
+      "tableTime": "Time",
+      "tableOption": "Option",
+      "tableAmount": "Amount",
+      "tableExpected": "Expected Payout",
+      "marketInfo": "Market Info",
+      "marketId": "Market ID",
+      "feeRate": "Fee Rate",
+      "minBet": "Min Bet",
+      "maxBet": "Max Bet",
+      "confirmBet": "Confirm Prediction",
+      "selectedOutcome": "Selected Outcome",
+      "balance": "Balance",
+      "betAmountLabel": "Bet Amount (USDC)",
+      "inputAmount": "Enter amount",
+      "expectedPayout": "Expected Payout",
+      "netProfit": "Net Profit",
+      "approving": "Approving...",
+      "checkingApproval": "Checking approval...",
+      "approveUSDC": "Approve USDC",
+      "betting": "Placing bet...",
+      "confirmBetBtn": "Confirm Prediction",
+      "connectWalletWarning": "Please connect your wallet first",
+      "firstBetApproval": "First bet requires USDC approval",
+      "result": "Result"
+    }
+  },
+  "portfolio": {
+    "title": "My Predictions",
+    "subtitle": "Manage all your market predictions",
+    "loading": "Loading predictions...",
+    "loadError": "Failed to load predictions",
+    "tabs": {
+      "active": "Active",
+      "settled": "Settled",
+      "all": "All",
+      "positions": "Positions",
+      "history": "History"
+    },
+    "position": {
+      "market": "Market",
+      "outcome": "Outcome",
+      "shares": "Shares",
+      "value": "Value",
+      "pnl": "P&L"
+    },
+    "status": {
+      "open": "Open",
+      "locked": "Locked",
+      "resolved": "Claimable",
+      "finalized": "Finalized"
+    },
+    "connectWallet": "Please connect wallet",
+    "connectDesc": "Connect wallet to view your predictions",
+    "empty": "No positions",
+    "emptyActive": "No active predictions",
+    "emptySettled": "No settled predictions",
+    "emptyAll": "No predictions",
+    "emptyDesc": "You have no predictions yet. Go to markets to place bets.",
+    "goToMarkets": "Browse Markets",
+    "betDirection": "Bet Direction",
+    "createdAt": "Created",
+    "betAmount": "Bet Amount",
+    "expectedPayout": "Expected Payout",
+    "dataLoading": "Loading...",
+    "win": "Win",
+    "redeem": "Redeem"
+  },
+  "parlay": {
+    "title": "Parlay",
+    "pageTitle": "Parlay Betting",
+    "pageSubtitle": "Combine multiple matches, multiply odds, win bigger with all correct!",
+    "cart": "Parlay Slip",
+    "empty": "Add matches to parlay",
+    "legs": "Legs",
+    "totalOdds": "Total Odds",
+    "maxPayout": "Max Payout",
+    "confirm": "Confirm Parlay",
+    "connectWallet": "Please connect wallet to create and view parlays",
+    "connectDesc": "Parlay allows you to combine multiple matches for higher odds, but all predictions must be correct to win.",
+    "tabs": {
+      "create": "Create Parlay",
+      "myParlays": "My Parlays"
+    },
+    "howTo": {
+      "title": "How to create a parlay?",
+      "step1": "Go to markets page, select at least 2 matches",
+      "step2": "Choose your prediction for each match",
+      "step3": "Return to parlay page, check combined odds",
+      "step4": "Enter bet amount and create parlay"
+    },
+    "rules": {
+      "title": "Parlay Rules",
+      "rule1": "Minimum 2, maximum 10 matches",
+      "rule2": "Combined odds = each match odds multiplied",
+      "rule3": "All correct to win, any wrong loses all",
+      "rule4": "Correlation penalty: same or related matches may reduce odds",
+      "rule5": "Settlement after all matches end"
+    },
+    "goToMarkets": "Go to Markets"
+  },
+  "referral": {
+    "title": "Referral System",
+    "pageTitle": "Referral Center",
+    "pageDesc": "Share your referral link, invite friends, earn commission rewards",
+    "headerDesc": "Share your referral link, invite friends to join PitchOne, earn {{rate}}% commission",
+    "myData": "My Referral Data",
+    "leaderboard": "Referral Leaderboard",
+    "myCode": "My Referral Code",
+    "copyLink": "Copy Invite Link",
+    "copied": "Copied",
+    "copy": "Copy",
+    "loading": "Loading...",
+    "connectWalletForLink": "Connect wallet to generate referral link",
+    "connectWalletForStats": "Connect wallet to view referral stats",
+    "connectWalletForData": "Connect wallet to view referral data",
+    "link": {
+      "title": "My Referral Link",
+      "desc": "Share this link with friends. When they sign up and bet, you'll earn 8% commission",
+      "shareTo": "Share to",
+      "copyFailed": "Copy failed, please select and copy manually",
+      "shareText": "Join PitchOne with my referral link for more rewards!",
+      "rulesTitle": "Referral Reward Rules",
+      "rulesDesc1": "Friends visit your link and connect wallet to bind",
+      "rulesDesc2": "You earn 8% of the fee from each bet your friends make",
+      "rulesDesc3": "Commission is automatically sent to your wallet"
+    },
+    "stats": {
+      "invited": "Invited",
+      "earnings": "Total Earnings",
+      "pending": "Pending",
+      "referralCount": "Referral Count",
+      "validCount": "Valid",
+      "totalRewards": "Total Commission",
+      "commissionRate": "Commission Rate",
+      "systemParams": "System Params",
+      "daysValidity": "Days Validity",
+      "minVolume": "Min Volume"
+    },
+    "claim": "Claim Rewards",
+    "rules": {
+      "title": "Referral Rules",
+      "rule1": "Friends sign up through your link",
+      "rule2": "Earn commission when friends bet",
+      "rule3": "Commission rate increases with tier"
+    },
+    "tabs": {
+      "referralList": "Referral List",
+      "rewardsHistory": "Rewards History"
+    },
+    "list": {
+      "totalUsers": "{{count}} users total",
+      "pageInfo": "Page {{current}}/{{total}}",
+      "loadError": "Failed to load referral list",
+      "empty": "No referrals yet",
+      "emptyDesc": "Share your referral link to invite friends",
+      "bindTime": "Bound at",
+      "campaign": "Campaign"
+    },
+    "rewards": {
+      "totalRecords": "{{count}} records total",
+      "totalRewards": "Total Commission",
+      "loadError": "Failed to load rewards history",
+      "empty": "No rewards yet",
+      "emptyDesc": "You'll earn commission when your referrals place bets",
+      "from": "From",
+      "blockNumber": "Block",
+      "viewTx": "View Transaction"
+    },
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "statsPage": {
+      "title": "Referral Stats",
+      "subtitle": "View your referral data and earnings details",
+      "referredUsers": "Referred Users",
+      "rewardsHistory": "Rewards History"
+    },
+    "dataInfo": {
+      "referralCount": "Referral Count",
+      "referralCountDesc": "Total users who signed up through your referral link",
+      "validReferral": "Valid Referrals",
+      "validReferralDesc": "Users who have placed bets and met minimum volume",
+      "totalCommission": "Total Commission",
+      "totalCommissionDesc": "Total commission earned from all referrals (USDC)"
+    }
+  },
+  "footer": {
+    "about": "About",
+    "docs": "Docs",
+    "github": "GitHub",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  }
+}

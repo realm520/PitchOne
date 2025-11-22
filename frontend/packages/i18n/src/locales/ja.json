@@ -1,0 +1,324 @@
+{
+  "common": {
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "retry": "再試行",
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "back": "戻る",
+    "next": "次へ",
+    "previous": "前へ",
+    "search": "検索",
+    "noData": "データなし",
+    "connectWallet": "ウォレット接続"
+  },
+  "nav": {
+    "markets": "マーケット",
+    "portfolio": "ポートフォリオ",
+    "parlay": "マルチベット",
+    "referral": "紹介"
+  },
+  "home": {
+    "title": "分散型サッカー予想プラットフォーム",
+    "subtitle": "オンチェーン透明 · ノンカストディアル · 自動決済 · 楽観的オラクル",
+    "connected": "接続済み",
+    "features": {
+      "markets": {
+        "title": "マーケット一覧",
+        "desc": "予想可能なサッカー試合マーケットを閲覧"
+      },
+      "portfolio": {
+        "title": "マイポジション",
+        "desc": "ポジション、注文履歴、損益統計を確認"
+      },
+      "parlay": {
+        "title": "マルチベット",
+        "desc": "複数の予想を組み合わせて高リターンを獲得"
+      }
+    },
+    "hotMarkets": "人気マーケット",
+    "viewAll": "すべて見る",
+    "stats": {
+      "totalVolume": "総取引量",
+      "totalMarkets": "アクティブマーケット",
+      "totalUsers": "ユーザー数"
+    }
+  },
+  "markets": {
+    "title": "予想マーケット",
+    "listTitle": "マーケット一覧",
+    "listDesc": "予想可能なサッカー試合マーケットを閲覧",
+    "statusLabel": "ステータス",
+    "typeLabel": "タイプ",
+    "allTypes": "すべてのタイプ",
+    "loading": "マーケットを読み込み中...",
+    "errorLoading": "マーケットの読み込みに失敗しました。接続を確認して再試行してください。",
+    "unknown": "不明",
+    "filter": {
+      "all": "すべて",
+      "live": "ライブ",
+      "upcoming": "近日開催",
+      "ended": "終了"
+    },
+    "type": {
+      "wdl": "勝敗",
+      "ou": "オーバー/アンダー",
+      "ah": "アジアンハンディ",
+      "score": "正確スコア",
+      "oddEven": "奇数/偶数",
+      "playerProps": "選手予想"
+    },
+    "status": {
+      "open": "オープン",
+      "locked": "ロック",
+      "resolved": "決済済",
+      "finalized": "完了"
+    },
+    "empty": {
+      "title": "マーケットなし",
+      "desc": "条件に一致するマーケットがありません。後でもう一度お試しください。",
+      "action": "すべてのマーケットを見る"
+    },
+    "card": {
+      "createdAt": "作成日時",
+      "lockedAt": "ロック",
+      "totalVolume": "総ベット額",
+      "participants": "人参加",
+      "marketType": "マーケットタイプ",
+      "placeBet": "ベットする",
+      "viewDetails": "詳細を見る"
+    },
+    "pagination": {
+      "prev": "前へ",
+      "next": "次へ",
+      "page": "{{page}} ページ"
+    },
+    "bet": {
+      "placeBet": "ベットする",
+      "amount": "金額",
+      "odds": "オッズ",
+      "potentialWin": "予想利益",
+      "confirm": "ベット確認",
+      "success": "ベット成功",
+      "failed": "ベット失敗"
+    },
+    "detail": {
+      "loadingDetail": "マーケット詳細を読み込み中...",
+      "loadError": "読み込み失敗",
+      "notFound": "マーケットが見つかりません。削除されたかIDが正しくありません",
+      "oddsLoadError": "オッズデータを読み込めません。後で再試行してください",
+      "createdAt": "作成日時",
+      "lockedAt": "ロック日時",
+      "totalVolume": "総ベット額",
+      "totalPool": "賞金プール",
+      "liquidity": "流動性",
+      "participants": "参加者数",
+      "betOptions": "ベット選択肢",
+      "placeBetNow": "ベットする",
+      "locked": "ロック済み",
+      "addedToParlay": "マルチベットに追加済み",
+      "addToParlay": "マルチベットに追加",
+      "liveActivity": "ライブアクティビティ",
+      "myOrders": "マイオーダー",
+      "connectFirst": "ウォレットを接続してください",
+      "connectToViewOrders": "ウォレットを接続して注文履歴を表示",
+      "noOrders": "注文なし",
+      "noOrdersDesc": "このマーケットでまだベットしていません",
+      "tableTime": "時間",
+      "tableOption": "選択肢",
+      "tableAmount": "金額",
+      "tableExpected": "予想利益",
+      "marketInfo": "マーケット情報",
+      "marketId": "マーケットID",
+      "feeRate": "手数料率",
+      "minBet": "最小ベット",
+      "maxBet": "最大ベット",
+      "confirmBet": "予想確認",
+      "selectedOutcome": "選択した結果",
+      "balance": "残高",
+      "betAmountLabel": "ベット額（USDC）",
+      "inputAmount": "金額を入力",
+      "expectedPayout": "予想利益",
+      "netProfit": "純利益",
+      "approving": "承認中...",
+      "checkingApproval": "承認確認中...",
+      "approveUSDC": "USDCを承認",
+      "betting": "ベット中...",
+      "confirmBetBtn": "予想確認",
+      "connectWalletWarning": "先にウォレットを接続してください",
+      "firstBetApproval": "初回ベットにはUSDC承認が必要です",
+      "result": "結果"
+    }
+  },
+  "portfolio": {
+    "title": "マイ予想",
+    "subtitle": "すべてのマーケット予想を管理",
+    "loading": "予想を読み込み中...",
+    "loadError": "予想の読み込みに失敗しました",
+    "tabs": {
+      "active": "アクティブ",
+      "settled": "決済済み",
+      "all": "すべて",
+      "positions": "ポジション",
+      "history": "履歴"
+    },
+    "position": {
+      "market": "マーケット",
+      "outcome": "結果",
+      "shares": "シェア",
+      "value": "価値",
+      "pnl": "損益"
+    },
+    "status": {
+      "open": "オープン",
+      "locked": "ロック",
+      "resolved": "請求可能",
+      "finalized": "完了"
+    },
+    "connectWallet": "ウォレットを接続してください",
+    "connectDesc": "ウォレットを接続すると予想を表示できます",
+    "empty": "ポジションなし",
+    "emptyActive": "アクティブな予想なし",
+    "emptySettled": "決済済みの予想なし",
+    "emptyAll": "予想なし",
+    "emptyDesc": "まだ予想がありません。マーケットページでベットしましょう。",
+    "goToMarkets": "マーケットを見る",
+    "betDirection": "ベット方向",
+    "createdAt": "作成日時",
+    "betAmount": "ベット額",
+    "expectedPayout": "予想利益",
+    "dataLoading": "読み込み中...",
+    "win": "勝ち",
+    "redeem": "請求"
+  },
+  "parlay": {
+    "title": "マルチベット",
+    "pageTitle": "マルチベット",
+    "pageSubtitle": "複数の試合を組み合わせ、オッズを掛け合わせ、全的中で高リターン！",
+    "cart": "ベットスリップ",
+    "empty": "試合を追加してください",
+    "legs": "組み合わせ数",
+    "totalOdds": "合計オッズ",
+    "maxPayout": "最大払戻",
+    "confirm": "マルチベット確認",
+    "connectWallet": "ウォレットを接続してマルチベットを作成・表示",
+    "connectDesc": "マルチベットは複数試合を組み合わせて高オッズを狙えますが、全て的中しないと払戻されません。",
+    "tabs": {
+      "create": "マルチベット作成",
+      "myParlays": "マイマルチベット"
+    },
+    "howTo": {
+      "title": "マルチベットの作り方",
+      "step1": "マーケットページで2試合以上を選択",
+      "step2": "各試合で予想結果を選択",
+      "step3": "マルチベットページで合計オッズを確認",
+      "step4": "ベット額を入力してマルチベット作成"
+    },
+    "rules": {
+      "title": "マルチベットルール",
+      "rule1": "最小2試合、最大10試合",
+      "rule2": "合計オッズ = 各試合オッズの掛け算",
+      "rule3": "全的中で払戻、1つでも外れると全額没収",
+      "rule4": "相関ペナルティ：同一または関連試合はオッズ減少の可能性",
+      "rule5": "全試合終了後に決済"
+    },
+    "goToMarkets": "マーケットへ"
+  },
+  "referral": {
+    "title": "紹介システム",
+    "pageTitle": "紹介センター",
+    "pageDesc": "紹介リンクを共有して友達を招待し、コミッション報酬を獲得",
+    "headerDesc": "紹介リンクを共有し、友達をPitchOneに招待して {{rate}}% コミッションを獲得",
+    "myData": "紹介データ",
+    "leaderboard": "紹介ランキング",
+    "myCode": "紹介コード",
+    "copyLink": "招待リンクをコピー",
+    "copied": "コピーしました",
+    "copy": "コピー",
+    "loading": "読み込み中...",
+    "connectWalletForLink": "ウォレットを接続して紹介リンクを生成",
+    "connectWalletForStats": "ウォレットを接続して紹介統計を表示",
+    "connectWalletForData": "ウォレットを接続して紹介データを表示",
+    "link": {
+      "title": "紹介リンク",
+      "desc": "友達にこのリンクを共有してください。登録してベットすると、8%のコミッションが得られます",
+      "shareTo": "シェアする",
+      "copyFailed": "コピー失敗、手動で選択してコピーしてください",
+      "shareText": "私の紹介リンクでPitchOneに参加して、もっと報酬をもらおう！",
+      "rulesTitle": "紹介報酬ルール",
+      "rulesDesc1": "友達があなたのリンクにアクセスしてウォレットを接続",
+      "rulesDesc2": "友達のベットごとに手数料の8%がコミッションとして獲得",
+      "rulesDesc3": "コミッションは自動的にあなたのウォレットに送金"
+    },
+    "stats": {
+      "invited": "招待人数",
+      "earnings": "累計収益",
+      "pending": "未受取",
+      "referralCount": "紹介人数",
+      "validCount": "有効",
+      "totalRewards": "累計コミッション",
+      "commissionRate": "コミッション率",
+      "systemParams": "システム設定",
+      "daysValidity": "日間有効",
+      "minVolume": "最小取引量"
+    },
+    "claim": "報酬を受け取る",
+    "rules": {
+      "title": "紹介ルール",
+      "rule1": "友達があなたのリンクから登録",
+      "rule2": "友達のベットでコミッション獲得",
+      "rule3": "ランクに応じてコミッション率上昇"
+    },
+    "tabs": {
+      "referralList": "紹介リスト",
+      "rewardsHistory": "報酬履歴"
+    },
+    "list": {
+      "totalUsers": "合計 {{count}} ユーザー",
+      "pageInfo": "ページ {{current}}/{{total}}",
+      "loadError": "紹介リストの読み込みに失敗",
+      "empty": "紹介ユーザーなし",
+      "emptyDesc": "紹介リンクを共有して友達を招待",
+      "bindTime": "登録日",
+      "campaign": "キャンペーン"
+    },
+    "rewards": {
+      "totalRecords": "合計 {{count}} 件",
+      "totalRewards": "累計コミッション",
+      "loadError": "報酬履歴の読み込みに失敗",
+      "empty": "報酬履歴なし",
+      "emptyDesc": "紹介者がベットすると、コミッション報酬が発生します",
+      "from": "送信者",
+      "blockNumber": "ブロック",
+      "viewTx": "トランザクションを表示"
+    },
+    "pagination": {
+      "prev": "前へ",
+      "next": "次へ"
+    },
+    "statsPage": {
+      "title": "紹介統計",
+      "subtitle": "紹介データと収益詳細を表示",
+      "referredUsers": "紹介ユーザー",
+      "rewardsHistory": "報酬履歴"
+    },
+    "dataInfo": {
+      "referralCount": "紹介人数",
+      "referralCountDesc": "紹介リンクから登録したユーザー総数",
+      "validReferral": "有効紹介",
+      "validReferralDesc": "ベット済みで最小取引量を達成したユーザー",
+      "totalCommission": "累計コミッション",
+      "totalCommissionDesc": "全紹介者から獲得したコミッション総額（USDC）"
+    }
+  },
+  "footer": {
+    "about": "概要",
+    "docs": "ドキュメント",
+    "github": "GitHub",
+    "terms": "利用規約",
+    "privacy": "プライバシー"
+  }
+}

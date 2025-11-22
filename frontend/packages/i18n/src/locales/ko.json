@@ -1,0 +1,324 @@
+{
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "retry": "재시도",
+    "confirm": "확인",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "back": "뒤로",
+    "next": "다음",
+    "previous": "이전",
+    "search": "검색",
+    "noData": "데이터 없음",
+    "connectWallet": "지갑 연결"
+  },
+  "nav": {
+    "markets": "마켓",
+    "portfolio": "포트폴리오",
+    "parlay": "파레이",
+    "referral": "추천"
+  },
+  "home": {
+    "title": "탈중앙화 축구 예측 플랫폼",
+    "subtitle": "온체인 투명성 · 비수탁형 · 자동 정산 · 옵티미스틱 오라클",
+    "connected": "연결됨",
+    "features": {
+      "markets": {
+        "title": "마켓 목록",
+        "desc": "예측 가능한 축구 경기 마켓 탐색"
+      },
+      "portfolio": {
+        "title": "내 포지션",
+        "desc": "포지션, 주문 내역, 손익 통계 확인"
+      },
+      "parlay": {
+        "title": "파레이 베팅",
+        "desc": "여러 예측을 조합하여 높은 수익 획득"
+      }
+    },
+    "hotMarkets": "인기 마켓",
+    "viewAll": "전체 보기",
+    "stats": {
+      "totalVolume": "총 거래량",
+      "totalMarkets": "활성 마켓",
+      "totalUsers": "사용자 수"
+    }
+  },
+  "markets": {
+    "title": "예측 마켓",
+    "listTitle": "마켓 목록",
+    "listDesc": "예측 가능한 축구 경기 마켓 탐색",
+    "statusLabel": "상태",
+    "typeLabel": "유형",
+    "allTypes": "전체 유형",
+    "loading": "마켓 데이터 로딩 중...",
+    "errorLoading": "마켓 데이터를 불러올 수 없습니다. 연결을 확인하고 다시 시도해 주세요.",
+    "unknown": "알 수 없음",
+    "filter": {
+      "all": "전체",
+      "live": "라이브",
+      "upcoming": "예정",
+      "ended": "종료"
+    },
+    "type": {
+      "wdl": "승무패",
+      "ou": "오버/언더",
+      "ah": "핸디캡",
+      "score": "정확한 스코어",
+      "oddEven": "홀짝",
+      "playerProps": "선수 기록"
+    },
+    "status": {
+      "open": "오픈",
+      "locked": "잠김",
+      "resolved": "정산됨",
+      "finalized": "완료"
+    },
+    "empty": {
+      "title": "마켓 없음",
+      "desc": "조건에 맞는 마켓이 없습니다. 나중에 다시 시도하거나 필터를 변경해 주세요.",
+      "action": "전체 마켓 보기"
+    },
+    "card": {
+      "createdAt": "생성 시간",
+      "lockedAt": "잠김",
+      "totalVolume": "총 예측 금액",
+      "participants": "명 참여",
+      "marketType": "마켓 유형",
+      "placeBet": "예측하기",
+      "viewDetails": "상세 보기"
+    },
+    "pagination": {
+      "prev": "이전",
+      "next": "다음",
+      "page": "{{page}} 페이지"
+    },
+    "bet": {
+      "placeBet": "베팅하기",
+      "amount": "금액",
+      "odds": "배당률",
+      "potentialWin": "예상 수익",
+      "confirm": "베팅 확인",
+      "success": "베팅 성공",
+      "failed": "베팅 실패"
+    },
+    "detail": {
+      "loadingDetail": "마켓 상세 로딩 중...",
+      "loadError": "로딩 실패",
+      "notFound": "마켓을 찾을 수 없습니다. 삭제되었거나 ID가 올바르지 않습니다",
+      "oddsLoadError": "배당률 데이터를 불러올 수 없습니다. 나중에 다시 시도해 주세요",
+      "createdAt": "생성 시간",
+      "lockedAt": "잠김 시간",
+      "totalVolume": "총 베팅량",
+      "totalPool": "총 상금풀",
+      "liquidity": "유동성",
+      "participants": "참가자 수",
+      "betOptions": "베팅 옵션",
+      "placeBetNow": "지금 베팅",
+      "locked": "잠김",
+      "addedToParlay": "파레이에 추가됨",
+      "addToParlay": "파레이에 추가",
+      "liveActivity": "실시간 활동",
+      "myOrders": "내 주문",
+      "connectFirst": "지갑을 먼저 연결하세요",
+      "connectToViewOrders": "지갑을 연결하면 주문 내역을 볼 수 있습니다",
+      "noOrders": "주문 없음",
+      "noOrdersDesc": "이 마켓에서 아직 베팅하지 않았습니다",
+      "tableTime": "시간",
+      "tableOption": "옵션",
+      "tableAmount": "금액",
+      "tableExpected": "예상 수익",
+      "marketInfo": "마켓 정보",
+      "marketId": "마켓 ID",
+      "feeRate": "수수료율",
+      "minBet": "최소 베팅",
+      "maxBet": "최대 베팅",
+      "confirmBet": "예측 확인",
+      "selectedOutcome": "선택한 결과",
+      "balance": "잔액",
+      "betAmountLabel": "베팅 금액 (USDC)",
+      "inputAmount": "금액 입력",
+      "expectedPayout": "예상 수익",
+      "netProfit": "순이익",
+      "approving": "승인 중...",
+      "checkingApproval": "승인 확인 중...",
+      "approveUSDC": "USDC 승인",
+      "betting": "베팅 중...",
+      "confirmBetBtn": "예측 확인",
+      "connectWalletWarning": "지갑을 먼저 연결해 주세요",
+      "firstBetApproval": "첫 베팅에는 USDC 승인이 필요합니다",
+      "result": "결과"
+    }
+  },
+  "portfolio": {
+    "title": "내 예측",
+    "subtitle": "모든 마켓 예측 관리",
+    "loading": "예측 데이터 로딩 중...",
+    "loadError": "예측 데이터를 불러올 수 없습니다",
+    "tabs": {
+      "active": "활성",
+      "settled": "정산됨",
+      "all": "전체",
+      "positions": "포지션",
+      "history": "기록"
+    },
+    "position": {
+      "market": "마켓",
+      "outcome": "결과",
+      "shares": "지분",
+      "value": "가치",
+      "pnl": "손익"
+    },
+    "status": {
+      "open": "진행 중",
+      "locked": "잠김",
+      "resolved": "청구 가능",
+      "finalized": "완료"
+    },
+    "connectWallet": "지갑을 연결해 주세요",
+    "connectDesc": "지갑을 연결하면 예측을 볼 수 있습니다",
+    "empty": "포지션 없음",
+    "emptyActive": "활성 예측 없음",
+    "emptySettled": "정산된 예측 없음",
+    "emptyAll": "예측 없음",
+    "emptyDesc": "아직 예측이 없습니다. 마켓 페이지에서 베팅하세요.",
+    "goToMarkets": "마켓 보기",
+    "betDirection": "베팅 방향",
+    "createdAt": "생성 시간",
+    "betAmount": "베팅 금액",
+    "expectedPayout": "예상 수익",
+    "dataLoading": "로딩 중...",
+    "win": "승리",
+    "redeem": "청구"
+  },
+  "parlay": {
+    "title": "파레이",
+    "pageTitle": "파레이 베팅",
+    "pageSubtitle": "여러 경기를 조합하여 배당률을 곱하고, 모두 맞추면 더 높은 수익!",
+    "cart": "베팅 슬립",
+    "empty": "경기를 추가하세요",
+    "legs": "조합 수",
+    "totalOdds": "총 배당률",
+    "maxPayout": "최대 지급액",
+    "confirm": "파레이 확인",
+    "connectWallet": "지갑을 연결하여 파레이를 생성하고 확인하세요",
+    "connectDesc": "파레이는 여러 경기를 조합하여 높은 배당률을 노릴 수 있지만, 모두 맞아야 지급됩니다.",
+    "tabs": {
+      "create": "파레이 생성",
+      "myParlays": "내 파레이"
+    },
+    "howTo": {
+      "title": "파레이 만드는 방법",
+      "step1": "마켓 페이지에서 2경기 이상 선택",
+      "step2": "각 경기에서 예측 결과 선택",
+      "step3": "파레이 페이지로 돌아와 조합 배당률 확인",
+      "step4": "베팅 금액 입력 후 파레이 생성"
+    },
+    "rules": {
+      "title": "파레이 규칙",
+      "rule1": "최소 2경기, 최대 10경기",
+      "rule2": "조합 배당률 = 각 경기 배당률의 곱",
+      "rule3": "모두 맞추면 지급, 하나라도 틀리면 전액 손실",
+      "rule4": "상관성 페널티: 동일 또는 관련 경기는 배당률 감소 가능",
+      "rule5": "모든 경기 종료 후 정산"
+    },
+    "goToMarkets": "마켓으로 이동"
+  },
+  "referral": {
+    "title": "추천 시스템",
+    "pageTitle": "추천 센터",
+    "pageDesc": "추천 링크를 공유하여 친구를 초대하고 커미션 보상을 받으세요",
+    "headerDesc": "추천 링크를 공유하여 친구를 PitchOne에 초대하고 {{rate}}% 커미션을 받으세요",
+    "myData": "내 추천 데이터",
+    "leaderboard": "추천 순위표",
+    "myCode": "내 추천 코드",
+    "copyLink": "초대 링크 복사",
+    "copied": "복사됨",
+    "copy": "복사",
+    "loading": "로딩 중...",
+    "connectWalletForLink": "지갑을 연결하여 추천 링크 생성",
+    "connectWalletForStats": "지갑을 연결하여 추천 통계 보기",
+    "connectWalletForData": "지갑을 연결하여 추천 데이터 보기",
+    "link": {
+      "title": "내 추천 링크",
+      "desc": "친구에게 이 링크를 공유하세요. 가입하고 베팅하면 8% 커미션을 받습니다",
+      "shareTo": "공유하기",
+      "copyFailed": "복사 실패, 수동으로 선택하여 복사해 주세요",
+      "shareText": "내 추천 링크로 PitchOne에 가입하고 더 많은 보상을 받으세요!",
+      "rulesTitle": "추천 보상 규칙",
+      "rulesDesc1": "친구가 링크에 접속하여 지갑 연결",
+      "rulesDesc2": "친구의 베팅마다 수수료의 8%를 커미션으로 획득",
+      "rulesDesc3": "커미션은 자동으로 지갑으로 전송"
+    },
+    "stats": {
+      "invited": "초대 인원",
+      "earnings": "총 수익",
+      "pending": "미수령",
+      "referralCount": "추천 인원",
+      "validCount": "유효",
+      "totalRewards": "총 커미션",
+      "commissionRate": "커미션 비율",
+      "systemParams": "시스템 설정",
+      "daysValidity": "일 유효기간",
+      "minVolume": "최소 거래량"
+    },
+    "claim": "보상 받기",
+    "rules": {
+      "title": "추천 규칙",
+      "rule1": "친구가 링크로 가입",
+      "rule2": "친구 베팅 시 커미션 획득",
+      "rule3": "등급에 따라 커미션 비율 증가"
+    },
+    "tabs": {
+      "referralList": "추천 목록",
+      "rewardsHistory": "보상 기록"
+    },
+    "list": {
+      "totalUsers": "총 {{count}}명",
+      "pageInfo": "{{current}}/{{total}} 페이지",
+      "loadError": "추천 목록 로드 실패",
+      "empty": "추천 사용자 없음",
+      "emptyDesc": "추천 링크를 공유하여 친구를 초대하세요",
+      "bindTime": "등록일",
+      "campaign": "캠페인"
+    },
+    "rewards": {
+      "totalRecords": "총 {{count}}건",
+      "totalRewards": "총 커미션",
+      "loadError": "보상 기록 로드 실패",
+      "empty": "보상 기록 없음",
+      "emptyDesc": "추천인이 베팅하면 커미션 보상이 발생합니다",
+      "from": "발신자",
+      "blockNumber": "블록",
+      "viewTx": "트랜잭션 보기"
+    },
+    "pagination": {
+      "prev": "이전",
+      "next": "다음"
+    },
+    "statsPage": {
+      "title": "추천 통계",
+      "subtitle": "추천 데이터와 수익 상세 보기",
+      "referredUsers": "추천 사용자",
+      "rewardsHistory": "보상 기록"
+    },
+    "dataInfo": {
+      "referralCount": "추천 인원",
+      "referralCountDesc": "추천 링크로 가입한 총 사용자 수",
+      "validReferral": "유효 추천",
+      "validReferralDesc": "베팅하고 최소 거래량을 달성한 사용자",
+      "totalCommission": "총 커미션",
+      "totalCommissionDesc": "모든 추천인으로부터 획득한 총 커미션 (USDC)"
+    }
+  },
+  "footer": {
+    "about": "소개",
+    "docs": "문서",
+    "github": "GitHub",
+    "terms": "이용약관",
+    "privacy": "개인정보"
+  }
+}
