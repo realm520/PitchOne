@@ -394,6 +394,9 @@ echo "  FeeRouter: $FEE_ROUTER"
 FACTORY=$(extract_from_deployed_struct "factory" "$DEPLOY_OUTPUT_FILE")
 echo "  MarketFactory_v2: $FACTORY"
 
+PARAM_CONTROLLER=$(extract_from_deployed_struct "paramController" "$DEPLOY_OUTPUT_FILE")
+echo "  ParamController: $PARAM_CONTROLLER"
+
 echo ""
 echo "提取模板 ID..."
 WDL_TEMPLATE_ID=$(extract_from_deployed_struct "wdlTemplateId" "$DEPLOY_OUTPUT_FILE")
@@ -526,6 +529,7 @@ export const ANVIL_ADDRESSES: ContractAddresses = {\
   basket: '"'0x0000000000000000000000000000000000000000'"',            // 待部署\
   correlationGuard: '"'0x0000000000000000000000000000000000000000'"',   // 待部署\
   rewardsDistributor: '"'0x0000000000000000000000000000000000000000'"', // 待部署\
+  paramController: '"'$PARAM_CONTROLLER'"',          // ParamController\
 };' "$FRONTEND_ADDRESSES_FILE"
 
 echo -e "${GREEN}✓ 前端地址配置已自动更新${NC}"
@@ -538,6 +542,25 @@ echo "  - simpleCPMM: $CPMM"
 echo "  - usdc: $USDC"
 echo "  - feeRouter: $FEE_ROUTER"
 echo "  - vault: $VAULT"
+echo "  - paramController: $PARAM_CONTROLLER"
+echo ""
+
+# 清理前端缓存，确保新地址生效
+echo -e "${YELLOW}清理前端 Next.js 缓存...${NC}"
+ADMIN_NEXT_CACHE="$PROJECT_ROOT/frontend/apps/admin/.next"
+USER_NEXT_CACHE="$PROJECT_ROOT/frontend/apps/user/.next"
+
+if [ -d "$ADMIN_NEXT_CACHE" ]; then
+    rm -rf "$ADMIN_NEXT_CACHE"
+    echo "  ✓ 已清理 admin 应用缓存"
+fi
+
+if [ -d "$USER_NEXT_CACHE" ]; then
+    rm -rf "$USER_NEXT_CACHE"
+    echo "  ✓ 已清理 user 应用缓存"
+fi
+
+echo -e "${GREEN}✓ 前端缓存已清理，新地址将在前端重启后生效${NC}"
 echo ""
 
 ###############################################################################
@@ -1066,8 +1089,13 @@ echo "  - 市场总数: $MARKET_COUNT_DEC"
 echo ""
 echo -e "${CYAN}重要提示：${NC}"
 echo "  - Subgraph 环境已完全重置（删除了所有旧索引数据）"
-echo "  - 前端现在显示的是最新部署的合约数据"
 echo "  - 所有市场、订单、用户数据均为全新索引"
+echo ""
+echo -e "${YELLOW}⚠️  前端需要重启才能使用新的合约地址！${NC}"
+echo "  如果前端 dev server 正在运行，请执行以下命令重启："
+echo "    cd frontend && pnpm --filter @pitchone/admin dev"
+echo "    cd frontend && pnpm --filter @pitchone/user dev"
+echo "  注意：.next 缓存已被清理，但需要重启 dev server"
 echo ""
 echo "访问 GraphQL Playground："
 echo "  http://localhost:8010/subgraphs/name/pitchone-local/graphql"
