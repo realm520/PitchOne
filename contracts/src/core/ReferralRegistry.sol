@@ -30,6 +30,9 @@ contract ReferralRegistry is Ownable, Pausable {
     /// @notice 用户绑定时间戳
     mapping(address => uint256) public boundAt;
 
+    /// @notice 用户累计交易量（用于门槛检查）
+    mapping(address => uint256) public userTotalVolume;
+
     /// @notice 有效窗口期（秒），默认365天
     uint256 public validityWindow = 365 days;
 
@@ -90,6 +93,20 @@ contract ReferralRegistry is Ownable, Pausable {
      * @param authorized 是否授权
      */
     event AuthorizedCallerUpdated(address indexed caller, bool authorized);
+
+    /**
+     * @notice 用户交易量更新事件
+     * @param user 用户地址
+     * @param amount 新增交易量
+     * @param totalVolume 累计总交易量
+     * @param timestamp 更新时间
+     */
+    event UserVolumeUpdated(
+        address indexed user,
+        uint256 amount,
+        uint256 totalVolume,
+        uint256 timestamp
+    );
 
     // ============================================================================
     // 错误定义
@@ -187,6 +204,20 @@ contract ReferralRegistry is Ownable, Pausable {
         emit ReferralAccrued(_referrer, user, amount, block.timestamp);
     }
 
+    /**
+     * @notice 更新用户累计交易量（仅限授权合约调用）
+     * @param user 用户地址
+     * @param amount 新增交易量
+     * @dev 通常由 FeeRouter 或 Market 合约调用，用于追踪用户的累计下注金额
+     */
+    function updateUserVolume(address user, uint256 amount) external onlyAuthorized {
+        if (user == address(0)) return;
+
+        userTotalVolume[user] += amount;
+
+        emit UserVolumeUpdated(user, amount, userTotalVolume[user], block.timestamp);
+    }
+
     // ============================================================================
     // 查询功能
     // ============================================================================
@@ -212,6 +243,11 @@ contract ReferralRegistry is Ownable, Pausable {
         // 检查有效期
         uint256 boundTime = boundAt[user];
         if (block.timestamp > boundTime + validityWindow) {
+            return false;
+        }
+
+        // 检查最小交易量门槛
+        if (userTotalVolume[user] < minValidVolume) {
             return false;
         }
 
@@ -246,6 +282,15 @@ contract ReferralRegistry is Ownable, Pausable {
         for (uint256 i = 0; i < users.length; i++) {
             referrers[i] = referrer[users[i]];
         }
+    }
+
+    /**
+     * @notice 获取用户累计交易量
+     * @param user 用户地址
+     * @return 累计交易量
+     */
+    function getUserVolume(address user) external view returns (uint256) {
+        return userTotalVolume[user];
     }
 
     // ============================================================================

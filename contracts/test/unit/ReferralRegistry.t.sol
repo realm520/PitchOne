@@ -42,6 +42,8 @@ contract ReferralRegistryTest is Test {
 
     function setUp() public {
         registry = new ReferralRegistry(owner);
+        // 授权 owner 调用 updateUserVolume 和 accrueReferralReward
+        registry.setAuthorizedCaller(owner, true);
     }
 
     // ============================================================================
@@ -173,6 +175,9 @@ contract ReferralRegistryTest is Test {
         vm.prank(alice);
         registry.bind(bob, 0);
 
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
+
         assertTrue(registry.isReferralValid(alice));
     }
 
@@ -194,6 +199,9 @@ contract ReferralRegistryTest is Test {
         vm.prank(alice);
         registry.bind(bob, 0);
 
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
+
         // 前进364天
         vm.warp(block.timestamp + 364 days);
 
@@ -203,6 +211,9 @@ contract ReferralRegistryTest is Test {
     function testIsReferralValid_ExactlyAtExpiry() public {
         vm.prank(alice);
         registry.bind(bob, 0);
+
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
 
         // 前进正好365天
         vm.warp(block.timestamp + 365 days);
@@ -229,6 +240,9 @@ contract ReferralRegistryTest is Test {
         vm.prank(alice);
         registry.bind(bob, 0);
 
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
+
         // 在同一个区块内仍然有效（timestamp相等）
         assertTrue(registry.isReferralValid(alice));
 
@@ -243,6 +257,9 @@ contract ReferralRegistryTest is Test {
 
         vm.prank(alice);
         registry.bind(bob, 0);
+
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
 
         // 1年后仍然有效
         vm.warp(block.timestamp + 365 days);
@@ -464,6 +481,9 @@ contract ReferralRegistryTest is Test {
         vm.prank(alice);
         registry.bind(bob, 0);
 
+        // 设置交易量达到门槛
+        registry.updateUserVolume(alice, 100e6);
+
         // 在窗口内应该有效
         vm.warp(block.timestamp + window - 1);
         assertTrue(registry.isReferralValid(alice));
@@ -472,4 +492,114 @@ contract ReferralRegistryTest is Test {
         vm.warp(block.timestamp + 2);
         assertFalse(registry.isReferralValid(alice));
     }
+
+    // ============================================================================
+    // 交易量门槛测试
+    // ============================================================================
+
+    function testUpdateUserVolume() public {
+        // 授权 owner 调用 updateUserVolume
+        registry.setAuthorizedCaller(owner, true);
+
+        // 初始交易量应为 0
+        assertEq(registry.getUserVolume(alice), 0);
+
+        // 更新交易量
+        registry.updateUserVolume(alice, 50e6);
+        assertEq(registry.getUserVolume(alice), 50e6);
+
+        // 再次更新，应该累加
+        registry.updateUserVolume(alice, 30e6);
+        assertEq(registry.getUserVolume(alice), 80e6);
+    }
+
+    function testReferralValidWithVolumeThreshold() public {
+        // 授权 owner 调用
+        registry.setAuthorizedCaller(owner, true);
+
+        // Alice 绑定 Bob 为推荐人
+        vm.prank(alice);
+        registry.bind(bob, 0);
+
+        // 初始状态：未达到交易量门槛，推荐关系无效
+        assertFalse(registry.isReferralValid(alice));
+
+        // 更新交易量到 50 USDC（未达到 100 USDC 门槛）
+        registry.updateUserVolume(alice, 50e6);
+        assertFalse(registry.isReferralValid(alice));
+
+        // 再更新 50 USDC，总共 100 USDC（正好达到门槛）
+        registry.updateUserVolume(alice, 50e6);
+        assertTrue(registry.isReferralValid(alice));
+
+        // 超过门槛也应该有效
+        registry.updateUserVolume(alice, 10e6);
+        assertTrue(registry.isReferralValid(alice));
+    }
+
+    function testReferralValidCombinedConditions() public {
+        // 授权 owner 调用
+        registry.setAuthorizedCaller(owner, true);
+
+        // Alice 绑定 Bob 为推荐人
+        vm.prank(alice);
+        registry.bind(bob, 0);
+
+        // 测试场景 1：交易量足够，但推荐关系过期
+        registry.updateUserVolume(alice, 100e6);
+        assertTrue(registry.isReferralValid(alice)); // 有效
+
+        // 时间快进到超过有效期
+        vm.warp(block.timestamp + 366 days);
+        assertFalse(registry.isReferralValid(alice)); // 因时间过期而失效
+
+        // 测试场景 2：重新绑定，有效期内但交易量不足
+        vm.prank(charlie);
+        registry.bind(bob, 0);
+        assertFalse(registry.isReferralValid(charlie)); // 交易量不足
+
+        // 达到门槛后有效
+        registry.updateUserVolume(charlie, 100e6);
+        assertTrue(registry.isReferralValid(charlie));
+    }
+
+    function testMinValidVolumeThreshold() public {
+        // 授权 owner 调用
+        registry.setAuthorizedCaller(owner, true);
+
+        // 修改最小交易量门槛为 200 USDC
+        vm.expectEmit(false, false, false, true);
+        emit ParameterUpdated("minValidVolume", 200e6);
+        registry.setMinValidVolume(200e6);
+
+        assertEq(registry.minValidVolume(), 200e6);
+
+        // 测试新门槛
+        vm.prank(alice);
+        registry.bind(bob, 0);
+
+        registry.updateUserVolume(alice, 100e6);
+        assertFalse(registry.isReferralValid(alice)); // 未达到新门槛
+
+        registry.updateUserVolume(alice, 100e6);
+        assertTrue(registry.isReferralValid(alice)); // 达到 200 USDC 门槛
+    }
+
+    function testUserVolumeUpdatedEvent() public {
+        // 授权 owner 调用
+        registry.setAuthorizedCaller(owner, true);
+
+        // 验证事件发射
+        vm.expectEmit(true, false, false, true);
+        emit UserVolumeUpdated(alice, 50e6, 50e6, block.timestamp);
+        registry.updateUserVolume(alice, 50e6);
+    }
+
+    // 添加事件定义（如果不存在）
+    event UserVolumeUpdated(
+        address indexed user,
+        uint256 amount,
+        uint256 totalVolume,
+        uint256 timestamp
+    );
 }

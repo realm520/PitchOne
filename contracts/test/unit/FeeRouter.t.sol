@@ -150,7 +150,7 @@ contract FeeRouterTest is Test {
             200e6  // Treasury 20%
         );
 
-        router.routeFee(address(usdc), alice, feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
         vm.stopPrank();
 
         // 验证余额
@@ -171,7 +171,7 @@ contract FeeRouterTest is Test {
 
     function test_RouteFee_ZeroAmount() public {
         vm.prank(market);
-        router.routeFee(address(usdc), alice, 0);
+        router.routeFee(address(usdc), alice, 0, 100e6);
 
         // 不应该有任何转账
         assertEq(usdc.balanceOf(lpVault), 0);
@@ -206,7 +206,7 @@ contract FeeRouterTest is Test {
             184e6
         );
 
-        router.routeFee(address(usdc), alice, feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
         vm.stopPrank();
 
         // 验证返佣
@@ -246,7 +246,7 @@ contract FeeRouterTest is Test {
             200e6
         );
 
-        router.routeFee(address(usdc), alice, feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(referrer), 0);
@@ -347,7 +347,7 @@ contract FeeRouterTest is Test {
         // 路由一些费用
         vm.startPrank(market);
         usdc.approve(address(router), 1000e6);
-        router.routeFee(address(usdc), alice, 1000e6);
+        router.routeFee(address(usdc), alice, 1000e6, 100e6);
         vm.stopPrank();
 
         (
@@ -462,7 +462,7 @@ contract FeeRouterTest is Test {
         vm.startPrank(market);
         usdc.approve(address(router), 1000e6);
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-        router.routeFee(address(usdc), alice, 1000e6);
+        router.routeFee(address(usdc), alice, 1000e6, 100e6);
         vm.stopPrank();
     }
 
@@ -474,7 +474,7 @@ contract FeeRouterTest is Test {
         // 恢复后可以路由
         vm.startPrank(market);
         usdc.approve(address(router), 1000e6);
-        router.routeFee(address(usdc), alice, 1000e6);
+        router.routeFee(address(usdc), alice, 1000e6, 100e6);
         vm.stopPrank();
     }
 
@@ -488,7 +488,7 @@ contract FeeRouterTest is Test {
 
         vm.startPrank(market);
         usdc.approve(address(router), feeAmount);
-        router.routeFee(address(usdc), alice, feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
         vm.stopPrank();
 
         // LP: 10 * 4000 / 10000 = 4
@@ -517,7 +517,7 @@ contract FeeRouterTest is Test {
 
         vm.startPrank(market);
         usdc.approve(address(router), feeAmount);
-        router.routeFee(address(usdc), alice, feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
         vm.stopPrank();
 
         // LP: 920 * 4000 / 10000 = 368
@@ -540,7 +540,7 @@ contract FeeRouterTest is Test {
 
         vm.startPrank(market);
         usdc.approve(address(router), amount);
-        router.routeFee(address(usdc), alice, amount);
+        router.routeFee(address(usdc), alice, amount, 100e6);
         vm.stopPrank();
 
         // 验证总和守恒
@@ -557,7 +557,7 @@ contract FeeRouterTest is Test {
 
         vm.startPrank(market);
         usdc.approve(address(router), amount);
-        router.routeFee(address(usdc), alice, amount);
+        router.routeFee(address(usdc), alice, amount, 100e6);
         vm.stopPrank();
 
         // 验证总和守恒
@@ -584,7 +584,7 @@ contract FeeRouterTest is Test {
         uint256 amount = 10000e6;
         vm.startPrank(market);
         usdc.approve(address(router), amount);
-        router.routeFee(address(usdc), alice, amount);
+        router.routeFee(address(usdc), alice, amount, 100e6);
         vm.stopPrank();
 
         // 验证分配比例

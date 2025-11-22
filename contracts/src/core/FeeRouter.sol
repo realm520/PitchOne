@@ -193,31 +193,38 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
      * @notice 路由手续费（由市场合约调用）
      * @param token 代币地址
      * @param from 来源地址（下注用户）
-     * @param amount 手续费金额
+     * @param feeAmount 手续费金额
+     * @param betAmount 用户下注总金额（用于追踪交易量）
      * @dev 自动处理推荐返佣 + 多池分配
      */
     function routeFee(
         address token,
         address from,
-        uint256 amount
+        uint256 feeAmount,
+        uint256 betAmount
     ) external whenNotPaused nonReentrant {
-        if (amount == 0) return;
+        if (feeAmount == 0) return;
+
+        // 更新用户交易量（用于推荐门槛检查）
+        if (betAmount > 0) {
+            referralRegistry.updateUserVolume(from, betAmount);
+        }
 
         // 接收代币
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        totalFeesReceived[token] += amount;
-        emit FeeReceived(token, msg.sender, amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), feeAmount);
+        totalFeesReceived[token] += feeAmount;
+        emit FeeReceived(token, msg.sender, feeAmount);
 
         // 处理推荐返佣
-        (address referrer, uint256 referralAmount) = _processReferral(token, from, amount);
+        (address referrer, uint256 referralAmount) = _processReferral(token, from, feeAmount);
 
         // 剩余金额分配到各池
-        uint256 remaining = amount - referralAmount;
+        uint256 remaining = feeAmount - referralAmount;
         _distributeFees(token, remaining);
 
         emit FeeRouted(
             token,
-            amount,
+            feeAmount,
             referrer,
             referralAmount,
             (remaining * feeSplit.lpBps) / BPS_DENOMINATOR,
