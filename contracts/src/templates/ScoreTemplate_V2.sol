@@ -63,7 +63,7 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
     string public matchId;      // 比赛ID（如 "EPL_2024_MUN_vs_MCI"）
     string public homeTeam;     // 主队
     string public awayTeam;     // 客队
-    uint256 public kickoffTime; // 开球时间（Unix 时间戳）
+    // kickoffTime 继承自 MarketBase_V2
 
     /// @notice 比分范围 (如 5 表示 0-0 到 5-5)
     uint8 public maxGoals;
@@ -534,15 +534,5 @@ contract ScoreTemplate_V2 is MarketBase_V2 {
         lmsrEngine.setLiquidityB(newB);
     }
 
-    /**
-     * @notice 自动锁盘（Keeper 调用）
-     */
-    function autoLock() external {
-        require(block.timestamp >= kickoffTime - 5 minutes, "Score_V2: Too early to lock");
-        require(status == MarketStatus.Open, "Score_V2: Market not open");
-
-        status = MarketStatus.Locked;
-        lockTimestamp = block.timestamp;
-        emit Locked(block.timestamp);
-    }
+    // autoLock() 继承自 MarketBase_V2
 }

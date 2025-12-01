@@ -48,7 +48,7 @@ contract WDL_Template_V2 is MarketBase_V2 {
     string public matchId;
     string public homeTeam;
     string public awayTeam;
-    uint256 public kickoffTime;
+    // kickoffTime 继承自 MarketBase_V2
 
     // ============ 事件 ============
 
@@ -136,7 +136,7 @@ contract WDL_Template_V2 is MarketBase_V2 {
         matchId = _matchId;
         homeTeam = _homeTeam;
         awayTeam = _awayTeam;
-        kickoffTime = _kickoffTime;
+        kickoffTime = _kickoffTime;  // 设置父合约 MarketBase_V2 的 kickoffTime（用于自动锁盘）
         pricingEngine = IPricingEngine(_pricingEngine);
 
         // 初始化虚拟储备（所有 outcome 均等）

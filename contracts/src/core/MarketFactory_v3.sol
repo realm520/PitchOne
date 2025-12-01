@@ -293,6 +293,93 @@ contract MarketFactory_v3 is AccessControl, Pausable {
         return implementation.predictDeterministicAddress(salt);
     }
 
+    // ============ 市场生命周期管理 ============
+
+    /// @notice 市场锁盘事件
+    event MarketLocked(address indexed market, address indexed operator);
+
+    /// @notice 市场结算事件
+    event MarketResolved(address indexed market, uint256 winningOutcomeId, address indexed operator);
+
+    /// @notice 市场取消事件
+    event MarketCancelled(address indexed market, address indexed operator);
+
+    /**
+     * @notice 锁定市场（禁止新下注）
+     * @param market 市场地址
+     * @dev 仅管理员可调用，用于比赛开始时锁盘
+     */
+    function lockMarket(address market)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        require(marketInfo[market].exists, "Market not found");
+
+        (bool success,) = market.call(
+            abi.encodeWithSignature("lock()")
+        );
+        require(success, "Lock failed");
+
+        emit MarketLocked(market, msg.sender);
+    }
+
+    /**
+     * @notice 批量锁定市场
+     * @param _markets 市场地址数组
+     */
+    function lockMarkets(address[] calldata _markets)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        for (uint256 i = 0; i < _markets.length; i++) {
+            if (marketInfo[_markets[i]].exists) {
+                (bool success,) = _markets[i].call(
+                    abi.encodeWithSignature("lock()")
+                );
+                if (success) {
+                    emit MarketLocked(_markets[i], msg.sender);
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice 结算市场
+     * @param market 市场地址
+     * @param winningOutcomeId 获胜结果ID
+     */
+    function resolveMarket(address market, uint256 winningOutcomeId)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        require(marketInfo[market].exists, "Market not found");
+
+        (bool success,) = market.call(
+            abi.encodeWithSignature("resolve(uint256)", winningOutcomeId)
+        );
+        require(success, "Resolve failed");
+
+        emit MarketResolved(market, winningOutcomeId, msg.sender);
+    }
+
+    /**
+     * @notice 取消市场（全额退款）
+     * @param market 市场地址
+     */
+    function cancelMarket(address market)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        require(marketInfo[market].exists, "Market not found");
+
+        (bool success,) = market.call(
+            abi.encodeWithSignature("cancel()")
+        );
+        require(success, "Cancel failed");
+
+        emit MarketCancelled(market, msg.sender);
+    }
+
     // ============ 市场 Owner 管理 ============
 
     /**

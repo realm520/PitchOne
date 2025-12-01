@@ -79,7 +79,7 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public kickoffTime;         // 开球时间
+    // kickoffTime 继承自 MarketBase_V2
 
     /// @notice 让球数（千分位表示，负数=主队让球，正数=客队让球）
     /// @dev 例如：主队 -0.5 = -500，主队 +0.5 = +500
@@ -426,14 +426,7 @@ contract AH_Template_V2 is MarketBase_V2, IAH_Template {
      * @notice 自动锁盘（Keeper 调用）
      * @dev 开球时间到达时自动锁盘
      */
-    function autoLock() external {
-        require(block.timestamp >= kickoffTime - 5 minutes, "AH_V2: Too early to lock");
-        require(status == MarketStatus.Open, "AH_V2: Market not open");
-
-        status = MarketStatus.Locked;
-        lockTimestamp = block.timestamp;
-        emit Locked(block.timestamp);
-    }
+    // autoLock() 继承自 MarketBase_V2
 
     // ============================================================================
     // 内部辅助函数

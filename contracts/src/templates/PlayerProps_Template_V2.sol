@@ -78,7 +78,7 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
 
     /// @notice 比赛信息
     string public matchId;       // 比赛ID（如 "EPL_2024_MUN_vs_MCI"）
-    uint256 public kickoffTime;  // 开球时间（Unix 时间戳）
+    // kickoffTime 继承自 MarketBase_V2
 
     /// @notice 球员信息
     string public playerId;      // 球员ID（如 "player_haaland"）
@@ -565,12 +565,5 @@ contract PlayerProps_Template_V2 is MarketBase_V2 {
     /**
      * @notice 自动锁盘（Keeper 调用）
      */
-    function autoLock() external {
-        require(block.timestamp >= kickoffTime - 5 minutes, "PlayerProps_V2: Too early to lock");
-        require(status == MarketStatus.Open, "PlayerProps_V2: Market not open");
-
-        status = MarketStatus.Locked;
-        lockTimestamp = block.timestamp;
-        emit Locked(block.timestamp);
-    }
+    // autoLock() 继承自 MarketBase_V2
 }

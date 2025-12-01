@@ -67,7 +67,7 @@ contract OU_Template_V2 is MarketBase_V2 {
     string public matchId;              // 比赛ID
     string public homeTeam;             // 主队
     string public awayTeam;             // 客队
-    uint256 public kickoffTime;         // 开球时间
+    // kickoffTime 继承自 MarketBase_V2
 
     /// @notice 盘口线（千分位表示）
     /// @dev 例如：2.5球 = 2500，3.5球 = 3500，0.5球 = 500
@@ -344,12 +344,5 @@ contract OU_Template_V2 is MarketBase_V2 {
      * @notice 自动锁盘（Keeper 调用）
      * @dev 开球时间到达时自动锁盘
      */
-    function autoLock() external {
-        require(block.timestamp >= kickoffTime - 5 minutes, "OU_V2: Too early to lock");
-        require(status == MarketStatus.Open, "OU_V2: Market not open");
-
-        status = MarketStatus.Locked;
-        lockTimestamp = block.timestamp;
-        emit Locked(block.timestamp);
-    }
+    // autoLock() 继承自 MarketBase_V2
 }

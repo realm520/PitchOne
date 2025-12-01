@@ -69,6 +69,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
     /// @notice 争议期时长（秒，默认 24 小时）
     uint256 public disputePeriod;
 
+    /// @notice 开球时间（由子合约设置，用于自动锁盘）
+    uint256 public kickoffTime;
+
     // ============ Vault 集成新增 ============
 
     /// @notice 流动性提供者接口
@@ -91,6 +94,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
     /// @notice 从 Vault 借出流动性
     event LiquidityBorrowed(uint256 amount, uint256 timestamp);
 
+    /// @notice Vault 借款失败（降级为 Parimutuel 模式）
+    event BorrowFailed(uint256 requestedAmount, string reason);
+
     /// @notice 归还流动性给 Vault
     event LiquidityRepaid(uint256 principal, uint256 revenue, uint256 timestamp);
 
@@ -108,6 +114,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
     /// @notice 费用接收地址更新
     event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
+
+    /// @notice 开球时间更新事件
+    event KickoffTimeUpdated(uint256 oldKickoffTime, uint256 newKickoffTime, uint256 timestamp);
 
     // ============ 修饰符 ============
 
@@ -227,6 +236,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         require(outcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
         require(amount > 0, "MarketBase_V2: Zero amount");
 
+        // 时间检查：如果已过开球时间，拒绝下注（但不改变市场状态）
+        require(kickoffTime == 0 || block.timestamp < kickoffTime, "MarketBase_V2: Betting closed, kickoff time reached");
+
         // 首次下注时从 Vault 借出流动性
         if (!liquidityBorrowed) {
             _borrowInitialLiquidity();
@@ -297,6 +309,53 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
     }
 
     /**
+     * @notice 更新开赛时间（仅 owner）
+     * @param newKickoffTime 新的开赛时间戳
+     * @dev 只有 owner 可以修改开赛时间
+     */
+    function updateKickoffTime(uint256 newKickoffTime) external onlyOwner {
+        require(newKickoffTime > block.timestamp, "MarketBase_V2: Kickoff time must be in future");
+
+        uint256 oldKickoffTime = kickoffTime;
+        kickoffTime = newKickoffTime;
+
+        emit KickoffTimeUpdated(oldKickoffTime, newKickoffTime, block.timestamp);
+    }
+
+    /**
+     * @notice 查询距离开赛的剩余时间
+     * @return timeUntilKickoff 距离开球的剩余时间（秒），如果已过开球返回 0
+     * @return canBet 是否可以下注
+     */
+    function getTimeUntilKickoff() external view returns (uint256 timeUntilKickoff, bool canBet) {
+        if (kickoffTime == 0) {
+            return (0, true); // 没有设置开赛时间，可以一直下注
+        }
+
+        if (block.timestamp >= kickoffTime) {
+            return (0, false); // 已过开赛时间，不能下注
+        }
+
+        return (kickoffTime - block.timestamp, true); // 返回剩余时间和可下注状态
+    }
+
+    /**
+     * @notice 查询市场是否已到达"锁定"状态（基于时间）
+     * @return _isLocked 是否已锁定（当前时间 >= 开赛时间）
+     * @dev 这是一个查询函数，用于判断当前区块时间是否已到达或超过开赛时间
+     *      不会改变合约状态，仅用于前端显示和判断
+     */
+    function isLocked() external view returns (bool _isLocked) {
+        // 如果未设置开赛时间，永不锁定
+        if (kickoffTime == 0) {
+            return false;
+        }
+
+        // 当前时间 >= 开赛时间，视为锁定
+        return block.timestamp >= kickoffTime;
+    }
+
+    /**
      * @notice 结算（预言机上报结果）
      * @param winningOutcomeId 获胜结果ID
      * @dev 1. 需在 Locked 状态
@@ -362,14 +421,119 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         nonReentrant
         returns (uint256 payout)
     {
-        require(outcomeId == winningOutcome, "MarketBase_V2: Not winning outcome");
         require(shares > 0, "MarketBase_V2: Zero shares");
         require(
             balanceOf(msg.sender, outcomeId) >= shares,
             "MarketBase_V2: Insufficient balance"
         );
 
-        // 1. 计算赔付（按比例分配）
+        // 检测是否为 Push 退款场景
+        bool isPushRefund = _isPushOutcome(winningOutcome);
+
+        if (!isPushRefund) {
+            // 常规赢家赔付逻辑：仅允许中奖结果赎回
+            require(outcomeId == winningOutcome, "MarketBase_V2: Not winning outcome");
+        }
+
+        // 1. 计算赔付
+        if (isPushRefund) {
+            // Push 退款：所有用户按 1:1 比例退回本金
+            payout = _calculatePushRefund(outcomeId, shares);
+        } else {
+            // 常规赔付：按获胜份额比例分配总流动性
+            payout = _calculateNormalPayout(shares);
+        }
+
+        require(payout > 0, "MarketBase_V2: Zero payout");
+
+        // 2. 更新状态（遵循 CEI 模式）
+        totalLiquidity -= payout;
+
+        // 3. 销毁 position token
+        _burn(msg.sender, outcomeId, shares);
+
+        // 4. 转账
+        settlementToken.safeTransfer(msg.sender, payout);
+
+        emit Redeemed(msg.sender, outcomeId, shares, payout);
+
+        // 5. 如果所有用户都赎回完毕，归还剩余流动性给 Vault
+        if (isPushRefund) {
+            // Push 场景：检查所有 outcome 的总份额是否为 0
+            bool allRedeemed = true;
+            for (uint256 i = 0; i < outcomeCount; i++) {
+                if (totalSupply(i) > 0) {
+                    allRedeemed = false;
+                    break;
+                }
+            }
+            if (allRedeemed && !liquidityRepaid) {
+                _repayToVault();
+            }
+        } else {
+            // 常规场景：检查获胜 outcome 份额是否为 0
+            if (totalSupply(winningOutcome) == 0 && !liquidityRepaid) {
+                _repayToVault();
+            }
+        }
+    }
+
+    /**
+     * @dev 判断是否为 Push 退款结果（outcomeId == 2 且市场支持 Push）
+     */
+    function _isPushOutcome(uint256 outcome) internal view returns (bool) {
+        // Push 通常定义为 outcomeId == 2，且市场至少有 3 个结果
+        return outcome == 2 && outcomeCount >= 3;
+    }
+
+    /**
+     * @dev 计算 Push 退款金额（1:1 退回用户投入本金）
+     * @param outcomeId 用户持有的 outcome
+     * @param shares 用户持有的份额
+     * @return refund 退款金额
+     */
+    function _calculatePushRefund(uint256 outcomeId, uint256 shares) internal view returns (uint256 refund) {
+        // Push 退款逻辑：
+        // 在 Push 场景下，AMM 中所有 outcome 的价值应该相等（因为没有赢家）
+        // 由于市场使用 ERC1155，shares 代表用户持有的头寸数量
+        // 在 CPMM 中，1 share ≈ 1 USDC 的价值（初始状态）
+
+        uint256 totalOutcomeShares = totalSupply(outcomeId);
+        require(totalOutcomeShares > 0, "MarketBase_V2: No shares for outcome");
+
+        // 计算所有 outcome 的总 shares
+        uint256 totalAllShares = 0;
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            totalAllShares += totalSupply(i);
+        }
+        require(totalAllShares > 0, "MarketBase_V2: No shares in market");
+
+        // 计算可分配流动性（与常规逻辑相同）
+        uint256 distributableLiquidity;
+        if (liquidityBorrowed && !liquidityRepaid) {
+            distributableLiquidity = totalLiquidity > borrowedAmount
+                ? totalLiquidity - borrowedAmount
+                : 0;
+        } else if (liquidityBorrowed && liquidityRepaid) {
+            uint256 currentBalance = settlementToken.balanceOf(address(this));
+            distributableLiquidity = currentBalance;
+        } else {
+            distributableLiquidity = totalLiquidity;
+        }
+
+        // Push 退款：按用户份额占总份额的比例退回
+        // 这确保了所有用户按其持仓比例获得退款，总和等于 totalLiquidity
+        refund = (shares * distributableLiquidity) / totalAllShares;
+
+        require(refund <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
+    }
+
+    /**
+     * @dev 计算常规赢家赔付金额（按获胜份额比例分配总流动性）
+     * @param shares 用户持有的获胜份额
+     * @return payout 赔付金额
+     */
+    function _calculateNormalPayout(uint256 shares) internal view returns (uint256 payout) {
         uint256 totalWinningShares = totalSupply(winningOutcome);
         require(totalWinningShares > 0, "MarketBase_V2: No winning shares");
 
@@ -385,32 +549,13 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
             // 因为totalLiquidity没有减去已归还的本金，所以用实际余额
             uint256 currentBalance = settlementToken.balanceOf(address(this));
             distributableLiquidity = currentBalance;
-            // 同时更新totalLiquidity以反映实际情况
-            totalLiquidity = currentBalance;
         } else {
             // 没有从Vault借款的情况
             distributableLiquidity = totalLiquidity;
         }
 
         payout = (shares * distributableLiquidity) / totalWinningShares;
-        require(payout > 0, "MarketBase_V2: Zero payout");
         require(payout <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
-
-        // 2. 更新状态（遵循 CEI 模式）
-        totalLiquidity -= payout;
-
-        // 3. 销毁 position token
-        _burn(msg.sender, outcomeId, shares);
-
-        // 4. 转账
-        settlementToken.safeTransfer(msg.sender, payout);
-
-        emit Redeemed(msg.sender, outcomeId, shares, payout);
-
-        // 5. 如果所有用户都赎回完毕，归还剩余流动性给 Vault
-        if (totalWinningShares - shares == 0 && !liquidityRepaid) {
-            _repayToVault();
-        }
     }
 
     // ============ Vault 集成函数 ============
@@ -433,14 +578,29 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
             return;
         }
 
-        // CPMM 模式：从流动性提供者借出
-        liquidityProvider.borrow(amount);
+        // CPMM 模式：从流动性提供者借出（带失败保护）
+        try liquidityProvider.borrow(amount) {
+            // 借款成功
+            borrowedAmount = amount;
+            totalLiquidity = amount; // 初始流动性仅来自 Vault
+            liquidityBorrowed = true;
 
-        borrowedAmount = amount;
-        totalLiquidity = amount; // 初始流动性仅来自 Vault
-        liquidityBorrowed = true;
+            emit LiquidityBorrowed(amount, block.timestamp);
+        } catch Error(string memory reason) {
+            // 借款失败：降级为 Parimutuel 模式
+            emit BorrowFailed(amount, reason);
 
-        emit LiquidityBorrowed(amount, block.timestamp);
+            liquidityBorrowed = true; // 标记为已尝试借款，避免重复调用
+            emit LiquidityBorrowed(0, block.timestamp); // 记录事件（金额为 0）
+
+            // 继续执行，用户资金仍可正常下注（纯 Parimutuel 模式）
+        } catch (bytes memory lowLevelData) {
+            // 低级别错误（如 revert 无 reason）
+            emit BorrowFailed(amount, "Low-level borrow failed");
+
+            liquidityBorrowed = true; // 标记为已尝试借款
+            emit LiquidityBorrowed(0, block.timestamp);
+        }
     }
 
     /**

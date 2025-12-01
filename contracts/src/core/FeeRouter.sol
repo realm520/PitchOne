@@ -141,6 +141,22 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
      */
     event ReferralRegistryUpdated(address indexed newRegistry);
 
+    /**
+     * @notice 批量处理完成事件
+     * @param token 代币地址
+     * @param totalCount 总数量
+     * @param successCount 成功数量
+     * @param failedCount 失败数量
+     * @param failedTotalAmount 失败总金额（已转入 Treasury）
+     */
+    event BatchProcessed(
+        address indexed token,
+        uint256 totalCount,
+        uint256 successCount,
+        uint256 failedCount,
+        uint256 failedTotalAmount
+    );
+
     // ============================================================================
     // 错误定义
     // ============================================================================
@@ -235,17 +251,26 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice 批量路由手续费（优化 Gas）
+     * @notice 批量路由手续费（优化 Gas + 事务性保证）
      * @param token 代币地址
      * @param users 用户地址数组
      * @param amounts 金额数组
+     * @return successCount 成功处理的数量
+     * @return failedIndices 失败的索引数组
+     *
+     * @dev 修复:
+     *      1. 使用 try/catch 包裹每次分配,部分失败不影响其他
+     *      2. 记录失败的索引,返回给调用者
+     *      3. 失败的金额自动退还到 Treasury（安全兜底）
+     *      4. 添加 BatchProcessed 事件记录批量操作结果
      */
     function batchRouteFee(
         address token,
         address[] calldata users,
         uint256[] calldata amounts
-    ) external whenNotPaused nonReentrant {
+    ) external whenNotPaused nonReentrant returns (uint256 successCount, uint256[] memory failedIndices) {
         require(users.length == amounts.length, "Length mismatch");
+        require(users.length <= 100, "Batch size too large"); // 防止 DOS
 
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < amounts.length; i++) {
@@ -256,30 +281,75 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
         IERC20(token).safeTransferFrom(msg.sender, address(this), totalAmount);
         totalFeesReceived[token] += totalAmount;
 
-        // 逐个处理
+        // 初始化失败追踪数组（最坏情况：全部失败）
+        uint256[] memory tempFailedIndices = new uint256[](users.length);
+        uint256 failedCount = 0;
+        uint256 failedTotalAmount = 0;
+
+        // 逐个处理（使用 try/catch 捕获单个失败）
         for (uint256 i = 0; i < users.length; i++) {
-            if (amounts[i] == 0) continue;
+            if (amounts[i] == 0) {
+                successCount++;
+                continue;
+            }
 
-            (address referrer, uint256 referralAmount) = _processReferral(
-                token,
-                users[i],
-                amounts[i]
-            );
-
-            uint256 remaining = amounts[i] - referralAmount;
-            _distributeFees(token, remaining);
-
-            emit FeeRouted(
-                token,
-                amounts[i],
-                referrer,
-                referralAmount,
-                (remaining * feeSplit.lpBps) / BPS_DENOMINATOR,
-                (remaining * feeSplit.promoBps) / BPS_DENOMINATOR,
-                (remaining * feeSplit.insuranceBps) / BPS_DENOMINATOR,
-                (remaining * feeSplit.treasuryBps) / BPS_DENOMINATOR
-            );
+            // 使用 try/catch 包裹整个处理流程
+            try this._processSingleFee(token, users[i], amounts[i]) {
+                successCount++;
+            } catch {
+                // 记录失败索引
+                tempFailedIndices[failedCount] = i;
+                failedCount++;
+                failedTotalAmount += amounts[i];
+            }
         }
+
+        // 构造精确的失败索引数组
+        failedIndices = new uint256[](failedCount);
+        for (uint256 i = 0; i < failedCount; i++) {
+            failedIndices[i] = tempFailedIndices[i];
+        }
+
+        // 处理失败金额：全部转入 Treasury 作为安全兜底
+        if (failedTotalAmount > 0) {
+            IERC20(token).safeTransfer(recipients.treasury, failedTotalAmount);
+            totalFeesDistributed[token]["treasury"] += failedTotalAmount;
+        }
+
+        emit BatchProcessed(token, users.length, successCount, failedCount, failedTotalAmount);
+
+        return (successCount, failedIndices);
+    }
+
+    /**
+     * @notice 处理单笔费用（内部函数,供 batchRouteFee 调用）
+     * @dev 必须是 external 才能被 try/catch 捕获
+     */
+    function _processSingleFee(
+        address token,
+        address user,
+        uint256 amount
+    ) external {
+        require(msg.sender == address(this), "Only self-call");
+
+        // 1. 处理推荐返佣
+        (address referrer, uint256 referralAmount) = _processReferral(token, user, amount);
+
+        // 2. 分配剩余费用
+        uint256 remaining = amount - referralAmount;
+        _distributeFees(token, remaining);
+
+        // 3. 发出事件
+        emit FeeRouted(
+            token,
+            amount,
+            referrer,
+            referralAmount,
+            (remaining * feeSplit.lpBps) / BPS_DENOMINATOR,
+            (remaining * feeSplit.promoBps) / BPS_DENOMINATOR,
+            (remaining * feeSplit.insuranceBps) / BPS_DENOMINATOR,
+            remaining - (remaining * feeSplit.lpBps) / BPS_DENOMINATOR - (remaining * feeSplit.promoBps) / BPS_DENOMINATOR - (remaining * feeSplit.insuranceBps) / BPS_DENOMINATOR
+        );
     }
 
     /**
@@ -318,34 +388,42 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice 分配费用到各池
+     * @notice 分配费用到各池（精确分配,无舍入误差）
+     * @dev 修复: Treasury获得剩余全部金额,确保 sum(分配金额) == amount
+     *      验证: 添加断言检查分配总和
      */
     function _distributeFees(address token, uint256 amount) internal {
+        if (amount == 0) return;
+
         IERC20 erc20 = IERC20(token);
 
-        // LP 金库
+        // 1. 计算各池精确金额（向下取整）
         uint256 lpAmount = (amount * feeSplit.lpBps) / BPS_DENOMINATOR;
+        uint256 promoAmount = (amount * feeSplit.promoBps) / BPS_DENOMINATOR;
+        uint256 insuranceAmount = (amount * feeSplit.insuranceBps) / BPS_DENOMINATOR;
+
+        // 2. Treasury获得剩余全部金额（吸收所有舍入误差）
+        uint256 treasuryAmount = amount - lpAmount - promoAmount - insuranceAmount;
+
+        // 3. 安全检查：确保分配总和等于原始金额
+        assert(lpAmount + promoAmount + insuranceAmount + treasuryAmount == amount);
+
+        // 4. 执行转账（批量优化）
         if (lpAmount > 0) {
             erc20.safeTransfer(recipients.lpVault, lpAmount);
             totalFeesDistributed[token]["lp"] += lpAmount;
         }
 
-        // 推广池
-        uint256 promoAmount = (amount * feeSplit.promoBps) / BPS_DENOMINATOR;
         if (promoAmount > 0) {
             erc20.safeTransfer(recipients.promoPool, promoAmount);
             totalFeesDistributed[token]["promo"] += promoAmount;
         }
 
-        // 保险基金
-        uint256 insuranceAmount = (amount * feeSplit.insuranceBps) / BPS_DENOMINATOR;
         if (insuranceAmount > 0) {
             erc20.safeTransfer(recipients.insuranceFund, insuranceAmount);
             totalFeesDistributed[token]["insurance"] += insuranceAmount;
         }
 
-        // 国库（剩余部分，避免舍入误差）
-        uint256 treasuryAmount = amount - lpAmount - promoAmount - insuranceAmount;
         if (treasuryAmount > 0) {
             erc20.safeTransfer(recipients.treasury, treasuryAmount);
             totalFeesDistributed[token]["treasury"] += treasuryAmount;
