@@ -21,6 +21,10 @@ contract MarketBase_V2Test is BaseTest {
     uint256 constant MARKET_BORROW_AMOUNT = 100_000 * 1e6;  // 100k USDC
     uint256 constant BET_AMOUNT = 1_000 * 1e6;              // 1k USDC
 
+    // 事件声明（用于 expectEmit，必须与合约定义一致）
+    event Locked(uint256 timestamp);
+    // event AutoLocked(uint256 timestamp, address indexed triggeredBy); // 已移除 autoLock 功能
+
     function setUp() public override {
         super.setUp();
 
@@ -496,6 +500,181 @@ contract MarketBase_V2Test is BaseTest {
         market.lock();
     }
 
+//     // ============ AutoLock 测试 ============
+// 
+//     function test_AutoLock_Success() public {
+//         // 设置开球时间为当前时间 + 1 小时
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 时间快进到开球时间
+//         vm.warp(futureKickoff);
+// 
+//         // 任何人都可以触发 autoLock
+//         vm.prank(user2);
+//         vm.expectEmit(true, true, true, true);
+//         emit Locked(block.timestamp);
+//         market.autoLock();
+// 
+//         // 验证状态变更
+//         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Locked));
+//         assertEq(market.lockTimestamp(), futureKickoff);
+//     }
+// 
+//     function test_AutoLock_EmitsAutoLockedEvent() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         vm.warp(futureKickoff);
+// 
+//         // Locked 事件先发出，然后是 AutoLocked 事件
+//         vm.prank(user3);
+//         vm.expectEmit(true, true, true, true);
+//         emit Locked(block.timestamp);
+//         vm.expectEmit(true, true, true, true);
+//         emit AutoLocked(block.timestamp, user3);
+//         market.autoLock();
+//     }
+// 
+//     function test_AutoLock_AnyoneCanTrigger() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+//         vm.warp(futureKickoff);
+// 
+//         // 非 owner、非管理员，普通用户也可以触发
+//         address randomUser = makeAddr("randomUser");
+//         vm.prank(randomUser);
+//         market.autoLock();
+// 
+//         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Locked));
+//     }
+// 
+//     function testRevert_AutoLock_KickoffTimeNotSet() public {
+//         // 不设置 kickoffTime（默认为 0）
+//         vm.prank(user2);
+//         vm.expectRevert("MarketBase_V2: Kickoff time not set");
+//         market.autoLock();
+//     }
+// 
+//     function testRevert_AutoLock_KickoffTimeNotReached() public {
+//         // 设置开球时间为 1 小时后
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 不快进时间，直接调用
+//         vm.prank(user2);
+//         vm.expectRevert("MarketBase_V2: Kickoff time not reached");
+//         market.autoLock();
+//     }
+// 
+//     function testRevert_AutoLock_NotOpenStatus() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 先手动锁盘
+//         vm.prank(owner);
+//         market.lock();
+// 
+//         // 快进时间
+//         vm.warp(futureKickoff);
+// 
+//         // 已经 Locked 状态，再次调用 autoLock 应该失败
+//         vm.prank(user2);
+//         vm.expectRevert("MarketBase_V2: Invalid status");
+//         market.autoLock();
+//     }
+// 
+//     function test_AutoLock_AtExactKickoffTime() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 恰好在开球时间
+//         vm.warp(futureKickoff);
+// 
+//         vm.prank(user2);
+//         market.autoLock();
+// 
+//         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Locked));
+//     }
+// 
+//     function test_AutoLock_AfterKickoffTime() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 开球后 30 分钟
+//         vm.warp(futureKickoff + 30 minutes);
+// 
+//         vm.prank(user2);
+//         market.autoLock();
+// 
+//         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Locked));
+//     }
+// 
+//     // ============ CheckAutoLockStatus 测试 ============
+// 
+//     function test_CheckAutoLockStatus_ShouldLock() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 快进到开球时间
+//         vm.warp(futureKickoff);
+// 
+//         (bool shouldLock, uint256 timeUntilKickoff) = market.checkAutoLockStatus();
+//         assertTrue(shouldLock, "Should lock after kickoff");
+//         assertEq(timeUntilKickoff, 0, "Time until kickoff should be 0");
+//     }
+// 
+//     function test_CheckAutoLockStatus_NotYet() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         (bool shouldLock, uint256 timeUntilKickoff) = market.checkAutoLockStatus();
+//         assertFalse(shouldLock, "Should not lock before kickoff");
+//         assertEq(timeUntilKickoff, 1 hours, "Time until kickoff should be 1 hour");
+//     }
+// 
+//     function test_CheckAutoLockStatus_KickoffNotSet() public {
+//         // 不设置 kickoffTime
+//         (bool shouldLock, uint256 timeUntilKickoff) = market.checkAutoLockStatus();
+//         assertFalse(shouldLock, "Should not lock if kickoff not set");
+//         assertEq(timeUntilKickoff, 0, "Time until kickoff should be 0");
+//     }
+// 
+//     function test_CheckAutoLockStatus_NotOpenStatus() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 手动锁盘
+//         vm.prank(owner);
+//         market.lock();
+// 
+//         // 即使到了开球时间，已经锁盘的市场返回 false
+//         vm.warp(futureKickoff);
+//         (bool shouldLock, uint256 timeUntilKickoff) = market.checkAutoLockStatus();
+//         assertFalse(shouldLock, "Should not lock if already locked");
+//         assertEq(timeUntilKickoff, 0, "Time until kickoff should be 0");
+//     }
+// 
+//     function test_CheckAutoLockStatus_TimeDecreases() public {
+//         uint256 futureKickoff = block.timestamp + 1 hours;
+//         market.setKickoffTime(futureKickoff);
+// 
+//         // 初始：1 小时
+//         (, uint256 time1) = market.checkAutoLockStatus();
+//         assertEq(time1, 1 hours);
+// 
+//         // 快进 30 分钟
+//         vm.warp(block.timestamp + 30 minutes);
+//         (, uint256 time2) = market.checkAutoLockStatus();
+//         assertEq(time2, 30 minutes);
+// 
+//         // 快进到开球时间
+//         vm.warp(futureKickoff);
+//         (bool shouldLock, uint256 time3) = market.checkAutoLockStatus();
+//         assertTrue(shouldLock);
+//         assertEq(time3, 0);
+//     }
+
     function testRevert_Resolve_BeforeLock() public {
         vm.prank(owner);
         vm.expectRevert("MarketBase_V2: Invalid status");
@@ -565,6 +744,11 @@ contract MockMarketV2 is MarketBase_V2 {
     // 返回 100k USDC 作为初始借款
     function _getInitialBorrowAmount() internal pure override returns (uint256) {
         return 100_000 * 1e6;
+    }
+
+    // 测试辅助：设置开球时间
+    function setKickoffTime(uint256 _kickoffTime) external {
+        kickoffTime = _kickoffTime;
     }
 }
 

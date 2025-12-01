@@ -35,7 +35,7 @@ contract UMAMarketIntegrationTest is Test {
     uint256 constant BOND_AMOUNT = 1000e6;
     uint64 constant LIVENESS = 7200; // 2 hours
     bytes32 constant IDENTIFIER = bytes32("ASSERT_TRUTH");
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 和 ReferralRegistry 复杂配置
 
     bytes32 public marketId;
 

@@ -57,6 +57,9 @@ contract BaseTest is Test {
         });
         feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
+        // Authorize FeeRouter to call ReferralRegistry (critical for accrueReferralReward)
+        referralRegistry.setAuthorizedCaller(address(feeRouter), true);
+
         // Deploy SimpleCPMM
         cpmm = new SimpleCPMM(100_000 * 10**6);
 

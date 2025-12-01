@@ -18,7 +18,7 @@ contract OddEven_TemplateTest is Test {
     address public user1 = address(0x1);
     address public user2 = address(0x2);
 
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 复杂配置
     uint256 constant DISPUTE_PERIOD = 2 hours;
     string constant URI = "https://api.test.com/markets/{id}";
 

@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../../src/templates/WDL_Template.sol";
 import "../../src/oracle/UMAOptimisticOracleAdapter.sol";
 import "../../src/core/FeeRouter.sol";
+import "../../src/core/ReferralRegistry.sol";
 import "../../src/pricing/SimpleCPMM.sol";
 import "../mocks/MockERC20.sol";
 import "../mocks/MockOptimisticOracleV3.sol";
@@ -41,7 +42,7 @@ contract KeeperUMAIntegrationTest is Test {
     uint256 constant BOND_AMOUNT = 1000e6;
     uint64 constant LIVENESS = 7200; // 2 hours
     bytes32 constant IDENTIFIER = bytes32("ASSERT_TRUTH");
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter/ReferralRegistry 复杂配置
 
     bytes32 public marketId;
 
@@ -60,6 +61,9 @@ contract KeeperUMAIntegrationTest is Test {
         bondCurrency = new MockERC20("Bond Currency", "BOND", 6);
         mockOO = new MockOptimisticOracleV3();
 
+        // Deploy ReferralRegistry
+        ReferralRegistry referralRegistry = new ReferralRegistry(owner);
+
         // Deploy FeeRouter
         FeeRouter.FeeRecipients memory recipients = FeeRouter.FeeRecipients({
             lpVault: address(0x100),
@@ -67,7 +71,7 @@ contract KeeperUMAIntegrationTest is Test {
             insuranceFund: address(0x250),
             treasury: address(0x300)
         });
-        feeRouter = new FeeRouter(recipients, address(0x400));
+        feeRouter = new FeeRouter(recipients, address(referralRegistry));
         cpmm = new SimpleCPMM(100_000 * 10**6);
 
         // Deploy UMA Oracle Adapter

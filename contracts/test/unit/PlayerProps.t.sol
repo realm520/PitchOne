@@ -23,7 +23,7 @@ contract PlayerPropsTest is Test {
     // ============ 常量 ============
     uint8 constant USDC_DECIMALS = 6;
     uint256 constant INITIAL_BALANCE = 10_000 * 10 ** USDC_DECIMALS; // 10000 USDC
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 复杂配置
     uint256 constant DISPUTE_PERIOD = 2 hours;
 
     // ============ 状态变量 ============

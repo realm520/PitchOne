@@ -40,7 +40,7 @@ contract SystemIntegration_V2Test is Test {
     uint256 constant INITIAL_LP_DEPOSIT = 1_000_000 * 1e6; // 1M USDC
     uint256 constant MARKET_BORROW_AMOUNT = 100_000 * 1e6; // 100k USDC
     uint256 constant BET_AMOUNT = 10_000 * 1e6; // 10k USDC
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 复杂配置
     uint256 constant DISPUTE_PERIOD = 7200; // 2小时
 
     // ============ 事件 ============

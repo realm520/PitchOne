@@ -63,6 +63,9 @@ contract OU_IntegrationTest is Test {
         });
         feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
+        // Authorize FeeRouter to call ReferralRegistry (critical for accrueReferralReward)
+        referralRegistry.setAuthorizedCaller(address(feeRouter), true);
+
         // 部署半球盘 OU 市场 (2.5球)
         marketHalfLine = new OU_Template();
         marketHalfLine.initialize(

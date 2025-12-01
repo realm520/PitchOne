@@ -97,6 +97,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         });
         feeRouter = new FeeRouter(recipients, address(referralRegistry));
 
+        // Authorize FeeRouter to call ReferralRegistry (critical for accrueReferralReward)
+        referralRegistry.setAuthorizedCaller(address(feeRouter), true);
+
         // 3. 初始化流动性
         _setupERC4626Provider();
         _setupMockProvider();

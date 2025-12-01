@@ -273,15 +273,20 @@ contract FeeRouterTest is Test {
 
         vm.startPrank(market);
         usdc.approve(address(router), totalAmount);
-        router.batchRouteFee(address(usdc), users, amounts);
+        (uint256 successCount, uint256[] memory failedIndices) = router.batchRouteFee(address(usdc), users, amounts);
         vm.stopPrank();
 
-        // alice: 80e6 返佣 + 920e6 分配
+        // 验证批量处理结果
+        assertEq(successCount, 2, "Should have 2 successful operations");
+        assertEq(failedIndices.length, 0, "Should have no failed operations");
+
+        // 注意: alice 绑定推荐人但未达到有效阈值,所以不会有推荐返佣
+        // alice: 0 返佣(推荐未生效) + 1000e6 分配
         // bob: 0 返佣 + 500e6 分配
-        // 总计返佣: 80e6
-        // 总计LP: 368e6 + 200e6 = 568e6
-        assertEq(usdc.balanceOf(referrer), 80e6);
-        assertEq(usdc.balanceOf(lpVault), 568e6);
+        // 总计返佣: 0
+        // 总计LP: 400e6 + 200e6 = 600e6 (40% of 1500e6)
+        assertEq(usdc.balanceOf(referrer), 0, "No referral commission until valid");
+        assertEq(usdc.balanceOf(lpVault), 600e6, "LP gets 40% of total fees");
     }
 
     function test_BatchRouteFee_RevertIf_LengthMismatch() public {
@@ -304,6 +309,13 @@ contract FeeRouterTest is Test {
         // alice 绑定推荐人
         vm.prank(alice);
         registry.bind(referrer, 0);
+
+        // 模拟交易量达到最低门槛 (通过 FeeRouter 的 routeFee 调用)
+        vm.startPrank(market);
+        usdc.approve(address(router), 1000e6);
+        router.routeFee(address(usdc), alice, 1000e6, 100e6); // 模拟 alice 交易 100 USDC
+        vm.stopPrank();
+
         assertEq(router.getReferralBps(alice), 800);
 
         // 过期后

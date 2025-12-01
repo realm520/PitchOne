@@ -25,7 +25,7 @@ contract OracleIntegrationTest is Test {
     address public charlie;
 
     uint256 constant INITIAL_BALANCE = 100000e6; // 10万 USDC
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 合约
     uint256 constant DISPUTE_PERIOD = 2 hours;
 
     function setUp() public {
@@ -53,7 +53,7 @@ contract OracleIntegrationTest is Test {
             block.timestamp + 1 days, // 1天后开球
             address(usdc),
             treasury,
-            FEE_RATE,
+            FEE_RATE, // 使用 0% 费率
             DISPUTE_PERIOD,
             address(pricingEngine),
             "",

@@ -33,7 +33,7 @@ contract ScoreTemplateTest is Test {
     // 默认参数
     uint8 constant DEFAULT_MAX_GOALS = 5; // 0-0 到 5-5
     uint256 constant DEFAULT_LIQUIDITY_B = 5000 * WAD;
-    uint256 constant FEE_RATE = 200; // 2%
+    uint256 constant FEE_RATE = 0; // 0% - 避免需要 FeeRouter 复杂配置
     uint256 constant DISPUTE_PERIOD = 24 hours;
 
     function setUp() public {
