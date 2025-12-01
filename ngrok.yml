@@ -1,0 +1,15 @@
+version: "2"
+authtoken: 2al2QqmYwBiZdK7R3axdcKhBsN2_6VAcuCu8kZS1f4g2WKgb9  # 从 https://dashboard.ngrok.com/get-started/your-authtoken 获取
+tunnels:
+  user-app:
+    addr: 3000
+    proto: http
+    inspect: true
+  admin-app:
+    addr: 3001
+    proto: http
+    inspect: true
+  anvil-rpc:
+    addr: 8545
+    proto: http
+    inspect: true

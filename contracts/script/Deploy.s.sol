@@ -9,7 +9,7 @@ import "../src/templates/OU_MultiLine_V2.sol";
 import "../src/templates/AH_Template_V2.sol";
 import "../src/templates/OddEven_Template_V2.sol";
 import "../src/templates/ScoreTemplate_V2.sol";
-import "../src/templates/PlayerProps_Template_V2.sol";
+import "../src/templates/PlayerProps_Template.sol";
 import "../src/liquidity/LiquidityVault.sol"; // Deprecated - use ERC4626LiquidityProvider
 import "../src/liquidity/ERC4626LiquidityProvider.sol";
 import "../src/liquidity/ParimutuelLiquidityProvider.sol";
@@ -272,10 +272,11 @@ contract Deploy is Script {
         bytes32 scoreTemplateId = bytes32(0);
         console.log("ScoreTemplate_V2: SKIPPED (exceeds 24KB limit)");
 
-        // PlayerProps Template V2 - 部署未初始化的实现合约
-        PlayerProps_Template_V2 playerPropsTemplate = new PlayerProps_Template_V2();
-        bytes32 playerPropsTemplateId = factory.registerTemplate("PlayerProps", "V2", address(playerPropsTemplate));
-        console.log("PlayerProps_Template_V2 Implementation:", address(playerPropsTemplate));
+        // PlayerProps Template - 部署未初始化的实现合约
+        // 注意：使用原版 PlayerProps_Template，因为 V2 版本超过 24KB 限制
+        PlayerProps_Template playerPropsTemplate = new PlayerProps_Template();
+        bytes32 playerPropsTemplateId = factory.registerTemplate("PlayerProps", "V1", address(playerPropsTemplate));
+        console.log("PlayerProps_Template Implementation:", address(playerPropsTemplate));
         console.log("PlayerProps Template ID:", vm.toString(playerPropsTemplateId));
 
         console.log("\n6 out of 7 Market Templates Registered!");

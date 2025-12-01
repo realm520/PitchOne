@@ -12,7 +12,7 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0x08677Af0A7F54fE2a190bb1F75DE682fe596317e"
+      address: "0xddE78e6202518FF4936b5302cC2891ec180E8bFf"
       abi: MarketFactory_v2
       startBlock: 0
     mapping:
@@ -72,7 +72,7 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0x1E53bea57Dd5dDa7bFf1a1180a2f64a5c9e222f5"
+      address: "0x26B862f640357268Bd2d9E95bc81553a2Aa81D7E"
       abi: FeeRouter
       startBlock: 0
     mapping:
@@ -100,7 +100,7 @@ dataSources:
     name: LiquidityProviderFactory
     network: localhost
     source:
-      address: "0x267fB71b280FB34B278CedE84180a9A9037C941b"
+      address: "0xc582Bc0317dbb0908203541971a358c44b1F3766"
       abi: LiquidityProviderFactory
       startBlock: 0
     mapping:
@@ -134,7 +134,7 @@ dataSources:
     name: ERC4626LiquidityProvider
     network: localhost
     source:
-      address: "0x7E27bCbe2F0eDdA3E0AA12492950a6B8703b00FB"
+      address: "0xB2b580ce436E6F77A5713D80887e14788Ef49c9A"
       abi: ERC4626LiquidityProvider
       startBlock: 0
     mapping:
@@ -169,7 +169,7 @@ dataSources:
     name: ParimutuelLiquidityProvider
     network: localhost
     source:
-      address: "0x9015957A2210BB8B10e27d8BBEEF8d9498f123eF"
+      address: "0xB377a2EeD7566Ac9fCb0BA673604F9BF875e2Bab"
       abi: ParimutuelLiquidityProvider
       startBlock: 0
     mapping:
@@ -207,7 +207,7 @@ dataSources:
     name: ReferralRegistry
     network: localhost
     source:
-      address: "0x633a7eB9b8912b22f3616013F3153de687F96074"
+      address: "0x70bDA08DBe07363968e9EE53d899dFE48560605B"
       abi: ReferralRegistry
       startBlock: 0
     mapping:
