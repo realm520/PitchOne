@@ -1,4 +1,5 @@
-import type { Metadata } from 'next';
+'use client';
+
 import {
   ReferralManualBinder,
   ReferralLink,
@@ -8,11 +9,7 @@ import {
   ReferralPageHeader,
   ReferralPageFooter,
 } from '@/components/referral';
-
-export const metadata: Metadata = {
-  title: '推荐中心 - PitchOne',
-  description: '分享推荐链接，邀请好友，获得返佣奖励',
-};
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * 推荐系统主页
@@ -25,6 +22,8 @@ export const metadata: Metadata = {
  * 5. 显示全站推荐排行榜
  */
 export default function ReferralPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 页面标题（动态显示返佣比例） */}
@@ -47,13 +46,13 @@ export default function ReferralPage() {
 
       {/* 第四行：推荐数据 Tab（推荐列表 + 返佣记录） */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-white mb-4">我的推荐数据</h2>
+        <h2 className="text-xl font-bold text-white mb-4">{t('referral.myData')}</h2>
         <ReferralDataTabs />
       </div>
 
       {/* 第五行：排行榜 */}
       <div>
-        <h2 className="text-xl font-bold text-white mb-4">推荐排行榜</h2>
+        <h2 className="text-xl font-bold text-white mb-4">{t('referral.leaderboard')}</h2>
         <ReferralLeaderboard limit={20} />
       </div>
 

@@ -3,12 +3,13 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Providers } from "@pitchone/web3";
 import { I18nProvider } from "@pitchone/i18n";
-import { Header, Footer } from "@pitchone/ui";
+import { Header } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
 import { ParlayProvider } from "../lib/parlay-store";
 import { ParlayCart } from "../components/parlay";
 import { ReferralBinder } from "../components/referral";
 import { Navigation, HeaderActions } from "../components/Navigation";
+import { AppFooter } from "../components/AppFooter";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -47,7 +48,7 @@ export default function RootLayout({
                   actions={<HeaderActions />}
                 />
               <main className="flex-1">{children}</main>
-              <Footer />
+              <AppFooter />
               <ParlayCart />
               </div>
             </ParlayProvider>

@@ -24,7 +24,7 @@ import { useTranslation } from '@pitchone/i18n';
 type TabType = 'active' | 'settled' | 'all';
 
 export function PortfolioClient() {
-  const { t } = useTranslation();
+  const { t, translateTeam } = useTranslation();
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -48,6 +48,56 @@ export function PortfolioClient() {
       });
     }
   }, [positions]);
+
+  // 计算统计数据
+  const stats = (() => {
+    if (!positions || positions.length === 0) {
+      return {
+        totalBetAmount: 0,
+        totalMarkets: 0,
+        totalBets: 0,
+        totalProfit: 0,
+      };
+    }
+
+    // 总投注额：所有头寸的 totalInvested 之和
+    const totalBetAmount = positions.reduce((sum, pos) => {
+      const invested = pos.totalInvested ? parseFloat(pos.totalInvested) : 0;
+      return sum + invested;
+    }, 0);
+
+    // 投注市场数：去重的市场数量
+    const uniqueMarkets = new Set(positions.map((pos) => pos.market.id));
+    const totalMarkets = uniqueMarkets.size;
+
+    // 总投注次数：头寸数量
+    const totalBets = positions.length;
+
+    // 盈利金额：已结算且赢得的头寸的收益 - 已结算且输掉的投注额
+    const totalProfit = positions.reduce((sum, pos) => {
+      const invested = pos.totalInvested ? parseFloat(pos.totalInvested) : 0;
+
+      // 只计算已结算的市场
+      if (pos.market.state === MarketStatus.Resolved || pos.market.state === MarketStatus.Finalized) {
+        if (pos.market.winnerOutcome !== undefined && pos.market.winnerOutcome === pos.outcome) {
+          // 赢了：预期收益 - 投入
+          const expectedPayout = calculateExpectedPayout(pos);
+          return sum + (expectedPayout - invested);
+        } else {
+          // 输了：损失全部投入
+          return sum - invested;
+        }
+      }
+      return sum;
+    }, 0);
+
+    return {
+      totalBetAmount,
+      totalMarkets,
+      totalBets,
+      totalProfit,
+    };
+  })();
 
   const formatDate = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
@@ -137,6 +187,40 @@ export function PortfolioClient() {
           <p className="text-gray-400">{t('portfolio.subtitle')}</p>
         </div>
 
+        {/* Stats Cards */}
+        {mounted && isConnected && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <Card padding="md">
+              <div className="text-center">
+                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalBetAmount')}</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.totalBetAmount.toFixed(2)} <span className="text-sm text-gray-400">USDC</span>
+                </p>
+              </div>
+            </Card>
+            <Card padding="md">
+              <div className="text-center">
+                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalMarkets')}</p>
+                <p className="text-2xl font-bold text-white">{stats.totalMarkets}</p>
+              </div>
+            </Card>
+            <Card padding="md">
+              <div className="text-center">
+                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalBets')}</p>
+                <p className="text-2xl font-bold text-white">{stats.totalBets}</p>
+              </div>
+            </Card>
+            <Card padding="md">
+              <div className="text-center">
+                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalProfit')}</p>
+                <p className={`text-2xl font-bold ${stats.totalProfit >= 0 ? 'text-neon' : 'text-red-500'}`}>
+                  {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)} <span className="text-sm text-gray-400">USDC</span>
+                </p>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
           {[
@@ -194,8 +278,8 @@ export function PortfolioClient() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-white">
-                          {position.market.homeTeam || '主队'} vs{' '}
-                          {position.market.awayTeam || '客队'}
+                          {position.market.homeTeam ? translateTeam(position.market.homeTeam) : t('markets.unknown')} vs{' '}
+                          {position.market.awayTeam ? translateTeam(position.market.awayTeam) : t('markets.unknown')}
                         </h3>
                         {getStatusBadge(position.market.state)}
                         {position.market.winnerOutcome !== undefined &&

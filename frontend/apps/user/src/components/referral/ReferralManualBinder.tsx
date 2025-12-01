@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
-import { useBindReferral, useGetReferrer } from '@pitchone/web3';
+import { useBindReferral, useGetReferrer, useReferralParams } from '@pitchone/web3';
 import { type Address, isAddress } from 'viem';
 import { Card, Button } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralManualBinder 组件
@@ -34,13 +35,17 @@ import { Card, Button } from '@pitchone/ui';
  * ```
  */
 export function ReferralManualBinder() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const { bindReferral, isPending, isConfirming, isSuccess, error } = useBindReferral();
   const { data: existingReferrer, isLoading: isLoadingReferrer, refetch } = useGetReferrer(address);
+  const { feeBps } = useReferralParams();
 
   const [referrerInput, setReferrerInput] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const feePercentage = feeBps ? (Number(feeBps) / 100).toFixed(2) : '8.00';
 
   // 避免 hydration 错误
   useEffect(() => {
@@ -66,19 +71,19 @@ export function ReferralManualBinder() {
 
     // 检查是否为空
     if (!inputAddress.trim()) {
-      setValidationError('请输入推荐人地址');
+      setValidationError(t('referral.binder.validation.empty'));
       return false;
     }
 
     // 检查地址格式
     if (!isAddress(inputAddress)) {
-      setValidationError('无效的以太坊地址格式');
+      setValidationError(t('referral.binder.validation.invalid'));
       return false;
     }
 
     // 防止自我推荐
     if (address && inputAddress.toLowerCase() === address.toLowerCase()) {
-      setValidationError('不能绑定自己为推荐人');
+      setValidationError(t('referral.binder.validation.self'));
       return false;
     }
 
@@ -134,7 +139,7 @@ export function ReferralManualBinder() {
               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以绑定推荐人</p>
+          <p className="text-gray-400 text-sm">{t('referral.binder.connectWallet')}</p>
         </div>
       </Card>
     );
@@ -146,7 +151,7 @@ export function ReferralManualBinder() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -162,15 +167,15 @@ export function ReferralManualBinder() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-white font-medium mb-2">您已绑定推荐人</p>
+          <p className="text-white font-medium mb-2">{t('referral.binder.alreadyBound')}</p>
           <p className="text-sm text-gray-400 mb-4">
-            推荐人地址：
+            {t('referral.binder.referrerAddress')}:
             <code className="ml-2 px-2 py-1 bg-dark-card border border-dark-border rounded text-neon-blue">
               {existingReferrer.slice(0, 6)}...{existingReferrer.slice(-4)}
             </code>
           </p>
           <p className="text-xs text-gray-500">
-            推荐关系一旦绑定，无法更改
+            {t('referral.binder.cannotChange')}
           </p>
         </div>
       </Card>
@@ -182,9 +187,9 @@ export function ReferralManualBinder() {
     <Card padding="lg">
       {/* 标题 */}
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-white mb-2">绑定推荐人</h3>
+        <h3 className="text-lg font-bold text-white mb-2">{t('referral.binder.title')}</h3>
         <p className="text-sm text-gray-400">
-          如果您有推荐人，请输入其钱包地址进行绑定
+          {t('referral.binder.desc')}
         </p>
       </div>
 
@@ -192,7 +197,7 @@ export function ReferralManualBinder() {
       <div className="space-y-4">
         <div>
           <label htmlFor="referrer-input" className="block text-sm font-medium text-gray-300 mb-2">
-            推荐人地址
+            {t('referral.binder.inputLabel')}
           </label>
           <input
             id="referrer-input"
@@ -233,10 +238,10 @@ export function ReferralManualBinder() {
           {isPending || isConfirming ? (
             <>
               <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              {isPending ? '等待确认...' : '绑定中...'}
+              {isPending ? t('referral.binder.waiting') : t('referral.binder.binding')}
             </>
           ) : (
-            '绑定推荐人'
+            t('referral.binder.bindBtn')
           )}
         </Button>
 
@@ -248,9 +253,9 @@ export function ReferralManualBinder() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-400">绑定失败</p>
+                <p className="text-sm font-medium text-red-400">{t('referral.binder.bindFailed')}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {error.message || '未知错误，请重试'}
+                  {error.message || t('referral.binder.unknownError')}
                 </p>
               </div>
             </div>
@@ -265,9 +270,9 @@ export function ReferralManualBinder() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-medium text-green-400">绑定成功！</p>
+                <p className="text-sm font-medium text-green-400">{t('referral.binder.bindSuccess')}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  您已成功绑定推荐人，现在可以享受推荐奖励
+                  {t('referral.binder.successDesc')}
                 </p>
               </div>
             </div>
@@ -282,12 +287,12 @@ export function ReferralManualBinder() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-sm text-gray-300">
-            <p className="font-medium mb-2">注意事项</p>
+            <p className="font-medium mb-2">{t('referral.binder.notesTitle')}</p>
             <ul className="space-y-1 text-xs text-gray-400">
-              <li>• 推荐关系一旦绑定，<strong className="text-neon-blue">无法更改</strong></li>
-              <li>• 不能绑定自己为推荐人</li>
-              <li>• 请确保推荐人地址正确无误</li>
-              <li>• 绑定后，推荐人将获得您下注手续费的 8% 返佣</li>
+              <li>• {t('referral.binder.note1')}<strong className="text-neon-blue">{t('referral.binder.note1Highlight')}</strong></li>
+              <li>• {t('referral.binder.note2')}</li>
+              <li>• {t('referral.binder.note3')}</li>
+              <li>• {t('referral.binder.note4', { rate: feePercentage })}</li>
             </ul>
           </div>
         </div>
@@ -299,7 +304,7 @@ export function ReferralManualBinder() {
           onClick={() => setReferrerInput('')}
           className="text-sm text-gray-500 hover:text-gray-400 transition-colors"
         >
-          暂时跳过
+          {t('referral.binder.skip')}
         </button>
       </div>
     </Card>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { useReferrals, useReferrerStats } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralList 组件
@@ -24,6 +25,7 @@ import { Card, Badge } from '@pitchone/ui';
  * ```
  */
 export function ReferralList() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [page, setPage] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -49,7 +51,7 @@ export function ReferralList() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -72,7 +74,7 @@ export function ReferralList() {
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以查看推荐列表</p>
+          <p className="text-gray-400 text-sm">{t('referral.listComp.connectWallet')}</p>
         </div>
       </Card>
     );
@@ -95,7 +97,7 @@ export function ReferralList() {
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-red-400 text-sm">加载推荐列表失败</p>
+          <p className="text-red-400 text-sm">{t('referral.listComp.loadError')}</p>
           <p className="text-gray-500 text-xs mt-1">{error.message}</p>
         </div>
       </Card>
@@ -139,8 +141,8 @@ export function ReferralList() {
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
             />
           </svg>
-          <p className="text-gray-400 text-sm mb-2">暂无推荐用户</p>
-          <p className="text-gray-500 text-xs">分享您的推荐链接以邀请好友</p>
+          <p className="text-gray-400 text-sm mb-2">{t('referral.listComp.empty')}</p>
+          <p className="text-gray-500 text-xs">{t('referral.listComp.emptyDesc')}</p>
         </div>
       </Card>
     );
@@ -158,16 +160,16 @@ export function ReferralList() {
       <div className="px-6 py-4 border-b border-dark-border">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-white">推荐列表</h3>
+            <h3 className="text-lg font-bold text-white">{t('referral.listComp.title')}</h3>
             <p className="text-sm text-gray-400 mt-1">
               {statsLoading ? (
-                '加载中...'
+                t('referral.loading')
               ) : (
                 <>
-                  共 <span className="text-neon-blue font-semibold">{totalReferrals}</span> 位用户
+                  {t('referral.listComp.totalUsers', { count: totalReferrals })}
                   {totalPages > 1 && (
                     <span className="text-gray-500 ml-2">
-                      · 第 {page + 1}/{totalPages} 页
+                      · {t('referral.listComp.pageInfo', { current: page + 1, total: totalPages })}
                     </span>
                   )}
                 </>
@@ -207,7 +209,7 @@ export function ReferralList() {
                       </p>
                     </div>
                     <p className="text-xs text-gray-500">
-                      绑定时间: {boundDate.toLocaleDateString('zh-CN')}
+                      {t('referral.listComp.bindTime')}: {boundDate.toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -215,7 +217,7 @@ export function ReferralList() {
                 {/* 统计信息 */}
                 <div className="text-right">
                   <p className="text-xs text-gray-500">
-                    Campaign: {referral.campaignId.toString()}
+                    {t('referral.listComp.campaign')}: {referral.campaignId.toString()}
                   </p>
                 </div>
               </div>
@@ -224,7 +226,7 @@ export function ReferralList() {
               {Number(referral.campaignId) > 0 && (
                 <div className="mt-2">
                   <Badge variant="info" size="sm">
-                    活动 #{referral.campaignId.toString()}
+                    {t('referral.listComp.campaign')} #{referral.campaignId.toString()}
                   </Badge>
                 </div>
               )}
@@ -246,7 +248,7 @@ export function ReferralList() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              上一页
+              {t('referral.listComp.prev')}
             </button>
 
             {/* 页码指示器 */}
@@ -286,7 +288,7 @@ export function ReferralList() {
               disabled={!hasNextPage}
               className="px-4 py-2 text-sm text-white bg-dark-card border border-dark-border rounded-lg hover:bg-dark-card/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              下一页
+              {t('referral.listComp.next')}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -296,7 +298,7 @@ export function ReferralList() {
           {/* 快速跳转（如果页数很多） */}
           {totalPages > 5 && (
             <div className="mt-3 flex items-center justify-center gap-2 text-sm">
-              <span className="text-gray-500">跳转到</span>
+              <span className="text-gray-500">{t('referral.listComp.jumpTo')}</span>
               <input
                 type="number"
                 min={1}
@@ -312,7 +314,7 @@ export function ReferralList() {
                 }}
                 className="w-16 px-2 py-1 bg-dark-card border border-dark-border rounded text-white text-center focus:outline-none focus:border-neon-blue"
               />
-              <span className="text-gray-500">页</span>
+              <span className="text-gray-500">{t('referral.listComp.page')}</span>
             </div>
           )}
         </div>

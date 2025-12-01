@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from '@pitchone/web3';
 import { useReferralRewards } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralRewardsHistory 组件
@@ -23,6 +24,7 @@ import { Card, Badge } from '@pitchone/ui';
  * ```
  */
 export function ReferralRewardsHistory() {
+  const { t } = useTranslation();
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
   const { rewards, loading, error } = useReferralRewards(address, 50);
@@ -37,7 +39,7 @@ export function ReferralRewardsHistory() {
       <Card padding="lg">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-4 animate-pulse bg-gray-700 rounded-full" />
-          <p className="text-gray-400 text-sm">加载中...</p>
+          <p className="text-gray-400 text-sm">{t('referral.loading')}</p>
         </div>
       </Card>
     );
@@ -60,7 +62,7 @@ export function ReferralRewardsHistory() {
               d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">请先连接钱包以查看返佣历史</p>
+          <p className="text-gray-400 text-sm">{t('referral.historyComp.connectWallet')}</p>
         </div>
       </Card>
     );
@@ -83,7 +85,7 @@ export function ReferralRewardsHistory() {
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-red-400 text-sm">加载返佣历史失败</p>
+          <p className="text-red-400 text-sm">{t('referral.historyComp.loadError')}</p>
           <p className="text-gray-500 text-xs mt-1">{error.message}</p>
         </div>
       </Card>
@@ -127,9 +129,9 @@ export function ReferralRewardsHistory() {
               d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-gray-400 text-sm mb-2">暂无返佣记录</p>
+          <p className="text-gray-400 text-sm mb-2">{t('referral.historyComp.empty')}</p>
           <p className="text-gray-500 text-xs">
-            当被推荐人下注后，您将获得返佣奖励
+            {t('referral.historyComp.emptyDesc')}
           </p>
         </div>
       </Card>
@@ -148,13 +150,13 @@ export function ReferralRewardsHistory() {
       <div className="px-6 py-4 border-b border-dark-border">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-white">返佣历史</h3>
+            <h3 className="text-lg font-bold text-white">{t('referral.historyComp.title')}</h3>
             <p className="text-sm text-gray-400 mt-1">
-              共 {rewards.length} 笔记录
+              {t('referral.historyComp.totalRecords', { count: rewards.length })}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-400">累计返佣</p>
+            <p className="text-sm text-gray-400">{t('referral.historyComp.totalRewards')}</p>
             <p className="text-2xl font-bold text-neon-green">
               {totalRewards.toFixed(4)}
             </p>
@@ -200,12 +202,12 @@ export function ReferralRewardsHistory() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">
-                      来自{' '}
+                      {t('referral.historyComp.from')}{' '}
                       {refereeAddress.slice(0, 6)}...
                       {refereeAddress.slice(-4)}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {rewardDate.toLocaleString('zh-CN')}
+                      {rewardDate.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -221,7 +223,7 @@ export function ReferralRewardsHistory() {
               {/* 交易哈希 */}
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-500">
-                  区块 #{reward.blockNumber.toString()}
+                  {t('referral.historyComp.block')} #{reward.blockNumber.toString()}
                 </span>
                 <a
                   href={`https://etherscan.io/tx/${reward.transactionHash}`}
@@ -229,7 +231,7 @@ export function ReferralRewardsHistory() {
                   rel="noopener noreferrer"
                   className="text-neon-blue hover:text-neon-purple transition-colors"
                 >
-                  查看交易 ↗
+                  {t('referral.historyComp.viewTx')} ↗
                 </a>
               </div>
             </div>
@@ -240,7 +242,7 @@ export function ReferralRewardsHistory() {
       {/* 底部提示 */}
       <div className="px-6 py-3 border-t border-dark-border bg-dark-card/50">
         <p className="text-xs text-gray-500 text-center">
-          返佣将在被推荐人下注时自动发放到您的钱包
+          {t('referral.historyComp.autoPayNote')}
         </p>
       </div>
     </Card>

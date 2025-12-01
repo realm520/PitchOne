@@ -15,14 +15,14 @@ import {
 } from '@pitchone/ui';
 
 export default function MarketsPage() {
-  const { t } = useTranslation();
+  const { t, translateTeam, translateLeague } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<MarketStatus[] | undefined>();
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const { data: markets, isLoading, error, refetch } = useMarkets(statusFilter);
 
   // 动态生成过滤器选项
   const statusFilters = [
-    { label: t('markets.filter.all'), value: undefined },
+    { label: t('markets.filter.allStatus'), value: undefined },
     { label: t('markets.status.open'), value: MarketStatus.Open },
     { label: t('markets.status.locked'), value: MarketStatus.Locked },
     { label: t('markets.status.resolved'), value: MarketStatus.Resolved },
@@ -160,12 +160,12 @@ export default function MarketsPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-gray-500 uppercase">
-                        {market._displayInfo?.league || 'Unknown League'}
+                        {translateLeague(market._displayInfo?.league || 'EPL')}
                       </span>
                       {getStatusBadge(market.state)}
                     </div>
                     <h3 className="text-xl font-bold text-white mb-1">
-                      {market._displayInfo?.homeTeam || 'Team A'} vs {market._displayInfo?.awayTeam || 'Team B'}
+                      {translateTeam(market._displayInfo?.homeTeam || 'Team A')} vs {translateTeam(market._displayInfo?.awayTeam || 'Team B')}
                     </h3>
                     <p className="text-sm text-gray-400">
                       {t('markets.card.createdAt')}: {formatDate(market.createdAt)}

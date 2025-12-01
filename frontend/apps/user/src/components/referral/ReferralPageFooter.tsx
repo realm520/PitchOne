@@ -1,6 +1,7 @@
 'use client';
 
 import { useReferralParams } from '@pitchone/web3';
+import { useTranslation } from '@pitchone/i18n';
 
 /**
  * ReferralPageFooter 组件
@@ -19,6 +20,7 @@ import { useReferralParams } from '@pitchone/web3';
  * ```
  */
 export function ReferralPageFooter() {
+  const { t } = useTranslation();
   const { feeBps } = useReferralParams();
 
   const feePercentage = feeBps
@@ -42,26 +44,26 @@ export function ReferralPageFooter() {
           />
         </svg>
         <div>
-          <h3 className="text-lg font-bold text-white mb-2">如何获得推荐奖励？</h3>
+          <h3 className="text-lg font-bold text-white mb-2">{t('referral.footer.title')}</h3>
           <ol className="space-y-2 text-sm text-gray-400">
             <li className="flex gap-2">
               <span className="text-neon-blue">1.</span>
-              <span>复制您的专属推荐链接</span>
+              <span>{t('referral.footer.step1')}</span>
             </li>
             <li className="flex gap-2">
               <span className="text-neon-blue">2.</span>
-              <span>分享给好友，好友通过链接访问并连接钱包完成绑定</span>
+              <span>{t('referral.footer.step2')}</span>
             </li>
             <li className="flex gap-2">
               <span className="text-neon-blue">3.</span>
               <span>
-                好友每次下注，您将获得其手续费的{' '}
-                <span className="text-neon-green font-semibold">{feePercentage}%</span> 作为返佣
+                {t('referral.footer.step3')}{' '}
+                <span className="text-neon-green font-semibold">{feePercentage}%</span> {t('referral.footer.step3Suffix')}
               </span>
             </li>
             <li className="flex gap-2">
               <span className="text-neon-blue">4.</span>
-              <span>返佣将自动发放到您的钱包地址，无需手动领取</span>
+              <span>{t('referral.footer.step4')}</span>
             </li>
           </ol>
         </div>

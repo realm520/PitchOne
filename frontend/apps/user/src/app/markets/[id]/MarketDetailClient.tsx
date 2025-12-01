@@ -17,6 +17,7 @@ import {
   useMarketOutcomes,
   useMarketFullData,
   formatUSDCFromWei,
+  useIsMarketLocked,
 } from '@pitchone/web3';
 import {
   Container,
@@ -36,7 +37,7 @@ import { useParlayStore } from '@/lib/parlay-store';
 import toast from 'react-hot-toast';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
-  const { t } = useTranslation();
+  const { t, translateTeam, translateLeague } = useTranslation();
   const { address, isConnected, chain } = useAccount();
   const { addOutcome, hasMarket, getOutcome } = useParlayStore();
 
@@ -64,6 +65,16 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     marketId as `0x${string}`,
     address
   );
+
+  // 调用 isLocked() 检查基于开赛时间的锁定状态
+  const { data: isMarketLocked } = useIsMarketLocked(marketId as `0x${string}`);
+
+  // 计算有效的下注状态
+  // 如果基于时间的锁定生效，则不允许下注（即使合约状态是 Open）
+  const canBet = useMemo(() => {
+    if (!market) return false;
+    return market.state === MarketStatus.Open && !isMarketLocked;
+  }, [market, isMarketLocked]);
 
   // 调试日志：显示所有关键状态
   console.log('[MarketDetailClient] 组件状态:', {
@@ -330,13 +341,16 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   };
 
   const getStatusBadge = (status: MarketStatus) => {
+    // 如果基于时间的锁定生效，覆盖显示状态为 Locked
+    const effectiveStatus = isMarketLocked ? MarketStatus.Locked : status;
+
     const variants = {
       [MarketStatus.Open]: { variant: 'success' as const, label: t('markets.status.open') },
       [MarketStatus.Locked]: { variant: 'warning' as const, label: t('markets.status.locked') },
       [MarketStatus.Resolved]: { variant: 'info' as const, label: t('markets.status.resolved') },
       [MarketStatus.Finalized]: { variant: 'default' as const, label: t('markets.status.finalized') },
     };
-    const config = variants[status];
+    const config = variants[effectiveStatus];
     return <Badge variant={config.variant} dot>{config.label}</Badge>;
   };
 
@@ -468,7 +482,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
     const outcome = outcomes[outcomeId];
     const marketName = market._displayInfo?.homeTeam && market._displayInfo?.awayTeam
-      ? `${market._displayInfo.homeTeam} vs ${market._displayInfo.awayTeam}`
+      ? `${translateTeam(market._displayInfo.homeTeam)} vs ${translateTeam(market._displayInfo.awayTeam)}`
       : `${t('markets.unknown')} ${market.id.slice(0, 8)}...`;
 
     addOutcome({
@@ -530,11 +544,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-white">
-                  {market._displayInfo?.homeTeam || 'Team A'} vs {market._displayInfo?.awayTeam || 'Team B'}
+                  {translateTeam(market._displayInfo?.homeTeam || 'Team A')} vs {translateTeam(market._displayInfo?.awayTeam || 'Team B')}
                 </h1>
                 {getStatusBadge(market.state)}
               </div>
-              <p className="text-gray-400">{market._displayInfo?.league || 'Unknown League'}</p>
+              <p className="text-gray-400">{translateLeague(market._displayInfo?.league || 'EPL')}</p>
+              <p className="text-lg font-semibold text-neon-blue mt-2">
+                {t('markets.detail.kickoffTime')}: {formatDate(market.kickoffTime)}
+              </p>
               <p className="text-sm text-gray-500 mt-1">
                 {t('markets.detail.createdAt')}: {formatDate(market.createdAt)}
               </p>
@@ -605,17 +622,17 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                       {/* 立即下注按钮 */}
                       <Button
                         onClick={() => {
-                          if (market.state === MarketStatus.Open) {
+                          if (canBet) {
                             setSelectedOutcome(outcome.id);
                             setShowBetModal(true);
                           }
                         }}
-                        disabled={market.state !== MarketStatus.Open}
+                        disabled={!canBet}
                         variant="neon"
                         size="sm"
                         className="w-full"
                       >
-                        {market.state === MarketStatus.Open ? t('markets.detail.placeBetNow') : t('markets.detail.locked')}
+                        {canBet ? t('markets.detail.placeBetNow') : t('markets.detail.locked')}
                       </Button>
 
                       {/* 加入串关按钮 */}
@@ -624,7 +641,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                           e.stopPropagation();
                           handleAddToParlay(outcome.id);
                         }}
-                        disabled={isThisOutcomeSelected || market.state !== MarketStatus.Open}
+                        disabled={isThisOutcomeSelected || !canBet}
                         variant={isThisOutcomeSelected ? 'secondary' : 'ghost'}
                         size="sm"
                         className="w-full"

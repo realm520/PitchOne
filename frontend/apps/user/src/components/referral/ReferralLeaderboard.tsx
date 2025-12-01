@@ -2,6 +2,7 @@
 
 import { useReferralLeaderboard } from '@pitchone/web3';
 import { Card, Badge } from '@pitchone/ui';
+import { useTranslation } from '@pitchone/i18n';
 
 interface ReferralLeaderboardProps {
   /**
@@ -29,6 +30,7 @@ interface ReferralLeaderboardProps {
  * ```
  */
 export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
+  const { t } = useTranslation();
   const { leaderboard, loading, error } = useReferralLeaderboard(limit);
 
   if (error) {
@@ -48,7 +50,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-red-400 text-sm">加载排行榜失败</p>
+          <p className="text-red-400 text-sm">{t('referral.leaderboardComp.loadError')}</p>
           <p className="text-gray-500 text-xs mt-1">{error.message}</p>
         </div>
       </Card>
@@ -94,7 +96,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
               d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
             />
           </svg>
-          <p className="text-gray-400 text-sm">暂无排行榜数据</p>
+          <p className="text-gray-400 text-sm">{t('referral.leaderboardComp.empty')}</p>
         </div>
       </Card>
     );
@@ -149,8 +151,8 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
             />
           </svg>
           <div>
-            <h3 className="text-lg font-bold text-white">推荐排行榜</h3>
-            <p className="text-sm text-gray-400">按累计返佣排序</p>
+            <h3 className="text-lg font-bold text-white">{t('referral.leaderboardComp.title')}</h3>
+            <p className="text-sm text-gray-400">{t('referral.leaderboardComp.sortBy')}</p>
           </div>
         </div>
       </div>
@@ -195,11 +197,11 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
                   </p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-gray-500">
-                      {entry.referralCount} 人推荐
+                      {entry.referralCount} {t('referral.leaderboardComp.referrals')}
                     </span>
                     <span className="text-xs text-gray-500">•</span>
                     <span className="text-xs text-gray-500">
-                      {entry.validReferralCount} 人活跃
+                      {entry.validReferralCount} {t('referral.leaderboardComp.active')}
                     </span>
                   </div>
                 </div>
@@ -219,7 +221,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
       {/* 底部提示 */}
       <div className="px-6 py-3 border-t border-dark-border bg-dark-card/50">
         <p className="text-xs text-gray-500 text-center">
-          数据每小时更新一次，排名根据累计返佣金额计算
+          {t('referral.leaderboardComp.updateNote')}
         </p>
       </div>
     </Card>
