@@ -170,6 +170,96 @@ export function useAuthorizeMarket() {
 }
 
 /**
+ * 结算市场 Hook
+ * 调用 Market.resolve(winningOutcomeId) 设置获胜结果
+ * @param marketAddress 市场合约地址
+ */
+export function useResolveMarket(marketAddress?: Address) {
+  const { chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  /**
+   * 结算市场
+   * @param winningOutcomeId 获胜结果 ID (0, 1, 2 等)
+   */
+  const resolveMarket = async (winningOutcomeId: bigint) => {
+    if (!marketAddress) throw new Error('Market address required');
+
+    console.log('[useResolveMarket] 结算市场:', { marketAddress, winningOutcomeId });
+
+    return writeContract({
+      address: marketAddress,
+      abi: MarketBaseABI,
+      functionName: 'resolve',
+      args: [winningOutcomeId],
+    });
+  };
+
+  return {
+    resolveMarket,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
+ * 终结市场 Hook
+ * 调用 Market.finalize() 终结市场（争议期结束后）
+ * @param marketAddress 市场合约地址
+ */
+export function useFinalizeMarket(marketAddress?: Address) {
+  const { chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  const finalizeMarket = async () => {
+    if (!marketAddress) throw new Error('Market address required');
+
+    console.log('[useFinalizeMarket] 终结市场:', { marketAddress });
+
+    return writeContract({
+      address: marketAddress,
+      abi: MarketBaseABI,
+      functionName: 'finalize',
+      args: [],
+    });
+  };
+
+  return {
+    finalizeMarket,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
  * 暂停市场 Hook
  * 调用 Market.pause() 紧急暂停市场
  * @param marketAddress 市场合约地址

@@ -76,11 +76,15 @@ export {
   useMarketStatus,
   useOutcomeCount,
   useOutcomeLiquidity,
+  useQuote,
+  useIsMarketLocked,
 } from './contract-hooks';
 
 // Contract Interaction Hooks (Admin)
 export {
   useLockMarket,
+  useResolveMarket,
+  useFinalizeMarket,
   useCreateMarket,
   useAuthorizeMarket,
   usePauseMarket,

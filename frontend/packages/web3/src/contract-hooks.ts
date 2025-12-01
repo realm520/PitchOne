@@ -315,3 +315,26 @@ export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: s
     },
   });
 }
+
+/**
+ * 检查市场是否基于开赛时间锁定
+ * @param marketAddress 市场合约地址
+ * @returns Boolean 指示当前时间是否 >= kickoff time
+ *
+ * 注意：这是基于时间的验证检查，不会改变合约状态。
+ * 市场状态仍然是 Open，但 isLocked() 返回 true 时不允许下注。
+ */
+export function useIsMarketLocked(marketAddress?: Address) {
+  return useReadContract({
+    address: marketAddress,
+    abi: MarketBaseABI,
+    functionName: 'isLocked',
+    chainId: 31337, // Anvil 本地链
+    query: {
+      enabled: !!marketAddress,
+      // 实时性要求高，短缓存时间
+      staleTime: 5000, // 5 秒
+      refetchInterval: 10000, // 每 10 秒自动刷新
+    },
+  });
+}

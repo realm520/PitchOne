@@ -49,6 +49,7 @@ interface MarketFormData {
   feeRate: string; // basis points (200 = 2%)
   disputePeriod: string; // 秒
   initialLiquidity: string; // USDC
+  pricingMode: 'cpmm' | 'parimutuel'; // 定价模式
 
   // OU 特定参数
   line?: string; // 如 "2.5"
@@ -70,6 +71,7 @@ export default function CreateMarketPage() {
     feeRate: '200', // 2%
     disputePeriod: '7200', // 2 小时
     initialLiquidity: '1000', // 1000 USDC
+    pricingMode: 'parimutuel', // 默认奖池模式
   });
 
   // 获取合约地址
@@ -173,6 +175,11 @@ export default function CreateMarketPage() {
 
     if (formData.templateType === 'WDL') {
       // WDL_Template_V2.initialize() - 12 个参数
+      // 根据定价模式选择不同的参数
+      const isParimutuel = formData.pricingMode === 'parimutuel';
+      const pricingEngine = isParimutuel ? addresses!.parimutuel : addresses!.simpleCPMM;
+      const virtualReserve = isParimutuel ? 0n : BigInt(7200) * BigInt(10) ** BigInt(6); // Parimutuel = 0, CPMM = 7200 USDC
+
       return encodeFunctionData({
         abi: WDL_INITIALIZE_ABI,
         functionName: 'initialize',
@@ -185,10 +192,10 @@ export default function CreateMarketPage() {
           addresses!.feeRouter,       // _feeRecipient
           BigInt(formData.feeRate),   // _feeRate
           BigInt(formData.disputePeriod), // _disputePeriod
-          addresses!.simpleCPMM,      // _pricingEngine
+          pricingEngine,              // _pricingEngine (根据模式选择)
           addresses!.vault!,          // _vault
           `https://api.pitchone.io/metadata/wdl/${formData.matchId}`, // _uri
-          BigInt(7200) * BigInt(10) ** BigInt(6), // _virtualReservePerSide (7200 USDC)
+          virtualReserve,             // _virtualReservePerSide (0 = Parimutuel)
         ],
       });
     } else if (formData.templateType === 'OU') {
@@ -462,6 +469,48 @@ export default function CreateMarketPage() {
                 配置市场参数
               </h2>
               <div className="space-y-4">
+                {/* 定价模式选择 - 仅 WDL 支持 */}
+                {formData.templateType === 'WDL' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      定价模式 *
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => updateFormData('pricingMode', 'parimutuel')}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.pricingMode === 'parimutuel'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                          奖池模式 (Parimutuel)
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          所有投注进入共享奖池，赢家按份额分配
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateFormData('pricingMode', 'cpmm')}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.pricingMode === 'cpmm'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                          做市商模式 (CPMM)
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          AMM 自动做市，赔率随投注量动态调整
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {(formData.templateType === 'OU' || formData.templateType === 'OU_MULTI') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -548,6 +597,14 @@ export default function CreateMarketPage() {
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">盘口线</p>
                       <p className="font-medium text-gray-900 dark:text-white">{formData.line} 球</p>
+                    </div>
+                  )}
+                  {formData.templateType === 'WDL' && (
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">定价模式</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {formData.pricingMode === 'parimutuel' ? '奖池模式 (Parimutuel)' : '做市商模式 (CPMM)'}
+                      </p>
                     </div>
                   )}
                   <div>

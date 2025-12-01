@@ -17,18 +17,27 @@ import type { Address, ContractAddresses } from '../index';
 // Anvil 本地测试链地址
 // 部署时间: 2025-11-22 (自动生成)
 // 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-23 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-27 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// Anvil 本地测试链地址
+// 部署时间: 2025-11-27 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh 自动同步
 export const ANVIL_ADDRESSES: ContractAddresses = {
-  marketTemplateRegistry: '0x08677Af0A7F54fE2a190bb1F75DE682fe596317e', // MarketFactory_v2
-  vault: '0x02121128f1Ed0AdA5Df3a87f42752fcE4Ad63e59',               // LiquidityVault (deprecated)
-  usdc: '0x6858dF5365ffCbe31b5FE68D9E6ebB81321F7F86',               // MockUSDC
-  feeRouter: '0x1E53bea57Dd5dDa7bFf1a1180a2f64a5c9e222f5',           // FeeRouter
-  simpleCPMM: '0x95D7fF1684a8F2e202097F28Dc2e56F773A55D02',          // SimpleCPMM
-  parimutuel: '0x897945A56464616a525C9e5F11a8D400a72a8f3A',         // Parimutuel
-  referralRegistry: '0x633a7eB9b8912b22f3616013F3153de687F96074',   // ReferralRegistry
+  marketTemplateRegistry: '0xddE78e6202518FF4936b5302cC2891ec180E8bFf', // MarketFactory_v2
+  vault: '0x74Cf9087AD26D541930BaC724B7ab21bA8F00a27',               // LiquidityVault (deprecated)
+  usdc: '0xe1Fd27F4390DcBE165f4D60DBF821e4B9Bb02dEd',               // MockUSDC
+  feeRouter: '0x26B862f640357268Bd2d9E95bc81553a2Aa81D7E',           // FeeRouter
+  simpleCPMM: '0xefAB0Beb0A557E452b398035eA964948c750b2Fd',          // SimpleCPMM
+  parimutuel: '0xaca81583840B1bf2dDF6CDe824ada250C1936B4D',         // Parimutuel
+  referralRegistry: '0x70bDA08DBe07363968e9EE53d899dFE48560605B',   // ReferralRegistry
   basket: '0x0000000000000000000000000000000000000000',            // 待部署
   correlationGuard: '0x0000000000000000000000000000000000000000',   // 待部署
   rewardsDistributor: '0x0000000000000000000000000000000000000000', // 待部署
-  paramController: '0x17f4B55A352Be71CC03856765Ad04147119Aa09B',          // ParamController
+  paramController: '0x5D42EBdBBa61412295D7b0302d6F50aC449Ddb4F',          // ParamController
 };
 
 // Sepolia 测试网地址 (待部署)
