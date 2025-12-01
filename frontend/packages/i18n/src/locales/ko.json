@@ -59,6 +59,7 @@
     "unknown": "알 수 없음",
     "filter": {
       "all": "전체",
+      "allStatus": "전체 상태",
       "live": "라이브",
       "upcoming": "예정",
       "ended": "종료"
@@ -110,6 +111,7 @@
       "loadError": "로딩 실패",
       "notFound": "마켓을 찾을 수 없습니다. 삭제되었거나 ID가 올바르지 않습니다",
       "oddsLoadError": "배당률 데이터를 불러올 수 없습니다. 나중에 다시 시도해 주세요",
+      "kickoffTime": "킥오프 시간",
       "createdAt": "생성 시간",
       "lockedAt": "잠김 시간",
       "totalVolume": "총 베팅량",
@@ -186,13 +188,19 @@
     "emptyAll": "예측 없음",
     "emptyDesc": "아직 예측이 없습니다. 마켓 페이지에서 베팅하세요.",
     "goToMarkets": "마켓 보기",
-    "betDirection": "베팅 방향",
+    "betDirection": "예측 결과",
     "createdAt": "생성 시간",
     "betAmount": "베팅 금액",
     "expectedPayout": "예상 수익",
     "dataLoading": "로딩 중...",
     "win": "승리",
-    "redeem": "청구"
+    "redeem": "청구",
+    "stats": {
+      "totalBetAmount": "총 베팅액",
+      "totalMarkets": "베팅 마켓",
+      "totalBets": "베팅 횟수",
+      "totalProfit": "총 수익"
+    }
   },
   "parlay": {
     "title": "파레이",
@@ -312,6 +320,80 @@
       "validReferralDesc": "베팅하고 최소 거래량을 달성한 사용자",
       "totalCommission": "총 커미션",
       "totalCommissionDesc": "모든 추천인으로부터 획득한 총 커미션 (USDC)"
+    },
+    "leaderboardComp": {
+      "loadError": "순위표 로드 실패",
+      "empty": "순위표 데이터 없음",
+      "title": "추천 순위표",
+      "sortBy": "총 커미션 순",
+      "referrals": "명 추천",
+      "active": "명 활성",
+      "updateNote": "데이터는 매시간 업데이트되며, 총 커미션 기준으로 순위 산정"
+    },
+    "historyComp": {
+      "loadError": "커미션 기록 로드 실패",
+      "connectWallet": "지갑을 연결하여 커미션 기록 보기",
+      "empty": "커미션 기록 없음",
+      "emptyDesc": "추천인이 베팅하면 커미션 보상이 발생합니다",
+      "title": "커미션 기록",
+      "totalRecords": "총 {{count}}건",
+      "totalRewards": "총 커미션",
+      "from": "발신자",
+      "block": "블록",
+      "viewTx": "트랜잭션 보기",
+      "autoPayNote": "커미션은 추천인 베팅 시 자동으로 지갑에 전송됩니다"
+    },
+    "listComp": {
+      "loadError": "추천 목록 로드 실패",
+      "connectWallet": "지갑을 연결하여 추천 목록 보기",
+      "empty": "추천 사용자 없음",
+      "emptyDesc": "추천 링크를 공유하여 친구를 초대하세요",
+      "title": "추천 목록",
+      "totalUsers": "총 {{count}}명",
+      "pageInfo": "{{current}}/{{total}} 페이지",
+      "bindTime": "등록일",
+      "campaign": "캠페인",
+      "prev": "이전",
+      "next": "다음",
+      "jumpTo": "이동",
+      "page": "페이지"
+    },
+    "binder": {
+      "connectWallet": "지갑을 연결하여 추천인 등록",
+      "alreadyBound": "이미 추천인이 등록되어 있습니다",
+      "referrerAddress": "추천인 주소",
+      "cannotChange": "추천 관계는 한 번 등록되면 변경할 수 없습니다",
+      "title": "추천인 등록",
+      "desc": "추천인이 있다면 그들의 지갑 주소를 입력하여 등록하세요",
+      "inputLabel": "추천인 주소",
+      "inputPlaceholder": "0x...",
+      "bindBtn": "추천인 등록",
+      "waiting": "확인 대기 중...",
+      "binding": "등록 중...",
+      "bindFailed": "등록 실패",
+      "unknownError": "알 수 없는 오류, 다시 시도해 주세요",
+      "bindSuccess": "등록 완료!",
+      "successDesc": "추천인 등록이 완료되었습니다. 추천 보상을 받아보세요",
+      "notesTitle": "주의사항",
+      "note1": "한 번 등록하면 추천 관계는 ",
+      "note1Highlight": "변경할 수 없습니다",
+      "note2": "자신을 추천인으로 등록할 수 없습니다",
+      "note3": "추천인 주소가 올바른지 확인해 주세요",
+      "note4": "등록 후, 추천인은 당신의 베팅 수수료의 {{rate}}%를 커미션으로 받습니다",
+      "skip": "지금은 건너뛰기",
+      "validation": {
+        "empty": "추천인 주소를 입력해 주세요",
+        "invalid": "유효하지 않은 이더리움 주소 형식",
+        "self": "자신을 추천인으로 등록할 수 없습니다"
+      }
+    },
+    "footer": {
+      "title": "추천 보상 받는 방법",
+      "step1": "전용 추천 링크 복사",
+      "step2": "친구에게 공유하고, 링크로 방문하여 지갑 연결로 등록",
+      "step3": "친구가 베팅할 때마다 수수료의",
+      "step3Suffix": "를 커미션으로 획득",
+      "step4": "커미션은 자동으로 지갑에 전송됩니다"
     }
   },
   "footer": {
@@ -319,6 +401,16 @@
     "docs": "문서",
     "github": "GitHub",
     "terms": "이용약관",
-    "privacy": "개인정보"
+    "privacy": "개인정보 보호정책",
+    "description": "탈중앙화 온체인 축구 예측 플랫폼",
+    "quickLinks": "빠른 링크",
+    "markets": "마켓",
+    "portfolio": "포트폴리오",
+    "parlay": "파레이",
+    "resources": "리소스",
+    "faq": "자주 묻는 질문",
+    "legal": "법률 정보",
+    "risks": "위험 고지",
+    "copyright": "© {{year}} PitchOne. All rights reserved."
   }
 }

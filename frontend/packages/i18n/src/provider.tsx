@@ -138,5 +138,20 @@ export function useI18n() {
 // 简化的翻译 hook
 export function useTranslation() {
   const { t, locale } = useI18n();
-  return { t, locale };
+
+  // 翻译球队名称，如果没有翻译则返回原始名称
+  const translateTeam = useCallback((teamName: string): string => {
+    const key = `teams.${teamName}`;
+    const translated = getNestedValue(translations[locale], key);
+    return translated ?? teamName;
+  }, [locale]);
+
+  // 翻译联赛名称，如果没有翻译则返回原始名称
+  const translateLeague = useCallback((leagueName: string): string => {
+    const key = `leagues.${leagueName}`;
+    const translated = getNestedValue(translations[locale], key);
+    return translated ?? leagueName;
+  }, [locale]);
+
+  return { t, locale, translateTeam, translateLeague };
 }

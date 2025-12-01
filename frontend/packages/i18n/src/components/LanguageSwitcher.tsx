@@ -61,11 +61,11 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
     <div ref={dropdownRef} className={`relative ${className}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors shrink-0"
         aria-label="Select language"
       >
-        <span>{localeFlags[locale]}</span>
-        <span className="text-sm text-gray-300">{localeNames[locale]}</span>
+        <span className="shrink-0">{localeFlags[locale]}</span>
+        <span className="text-sm text-gray-300 shrink-0 break-keep">{localeNames[locale]}</span>
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
@@ -77,7 +77,7 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 py-2 w-40 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl z-50">
+        <div className="absolute right-0 mt-2 py-2 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl z-50">
           {locales.map((loc) => (
             <button
               key={loc}
@@ -85,23 +85,25 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
                 setLocale(loc);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
+              className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                 locale === loc
                   ? 'bg-neon-blue/20 text-neon-blue'
                   : 'text-gray-300 hover:bg-white/10'
               }`}
             >
               <span>{localeFlags[loc]}</span>
-              <span>{localeNames[loc]}</span>
-              {locale === loc && (
-                <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
+              <span className="min-w-[4rem]">{localeNames[loc]}</span>
+              <span className="w-4 h-4">
+                {locale === loc && (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </span>
             </button>
           ))}
         </div>

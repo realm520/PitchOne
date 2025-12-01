@@ -59,6 +59,7 @@
     "unknown": "不明",
     "filter": {
       "all": "すべて",
+      "allStatus": "すべてのステータス",
       "live": "ライブ",
       "upcoming": "近日開催",
       "ended": "終了"
@@ -110,6 +111,7 @@
       "loadError": "読み込み失敗",
       "notFound": "マーケットが見つかりません。削除されたかIDが正しくありません",
       "oddsLoadError": "オッズデータを読み込めません。後で再試行してください",
+      "kickoffTime": "キックオフ時刻",
       "createdAt": "作成日時",
       "lockedAt": "ロック日時",
       "totalVolume": "総ベット額",
@@ -186,13 +188,19 @@
     "emptyAll": "予想なし",
     "emptyDesc": "まだ予想がありません。マーケットページでベットしましょう。",
     "goToMarkets": "マーケットを見る",
-    "betDirection": "ベット方向",
+    "betDirection": "予測結果",
     "createdAt": "作成日時",
     "betAmount": "ベット額",
     "expectedPayout": "予想利益",
     "dataLoading": "読み込み中...",
     "win": "勝ち",
-    "redeem": "請求"
+    "redeem": "請求",
+    "stats": {
+      "totalBetAmount": "総ベット額",
+      "totalMarkets": "ベット市場",
+      "totalBets": "ベット回数",
+      "totalProfit": "利益"
+    }
   },
   "parlay": {
     "title": "マルチベット",
@@ -312,6 +320,80 @@
       "validReferralDesc": "ベット済みで最小取引量を達成したユーザー",
       "totalCommission": "累計コミッション",
       "totalCommissionDesc": "全紹介者から獲得したコミッション総額（USDC）"
+    },
+    "leaderboardComp": {
+      "loadError": "ランキングの読み込みに失敗しました",
+      "empty": "ランキングデータなし",
+      "title": "紹介ランキング",
+      "sortBy": "累計コミッション順",
+      "referrals": "人紹介",
+      "active": "人有効",
+      "updateNote": "データは1時間ごとに更新、累計コミッション額でランク付け"
+    },
+    "historyComp": {
+      "loadError": "コミッション履歴の読み込みに失敗しました",
+      "connectWallet": "ウォレットを接続してコミッション履歴を表示",
+      "empty": "コミッション記録なし",
+      "emptyDesc": "紹介者がベットすると、コミッション報酬が発生します",
+      "title": "コミッション履歴",
+      "totalRecords": "合計 {{count}} 件",
+      "totalRewards": "累計コミッション",
+      "from": "送信者",
+      "block": "ブロック",
+      "viewTx": "トランザクションを表示",
+      "autoPayNote": "コミッションは紹介者のベット時に自動的にウォレットに送金されます"
+    },
+    "listComp": {
+      "loadError": "紹介リストの読み込みに失敗しました",
+      "connectWallet": "ウォレットを接続して紹介リストを表示",
+      "empty": "紹介ユーザーなし",
+      "emptyDesc": "紹介リンクを共有して友達を招待",
+      "title": "紹介リスト",
+      "totalUsers": "合計 {{count}} ユーザー",
+      "pageInfo": "ページ {{current}}/{{total}}",
+      "bindTime": "登録日",
+      "campaign": "キャンペーン",
+      "prev": "前へ",
+      "next": "次へ",
+      "jumpTo": "移動",
+      "page": "ページ"
+    },
+    "binder": {
+      "connectWallet": "ウォレットを接続して紹介者を登録",
+      "alreadyBound": "紹介者は登録済みです",
+      "referrerAddress": "紹介者アドレス",
+      "cannotChange": "紹介関係は一度登録すると変更できません",
+      "title": "紹介者を登録",
+      "desc": "紹介者がいる場合は、そのウォレットアドレスを入力して登録してください",
+      "inputLabel": "紹介者アドレス",
+      "inputPlaceholder": "0x...",
+      "bindBtn": "紹介者を登録",
+      "waiting": "確認待ち...",
+      "binding": "登録中...",
+      "bindFailed": "登録失敗",
+      "unknownError": "不明なエラー、再試行してください",
+      "bindSuccess": "登録完了！",
+      "successDesc": "紹介者の登録が完了しました。紹介報酬をお楽しみください",
+      "notesTitle": "注意事項",
+      "note1": "一度登録すると、紹介関係は",
+      "note1Highlight": "変更できません",
+      "note2": "自分自身を紹介者として登録することはできません",
+      "note3": "紹介者アドレスが正しいことを確認してください",
+      "note4": "登録後、紹介者はあなたのベット手数料の {{rate}}% をコミッションとして獲得します",
+      "skip": "今はスキップ",
+      "validation": {
+        "empty": "紹介者アドレスを入力してください",
+        "invalid": "無効なイーサリアムアドレス形式",
+        "self": "自分自身を紹介者として登録することはできません"
+      }
+    },
+    "footer": {
+      "title": "紹介報酬の獲得方法",
+      "step1": "専用紹介リンクをコピー",
+      "step2": "友達に共有し、リンクから訪問してウォレット接続で登録",
+      "step3": "友達がベットするたびに、手数料の",
+      "step3Suffix": "をコミッションとして獲得",
+      "step4": "コミッションは自動的にウォレットに送金されます"
     }
   },
   "footer": {
@@ -319,6 +401,16 @@
     "docs": "ドキュメント",
     "github": "GitHub",
     "terms": "利用規約",
-    "privacy": "プライバシー"
+    "privacy": "プライバシーポリシー",
+    "description": "分散型オンチェーンサッカー予想プラットフォーム",
+    "quickLinks": "クイックリンク",
+    "markets": "マーケット",
+    "portfolio": "ポートフォリオ",
+    "parlay": "パーレイ",
+    "resources": "リソース",
+    "faq": "よくある質問",
+    "legal": "法的情報",
+    "risks": "リスク警告",
+    "copyright": "© {{year}} PitchOne. All rights reserved."
   }
 }
