@@ -45,7 +45,118 @@
 └──────────┘ └───────────┘ └──────────┘ └─────────────┘
 ```
 
-### Mermaid 架构图
+### Mermaid 分层架构图
+
+```mermaid
+flowchart TB
+    subgraph L1["🎯 用户层 (Frontend)"]
+        direction LR
+        WebApp["Web DApp"]
+        Wallet["钱包 / EIP-712"]
+        SDK["SDK / API"]
+    end
+
+    subgraph L2["📊 市场模板层 (7 种玩法)"]
+        direction LR
+        WDL["WDL<br/>胜平负"]
+        OU["OU<br/>大小球"]
+        AH["AH<br/>让球"]
+        OddEven["OddEven<br/>单双"]
+        Score["Score<br/>比分"]
+        PlayerProps["PlayerProps<br/>球员道具"]
+        OUMulti["OU_MultiLine<br/>多线大小球"]
+    end
+
+    subgraph L3["⚙️ 核心基类层"]
+        MarketBase["MarketBase_V2<br/>状态机 | ERC1155 | 下注/赎回"]
+    end
+
+    subgraph L4["🔧 基础设施层"]
+        direction LR
+        subgraph Pricing["定价引擎"]
+            CPMM["SimpleCPMM"]
+            LMSR["LMSR"]
+            Parimutuel["Parimutuel"]
+            LinkedLines["LinkedLines"]
+        end
+        subgraph Liquidity["流动性管理"]
+            Vault["ERC4626<br/>LiquidityVault"]
+            ParimutuelLP["Parimutuel<br/>Provider"]
+        end
+        subgraph Oracle["预言机"]
+            UMA["UMA OO<br/>Adapter"]
+            MockOracle["Mock<br/>Oracle"]
+        end
+        subgraph Fees["费用路由"]
+            FeeRouter["FeeRouter"]
+            Referral["Referral<br/>Registry"]
+        end
+    end
+
+    subgraph L5["🎮 扩展功能层"]
+        direction LR
+        subgraph Parlay["串关系统"]
+            Basket["Basket"]
+            CorrelationGuard["Correlation<br/>Guard"]
+        end
+        subgraph Growth["运营增长"]
+            Campaign["Campaign"]
+            Quest["Quest"]
+            Rewards["Rewards<br/>Distributor"]
+        end
+        subgraph Tokens["代币凭证"]
+            Credit["CreditToken"]
+            Coupon["Coupon"]
+        end
+        subgraph Gov["治理"]
+            ParamCtrl["Param<br/>Controller"]
+        end
+    end
+
+    subgraph L6["🖥️ 链下服务层 (Go)"]
+        direction LR
+        Indexer["Indexer"]
+        Keeper["Keeper"]
+        RewardsBuilder["Rewards<br/>Builder"]
+        RiskWorker["Risk<br/>Worker"]
+    end
+
+    subgraph L7["📈 数据层"]
+        direction LR
+        Subgraph["The Graph<br/>Subgraph"]
+        DB[("Postgres<br/>Timescale")]
+        Grafana["Grafana"]
+    end
+
+    %% 连接关系
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L3 --> L5
+    L4 --> L6
+    L5 --> L6
+    L6 --> L7
+    L7 --> L1
+
+    %% 样式
+    classDef userLayer fill:#e1f5fe,stroke:#01579b
+    classDef templateLayer fill:#f3e5f5,stroke:#7b1fa2
+    classDef coreLayer fill:#fff3e0,stroke:#e65100
+    classDef infraLayer fill:#e8f5e9,stroke:#2e7d32
+    classDef extLayer fill:#fce4ec,stroke:#c2185b
+    classDef offchainLayer fill:#e3f2fd,stroke:#1565c0
+    classDef dataLayer fill:#f5f5f5,stroke:#616161
+
+    class L1 userLayer
+    class L2 templateLayer
+    class L3 coreLayer
+    class L4 infraLayer
+    class L5 extLayer
+    class L6 offchainLayer
+    class L7 dataLayer
+```
+
+### Mermaid 系统拓扑图
 
 ```mermaid
 flowchart LR
@@ -115,12 +226,12 @@ flowchart LR
 
 ## 2. 合约模块概览
 
-**总计 58 个 Solidity 文件**，分类如下：
+**总计 44 个 Solidity 文件**，分类如下：
 
 | 类别 | 数量 | 主要文件 |
 |------|------|---------|
-| 核心模块 | 8 | MarketBase, MarketBase_V2, Factory, FeeRouter 等 |
-| 市场模板 | 14 | 7 种玩法 × 2 版本 (V1/V2) |
+| 核心模块 | 7 | MarketBase_V2, Factory, FeeRouter 等 |
+| 市场模板 | 7 | 7 种玩法 (V2 版本) |
 | 定价引擎 | 5 | SimpleCPMM, LMSR, Parimutuel, LinkedLinesController |
 | 流动性管理 | 4 | LiquidityVault, ERC4626LP, ParimutuelLP, Factory |
 | 串关系统 | 2 | Basket, CorrelationGuard |
@@ -136,28 +247,21 @@ flowchart LR
 ```
 contracts/src/
 ├── core/                       # 核心基础设施
-│   ├── MarketBase.sol          # 市场基类 v1（已弃用）
-│   ├── MarketBase_V2.sol       # 市场基类 v2（生产版）
-│   ├── MarketFactory_v3.sol    # Clone 工厂（优化版）
+│   ├── MarketBase_V2.sol       # 市场基类（生产版）
+│   ├── MarketFactory_v2.sol    # Clone 工厂
+│   ├── MarketTemplateRegistry.sol # 模板注册表
 │   ├── FeeRouter.sol           # 费用路由分配
 │   ├── RewardsDistributor.sol  # Merkle 奖励分发
 │   └── ReferralRegistry.sol    # 推荐关系管理
 │
-├── templates/                  # 7 种市场模板
-│   ├── WDL_Template.sol        # 胜平负
-│   ├── WDL_Template_V2.sol
-│   ├── OU_Template.sol         # 大小球单线
-│   ├── OU_Template_V2.sol
-│   ├── OU_MultiLine.sol        # 大小球多线
-│   ├── OU_MultiLine_V2.sol
-│   ├── AH_Template.sol         # 让球
-│   ├── AH_Template_V2.sol
-│   ├── OddEven_Template.sol    # 单双
-│   ├── OddEven_Template_V2.sol
-│   ├── ScoreTemplate.sol       # 精确比分
-│   ├── ScoreTemplate_V2.sol
-│   ├── PlayerProps_Template.sol # 球员道具
-│   └── PlayerProps_Template_V2.sol
+├── templates/                  # 7 种市场模板 (V2)
+│   ├── WDL_Template_V2.sol     # 胜平负
+│   ├── OU_Template_V2.sol      # 大小球单线
+│   ├── OU_MultiLine_V2.sol     # 大小球多线
+│   ├── AH_Template_V2.sol      # 让球
+│   ├── OddEven_Template_V2.sol # 单双
+│   ├── ScoreTemplate_V2.sol    # 精确比分
+│   └── PlayerProps_Template_V2.sol # 球员道具
 │
 ├── pricing/                    # 定价引擎
 │   ├── SimpleCPMM.sol          # 虚拟储备 AMM
@@ -215,28 +319,20 @@ contracts/src/
 ```
 IMarket (接口)
     │
-    ├─ MarketBase (v1 - 已弃用)
-    │   ├─ WDL_Template
-    │   ├─ OU_Template
-    │   ├─ AH_Template
-    │   ├─ OddEven_Template
-    │   ├─ ScoreTemplate
-    │   ├─ PlayerProps_Template
-    │   └─ OU_MultiLine
-    │
-    └─ MarketBase_V2 (当前生产版 - 集成 LiquidityVault)
-        ├─ WDL_Template_V2
-        ├─ OU_Template_V2
-        ├─ AH_Template_V2 (+ IAH_Template 接口)
-        ├─ OddEven_Template_V2
-        ├─ ScoreTemplate_V2
-        ├─ PlayerProps_Template_V2
-        └─ OU_MultiLine_V2
+    └─ MarketBase_V2 (生产版 - 集成 LiquidityVault)
+        ├─ WDL_Template_V2      # 胜平负
+        ├─ OU_Template_V2       # 大小球单线
+        ├─ AH_Template_V2       # 让球 (+ IAH_Template 接口)
+        ├─ OddEven_Template_V2  # 单双
+        ├─ ScoreTemplate_V2     # 精确比分
+        ├─ PlayerProps_Template_V2  # 球员道具
+        └─ OU_MultiLine_V2      # 多线大小球
 ```
 
-**关键改进 V1 → V2：**
-- **V1**：内部 LP 管理，市场自己维护储备
-- **V2**：外部 Vault 集成，市场从 LiquidityVault 借出初始流动性，结算后归还本金+收益
+**V2 架构特点：**
+- 外部 Vault 集成，市场从 LiquidityVault 借出初始流动性
+- 结算后归还本金+收益给 LP
+- Clone 模式部署，节省 Gas
 
 ### 3.2 定价引擎继承树
 
@@ -587,9 +683,8 @@ sequenceDiagram
 
 | 版本 | 特性 | 状态 |
 |------|------|------|
-| V1 | 内部 LP，市场耦合 | 已弃用 |
-| V2 | 外部 Vault，清晰资金流 | 当前生产版 |
-| V3 优化 | Clone 部署（-69% Gas） | 已完成 |
+| V1 | 内部 LP，市场耦合 | 已删除 (2025-12-06) |
+| V2 | 外部 Vault，清晰资金流，Clone 部署 | 当前生产版 ✓ |
 
 ---
 
