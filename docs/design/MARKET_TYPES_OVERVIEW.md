@@ -417,6 +417,16 @@ factory.createMarket(playerPropsTemplateId, abi.encodeWithSignature(
 - **缺点**: 需额外部署和配置
 - **使用市场**: OU_MultiLine
 
+### ParimutuelPricing (彩池/奖池模式)
+- **适用场景**: 传统彩票类玩法，想要赔率完全反映市场投注分布
+- **优点**:
+  - 不需要初始流动性（初始储备为零）
+  - 平台零风险（仅抽水）
+  - 1:1 份额兑换，用户理解成本低
+- **缺点**: 赔率在结算时才确定，用户下注时无法知道最终赔率
+- **使用市场**: 可用于任何需要彩池模式的市场
+- **配套合约**: `ParimutuelLiquidityProvider.sol`（流动性管理）
+
 ---
 
 ## Clone 模式部署

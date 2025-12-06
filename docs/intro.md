@@ -26,7 +26,7 @@
   - 市场生命周期管理（Open → Locked → Resolved → Finalized）
   - 33 个单元测试 + 32 个集成测试
 
-#### 定价引擎（3 个引擎，100% 完成）
+#### 定价引擎（4 个引擎，100% 完成）
 
 * **SimpleCPMM**：二/三向 Constant Product Market Maker（21 测试，97.5% 覆盖率）
   - 用于 WDL、OU、AH、OddEven 等二/三向市场
@@ -38,6 +38,11 @@
 * **LinkedLinesController**：相邻线联动控制器（19 测试，92.45% 覆盖率）
   - 用于 OU_MultiLine 多线市场
   - 线组管理、联动系数、套利检测、储备量调整
+* **ParimutuelPricing**：彩池/奖池定价引擎（225 行）
+  - Pari-mutuel 模式：所有投注进入池子，1:1 兑换份额
+  - 赔率在结算时计算：`payout = (总池子 / 胜方池子) * 用户份额`
+  - 不需要初始流动性，平台零风险（仅抽水）
+  - 配套 `ParimutuelLiquidityProvider.sol` 提供流动性管理
 
 #### 市场模板（7/7 完成，100% 核心玩法覆盖）
 

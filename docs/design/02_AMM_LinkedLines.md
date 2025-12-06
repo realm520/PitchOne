@@ -19,15 +19,22 @@
 
 **OU_Template 单线**: ✅ 已实现（含 Push 退款机制，298个测试）
 
-**LMSR**: ⏳ 待实现（M3阶段，精确比分市场必需）
+**LMSR**: ✅ **已完成**（M3阶段，用于精确比分和首位进球者市场）
+
+**ParimutuelPricing (彩池/奖池模式)**: ✅ **已完成**
+- 合约: `/contracts/src/pricing/ParimutuelPricing.sol` (225 行)
+- 配套: `/contracts/src/liquidity/ParimutuelLiquidityProvider.sol` (280 行)
+- 特点: 1:1 份额兑换，赔率结算时根据池子比例计算
+- 适用场景: 传统彩票玩法、赔率完全反映市场投注分布
 
 ---
 
 ## 1. 概述
 - 提供 WDL/OU/AH/比分等玩法的即时报价、滑点与成交；
 - **CPMM 用于二/三向**（✅ 已实现）：WDL 三向市场，OU 单线市场；
-- **LMSR 用于多 Outcome**（⏳ 待实现）：精确比分网格；
-- **线联动控制器**（⏳ 待实现）：对 OU/AH 相邻线价格进行联动与平滑，避免资金效率下降与被套利。
+- **LMSR 用于多 Outcome**（✅ 已实现）：精确比分网格、首位进球者；
+- **线联动控制器**（✅ 已实现）：对 OU/AH 相邻线价格进行联动与平滑，避免资金效率下降与被套利；
+- **Parimutuel 彩池模式**（✅ 已实现）：传统博彩赔率计算，适用于彩票类玩法。
 
 ## 2. 数据与状态
 - CPMM：`reserves[outcome]`；费率曲线/阶梯；
