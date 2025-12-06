@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import "../BaseTest.sol";
 import "../../src/core/MarketTemplateRegistry.sol";
-import "../../src/templates/WDL_Template.sol";
 
 /**
  * @title MarketTemplateRegistryTest
@@ -11,7 +10,6 @@ import "../../src/templates/WDL_Template.sol";
  */
 contract MarketTemplateRegistryTest is BaseTest {
     MarketTemplateRegistry public registry;
-    WDL_Template public wdlTemplate;
 
     // Mock template addresses
     address public mockTemplate1;
@@ -50,22 +48,6 @@ contract MarketTemplateRegistryTest is BaseTest {
         // Deploy registry
         registry = new MarketTemplateRegistry();
 
-        // Deploy a real WDL template for testing
-        wdlTemplate = new WDL_Template();
-        wdlTemplate.initialize(
-            "TEST_MATCH",
-            "Team A",
-            "Team B",
-            block.timestamp + 1 hours,
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(cpmm),
-            "",
-            owner
-        );
-
         // Create mock template addresses
         mockTemplate1 = makeAddr("mockTemplate1");
         mockTemplate2 = makeAddr("mockTemplate2");
@@ -75,7 +57,6 @@ contract MarketTemplateRegistryTest is BaseTest {
         ouTemplateId = keccak256(abi.encode("OU", "1.0.0"));
 
         vm.label(address(registry), "Registry");
-        vm.label(address(wdlTemplate), "WDL_Template");
     }
 
     // ============ Constructor Tests ============

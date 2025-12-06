@@ -1,1 +1,0 @@
-// placeholder: MarketBase contract skeleton
