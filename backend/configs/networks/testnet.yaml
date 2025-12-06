@@ -1,0 +1,26 @@
+network: testnet
+chain_id: 11155111  # Sepolia
+rpc_url: https://sepolia.infura.io/v3/YOUR_API_KEY
+
+database:
+  url: postgresql://p1:p1@localhost:5432/p1_testnet
+
+contracts:
+  usdc: ""
+  vault: ""
+  erc4626_provider: ""
+  parimutuel_provider: ""
+  provider_factory: ""
+  cpmm: ""
+  parimutuel: ""
+  referral_registry: ""
+  fee_router: ""
+  factory: ""
+
+templates:
+  wdl: ""
+  ou: ""
+  ou_multi_line: ""
+  ah: ""
+  odd_even: ""
+  player_props: ""

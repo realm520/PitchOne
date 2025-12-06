@@ -1,0 +1,26 @@
+network: localhost
+chain_id: 31337
+rpc_url: http://localhost:8545
+
+database:
+  url: postgresql://p1:p1@localhost:5432/p1
+
+contracts:
+  usdc: "0xe1Fd27F4390DcBE165f4D60DBF821e4B9Bb02dEd"
+  vault: "0x74Cf9087AD26D541930BaC724B7ab21bA8F00a27"
+  erc4626_provider: "0xB2b580ce436E6F77A5713D80887e14788Ef49c9A"
+  parimutuel_provider: "0xB377a2EeD7566Ac9fCb0BA673604F9BF875e2Bab"
+  provider_factory: "0xc582Bc0317dbb0908203541971a358c44b1F3766"
+  cpmm: "0xefAB0Beb0A557E452b398035eA964948c750b2Fd"
+  parimutuel: "0xaca81583840B1bf2dDF6CDe824ada250C1936B4D"
+  referral_registry: "0x70bDA08DBe07363968e9EE53d899dFE48560605B"
+  fee_router: "0x26B862f640357268Bd2d9E95bc81553a2Aa81D7E"
+  factory: "0xddE78e6202518FF4936b5302cC2891ec180E8bFf"
+
+templates:
+  wdl: "0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc"
+  ou: "0xe67f7459aae2aac2006ad1a632fdc210987272f30ee3c19e06f269c8ca6ddab3"
+  ou_multi_line: "0xa9798a26825135172b018de8fbdb5b83d020c306bdf806095ca7f9c127f0fae1"
+  ah: "0x46369e63a26fb5fac75d4b12fa68444dbdb66451018df0754d91a002ce6c9ed3"
+  odd_even: "0x19f060b034dda7e3c77551a040d04d36852227b98032ee3737738fa9528c99cb"
+  player_props: "0x315ffc435edaa9da07db29b9cd066fa404e87b1e60504dc92b6a7651050cf174"

@@ -44,16 +44,7 @@ type IOptimisticOracleV3Assertion struct {
 	DomainId             [32]byte
 }
 
-// IResultOracleMatchFacts is an auto generated low-level Go binding around an user-defined struct.
-type IResultOracleMatchFacts struct {
-	Scope         [32]byte
-	HomeGoals     uint8
-	AwayGoals     uint8
-	ExtraTime     bool
-	PenaltiesHome uint8
-	PenaltiesAway uint8
-	ReportedAt    *big.Int
-}
+// IResultOracleMatchFacts is defined in mock_oracle.go
 
 // UMAAdapterMetaData contains all meta data concerning the UMAAdapter contract.
 var UMAAdapterMetaData = &bind.MetaData{
