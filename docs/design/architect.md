@@ -49,51 +49,51 @@
 
 ```mermaid
 flowchart LR
-  subgraph Client[前端/钱包侧]
-    UI[Web DApp<br/>市场浏览/下注/串关/领取]
-    Wallet[钱包/EIP-712<br/>(可选4337代付)]
+  subgraph Client["前端/钱包侧"]
+    UI["Web DApp<br/>市场浏览/下注/串关/领取"]
+    Wallet["钱包/EIP-712<br/>可选4337代付"]
   end
 
-  subgraph Onchain[链上核心]
-    Factory[MarketFactory<br/>市场创建]
-    Base[MarketBase (ERC-1155)<br/>WDL/OU/AH/比分 模板]
-    AMM[CPMM/LMSR 做市]
-    Basket[Parlay Basket<br/>+ CorrelationGuard]
-    Fee[FeeRouter<br/>LP/Promo/Insurance/Treasury]
-    Param[ParamController<br/>+ Timelock + Governor]
-    Growth[ReferralRegistry / RewardsDistributor / CampaignFactory / Credit&Coupon / PayoutScaler]
-    Oracle[ResultOracle (Optimistic)<br/>UMA OO 适配]
-    Vault[Vaults (ERC-4626)]
+  subgraph Onchain["链上核心"]
+    Factory["MarketFactory<br/>市场创建"]
+    Base["MarketBase ERC-1155<br/>WDL/OU/AH/比分 模板"]
+    AMM["CPMM/LMSR 做市"]
+    Basket["Parlay Basket<br/>+ CorrelationGuard"]
+    Fee["FeeRouter<br/>LP/Promo/Insurance/Treasury"]
+    Param["ParamController<br/>+ Timelock + Governor"]
+    Growth["ReferralRegistry / RewardsDistributor<br/>CampaignFactory / Credit&Coupon"]
+    Oracle["ResultOracle Optimistic<br/>UMA OO 适配"]
+    Vault["Vaults ERC-4626"]
   end
 
-  subgraph Offchain[链下服务（Go 为主）]
-    Indexer[Indexer<br/>事件→Postgres/Timescale]
-    Keeper[Keeper Service<br/>锁盘/争议窗口/发布Root]
-    Rewards[Rewards Builder<br/>周度Merkle聚合上链]
-    Risk[Risk & Pricing Worker<br/>线联动/相关性/限额建议]
-    API[只读 API Gateway]
+  subgraph Offchain["链下服务 - Go"]
+    Indexer["Indexer<br/>事件→Postgres/Timescale"]
+    Keeper["Keeper Service<br/>锁盘/争议窗口/发布Root"]
+    Rewards["Rewards Builder<br/>周度Merkle聚合上链"]
+    Risk["Risk & Pricing Worker<br/>线联动/相关性/限额建议"]
+    API["只读 API Gateway"]
   end
 
-  subgraph DataObs[数据与可观测]
-    Subgraph[The Graph Subgraph]
-    DB[(Postgres/Timescale)]
-    Graf[Grafana/Prom/OTel]
-    Tenderly[Tenderly/Forta]
+  subgraph DataObs["数据与可观测"]
+    Subgraph["The Graph Subgraph"]
+    DB[("Postgres/Timescale")]
+    Graf["Grafana/Prom/OTel"]
+    TenderlyNode["Tenderly/Forta"]
   end
 
-  subgraph DevOps[DevOps & 安全]
-    CI[GitHub Actions<br/>Foundry/Slither/Echidna/Tenderly]
-    IaC[Terraform + Helm + K8s]
-    VaultKMS[Safe 多签 / Vault-KMS]
+  subgraph DevOps["DevOps & 安全"]
+    CI["GitHub Actions<br/>Foundry/Slither/Echidna/Tenderly"]
+    IaC["Terraform + Helm + K8s"]
+    VaultKMS["Safe 多签 / Vault-KMS"]
   end
 
-  UI --EIP-712/Tx--> Base
-  UI --查询/聚合--> Subgraph
-  Subgraph --索引事件--> DataObs
-  Base <--结算事实--> Oracle
-  Base --费用--> Fee
-  Base --SFT头寸--> Wallet
-  Base --LP--> Vault
+  UI --"EIP-712/Tx"--> Base
+  UI --"查询/聚合"--> Subgraph
+  Subgraph --"索引事件"--> DataObs
+  Base <--"结算事实"--> Oracle
+  Base --"费用"--> Fee
+  Base --"SFT头寸"--> Wallet
+  Base --"LP"--> Vault
   Basket --- Base
   Growth --- Base
   Param --- Base
