@@ -418,7 +418,7 @@ docker-compose up -d
 **最新进展（2025-11-11, Week 8）**：
 - ✅ 19 个核心合约全部完成（100% 完成度）
 - ✅ 7 种市场模板全部完成（WDL、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）
-- ✅ 3 种定价引擎（SimpleCPMM、LMSR、LinkedLinesController）
+- ✅ 4 种定价引擎（SimpleCPMM、LMSR、LinkedLinesController、ParimutuelPricing）
 - ✅ 串关系统完成（Basket + CorrelationGuard，51 测试）
 - ✅ 运营工具完成（CreditToken、Coupon、PayoutScaler，54 测试）
 - ✅ 预言机集成（MockOracle + UMA OO Adapter，43 测试）
@@ -443,6 +443,12 @@ docker-compose up -d
     - 线组管理、联动系数、套利检测、储备量调整
     - 用于 OU_MultiLine 多线市场
     - 完整使用文档：`contracts/docs/LinkedLinesController_Usage.md`
+  - **✅ ParimutuelPricing.sol**：彩池/奖池定价引擎（225 行）
+    - Pari-mutuel 模式：所有投注进入池子，1:1 兑换份额
+    - 赔率在结算时计算：`payout = (总池子 / 胜方池子) * 用户份额`
+    - 不需要初始流动性（初始储备为零）
+    - 配套 `ParimutuelLiquidityProvider.sol`（280 行）提供流动性管理
+    - 适用场景：传统彩票玩法、想要赔率完全反映市场投注分布
 - **串关**：
   - **✅ Basket.sol**：Parlay 组合下注合约（537 行，25 个测试，100% 完成）
     - 支持 2-10 腿串关组合
