@@ -96,6 +96,6 @@ export const USDC_SCALE = Math.pow(10, TOKEN_DECIMALS.USDC);
  * formatUSDCFromWei('1000000') // => 1
  * formatUSDCFromWei(1000000) // => 1
  */
-export function formatUSDCFromWei(weiValue: string | number): number {
+export function formatUSDCFromWei(weiValue: string | number | bigint): number {
   return Number(weiValue) / USDC_SCALE;
 }

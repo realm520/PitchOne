@@ -1,8 +1,11 @@
 import { HTMLAttributes, forwardRef } from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@pitchone/utils';
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+// 排除与 framer-motion 冲突的属性
+type ExcludedProps = 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd';
+
+export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, ExcludedProps> {
   variant?: 'default' | 'neon' | 'glass';
   hoverable?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';

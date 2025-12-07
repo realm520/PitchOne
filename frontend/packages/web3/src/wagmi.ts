@@ -1,4 +1,4 @@
-import { http, createConfig } from 'wagmi';
+import { http, createConfig, type CreateConnectorFn } from 'wagmi';
 import { anvil, sepolia } from 'wagmi/chains';
 import { injected, walletConnect } from 'wagmi/connectors';
 
@@ -9,12 +9,12 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '2358a087a
 export const chains = [anvil, sepolia] as const;
 
 // 根据环境决定 connectors（避免 SSR 时 WalletConnect 的 indexedDB 错误）
-const getConnectors = () => {
-  const connectors = [injected()];
+const getConnectors = (): CreateConnectorFn[] => {
+  const connectors: CreateConnectorFn[] = [injected()];
 
   // 只在客户端添加 WalletConnect
   if (typeof window !== 'undefined') {
-    connectors.push(walletConnect({ projectId }));
+    connectors.push(walletConnect({ projectId }) as CreateConnectorFn);
   }
 
   return connectors;

@@ -180,15 +180,17 @@ export function useReadProposal(proposalId?: Hex) {
   });
 
   // 将合约返回的元组转换为 Proposal 对象
-  const proposal = data ? {
-    key: data[0],
-    oldValue: data[1],
-    newValue: data[2],
-    eta: data[3],
-    executed: data[4],
-    cancelled: data[5],
-    proposer: data[6],
-    reason: data[7],
+  // data 是一个元组数组 [key, oldValue, newValue, eta, executed, cancelled, proposer, reason]
+  const tupleData = data as readonly [Hex, bigint, bigint, bigint, boolean, boolean, Address, string] | undefined;
+  const proposal = tupleData ? {
+    key: tupleData[0],
+    oldValue: tupleData[1],
+    newValue: tupleData[2],
+    eta: tupleData[3],
+    executed: tupleData[4],
+    cancelled: tupleData[5],
+    proposer: tupleData[6],
+    reason: tupleData[7],
   } as Proposal : null;
 
   return {

@@ -161,9 +161,11 @@ export function useReferrerStatsOnChain(referrerAddress?: Address) {
   });
 
   // 格式化返回数据
-  const data = result.data ? {
-    count: result.data[0],
-    rewards: result.data[1],
+  // 返回值是元组 [count, rewards]
+  const tupleData = result.data as readonly [bigint, bigint] | undefined;
+  const data = tupleData ? {
+    count: tupleData[0],
+    rewards: tupleData[1],
   } : undefined;
 
   return {

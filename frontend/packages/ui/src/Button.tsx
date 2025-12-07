@@ -1,8 +1,11 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@pitchone/utils';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+// 排除与 framer-motion 冲突的属性
+type ExcludedProps = 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd';
+
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, ExcludedProps> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'neon' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;

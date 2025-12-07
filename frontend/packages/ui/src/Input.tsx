@@ -1,7 +1,8 @@
 import { InputHTMLAttributes, forwardRef, ReactNode } from 'react';
 import { cn } from '@pitchone/utils';
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+// 排除原生 input 的 prefix 属性，以便自定义为 ReactNode
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label?: string;
   error?: string;
   prefix?: ReactNode;

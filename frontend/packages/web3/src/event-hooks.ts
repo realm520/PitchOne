@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePublicClient, useWatchContractEvent } from 'wagmi';
+import { useWatchContractEvent } from 'wagmi';
 import { MarketBaseABI } from '@pitchone/contracts';
-import type { Address, Log } from 'viem';
+import type { Address } from 'viem';
 
 /**
  * 市场事件类型
@@ -14,23 +14,23 @@ export interface BetPlacedEvent {
   amount: bigint;
   shares: bigint;
   fee: bigint;
-  blockNumber: bigint;
-  transactionHash: string;
+  blockNumber: bigint | null;
+  transactionHash: string | null;
   timestamp: number;
 }
 
 export interface MarketLockedEvent {
   timestamp: number;
-  blockNumber: bigint;
-  transactionHash: string;
+  blockNumber: bigint | null;
+  transactionHash: string | null;
 }
 
 export interface ResultProposedEvent {
   proposer: Address;
   winnerOutcome: bigint;
   timestamp: number;
-  blockNumber: bigint;
-  transactionHash: string;
+  blockNumber: bigint | null;
+  transactionHash: string | null;
 }
 
 export interface PositionRedeemedEvent {
@@ -38,8 +38,8 @@ export interface PositionRedeemedEvent {
   outcomeId: bigint;
   shares: bigint;
   payout: bigint;
-  blockNumber: bigint;
-  transactionHash: string;
+  blockNumber: bigint | null;
+  transactionHash: string | null;
   timestamp: number;
 }
 
@@ -57,16 +57,26 @@ export function useWatchBetPlaced(marketAddress?: Address) {
     chainId: 31337, // Anvil 本地链
     onLogs: (logs) => {
       console.log('[useWatchBetPlaced] 收到新事件:', logs.length, '条');
-      const newEvents = logs.map((log) => ({
-        user: log.args.user as Address,
-        outcomeId: log.args.outcomeId as bigint,
-        amount: log.args.amount as bigint,
-        shares: log.args.shares as bigint,
-        fee: log.args.fee as bigint,
-        blockNumber: log.blockNumber,
-        transactionHash: log.transactionHash,
-        timestamp: Date.now(),
-      }));
+      const newEvents = logs.map((log) => {
+        // wagmi 返回解析后的日志，args 包含事件参数
+        const args = (log as any).args as {
+          user?: Address;
+          outcomeId?: bigint;
+          amount?: bigint;
+          shares?: bigint;
+          fee?: bigint;
+        };
+        return {
+          user: args?.user ?? ('0x' as Address),
+          outcomeId: args?.outcomeId ?? 0n,
+          amount: args?.amount ?? 0n,
+          shares: args?.shares ?? 0n,
+          fee: args?.fee ?? 0n,
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash,
+          timestamp: Date.now(),
+        };
+      });
 
       setEvents((prev) => [...newEvents, ...prev].slice(0, 100)); // 保留最近 100 条
       console.log('[useWatchBetPlaced] 更新后事件总数:', newEvents.length + Math.min(100, events.length));
@@ -118,9 +128,14 @@ export function useWatchResultProposed(marketAddress?: Address) {
     onLogs: (logs) => {
       if (logs.length > 0) {
         const log = logs[logs.length - 1];
+        // wagmi 返回解析后的日志，args 包含事件参数
+        const args = (log as any).args as {
+          proposer?: Address;
+          winnerOutcome?: bigint;
+        };
         setEvent({
-          proposer: log.args.proposer as Address,
-          winnerOutcome: log.args.winnerOutcome as bigint,
+          proposer: args?.proposer ?? ('0x' as Address),
+          winnerOutcome: args?.winnerOutcome ?? 0n,
           timestamp: Date.now(),
           blockNumber: log.blockNumber,
           transactionHash: log.transactionHash,
@@ -147,18 +162,31 @@ export function useWatchPositionRedeemed(marketAddress?: Address, userAddress?: 
     eventName: 'PositionRedeemed',
     onLogs: (logs) => {
       const filteredLogs = userAddress
-        ? logs.filter((log) => log.args.user === userAddress)
+        ? logs.filter((log) => {
+            // wagmi 返回解析后的日志，args 包含事件参数
+            const args = (log as any).args as { user?: Address };
+            return args?.user === userAddress;
+          })
         : logs;
 
-      const newEvents = filteredLogs.map((log) => ({
-        user: log.args.user as Address,
-        outcomeId: log.args.outcomeId as bigint,
-        shares: log.args.shares as bigint,
-        payout: log.args.payout as bigint,
-        blockNumber: log.blockNumber,
-        transactionHash: log.transactionHash,
-        timestamp: Date.now(),
-      }));
+      const newEvents = filteredLogs.map((log) => {
+        // wagmi 返回解析后的日志，args 包含事件参数
+        const args = (log as any).args as {
+          user?: Address;
+          outcomeId?: bigint;
+          shares?: bigint;
+          payout?: bigint;
+        };
+        return {
+          user: args?.user ?? ('0x' as Address),
+          outcomeId: args?.outcomeId ?? 0n,
+          shares: args?.shares ?? 0n,
+          payout: args?.payout ?? 0n,
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash,
+          timestamp: Date.now(),
+        };
+      });
 
       setEvents((prev) => [...newEvents, ...prev].slice(0, 100));
     },

@@ -131,8 +131,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   });
 
   const { data, isLoading, error, refetch } = useReadContracts({
-    contracts: contracts as any,
-    chainId: 31337, // Anvil 本地链
+    contracts: contracts.map(c => ({ ...c, chainId: 31337 })) as any,
     query: {
       enabled: !!marketAddress && outcomeCountNumber > 0 && !isLoadingOutcomeCount,
       staleTime: 10000, // 10 秒
@@ -234,8 +233,7 @@ export function useMultipleMarketsData(marketAddresses: Address[]) {
   ]);
 
   const { data, isLoading, error, refetch } = useReadContracts({
-    contracts: contracts as any,
-    chainId: 31337, // Anvil 本地链
+    contracts: contracts.map(c => ({ ...c, chainId: 31337 })) as any,
     query: {
       enabled: marketAddresses.length > 0,
       staleTime: 30000, // 30 秒
@@ -271,7 +269,8 @@ export function useUserUSDCDataForMarkets(
   marketAddresses: Address[],
   userAddress?: Address
 ) {
-  const { chainId } = useAccount();
+  const { chain } = useWagmiAccount();
+  const chainId = chain?.id;
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
   const contracts = marketAddresses.flatMap((marketAddress) => [
@@ -313,8 +312,7 @@ export function useUserUSDCDataForMarkets(
   }
 
   const { data, isLoading, error, refetch } = useReadContracts({
-    contracts: contracts as any,
-    chainId: 31337, // Anvil 本地链
+    contracts: contracts.map(c => ({ ...c, chainId: 31337 })) as any,
     query: {
       enabled: !!userAddress && !!addresses && marketAddresses.length > 0,
       staleTime: 15000, // 15 秒
