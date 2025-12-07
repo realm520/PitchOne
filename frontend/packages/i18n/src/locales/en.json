@@ -473,10 +473,25 @@
     "Olympique Lyon": "Olympique Lyon"
   },
   "leagues": {
-    "EPL": "EPL",
+    "EPL": "Premier League",
     "LALIGA": "La Liga",
     "SERIE_A": "Serie A",
     "BUNDESLIGA": "Bundesliga",
-    "LIGUE1": "Ligue 1"
+    "LIGUE1": "Ligue 1",
+    "UCL": "Champions League",
+    "UEL": "Europa League"
+  },
+  "sidebar": {
+    "title": "Navigation",
+    "sports": {
+      "football": "Football",
+      "basketball": "Basketball",
+      "tennis": "Tennis",
+      "esports": "Esports"
+    },
+    "allLeagues": "All Leagues",
+    "comingSoon": "Coming Soon",
+    "showAll": "Show All Markets",
+    "marketCount": "{{count}} matches"
   }
 }

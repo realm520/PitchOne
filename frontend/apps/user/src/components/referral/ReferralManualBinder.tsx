@@ -158,7 +158,7 @@ export function ReferralManualBinder() {
   }
 
   // 已绑定推荐人
-  if (existingReferrer && existingReferrer !== '0x0000000000000000000000000000000000000000') {
+  if (existingReferrer && typeof existingReferrer === 'string' && existingReferrer !== '0x0000000000000000000000000000000000000000') {
     return (
       <Card padding="lg">
         <div className="text-center py-8">

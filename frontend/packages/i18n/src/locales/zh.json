@@ -477,6 +477,21 @@
     "LALIGA": "西甲",
     "SERIE_A": "意甲",
     "BUNDESLIGA": "德甲",
-    "LIGUE1": "法甲"
+    "LIGUE1": "法甲",
+    "UCL": "欧冠",
+    "UEL": "欧联"
+  },
+  "sidebar": {
+    "title": "导航",
+    "sports": {
+      "football": "足球",
+      "basketball": "篮球",
+      "tennis": "网球",
+      "esports": "电子竞技"
+    },
+    "allLeagues": "全部联赛",
+    "comingSoon": "即将推出",
+    "showAll": "显示全部市场",
+    "marketCount": "{{count}} 场比赛"
   }
 }

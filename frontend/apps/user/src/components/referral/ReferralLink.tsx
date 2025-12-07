@@ -167,7 +167,7 @@ export function ReferralLink() {
 
           <Button
             onClick={handleCopy}
-            variant={copied ? 'success' : 'primary'}
+            variant={copied ? 'neon' : 'primary'}
             size="md"
             className="px-6"
           >

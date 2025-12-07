@@ -92,10 +92,10 @@ export function ReferralStats() {
   const validReferralCount = subgraphStats?.validReferralCount || 0;
 
   // 推荐系统参数
-  const feeBpsNumber = feeBps ? Number(feeBps) : 0;
+  const feeBpsNumber = feeBps && typeof feeBps === 'bigint' ? Number(feeBps) : 0;
   const feePercentage = (feeBpsNumber / 100).toFixed(2);
-  const minVolumeFormatted = minVolume ? formatUnits(minVolume, 6) : '0';
-  const validityDays = validityWindow ? Number(validityWindow) / 86400 : 0; // 转换秒为天
+  const minVolumeFormatted = minVolume && typeof minVolume === 'bigint' ? formatUnits(minVolume, 6) : '0';
+  const validityDays = validityWindow && typeof validityWindow === 'bigint' ? Number(validityWindow) / 86400 : 0; // 转换秒为天
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

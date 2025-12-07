@@ -1,3 +1,3 @@
 import wdlTemplateAbi from './WDL_Template.json';
 
-export default wdlTemplateAbi as const;
+export default wdlTemplateAbi;

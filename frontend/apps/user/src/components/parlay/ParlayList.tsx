@@ -38,7 +38,7 @@ export function ParlayList({ userAddress, limit }: ParlayListProps) {
       <Card className="w-full">
         <ErrorState
           message={error?.message || '加载串关列表失败'}
-          retry={() => window.location.reload()}
+          onRetry={() => window.location.reload()}
         />
       </Card>
     );

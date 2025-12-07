@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
-  dts: false, // 暂时禁用类型定义生成，避免翻译文件类型不完整的问题
+  dts: true, // 启用类型定义生成
   clean: true,
   external: ['react'],
   treeshake: false, // 禁用 tree-shaking 以保留 use client

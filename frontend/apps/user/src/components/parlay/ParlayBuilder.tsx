@@ -75,7 +75,7 @@ export function ParlayBuilder({
 
   // 检查是否需要授权
   const needsApproval = useMemo(() => {
-    if (!stakeAmount || !allowance) return false;
+    if (!stakeAmount || !allowance || typeof allowance !== 'bigint') return false;
     const stakeInWei = parseUnits(stakeAmount, TOKEN_DECIMALS.USDC);
     return allowance < stakeInWei;
   }, [stakeAmount, allowance]);
