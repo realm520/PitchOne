@@ -1,19 +1,29 @@
 'use client';
 
+import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
+import { LoadingSpinner } from '@pitchone/ui';
 
-const HomeClient = dynamic(
-  () => import('./HomeClient').then((mod) => ({ default: mod.HomeClient })),
+const MarketsContent = dynamic(
+  () => import('./markets/MarketsContent').then((mod) => ({ default: mod.MarketsContent })),
   {
     ssr: false,
     loading: () => (
-      <main className="relative flex min-h-screen flex-col items-center justify-center p-8 md:p-24 overflow-hidden">
-        <div className="text-center text-gray-400">加载中...</div>
-      </main>
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <LoadingSpinner size="lg" text="加载市场数据..." />
+      </div>
     ),
   }
 );
 
 export default function HomePage() {
-  return <HomeClient />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <LoadingSpinner size="lg" text="加载市场数据..." />
+      </div>
+    }>
+      <MarketsContent />
+    </Suspense>
+  );
 }

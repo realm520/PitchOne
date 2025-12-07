@@ -224,7 +224,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
 
     // 如果授权数据可用，进行检查
-    if (allowance !== undefined) {
+    if (allowance !== undefined && allowance !== null && typeof allowance === 'bigint') {
       const amountInWei = BigInt(parseFloat(betAmount) * 1e6); // USDC 6 decimals
       const needsApprove = allowance < amountInWei;
       console.log('[MarketDetailClient] 授权检查:', {
@@ -824,7 +824,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             </div>
 
             {/* Balance Display */}
-            {usdcBalance !== undefined && (
+            {usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint' && (
               <div className="text-sm text-gray-400">
                 {t('markets.detail.balance')}: {formatUnits(usdcBalance, 6)} USDC
               </div>
@@ -848,12 +848,12 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (usdcBalance !== undefined) {
+                    if (usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint') {
                       const maxAmount = formatUnits(usdcBalance, 6);
                       setBetAmount(maxAmount);
                     }
                   }}
-                  disabled={usdcBalance === undefined || usdcBalance === 0n}
+                  disabled={usdcBalance === undefined || usdcBalance === null || typeof usdcBalance !== 'bigint' || usdcBalance === 0n}
                   className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-semibold text-neon-blue hover:text-white hover:bg-neon-blue/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   MAX

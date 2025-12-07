@@ -9,6 +9,7 @@ import {
   MarketStatus,
   TOKEN_DECIMALS,
   getOutcomeName as getOutcomeNameFromConstants,
+  type Position,
 } from '@pitchone/web3';
 import {
   Container,
@@ -110,7 +111,7 @@ export function PortfolioClient() {
   };
 
 
-  const calculateExpectedPayout = (position: typeof positions[0]) => {
+  const calculateExpectedPayout = (position: Position) => {
     try {
       // 预期收益 = 持有份额（假设赢了的话，1 share = 1 USDC）
       // balance 存储的是 USDC 单位（6 位小数），不是 ETH（18 位小数）
@@ -241,7 +242,7 @@ export function PortfolioClient() {
 
         {/* Content */}
         {mounted && !isConnected ? (
-          <Card padding="xl">
+          <Card padding="lg">
             <EmptyState
               icon={
                 <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,7 +259,7 @@ export function PortfolioClient() {
             />
           </Card>
         ) : !filteredPositions || filteredPositions.length === 0 ? (
-          <Card padding="xl">
+          <Card padding="lg">
             <EmptyState
               title={activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
               description={t('portfolio.emptyDesc')}

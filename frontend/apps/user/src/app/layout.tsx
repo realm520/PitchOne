@@ -47,9 +47,9 @@ export default function RootLayout({
                   navigation={<Navigation />}
                   actions={<HeaderActions />}
                 />
-              <main className="flex-1">{children}</main>
-              <AppFooter />
-              <ParlayCart />
+                <main className="flex-1 overflow-auto">{children}</main>
+                <AppFooter />
+                <ParlayCart />
               </div>
             </ParlayProvider>
           </I18nProvider>
