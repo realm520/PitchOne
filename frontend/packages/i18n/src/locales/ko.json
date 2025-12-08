@@ -83,6 +83,12 @@
       "desc": "조건에 맞는 마켓이 없습니다. 나중에 다시 시도하거나 필터를 변경해 주세요.",
       "action": "전체 마켓 보기"
     },
+    "list": {
+      "today": "오늘",
+      "tomorrow": "내일",
+      "yesterday": "어제",
+      "matches": "경기"
+    },
     "card": {
       "createdAt": "생성 시간",
       "lockedAt": "잠김",

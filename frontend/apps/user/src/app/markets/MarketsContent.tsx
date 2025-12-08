@@ -6,7 +6,6 @@ import { useMarkets, MarketStatus } from '@pitchone/web3';
 import { useTranslation } from '@pitchone/i18n';
 import {
   Container,
-  Card,
   Badge,
   Button,
   LoadingSpinner,
@@ -15,6 +14,13 @@ import {
 } from '@pitchone/ui';
 import { useSidebarStore } from '../../lib/sidebar-store';
 import { parseLeagueFromMatchId } from '../../types/sports';
+
+// 按天分组市场的类型
+interface MarketsByDay {
+  dateKey: string;
+  dateLabel: string;
+  markets: ReturnType<typeof useMarkets>['data'];
+}
 
 export function MarketsContent() {
   const { t, translateTeam, translateLeague } = useTranslation();
@@ -40,11 +46,11 @@ export function MarketsContent() {
     { label: t('markets.type.oddEven'), value: 'OddEven' },
   ] as const;
 
-  // 根据类型和联赛过滤市场
+  // 根据类型和联赛过滤市场，按时间正序排列
   const filteredMarkets = useMemo(() => {
     if (!markets) return [];
 
-    return markets.filter((market) => {
+    const filtered = markets.filter((market) => {
       // 类型过滤
       if (typeFilter) {
         const templateType = market._displayInfo?.templateType;
@@ -68,13 +74,61 @@ export function MarketsContent() {
 
       return true;
     });
+
+    // 按创建时间正序排列（最早的在前）
+    return filtered.sort((a, b) => parseInt(a.createdAt) - parseInt(b.createdAt));
   }, [markets, typeFilter, selectedLeague]);
 
-  const formatDate = (timestamp: string) => {
+  // 按天分组市场
+  const marketsByDay = useMemo((): MarketsByDay[] => {
+    if (!filteredMarkets || filteredMarkets.length === 0) return [];
+
+    const groups: Record<string, typeof filteredMarkets> = {};
+
+    filteredMarkets.forEach((market) => {
+      const date = new Date(parseInt(market.createdAt) * 1000);
+      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(market);
+    });
+
+    // 按日期正序排列
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateKey, markets]) => {
+        const date = new Date(dateKey + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        let dateLabel: string;
+        if (date.getTime() === today.getTime()) {
+          dateLabel = t('markets.list.today');
+        } else if (date.getTime() === tomorrow.getTime()) {
+          dateLabel = t('markets.list.tomorrow');
+        } else if (date.getTime() === yesterday.getTime()) {
+          dateLabel = t('markets.list.yesterday');
+        } else {
+          dateLabel = date.toLocaleDateString('zh-CN', {
+            month: 'long',
+            day: 'numeric',
+            weekday: 'short',
+          });
+        }
+
+        return { dateKey, dateLabel, markets };
+      });
+  }, [filteredMarkets, t]);
+
+  const formatTime = (timestamp: string) => {
     const date = new Date(parseInt(timestamp) * 1000);
-    return date.toLocaleString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
+    return date.toLocaleTimeString('zh-CN', {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -205,61 +259,79 @@ export function MarketsContent() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredMarkets.map((market) => (
-              <Link key={market.id} href={`/markets/${market.id}`}>
-                <Card hoverable variant="neon" padding="lg">
-                  {/* Match Info */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500 uppercase">
-                        {translateLeague(market._displayInfo?.league || 'EPL')}
-                      </span>
-                      {getStatusBadge(market.state)}
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-1">
-                      {translateTeam(market._displayInfo?.homeTeam || 'Team A')} vs {translateTeam(market._displayInfo?.awayTeam || 'Team B')}
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      {t('markets.card.createdAt')}: {formatDate(market.createdAt)}
-                    </p>
-                    {market.lockedAt && (
-                      <p className="text-xs text-orange-400 mt-1">
-                        {t('markets.card.lockedAt')}: {formatDate(market.lockedAt)}
-                      </p>
-                    )}
-                  </div>
+          <div className="space-y-6">
+            {marketsByDay.map((dayGroup) => (
+              <div key={dayGroup.dateKey}>
+                {/* 日期分隔标题 */}
+                <div className="sticky top-0 z-10 py-3 px-4 bg-dark-bg/95 backdrop-blur-sm border-b border-dark-border mb-4">
+                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <svg className="w-5 h-5 text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {dayGroup.dateLabel}
+                    <span className="text-sm text-gray-500 font-normal ml-2">
+                      ({dayGroup.markets?.length || 0} {t('markets.list.matches')})
+                    </span>
+                  </h2>
+                </div>
 
-                  {/* Market Stats */}
-                  <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                    <span>{t('markets.card.totalVolume')}: {Number(market.totalVolume).toFixed(2)} USDC</span>
-                    <span>{market.uniqueBettors} {t('markets.card.participants')}</span>
-                  </div>
+                {/* 市场列表 */}
+                <div className="space-y-2">
+                  {dayGroup.markets?.map((market) => (
+                    <Link key={market.id} href={`/markets/${market.id}`}>
+                      <div className="group flex items-center gap-4 p-4 bg-dark-card rounded-lg border border-dark-border hover:border-neon/50 hover:bg-dark-card/80 transition-all cursor-pointer">
+                        {/* 时间列 */}
+                        <div className="w-16 flex-shrink-0 text-center">
+                          <span className="text-lg font-mono text-gray-300">
+                            {formatTime(market.createdAt)}
+                          </span>
+                        </div>
 
-                  {/* Market Type */}
-                  <div className="flex items-center justify-between pt-4 border-t border-dark-border">
-                    <span className="text-sm text-gray-400">{t('markets.card.marketType')}</span>
-                    <div className="flex gap-2">
-                      <Badge variant="neon" size="sm">
-                        {market._displayInfo?.templateTypeDisplay || t('markets.unknown')}
-                      </Badge>
-                      {market._displayInfo?.lineDisplay && (
-                        <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
-                      )}
-                    </div>
-                  </div>
+                        {/* 联赛标识 */}
+                        <div className="w-20 flex-shrink-0">
+                          <span className="text-xs text-gray-500 uppercase font-medium">
+                            {translateLeague(market._displayInfo?.league || 'EPL')}
+                          </span>
+                        </div>
 
-                  {/* CTA */}
-                  <div className="mt-4">
-                    <Button
-                      variant={market.state === MarketStatus.Open ? 'neon' : 'secondary'}
-                      fullWidth
-                    >
-                      {market.state === MarketStatus.Open ? t('markets.card.placeBet') : t('markets.card.viewDetails')}
-                    </Button>
-                  </div>
-                </Card>
-              </Link>
+                        {/* 比赛信息 */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-semibold text-white truncate group-hover:text-neon transition-colors">
+                            {translateTeam(market._displayInfo?.homeTeam || 'Team A')} vs {translateTeam(market._displayInfo?.awayTeam || 'Team B')}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            <span>{Number(market.totalVolume).toFixed(0)} USDC</span>
+                            <span>·</span>
+                            <span>{market.uniqueBettors} {t('markets.card.participants')}</span>
+                          </div>
+                        </div>
+
+                        {/* 玩法类型 */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge variant="neon" size="sm">
+                            {market._displayInfo?.templateTypeDisplay || t('markets.unknown')}
+                          </Badge>
+                          {market._displayInfo?.lineDisplay && (
+                            <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
+                          )}
+                        </div>
+
+                        {/* 状态 */}
+                        <div className="w-20 flex-shrink-0 flex justify-end">
+                          {getStatusBadge(market.state)}
+                        </div>
+
+                        {/* 箭头 */}
+                        <div className="flex-shrink-0 text-gray-600 group-hover:text-neon transition-colors">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -83,6 +83,12 @@
       "desc": "条件に一致するマーケットがありません。後でもう一度お試しください。",
       "action": "すべてのマーケットを見る"
     },
+    "list": {
+      "today": "今日",
+      "tomorrow": "明日",
+      "yesterday": "昨日",
+      "matches": "試合"
+    },
     "card": {
       "createdAt": "作成日時",
       "lockedAt": "ロック",

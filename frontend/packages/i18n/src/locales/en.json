@@ -83,6 +83,12 @@
       "desc": "No markets match your criteria. Please try again later or change your filters.",
       "action": "View All Markets"
     },
+    "list": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "yesterday": "Yesterday",
+      "matches": "matches"
+    },
     "card": {
       "createdAt": "Created",
       "lockedAt": "Locked",

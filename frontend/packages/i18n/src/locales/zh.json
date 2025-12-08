@@ -83,6 +83,12 @@
       "desc": "当前没有符合条件的市场，请稍后再来或更改筛选条件",
       "action": "查看全部市场"
     },
+    "list": {
+      "today": "今天",
+      "tomorrow": "明天",
+      "yesterday": "昨天",
+      "matches": "场比赛"
+    },
     "card": {
       "createdAt": "创建时间",
       "lockedAt": "锁盘",
