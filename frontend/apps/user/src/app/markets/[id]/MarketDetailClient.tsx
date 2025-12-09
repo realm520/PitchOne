@@ -16,40 +16,30 @@ import {
   useWatchBetPlaced,
   useMarketOutcomes,
   useMarketFullData,
-  formatUSDCFromWei,
   useIsMarketLocked,
 } from '@pitchone/web3';
 import {
-  Container,
   Card,
-  Badge,
   Button,
-  Input,
   LoadingSpinner,
-  EmptyState,
   ErrorState,
-  Modal,
 } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
-import { LiveActivity } from '@/components/LiveActivity';
+import Link from 'next/link';
 import { betNotifications, marketNotifications } from '@/lib/notifications';
-import { useParlayStore } from '@/lib/parlay-store';
-import toast from 'react-hot-toast';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { t, translateTeam, translateLeague } = useTranslation();
-  const { address, isConnected, chain } = useAccount();
-  const { addOutcome, hasMarket, getOutcome } = useParlayStore();
+  const { address, isConnected } = useAccount();
 
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState('');
-  const [showBetModal, setShowBetModal] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approveToastId, setApproveToastId] = useState<string | null>(null);
   const [betToastId, setBetToastId] = useState<string | null>(null);
 
   const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
-  const { data: orders, refetch: refetchOrders } = useMarketOrders(address, marketId);
+  const { refetch: refetchOrders } = useMarketOrders(address, marketId);
   const { data: allOrders, refetch: refetchAllOrders } = useMarketAllOrders(marketId);
 
   // 获取真实的 outcome 数据（包括实时赔率）
@@ -80,19 +70,13 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   console.log('[MarketDetailClient] 组件状态:', {
     marketId,
     isConnected,
-    chainId: chain?.id,
-    chainName: chain?.name,
     address,
     hasMarket: !!market,
-    market,
     hasOutcomes: !!outcomes,
-    outcomes,
     hasMarketFullData: !!marketFullData,
-    marketFullData,
     isLoading,
     outcomesLoading,
     hasError: !!error,
-    error,
     allOrdersCount: allOrders?.length || 0,
   });
 
@@ -311,7 +295,6 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
       betNotifications.betPlaced(betToastId, betAmount, outcomeName);
       setBetToastId(null);
-      setShowBetModal(false);
       setBetAmount('');
       setSelectedOutcome(null);
 
@@ -329,29 +312,28 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBetSuccess, betToastId]);
 
-  const formatDate = (timestamp: string) => {
-    const date = new Date(parseInt(timestamp) * 1000);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  // 格式化日期为简短格式 (DEC 02 12:07)
+  const formatShortDate = (timestamp: string | number) => {
+    const ts = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
+    const date = new Date(ts * 1000);
+    const month = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    const day = date.getDate().toString().padStart(2, '0');
+    const hour = date.getHours().toString().padStart(2, '0');
+    const minute = date.getMinutes().toString().padStart(2, '0');
+    return `${month} ${day} ${hour}:${minute}`;
   };
 
-  const getStatusBadge = (status: MarketStatus) => {
-    // 如果基于时间的锁定生效，覆盖显示状态为 Locked
-    const effectiveStatus = isMarketLocked ? MarketStatus.Locked : status;
+  // 截断地址显示
+  const truncateAddress = (address: string) => {
+    if (!address || address.length < 10) return address;
+    return `${address.slice(0, 5)}...${address.slice(-4)}`;
+  };
 
-    const variants = {
-      [MarketStatus.Open]: { variant: 'success' as const, label: t('markets.status.open') },
-      [MarketStatus.Locked]: { variant: 'warning' as const, label: t('markets.status.locked') },
-      [MarketStatus.Resolved]: { variant: 'info' as const, label: t('markets.status.resolved') },
-      [MarketStatus.Finalized]: { variant: 'default' as const, label: t('markets.status.finalized') },
-    };
-    const config = variants[effectiveStatus];
-    return <Badge variant={config.variant} dot>{config.label}</Badge>;
+  // 获取队名缩写
+  const getTeamAbbr = (teamName: string) => {
+    if (!teamName) return 'TBD';
+    // 提取前3个字母作为缩写
+    return teamName.slice(0, 3).toUpperCase();
   };
 
   /**
@@ -477,28 +459,6 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     }
   };
 
-  const handleAddToParlay = (outcomeId: number) => {
-    if (!market || !outcomes || outcomeId >= outcomes.length) return;
-
-    const outcome = outcomes[outcomeId];
-    const marketName = market._displayInfo?.homeTeam && market._displayInfo?.awayTeam
-      ? `${translateTeam(market._displayInfo.homeTeam)} vs ${translateTeam(market._displayInfo.awayTeam)}`
-      : `${t('markets.unknown')} ${market.id.slice(0, 8)}...`;
-
-    addOutcome({
-      marketAddress: marketId as `0x${string}`,
-      marketName,
-      outcomeId,
-      outcomeName: outcome.name,
-      odds: outcome.odds,
-    });
-
-    toast.success(`${t('markets.detail.addedToParlay')}: ${outcome.name}`, {
-      icon: '🎯',
-      duration: 2000,
-    });
-  };
-
   // 1. 加载状态（优先级最高）
   if (isLoading || outcomesLoading) {
     return (
@@ -535,390 +495,285 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     );
   }
 
+  // 获取市场状态文本
+  const getMarketStatusText = () => {
+    if (market.state === MarketStatus.Finalized) return 'SETTLED';
+    if (market.state === MarketStatus.Resolved) return 'RESOLVED';
+    if (market.state === MarketStatus.Locked || isMarketLocked) return 'LOCKED';
+    return 'OPEN';
+  };
+
+  const homeTeam = market._displayInfo?.homeTeam || 'Home';
+  const awayTeam = market._displayInfo?.awayTeam || 'Away';
+  const league = market._displayInfo?.league || 'League';
+
   return (
-    <div className="min-h-screen bg-dark-bg py-8">
-      <Container size="xl">
-        {/* Market Header */}
-        <Card className="mb-6" variant="neon" padding="lg">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-white">
-                  {translateTeam(market._displayInfo?.homeTeam || 'Team A')} vs {translateTeam(market._displayInfo?.awayTeam || 'Team B')}
-                </h1>
-                {getStatusBadge(market.state)}
+    <div className="min-h-screen bg-white">
+      {/* Back Link */}
+      <div className="px-6 py-4">
+        <Link href="/markets" className="text-gray-600 hover:text-gray-900 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </Link>
+      </div>
+
+      <div className="flex">
+        {/* Main Content */}
+        <div className={`flex-1 px-6 pb-8 ${selectedOutcome !== null ? 'pr-4' : ''}`}>
+          {/* Match Header */}
+          <Card className="mb-6 bg-white shadow-sm" padding="lg">
+            {/* League Name */}
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-6">{league}</h2>
+
+            {/* Three Column Layout */}
+            <div className="grid grid-cols-3 items-center mb-4">
+              {/* Left: Sport & League */}
+              <div>
+                <p className="text-gray-500 text-sm">Soccer</p>
+                <p className="text-gray-900 font-medium">{translateLeague(league)}</p>
               </div>
-              <p className="text-gray-400">{translateLeague(market._displayInfo?.league || 'EPL')}</p>
-              <p className="text-lg font-semibold text-neon-blue mt-2">
-                {t('markets.detail.kickoffTime')}: {formatDate(market.kickoffTime)}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {t('markets.detail.createdAt')}: {formatDate(market.createdAt)}
-              </p>
-              {market.lockedAt && (
-                <p className="text-sm text-orange-400">
-                  {t('markets.detail.lockedAt')}: {formatDate(market.lockedAt)}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant="neon" size="lg">{market._displayInfo?.templateTypeDisplay || t('markets.unknown')}</Badge>
-              {market._displayInfo?.lineDisplay && (
-                <Badge variant="info" size="lg">{market._displayInfo.lineDisplay}</Badge>
-              )}
-            </div>
-          </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-dark-border">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.totalVolume')}</p>
-              <p className="text-xl font-bold text-neon-blue">{Number(market.totalVolume).toFixed(2)} USDC</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">
-                {marketFullData?.isParimutel ? t('markets.detail.totalPool') : t('markets.detail.liquidity')}
-              </p>
-              <p className="text-xl font-bold text-neon-green">
-                {marketFullData?.totalLiquidity
-                  ? Number(formatUnits(marketFullData.totalLiquidity, 6)).toFixed(2)
-                  : '0.00'} USDC
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.participants')}</p>
-              <p className="text-xl font-bold text-neon-purple">{market.uniqueBettors}</p>
-            </div>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Outcomes */}
-          <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.betOptions')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {outcomes.map((outcome) => {
-                const isInParlay = hasMarket(marketId as `0x${string}`);
-                const currentSelection = isInParlay ? getOutcome(marketId as `0x${string}`) : null;
-                const isThisOutcomeSelected = currentSelection?.outcomeId === outcome.id;
-
-                return (
-                  <Card
-                    key={outcome.id}
-                    hoverable
-                    variant={selectedOutcome === outcome.id ? 'neon' : 'default'}
-                    padding="lg"
-                    className="flex flex-col"
-                  >
-                    <div className={`w-full h-2 rounded-full bg-gradient-to-r ${outcome.color} mb-4`} />
-                    <h3 className="text-xl font-bold text-white mb-2">{outcome.name}</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className="text-3xl font-bold text-neon">{outcome.odds}</span>
-                      <span className="text-sm text-gray-500">{t('markets.bet.odds')}</span>
-                    </div>
-
-                    {/* 按钮组 */}
-                    <div className="mt-auto space-y-2">
-                      {/* 立即下注按钮 */}
-                      <Button
-                        onClick={() => {
-                          if (canBet) {
-                            setSelectedOutcome(outcome.id);
-                            setShowBetModal(true);
-                          }
-                        }}
-                        disabled={!canBet}
-                        variant="neon"
-                        size="sm"
-                        className="w-full"
-                      >
-                        {canBet ? t('markets.detail.placeBetNow') : t('markets.detail.locked')}
-                      </Button>
-
-                      {/* 加入串关按钮 */}
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToParlay(outcome.id);
-                        }}
-                        disabled={isThisOutcomeSelected || !canBet}
-                        variant={isThisOutcomeSelected ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="w-full"
-                      >
-                        {isThisOutcomeSelected ? (
-                          <>
-                            <svg className="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            {t('markets.detail.addedToParlay')}
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            {t('markets.detail.addToParlay')}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-
-            {/* Live Activity */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.liveActivity')}</h2>
-              <LiveActivity
-                events={allBetEvents}
-                outcomeNames={outcomes.map((o) => o.name)}
-              />
-            </div>
-
-            {/* Orders History */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-4">{t('markets.detail.myOrders')}</h2>
-              {!isConnected ? (
-                <Card padding="lg">
-                  <EmptyState
-                    icon={
-                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    }
-                    title={t('markets.detail.connectFirst')}
-                    description={t('markets.detail.connectToViewOrders')}
-                  />
-                </Card>
-              ) : !orders || orders.length === 0 ? (
-                <Card padding="lg">
-                  <EmptyState
-                    title={t('markets.detail.noOrders')}
-                    description={t('markets.detail.noOrdersDesc')}
-                  />
-                </Card>
-              ) : (
-                <Card padding="none">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-dark-card border-b border-dark-border">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableTime')}</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableOption')}</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableAmount')}</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.tableExpected')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-dark-border">
-                        {orders.map((order) => {
-                          // Subgraph 返回的 amount 和 shares 都是 BigInt 字符串（原始 wei 值）
-                          // 使用统一的精度转换函数
-                          const amountUSDC = formatUSDCFromWei(order.amount);
-                          const sharesInUSDC = formatUSDCFromWei(order.shares);
-                          // 获取选项名称
-                          const outcomeName = outcomes?.[order.outcome]?.name || `${t('markets.detail.result')} ${order.outcome}`;
-
-                          // 计算预期收益（根据市场模式）
-                          let expectedPayout = sharesInUSDC; // 默认值（CPMM 模式或无数据时）
-                          let netProfit = sharesInUSDC - amountUSDC;
-
-                          if (marketFullData?.isParimutel) {
-                            // Parimutuel 模式：计算基于奖池分布的预期收益
-                            const totalPool = Number(formatUnits(marketFullData.totalLiquidity, 6));
-                            const outcomePool = Number(formatUnits(marketFullData.outcomeLiquidity[order.outcome], 6));
-
-                            if (outcomePool > 0) {
-                              // 预期赔率 = 总奖池 / 该结果投注额
-                              const odds = totalPool / outcomePool;
-                              // 预期回报 = shares × 赔率
-                              expectedPayout = sharesInUSDC * odds;
-                              // 净利润 = 预期回报 - 投入金额
-                              netProfit = expectedPayout - amountUSDC;
-                            } else {
-                              // 如果该结果还没有投注（理论上不应该发生），显示 shares
-                              expectedPayout = sharesInUSDC;
-                              netProfit = 0;
-                            }
-                          }
-
-                          return (
-                            <tr key={order.id} className="hover:bg-dark-card/50 transition-colors">
-                              <td className="px-6 py-4 text-sm text-gray-400">{formatDate(order.timestamp)}</td>
-                              <td className="px-6 py-4">
-                                <Badge variant="info">{outcomeName}</Badge>
-                              </td>
-                              <td className="px-6 py-4 text-sm font-medium text-white">{amountUSDC.toFixed(2)} USDC</td>
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm font-medium text-neon-green">
-                                    {expectedPayout.toFixed(2)} USDC
-                                  </span>
-                                  <span className={`text-xs ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    ({netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)} USDC)
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              {/* Center: Team Logos */}
+              <div className="flex justify-center items-center gap-4">
+                {/* Home Team Logo */}
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                    <span className="text-xl font-bold text-gray-400">{getTeamAbbr(homeTeam)}</span>
                   </div>
-                </Card>
-              )}
-            </div>
-          </div>
+                  <span className="text-xs text-gray-500 mt-1">{translateTeam(homeTeam)}</span>
+                </div>
 
-          {/* Sidebar - Quick Stats */}
-          <div className="lg:col-span-1">
-            <Card variant="glass" padding="lg" className="sticky top-24">
-              <h3 className="text-lg font-bold text-white mb-4">{t('markets.detail.marketInfo')}</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.marketId')}</p>
-                  <p className="text-xs font-mono text-gray-400 break-all">{market.id}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{t('markets.statusLabel')}</p>
-                  {getStatusBadge(market.state)}
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.feeRate')}</p>
-                  <p className="text-sm text-white">2%</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.minBet')}</p>
-                  <p className="text-sm text-white">1 USDC</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{t('markets.detail.maxBet')}</p>
-                  <p className="text-sm text-white">10,000 USDC</p>
+                {/* Away Team Logo */}
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                    <span className="text-xl font-bold text-gray-400">{getTeamAbbr(awayTeam)}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1">{translateTeam(awayTeam)}</span>
                 </div>
               </div>
-            </Card>
-          </div>
-        </div>
-      </Container>
 
-      {/* Bet Modal */}
-      <Modal
-        isOpen={showBetModal}
-        onClose={() => {
-          setShowBetModal(false);
-          setBetAmount('');
-        }}
-        title={t('markets.detail.confirmBet')}
-        size="md"
-      >
-        {selectedOutcome !== null && outcomes && (
-          <div className="space-y-6">
-            {/* Selected Outcome */}
-            <div className="p-4 bg-dark-bg rounded-lg border border-dark-border">
-              <p className="text-sm text-gray-500 mb-1">{t('markets.detail.selectedOutcome')}</p>
-              <div className="flex items-center justify-between">
-                <p className="text-xl font-bold text-white">{outcomes[selectedOutcome].name}</p>
-                <Badge variant="neon" size="lg">{outcomes[selectedOutcome].odds}x</Badge>
+              {/* Right: Match Time */}
+              <div className="text-right">
+                <p className="text-gray-500 text-sm">Matchtime:</p>
+                <p className="text-gray-900 font-bold">{formatShortDate(market.kickoffTime)}</p>
+                <p className="text-gray-500 text-sm">Regular Season</p>
               </div>
             </div>
 
-            {/* Balance Display */}
-            {usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint' && (
-              <div className="text-sm text-gray-400">
-                {t('markets.detail.balance')}: {formatUnits(usdcBalance, 6)} USDC
-              </div>
-            )}
+            {/* Team Names */}
+            <p className="text-center text-lg font-semibold text-gray-900">
+              {getTeamAbbr(homeTeam)} {translateTeam(homeTeam).charAt(0)} - {getTeamAbbr(awayTeam)} {translateTeam(awayTeam).charAt(0)}
+            </p>
+          </Card>
 
-            {/* Amount Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {t('markets.detail.betAmountLabel')}
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  placeholder={t('markets.detail.inputAmount')}
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
-                  min="1"
-                  max="10000"
-                  className="w-full px-4 py-3 pr-16 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-colors"
-                />
+          {/* Winner Section */}
+          <Card className="mb-6 bg-white shadow-sm" padding="lg">
+            <h3 className="text-center text-gray-500 text-sm font-medium uppercase tracking-wider mb-4">
+              WINNER
+            </h3>
+            <div className="grid grid-cols-3 gap-0 rounded-lg overflow-hidden border border-gray-200">
+              {outcomes.map((outcome, index) => (
                 <button
-                  type="button"
-                  onClick={() => {
-                    if (usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint') {
-                      const maxAmount = formatUnits(usdcBalance, 6);
-                      setBetAmount(maxAmount);
+                  key={outcome.id}
+                  onClick={() => canBet && setSelectedOutcome(outcome.id)}
+                  disabled={!canBet}
+                  className={`
+                    py-4 px-2 text-center transition-all
+                    ${index < outcomes.length - 1 ? 'border-r border-gray-200' : ''}
+                    ${selectedOutcome === outcome.id
+                      ? 'bg-gray-100 ring-2 ring-inset ring-blue-500'
+                      : 'bg-gray-50 hover:bg-gray-100'
                     }
-                  }}
-                  disabled={usdcBalance === undefined || usdcBalance === null || typeof usdcBalance !== 'bigint' || usdcBalance === 0n}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-semibold text-neon-blue hover:text-white hover:bg-neon-blue/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    ${!canBet ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
                 >
-                  MAX
+                  <p className="text-gray-600 text-sm font-medium mb-1">{outcome.name}</p>
+                  <p className="text-gray-900 text-xl font-bold">{outcome.odds}</p>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Activity Section */}
+          <Card className="bg-white shadow-sm" padding="none">
+            <h3 className="text-center text-gray-500 text-sm font-medium uppercase tracking-wider py-4 border-b border-gray-200">
+              ACTIVITY
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">TIME ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">OWNER</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SELECTED</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PAID(U) ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PAYOUT(U) ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">STATUS ▼</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {allBetEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                        No activity yet
+                      </td>
+                    </tr>
+                  ) : (
+                    allBetEvents.slice(0, 20).map((event, idx) => {
+                      const amountUSDC = Number(event.amount) / 1e6;
+                      const payoutUSDC = Number(event.shares) / 1e6;
+                      const outcomeName = outcomes[Number(event.outcomeId)]?.name || `Outcome ${event.outcomeId}`;
+
+                      return (
+                        <tr key={event.transactionHash || idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatShortDate(event.timestamp / 1000)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                            {truncateAddress(event.user)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                            {getTeamAbbr(homeTeam)} - {outcomeName.toUpperCase()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            ${amountUSDC.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            ${payoutUSDC.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 uppercase">
+                            {getMarketStatusText()}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Side Bet Slip - Only shown when outcome is selected */}
+        {selectedOutcome !== null && outcomes && (
+          <div className="w-80 shrink-0 p-4">
+            <Card className="sticky top-4 bg-white shadow-lg border border-gray-200" padding="lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Bet Slip</h3>
+                <button
+                  onClick={() => {
+                    setSelectedOutcome(null);
+                    setBetAmount('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-            </div>
 
-            {/* Expected Payout */}
-            {betAmount && (
-              <div className="p-4 bg-gradient-to-r from-neon-blue/10 to-neon-purple/10 rounded-lg border border-neon-blue/30">
-                <p className="text-sm text-gray-400 mb-1">{t('markets.detail.expectedPayout')}</p>
-                <p className="text-3xl font-bold text-neon">{calculatePayout()} USDC</p>
-                <p className="text-xs text-gray-500 mt-1">{t('markets.detail.netProfit')}: {(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)} USDC</p>
+              {/* Selected Outcome */}
+              <div className="p-3 bg-gray-50 rounded-lg mb-4">
+                <p className="text-xs text-gray-500 mb-1">
+                  {translateTeam(homeTeam)} vs {translateTeam(awayTeam)}
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">{outcomes[selectedOutcome].name}</p>
+                  <span className="text-sm font-bold text-blue-600">{outcomes[selectedOutcome].odds}x</span>
+                </div>
               </div>
-            )}
 
-            {/* Actions */}
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={() => {
-                  setShowBetModal(false);
-                  setBetAmount('');
-                }}
-                disabled={isApproving || isApprovingConfirming || isBetting || isBettingConfirming}
-              >
-                {t('common.cancel')}
-              </Button>
-
-              {needsApproval ? (
-                <Button
-                  variant="neon"
-                  fullWidth
-                  onClick={handleApprove}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
-                  isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
-                >
-                  {isApproving || isApprovingConfirming ? t('markets.detail.approving') : isAllowanceLoading ? t('markets.detail.checkingApproval') : t('markets.detail.approveUSDC')}
-                </Button>
-              ) : (
-                <Button
-                  variant="neon"
-                  fullWidth
-                  onClick={handlePlaceBet}
-                  disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || (isAllowanceLoading && allowance === undefined)}
-                  isLoading={isBetting || isBettingConfirming}
-                >
-                  {isBetting || isBettingConfirming ? t('markets.detail.betting') : (isAllowanceLoading && allowance === undefined) ? t('markets.detail.checkingApproval') : t('markets.detail.confirmBetBtn')}
-                </Button>
+              {/* Balance Display */}
+              {usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint' && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Balance: {formatUnits(usdcBalance, 6)} USDC
+                </p>
               )}
-            </div>
 
-            {!isConnected && (
-              <p className="text-sm text-yellow-500 text-center">⚠️ {t('markets.detail.connectWalletWarning')}</p>
-            )}
+              {/* Amount Input */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Amount (USDC)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(e.target.value)}
+                    min="1"
+                    max="10000"
+                    className="w-full px-3 py-2 pr-14 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint') {
+                        setBetAmount(formatUnits(usdcBalance, 6));
+                      }
+                    }}
+                    disabled={!usdcBalance || usdcBalance === 0n}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                  >
+                    MAX
+                  </button>
+                </div>
+              </div>
 
-            {needsApproval && (
-              <p className="text-sm text-blue-400 text-center">
-                💡 {t('markets.detail.firstBetApproval')}
-              </p>
-            )}
+              {/* Expected Payout */}
+              {betAmount && parseFloat(betAmount) > 0 && (
+                <div className="p-3 bg-blue-50 rounded-lg mb-4">
+                  <p className="text-xs text-gray-500 mb-1">Potential Payout</p>
+                  <p className="text-xl font-bold text-blue-600">${calculatePayout()}</p>
+                  <p className="text-xs text-gray-500">
+                    Profit: ${(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                {needsApproval ? (
+                  <Button
+                    variant="neon"
+                    fullWidth
+                    onClick={handleApprove}
+                    disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
+                    isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
+                  >
+                    {isApproving || isApprovingConfirming ? 'Approving...' : isAllowanceLoading ? 'Checking...' : 'Approve USDC'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="neon"
+                    fullWidth
+                    onClick={handlePlaceBet}
+                    disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || !isConnected}
+                    isLoading={isBetting || isBettingConfirming}
+                  >
+                    {isBetting || isBettingConfirming ? 'Placing Bet...' : 'Place Bet'}
+                  </Button>
+                )}
+              </div>
+
+              {!isConnected && (
+                <p className="text-xs text-amber-600 text-center mt-3">
+                  Connect wallet to place bet
+                </p>
+              )}
+
+              {needsApproval && (
+                <p className="text-xs text-blue-500 text-center mt-3">
+                  First time? Approve USDC spending
+                </p>
+              )}
+            </Card>
           </div>
         )}
-      </Modal>
+      </div>
     </div>
   );
 }
