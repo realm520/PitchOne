@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "../src/core/MarketFactory_v2.sol";
+import "../src/core/BettingRouter.sol";
 import "../src/interfaces/IMarket.sol";
 import "../test/mocks/MockERC20.sol";
 
@@ -91,9 +92,14 @@ contract SimulateBets is Script {
 
         MockERC20 usdc = MockERC20(usdcAddr);
 
+        // 读取 BettingRouter 地址
+        address routerAddr = vm.parseJsonAddress(deploymentJson, ".contracts.bettingRouter");
+        BettingRouter router = BettingRouter(routerAddr);
+
         console.log("Configuration:");
         console.log("  Factory:", factoryAddr);
         console.log("  USDC:", usdcAddr);
+        console.log("  BettingRouter:", routerAddr);
         console.log("  USDC Decimals:", usdcDecimals);
         console.log("  Bettors:", numBettors);
         console.log("  Min Bet Amount (USDC):", minBetAmount / usdcUnit);
@@ -207,18 +213,19 @@ contract SimulateBets is Script {
                 // Mint USDC
                 usdc.mint(bettor, betAmount);
 
-                // Approve
-                usdc.approve(marketAddr, betAmount);
+                // Approve Router（统一入口，只需授权一次）
+                usdc.approve(routerAddr, betAmount);
 
-                // 下注
-                try market.placeBet(outcomeId, betAmount) returns (uint256 shares) {
+                // 通过 Router 下注
+                try router.placeBet(marketAddr, outcomeId, betAmount) returns (uint256 shares) {
                     stats.totalBets++;
                     stats.successfulBets++;
                     stats.totalVolume += betAmount;
                     userBets++;
                     userVolume += betAmount;
 
-                    console.log("  Bet placed successfully");
+                    console.log("  Bet placed via Router");
+                    console.log("    Market:", marketAddr);
                     console.log("    Amount (USDC):", betAmount / usdcUnit);
                     console.log("    Outcome:", outcomeId);
                     console.log("    Shares:", shares / 1e18);

@@ -16,6 +16,7 @@ import "../src/liquidity/ParimutuelLiquidityProvider.sol";
 import "../src/liquidity/LiquidityProviderFactory.sol";
 import "../src/core/FeeRouter.sol";
 import "../src/core/ReferralRegistry.sol";
+import "../src/core/BettingRouter.sol";
 import "../src/governance/ParamController.sol";
 import "../src/pricing/SimpleCPMM.sol";
 import "../src/pricing/LMSR.sol";
@@ -68,6 +69,7 @@ contract Deploy is Script {
         address feeRouter;
         address referralRegistry;
         address factory;
+        address bettingRouter; // Unified betting entry point
         address paramController; // ParamController for governance
         address wdlTemplate;
         address ouTemplate;
@@ -229,6 +231,17 @@ contract Deploy is Script {
         console.log("MarketFactory_v2:", address(factory));
 
         // ========================================
+        // 3.5 部署 BettingRouter (统一投注入口)
+        // ========================================
+        console.log("\nStep 3.5: Deploy BettingRouter");
+        console.log("----------------------------------------");
+
+        BettingRouter bettingRouter = new BettingRouter(usdc, address(factory));
+        console.log("BettingRouter:", address(bettingRouter));
+        console.log("  Settlement Token:", usdc);
+        console.log("  Factory:", address(factory));
+
+        // ========================================
         // 4. 部署并注册市场模板（Clone 模式）
         // ========================================
         console.log("\nStep 4: Deploy Market Templates (Clone Mode)");
@@ -326,6 +339,7 @@ contract Deploy is Script {
         console.log("  FeeRouter:", address(feeRouter));
         console.log("  ReferralRegistry:", address(referralRegistry));
         console.log("  MarketFactory_v2:", address(factory));
+        console.log("  BettingRouter:", address(bettingRouter));
 
         console.log("\nMarket Templates (6 out of 7 deployed):");
         console.log("  1. WDL_Template_V2:", address(wdlTemplate));
@@ -360,7 +374,9 @@ contract Deploy is Script {
         console.log("   - FeeRouter address:", address(feeRouter));
         console.log("2. Run CreateAllMarketTypes.s.sol to create test markets");
         console.log("   (6 out of 7 market types, 3 markets each = 18 total)");
-        console.log("3. Run SimulateBets.s.sol to generate test data");
+        console.log("3. Set BettingRouter as trusted router for each market:");
+        console.log("   market.setTrustedRouter(", address(bettingRouter), ")");
+        console.log("4. Run SimulateBets.s.sol to generate test data");
         console.log("========================================\n");
 
         return DeployedContracts({
@@ -374,6 +390,7 @@ contract Deploy is Script {
             feeRouter: address(feeRouter),
             referralRegistry: address(referralRegistry),
             factory: address(factory),
+            bettingRouter: address(bettingRouter),
             paramController: address(paramController),
             wdlTemplate: address(wdlTemplate),
             ouTemplate: address(ouTemplate),

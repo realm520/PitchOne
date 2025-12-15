@@ -3,8 +3,10 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "../src/core/MarketFactory_v2.sol";
+import "../src/core/BettingRouter.sol";
 import "../src/liquidity/LiquidityVault.sol";
 import "../src/interfaces/IAH_Template.sol";
+import "../src/interfaces/IMarket.sol";
 import "../src/pricing/LinkedLinesController.sol";
 import "../src/templates/OU_MultiLine_V2.sol";
 import "../src/templates/PlayerProps_Template_V2.sol";
@@ -22,6 +24,7 @@ contract CreateAllMarketTypes is Script {
     address constant FEE_ROUTER = 0x2b639Cc84e1Ad3aA92D4Ee7d2755A6ABEf300D72;
     address constant SIMPLE_CPMM = 0x6533158b042775e2FdFeF3cA1a782EFDbB8EB9b1;
     address constant OWNER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    address constant BETTING_ROUTER = 0x4c5859f0F772848b2D91F1D83E2Fe57935348029; // BettingRouter 统一投注入口
 
     // Template IDs
     bytes32 constant WDL_TEMPLATE_ID = 0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc;
@@ -111,6 +114,15 @@ contract CreateAllMarketTypes is Script {
             vault.authorizeMarket(createdMarkets[i]);
         }
         console.log("   All markets authorized\n");
+
+        // 设置所有市场的 trustedRouter（必需，否则无法下注）
+        console.log("10. Setting trustedRouter for all markets...");
+        for (uint i = 0; i < createdMarkets.length; i++) {
+            // 通过接口调用 setTrustedRouter
+            IMarket(createdMarkets[i]).setTrustedRouter(BETTING_ROUTER);
+        }
+        console.log("   TrustedRouter set to:", BETTING_ROUTER);
+        console.log("   All markets configured\n");
 
         vm.stopBroadcast();
 
