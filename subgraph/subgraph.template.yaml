@@ -69,6 +69,143 @@ dataSources:
           handler: handleFeeRouted
       file: ./src/fee.ts
 
+  # ============================================================================
+  # LiquidityProviderFactory - 流动性提供者工厂
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: LiquidityProviderFactory
+    network: localhost
+    source:
+      address: "{{PROVIDER_FACTORY_ADDRESS}}"
+      abi: LiquidityProviderFactory
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProviderFactory
+        - ProviderTypeRegistration
+        - ProviderDeployment
+        - LiquidityProvider
+      abis:
+        - name: LiquidityProviderFactory
+          file: ./abis/LiquidityProviderFactory.json
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: ProviderTypeRegistered(indexed string,address)
+          handler: handleProviderTypeRegistered
+        - event: ProviderDeployed(indexed address,indexed string,indexed address,uint256)
+          handler: handleProviderDeployed
+        - event: DeployerAuthorized(indexed address,bool)
+          handler: handleDeployerAuthorized
+      file: ./src/provider.ts
+
+  # ============================================================================
+  # ERC4626LiquidityProvider - ERC-4626 标准流动性提供者（默认）
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ERC4626LiquidityProvider
+    network: localhost
+    source:
+      address: "{{ERC4626_PROVIDER_ADDRESS}}"
+      abi: ERC4626LiquidityProvider
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProvider
+        - LiquidityBorrowEvent
+        - MarketAuthorization
+      abis:
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: LiquidityBorrowed(indexed address,uint256,uint256)
+          handler: handleLiquidityBorrowed
+        - event: LiquidityRepaid(indexed address,uint256,uint256,uint256)
+          handler: handleLiquidityRepaid
+        - event: MarketAuthorizationChanged(indexed address,bool)
+          handler: handleMarketAuthorizationChanged
+        - event: Paused(address)
+          handler: handlePaused
+        - event: Unpaused(address)
+          handler: handleUnpaused
+      file: ./src/provider.ts
+
+  # ============================================================================
+  # ParimutuelLiquidityProvider - 彩池模式流动性提供者（备用）
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ParimutuelLiquidityProvider
+    network: localhost
+    source:
+      address: "{{PARIMUTUEL_PROVIDER_ADDRESS}}"
+      abi: ParimutuelLiquidityProvider
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityProvider
+        - LiquidityBorrowEvent
+        - PoolContribution
+        - MarketAuthorization
+      abis:
+        - name: ParimutuelLiquidityProvider
+          file: ./abis/ParimutuelLiquidityProvider.json
+        - name: ERC4626LiquidityProvider
+          file: ./abis/ERC4626LiquidityProvider.json
+      eventHandlers:
+        - event: LiquidityBorrowed(indexed address,uint256,uint256)
+          handler: handleLiquidityBorrowed
+        - event: LiquidityRepaid(indexed address,uint256,uint256,uint256)
+          handler: handleLiquidityRepaid
+        - event: PoolContribution(indexed address,uint256,uint256)
+          handler: handlePoolContribution
+        - event: RevenueDistributed(uint256,uint256)
+          handler: handleRevenueDistributed
+        - event: MarketAuthorizationChanged(indexed address,bool)
+          handler: handleMarketAuthorizationChanged
+      file: ./src/provider.ts
+
+  # ============================================================================
+  # ReferralRegistry - 推荐关系注册表
+  # 地址来源: Auto-generated from deployments JSON
+  # ============================================================================
+  - kind: ethereum/contract
+    name: ReferralRegistry
+    network: localhost
+    source:
+      address: "{{REFERRAL_REGISTRY_ADDRESS}}"
+      abi: ReferralRegistry
+      startBlock: {{START_BLOCK}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Referral
+        - ReferrerStats
+        - ReferralReward
+        - User
+      abis:
+        - name: ReferralRegistry
+          file: ../contracts/out/ReferralRegistry.sol/ReferralRegistry.json
+      eventHandlers:
+        - event: ReferralBound(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleReferralBound
+        - event: ReferralAccrued(indexed address,indexed address,uint256,uint256)
+          handler: handleReferralAccrued
+      file: ./src/referral.ts
+
 # ============================================================================
 # 动态模板配置 - 用于自动索引新创建的市场
 # ============================================================================
