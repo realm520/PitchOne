@@ -2,30 +2,9 @@ import type { Address, ContractAddresses } from '../index';
 
 // ============================================================================
 // Anvil 本地测试链地址
-// 部署时间: 2025-11-20 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
+// 部署时间: 2025-11-27 (自动生成)
+// 来源: scripts/deploy-parimutuel-full.sh
 // ============================================================================
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-21 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-21 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-22 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-22 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-23 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-27 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
-// Anvil 本地测试链地址
-// 部署时间: 2025-11-27 (自动生成)
-// 来源: scripts/deploy-parimutuel-full.sh 自动同步
 export const ANVIL_ADDRESSES: ContractAddresses = {
   marketTemplateRegistry: '0xddE78e6202518FF4936b5302cC2891ec180E8bFf', // MarketFactory_v2
   vault: '0x74Cf9087AD26D541930BaC724B7ab21bA8F00a27',               // LiquidityVault (deprecated)

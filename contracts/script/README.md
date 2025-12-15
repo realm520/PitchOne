@@ -2,56 +2,45 @@
 
 ## 📋 脚本概览
 
-本目录包含 3 个核心 Forge 脚本和 1 个便捷测试脚本：
+本目录包含 4 个 Forge 脚本：
 
 | 脚本 | 功能 | 说明 |
 |------|------|------|
 | **Deploy.s.sol** | 部署所有合约 | 部署 USDC、Vault、Factory、7 种市场模板，生成 `deployments/localhost.json` |
 | **CreateAllMarketTypes.s.sol** | 创建测试市场 | 创建 7 种类型（WDL、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）共 21 个测试市场 |
-| **SimulateBets.s.sol** | 模拟用户下注 | 多用户、多市场模拟下注，生成测试数据 |
-| **test-all.sh** | 一键测试流程 | 依次执行部署 → 创建市场 → 模拟投注 |
+| **SimulateBets.s.sol** | 模拟用户下注 | 多用户、多市场模拟下注，通过 BettingRouter 统一投注 |
+| **SetupReferrals.s.sol** | 建立推荐关系 | 为测试用户建立推荐关系（账户 #0 为推荐人，#1-9 为被推荐人） |
 
 ---
 
 ## 🚀 快速开始
 
-### 方式 1：一键完整测试（推荐）
+### 完整测试流程
 
 ```bash
-cd /home/harry/code/PitchOne/contracts
+cd contracts/
 
-# 设置环境变量（可选，默认使用 Anvil 账户）
-export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-export RPC_URL=http://localhost:8545
+# 1. 启动 Anvil（新终端）
+anvil --host 0.0.0.0
 
-# 执行完整测试流程
-./script/test-all.sh
-```
-
-**执行效果**：
-- ✅ 部署所有合约（USDC、Vault、Factory、7 种模板）
-- ✅ 创建 21 个测试市场（7 种类型各 3 个）
-- ✅ 模拟 5 个用户，每人在所有市场下注 2 次
-- ✅ 总共约 210 笔下注记录
-
-### 方式 2：逐步执行
-
-```bash
-cd /home/harry/code/PitchOne/contracts
-
-# 步骤 1：部署合约
+# 2. 部署所有合约
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   forge script script/Deploy.s.sol:Deploy \
   --rpc-url http://localhost:8545 \
   --broadcast
 
-# 步骤 2：创建所有类型测试市场
+# 3. 创建所有类型测试市场
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes \
   --rpc-url http://localhost:8545 \
   --broadcast
 
-# 步骤 3：模拟多用户下注
+# 4. 建立推荐关系（可选）
+forge script script/SetupReferrals.s.sol:SetupReferrals \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# 5. 模拟多用户下注
 NUM_BETTORS=5 \
 MIN_BET_AMOUNT=10 \
 MAX_BET_AMOUNT=100 \
@@ -72,7 +61,7 @@ OUTCOME_DISTRIBUTION=balanced \
 - 部署 Mock USDC（测试代币）
 - 部署 LiquidityVault（LP 金库）
 - 部署定价引擎（SimpleCPMM、LMSR、LinkedLinesController）
-- 部署运营工具（FeeRouter、ReferralRegistry、CreditToken、Coupon 等）
+- 部署运营工具（FeeRouter、ReferralRegistry、BettingRouter 等）
 - 部署 MarketFactory_v2（市场工厂）
 - 注册 7 种市场模板（WDL_V2、OU、OU_MultiLine、AH、OddEven、Score、PlayerProps）
 - **输出** `deployments/localhost.json`（所有地址和模板 ID）
@@ -86,7 +75,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 ```
 
 **输出文件**（`deployments/localhost.json`）包含：
-- `contracts`: 所有部署的合约地址
+- `contracts`: 所有部署的合约地址（包括 `bettingRouter`）
 - `templates`: 7 种市场模板的 Template ID（bytes32）
 - `deployedAt`: 部署所在区块号
 - `chainId`: 链 ID
@@ -98,7 +87,8 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 **功能**：
 - 自动从 `deployments/localhost.json` 读取合约地址和模板 ID
 - 创建 7 种市场类型，每种 3 个市场，总共 21 个市场
-- 自动授权所有市场到 LiquidityVault（用户才能下注）
+- 自动授权所有市场到 LiquidityVault
+- **自动设置每个市场的 `trustedRouter`**（用户才能通过 Router 下注）
 
 **创建的市场类型**：
 1. **WDL（胜平负）** × 3：MUN vs LIV, ARS vs CHE, MCI vs TOT
@@ -119,7 +109,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 
 **重要提示**：
 - ⚠️ 必须先运行 `Deploy.s.sol` 生成 `deployments/localhost.json`
-- ⚠️ 所有市场会自动通过 `vault.authorizeMarket()` 授权，否则用户无法下注
+- ⚠️ 所有市场会自动授权并设置 trustedRouter
 - ✅ 脚本会打印所有创建的市场地址
 
 ---
@@ -127,8 +117,9 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 ### 3. SimulateBets.s.sol - 模拟用户下注
 
 **功能**：
-- 自动从 `deployments/localhost.json` 读取 Factory 和 USDC 地址
+- 自动从 `deployments/localhost.json` 读取 Factory、USDC、BettingRouter 地址
 - 使用 Anvil 默认 10 个账户模拟多用户下注
+- **通过 BettingRouter 统一投注**（用户仅需授权 Router 一次）
 - 从 Factory 自动获取所有市场
 - 支持多种下注分布策略（均匀/倾斜/随机）
 - 自动跳过已锁定的市场
@@ -168,48 +159,28 @@ OUTCOME_DISTRIBUTION=skewed \
 
 ---
 
-### 4. test-all.sh - 一键测试流程
+### 4. SetupReferrals.s.sol - 建立推荐关系
 
 **功能**：
-依次执行完整测试流程：
-1. 部署所有合约
-2. 创建所有类型测试市场
-3. 模拟多用户下注
+- 自动从 `deployments/localhost.json` 读取 ReferralRegistry 地址
+- 账户 #0 作为推荐人
+- 账户 #1-9 作为被推荐人，绑定到账户 #0
+- 跳过已绑定的账户
 
 **使用方法**：
 ```bash
-cd /home/harry/code/PitchOne/contracts
-./script/test-all.sh
+forge script script/SetupReferrals.s.sol:SetupReferrals \
+  --rpc-url http://localhost:8545 \
+  --broadcast
 ```
 
-**脚本输出示例**：
+**推荐关系结构**：
 ```
-========================================
-  PitchOne 完整测试流程
-========================================
-
-步骤 1/3: 部署合约...
-----------------------------------------
-✅ 部署完成
-
-步骤 2/3: 创建测试市场（7 种类型，21 个市场）...
-----------------------------------------
-✅ 21 个市场创建完成
-
-步骤 3/3: 模拟多用户投注...
-----------------------------------------
-✅ 投注完成
-
-========================================
-  测试流程完成！
-========================================
-
-📊 验证结果：
-  查询市场数量：
-    cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 'getMarketCount()' --rpc-url $RPC_URL
-
-  查询 Vault 总资产：
-    cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 'totalAssets()' --rpc-url $RPC_URL
+账户 #0 (0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266) - 推荐人
+  ├── 账户 #1 - 被推荐人
+  ├── 账户 #2 - 被推荐人
+  ├── ...
+  └── 账户 #9 - 被推荐人
 ```
 
 ---
@@ -219,10 +190,24 @@ cd /home/harry/code/PitchOne/contracts
 ### 场景 1：全新环境初始化
 ```bash
 # 1. 启动 Anvil（新终端）
-anvil
+anvil --host 0.0.0.0
 
-# 2. 执行完整测试流程
-./script/test-all.sh
+# 2. 按顺序执行所有脚本
+cd contracts/
+
+# 部署
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+
+# 创建市场
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes --rpc-url http://localhost:8545 --broadcast
+
+# 建立推荐关系
+forge script script/SetupReferrals.s.sol:SetupReferrals --rpc-url http://localhost:8545 --broadcast
+
+# 模拟下注
+forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
 
 # 3. 重新索引 Subgraph（如需要）
 cd ../subgraph && ./reset-subgraph.sh
@@ -240,10 +225,15 @@ NUM_BETTORS=10 BETS_PER_USER=10 \
 ### 场景 3：重新部署（清理旧环境）
 ```bash
 # 1. 重启 Anvil（清空链状态）
-pkill anvil && sleep 2 && anvil
+pkill anvil && sleep 2 && anvil --host 0.0.0.0 &
 
 # 2. 执行完整流程
-./script/test-all.sh
+cd contracts/
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/CreateAllMarketTypes.s.sol:CreateAllMarketTypes --rpc-url http://localhost:8545 --broadcast
+forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
 
 # 3. 重新部署 Subgraph
 cd ../subgraph && ./reset-subgraph.sh
@@ -262,7 +252,7 @@ cd ../subgraph && ./reset-subgraph.sh
 ```toml
 [profile.default]
 fs_permissions = [
-    { access = "read", path = "./deployments" }
+    { access = "read-write", path = "./deployments" }
 ]
 ```
 
@@ -289,7 +279,7 @@ forge --version
 # 添加到 foundry.toml
 [profile.default]
 fs_permissions = [
-    { access = "read", path = "./deployments" }
+    { access = "read-write", path = "./deployments" }
 ]
 ```
 
@@ -310,7 +300,14 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 - `CreateAllMarketTypes.s.sol` 会自动授权所有市场
 - 如果手动创建市场，需调用 `vault.authorizeMarket(marketAddress)`
 
-### 问题 4：SimulateBets 失败
+### 问题 4：`RouterNotTrusted` 错误
+**原因**：市场未设置 trustedRouter
+
+**解决方案**：
+- `CreateAllMarketTypes.s.sol` 会自动设置 trustedRouter
+- 如果手动创建市场，需调用 `market.setTrustedRouter(routerAddress)`
+
+### 问题 5：SimulateBets 失败
 **原因**：市场已锁定或结算
 
 **解决方案**：
@@ -323,33 +320,38 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 
 ### 查询市场数量
 ```bash
-cast call 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 \
-  "getMarketCount()(uint256)" \
-  --rpc-url http://localhost:8545
+# 从 deployments/localhost.json 读取 Factory 地址
+FACTORY=$(cat deployments/localhost.json | jq -r '.contracts.factory')
+cast call $FACTORY "getMarketCount()(uint256)" --rpc-url http://localhost:8545
 ```
 
 ### 查询 Vault 总资产
 ```bash
-cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 \
-  "totalAssets()(uint256)" \
-  --rpc-url http://localhost:8545
+VAULT=$(cat deployments/localhost.json | jq -r '.contracts.vault')
+cast call $VAULT "totalAssets()(uint256)" --rpc-url http://localhost:8545
 ```
 
 ### 查询用户 USDC 余额
 ```bash
-cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
-  "balanceOf(address)(uint256)" \
-  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
-  --rpc-url http://localhost:8545
+USDC=$(cat deployments/localhost.json | jq -r '.contracts.usdc')
+cast call $USDC "balanceOf(address)(uint256)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --rpc-url http://localhost:8545
+```
+
+### 查询推荐关系
+```bash
+REGISTRY=$(cat deployments/localhost.json | jq -r '.contracts.referralRegistry')
+# 查询账户 #1 的推荐人
+cast call $REGISTRY "referrer(address)(address)" 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 --rpc-url http://localhost:8545
 ```
 
 ---
 
 ## 📚 相关文档
 
-- **Subgraph 文档**：`../../subgraph/README.md`
-- **合约设计文档**：`../../docs/design/`
-- **项目开发指南**：`../../CLAUDE.md`
+- **BettingRouter 使用指南**：`docs/BettingRouter_Usage.md`
+- **Subgraph 文档**：`../subgraph/README.md`
+- **合约设计文档**：`../docs/design/`
+- **项目开发指南**：`../CLAUDE.md`
 
 ---
 
@@ -357,22 +359,21 @@ cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
 
 ### Anvil 默认账户（前 5 个）
 ```bash
-# Account #0 (部署者)
+# Account #0 (部署者/推荐人)
 Address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-# Account #1-4 (测试用户)
-# 参见 SimulateBets.s.sol 中的 testPrivateKeys 数组
+# Account #1-9 (测试用户/被推荐人)
+# 参见 SimulateBets.s.sol 和 SetupReferrals.s.sol 中的 testPrivateKeys 数组
 ```
 
-### 常用合约地址（Anvil 确定性部署）
+### 获取合约地址
 ```bash
-USDC:           0x5FbDB2315678afecb367f032d93F642f64180aa3
-Vault:          0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-Factory:        0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
+# 所有地址都在部署时动态生成，从配置文件读取
+cat deployments/localhost.json | jq '.contracts'
 ```
 
 ---
 
-**最后更新**：2025-11-13
+**最后更新**：2025-12-15
 **维护者**：PitchOne 开发团队

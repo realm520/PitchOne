@@ -9,7 +9,9 @@ echo "  Subgraph 重置和重新部署"
 echo "========================================"
 echo ""
 
-cd /home/harry/code/PitchOne/subgraph
+# 自动检测脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # 1. 停止并清理 Graph Node
 echo "1. 清理 Graph Node..."
