@@ -397,7 +397,7 @@ reset-subgraph.sh → Graph Node ✅
 
 ```bash
 cd subgraph
-./update-subgraph-config.sh
+node config/update-config.js ../contracts/deployments/localhost.json
 ```
 
 ### 仅重新部署 Subgraph
@@ -461,7 +461,7 @@ source:
 ```bash
 # ✅ 使用自动化脚本
 cd subgraph
-./update-subgraph-config.sh  # 自动从 localhost.json 读取
+node config/update-config.js ../contracts/deployments/localhost.json  # 自动读取
 ```
 
 ---

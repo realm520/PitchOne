@@ -112,7 +112,7 @@ forge script script/SimulateBets.s.sol --broadcast
 
 # 步骤 4: 更新 Subgraph 配置
 cd ../subgraph
-./update-subgraph-config.sh
+node config/update-config.js ../contracts/deployments/localhost.json
 # → 从 localhost.json 提取地址，生成 subgraph.yaml ✅
 
 # 步骤 5: 部署 Subgraph
@@ -149,10 +149,10 @@ forge script script/CreateMarkets_NoMultiLine.s.sol -vv | grep "Using addresses"
 
 ```bash
 cd subgraph
-./update-subgraph-config.sh
+node config/update-config.js ../contracts/deployments/localhost.json
 
 # 输出:
-# 📋 从部署配置读取地址:
+# 📝 Updating Subgraph configuration...
 #   Factory:   0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154
 #   FeeRouter: 0x1291Be112d480055DaFd8a610b7d1e203891C274
 # ✅ Subgraph 配置已更新: subgraph.yaml
@@ -163,7 +163,7 @@ cd subgraph
 
 ### 新增文件
 
-- ✅ `subgraph/update-subgraph-config.sh` - 自动更新 Subgraph 配置脚本
+- ✅ `subgraph/config/update-config.js` - 自动更新 Subgraph 配置脚本
 - ✅ `AUTOMATED_DATA_FLOW.md` - 完整的自动化数据流文档（本文档）
 - ✅ `DATA_FLOW_SUMMARY.md` - 简洁总结（本文件）
 
