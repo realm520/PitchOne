@@ -136,4 +136,14 @@ interface IMarket {
     /// @param totalAmount 总金额（将按权重分配到各 outcome）
     /// @param weights 每个 outcome 的权重（如果为空，则均分）
     function addLiquidity(uint256 totalAmount, uint256[] calldata weights) external;
+
+    // ============ Router 集成 ============
+
+    /// @notice 获取受信任的 Router 地址
+    /// @return Router 合约地址
+    function trustedRouter() external view returns (address);
+
+    /// @notice 设置受信任的 Router（仅 owner）
+    /// @param _router Router 合约地址
+    function setTrustedRouter(address _router) external;
 }

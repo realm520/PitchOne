@@ -89,6 +89,11 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
     /// @notice 是否已归还流动性给 Vault
     bool public liquidityRepaid;
 
+    // ============ Router 集成 ============
+
+    /// @notice 受信任的投注路由合约（可代替用户下注）
+    address public trustedRouter;
+
     // ============ 事件 ============
 
     /// @notice 从 Vault 借出流动性
@@ -117,6 +122,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
     /// @notice 开球时间更新事件
     event KickoffTimeUpdated(uint256 oldKickoffTime, uint256 newKickoffTime, uint256 timestamp);
+
+    /// @notice 受信任路由更新事件
+    event TrustedRouterUpdated(address indexed oldRouter, address indexed newRouter);
 
     // ============ 修饰符 ============
 
@@ -226,6 +234,103 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         return _placeBetWithSlippage(outcomeId, amount, maxSlippageBps);
     }
 
+    // ============ 代理下注函数（Router 使用）============
+
+    /**
+     * @notice 代理下注（由受信任的 Router 调用）
+     * @param user 实际下注用户地址
+     * @param outcomeId 结果ID
+     * @param amount 金额
+     * @return shares 获得的份额
+     * @dev 仅允许 trustedRouter 调用
+     *      资金从 Router 转入（Router 已从用户收取）
+     *      Position token mint 给实际用户
+     */
+    function placeBetFor(address user, uint256 outcomeId, uint256 amount)
+        external
+        onlyStatus(MarketStatus.Open)
+        whenNotPaused
+        nonReentrant
+        returns (uint256 shares)
+    {
+        require(msg.sender == trustedRouter, "MarketBase_V2: Not trusted router");
+        return _placeBetForWithSlippage(user, outcomeId, amount, 10000);
+    }
+
+    /**
+     * @notice 代理下注（带滑点保护）
+     * @param user 实际下注用户地址
+     * @param outcomeId 结果ID
+     * @param amount 金额
+     * @param maxSlippageBps 最大滑点（基点）
+     * @return shares 获得的份额
+     */
+    function placeBetForWithSlippage(address user, uint256 outcomeId, uint256 amount, uint256 maxSlippageBps)
+        external
+        onlyStatus(MarketStatus.Open)
+        whenNotPaused
+        nonReentrant
+        returns (uint256 shares)
+    {
+        require(msg.sender == trustedRouter, "MarketBase_V2: Not trusted router");
+        require(maxSlippageBps <= 10000, "MarketBase_V2: Invalid slippage limit");
+        return _placeBetForWithSlippage(user, outcomeId, amount, maxSlippageBps);
+    }
+
+    /**
+     * @notice 内部代理下注实现
+     * @param user 实际下注用户
+     * @param outcomeId 结果ID
+     * @param amount 金额
+     * @param maxSlippageBps 最大滑点
+     */
+    function _placeBetForWithSlippage(address user, uint256 outcomeId, uint256 amount, uint256 maxSlippageBps)
+        internal
+        returns (uint256 shares)
+    {
+        require(user != address(0), "MarketBase_V2: Invalid user");
+        require(outcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
+        require(amount > 0, "MarketBase_V2: Zero amount");
+
+        // 时间检查
+        require(kickoffTime == 0 || block.timestamp < kickoffTime, "MarketBase_V2: Betting closed");
+
+        // 首次下注时从 Vault 借出流动性
+        if (!liquidityBorrowed) {
+            _borrowInitialLiquidity();
+        }
+
+        // 1. 计算手续费（使用实际用户的折扣）
+        uint256 fee = calculateFee(user, amount);
+        uint256 netAmount = amount - fee;
+
+        // 2. 调用定价函数
+        shares = _calculateShares(outcomeId, netAmount);
+        require(shares > 0, "MarketBase_V2: Zero shares");
+
+        // 3. 滑点检查
+        if (maxSlippageBps < 10000) {
+            _checkSlippage(netAmount, shares, maxSlippageBps);
+        }
+
+        // 4. 从 Router 转账（Router 已持有用户的资金）
+        settlementToken.safeTransferFrom(msg.sender, address(this), netAmount);
+        if (fee > 0) {
+            settlementToken.safeTransferFrom(msg.sender, address(this), fee);
+            settlementToken.approve(feeRecipient, fee);
+            // 费用追踪使用实际用户地址
+            IFeeRouter(feeRecipient).routeFee(address(settlementToken), user, fee, amount);
+        }
+
+        // 5. 更新流动性
+        totalLiquidity += netAmount;
+
+        // 6. Mint position token 给实际用户
+        _mint(user, outcomeId, shares, "");
+
+        emit BetPlaced(user, outcomeId, amount, shares, fee);
+    }
+
     /**
      * @notice 内部下注实现（带滑点保护）
      */
@@ -233,6 +338,8 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         internal
         returns (uint256 shares)
     {
+        // 强制要求：市场必须配置 trustedRouter 才能接受下注
+        require(trustedRouter != address(0), "MarketBase_V2: Router not configured");
         require(outcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
         require(amount > 0, "MarketBase_V2: Zero amount");
 
@@ -783,6 +890,15 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         require(_feeRecipient != address(0), "MarketBase_V2: Invalid recipient");
         emit FeeRecipientUpdated(feeRecipient, _feeRecipient);
         feeRecipient = _feeRecipient;
+    }
+
+    /**
+     * @notice 设置受信任的投注路由
+     * @param _router 路由合约地址（可以为 address(0) 以禁用）
+     */
+    function setTrustedRouter(address _router) external onlyOwner {
+        emit TrustedRouterUpdated(trustedRouter, _router);
+        trustedRouter = _router;
     }
 
     /**

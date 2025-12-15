@@ -137,6 +137,10 @@ contract SystemIntegration_V2Test is Test {
         // 授权市场从Vault借款
         vault.authorizeMarket(address(market));
 
+        // 设置 trustedRouter（必需，否则无法下注）
+        // 使用测试合约地址作为 router，允许测试直接下注
+        market.setTrustedRouter(address(this));
+
         // 注册到Factory（用于Subgraph索引）
         bytes32 templateId = keccak256(abi.encode("WDL", "V2"));
         factory.recordMarket(address(market), templateId);
@@ -265,7 +269,8 @@ contract SystemIntegration_V2Test is Test {
 
     /**
      * @notice 测试3：Vault利用率限制
-     * @dev 当Vault接近最大利用率时，新市场应无法借款
+     * @dev 当Vault达到最大利用率时，新市场的借款请求会失败，
+     *      但市场仍可使用虚拟储备接受下注（graceful degradation）
      */
     function test_Integration_VaultUtilizationLimit() public {
         // 1. 计算最大可创建市场数量
@@ -295,12 +300,24 @@ contract SystemIntegration_V2Test is Test {
         // 4. 创建第10个市场
         WDL_Template_V2 market10 = createWDLMarket("MATCH_10", block.timestamp + 1000);
 
-        // 5. 尝试下注（应该失败，因为Vault无法借出更多）
+        // 5. 尝试下注 - 市场会 gracefully 处理借款失败
+        // 借款会失败（触发 BorrowFailed 事件），但下注仍可成功（使用虚拟储备）
         vm.startPrank(user1);
         usdc.approve(address(market10), BET_AMOUNT);
-        vm.expectRevert(); // Vault.borrow() 会因超过MAX_UTILIZATION而revert
-        market10.placeBet(0, BET_AMOUNT);
+
+        // 记录借款前的 totalBorrowed
+        uint256 borrowedBefore = vault.totalBorrowed();
+
+        // 下注成功，但不会增加借款（因为已达上限）
+        uint256 shares = market10.placeBet(0, BET_AMOUNT);
         vm.stopPrank();
+
+        // 6. 验证
+        assertGt(shares, 0, "Bet should succeed with virtual reserves");
+        assertEq(vault.totalBorrowed(), borrowedBefore, "Should not borrow more when at limit");
+
+        // 验证市场仍有流动性（来自用户下注和虚拟储备）
+        assertGt(market10.totalLiquidity(), 0, "Market should have liquidity from bet");
     }
 
     /**

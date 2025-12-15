@@ -58,6 +58,10 @@ contract WDL_Template_V2Test is BaseTest {
         // 授权 Market
         vault.authorizeMarket(address(market));
 
+        // 设置 trustedRouter（必需，否则无法下注）
+        // 使用测试合约地址作为 router，允许测试直接下注
+        market.setTrustedRouter(address(this));
+
         // 给 user1 铸造足够的 USDC 用于 LP 存入
         usdc.mint(user1, INITIAL_VAULT_DEPOSIT);
 

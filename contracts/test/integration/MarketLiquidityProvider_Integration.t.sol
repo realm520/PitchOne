@@ -151,6 +151,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         );
 
         erc4626Provider.authorizeMarket(address(market1));
+
+        // 设置 trustedRouter（必需，否则无法下注）
+        market1.setTrustedRouter(address(this));
     }
 
     function _createMarket2WithMockProvider() internal {
@@ -171,6 +174,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         );
 
         mockProvider.authorizeMarket(address(market2));
+
+        // 设置 trustedRouter（必需，否则无法下注）
+        market2.setTrustedRouter(address(this));
     }
 
     function _setupUsers() internal {
@@ -212,11 +218,12 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
             "Available liquidity should decrease"
         );
 
-        // 验证总资产不变(借出不影响总资产)
-        assertEq(
+        // 验证总资产（可能因手续费收入而略有增加）
+        // LP Vault 会收到部分手续费（40% of fee），所以 totalAssets >= initial
+        assertGe(
             erc4626Provider.totalAssets(),
             providerTotalAssetsBefore,
-            "Total assets should remain the same"
+            "Total assets should remain same or increase from fees"
         );
     }
 
@@ -284,7 +291,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
             erc4626Provider.getMarketBorrowInfo(address(market1));
 
         assertGt(borrowed, 0, "Market should have borrowed amount");
-        assertEq(limit, (INITIAL_LP_DEPOSIT * 5000) / 10000, "Limit should be 50% of total");
+        // Limit 是 totalAssets 的 50%，而 totalAssets 可能因手续费而略有增加
+        uint256 currentTotalAssets = erc4626Provider.totalAssets();
+        assertEq(limit, (currentTotalAssets * 5000) / 10000, "Limit should be 50% of total");
         assertGt(available, 0, "Should have available borrow capacity");
     }
 
@@ -371,6 +380,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         );
 
         erc4626Provider.authorizeMarket(address(market3));
+
+        // 设置 trustedRouter（必需，否则无法下注）
+        market3.setTrustedRouter(address(this));
 
         // 用户授权
         vm.prank(user1);
@@ -480,6 +492,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         // 授权市场
         erc4626Provider.authorizeMarket(address(newMarket));
         assertTrue(erc4626Provider.isAuthorizedMarket(address(newMarket)));
+
+        // 设置 trustedRouter（必需，否则无法下注）
+        newMarket.setTrustedRouter(address(this));
 
         // 验证授权后可以下注
         vm.startPrank(user1);

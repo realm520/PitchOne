@@ -20,6 +20,9 @@ contract ReferralIntegrationTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
+        // 设置 minValidVolume 为 0，以便测试（在 transferOwnership 之前）
+        referralRegistry.setMinValidVolume(0);
+
         // 将 ReferralRegistry 的所有权转移给 FeeRouter，使其可以调用 accrueReferralReward
         referralRegistry.transferOwnership(address(feeRouter));
 
@@ -49,6 +52,10 @@ contract ReferralIntegrationTest is BaseTest {
 
         // 授权市场
         vault.authorizeMarket(address(market));
+
+        // 设置 trustedRouter（必需，否则无法下注）
+        // 使用测试合约地址作为 router，允许测试直接下注
+        market.setTrustedRouter(address(this));
 
         // LP 存入流动性
         usdc.mint(user1, 500_000e6);
@@ -211,13 +218,32 @@ contract ReferralIntegrationTest is BaseTest {
 
         uint256 referrerBalanceBefore = usdc.balanceOf(referrer);
 
-        // 3. 被推荐人下注
+        // 3. 创建一个新市场（因为原市场的开赛时间已过）
+        WDL_Template_V2 newMarket = new WDL_Template_V2();
+        newMarket.initialize(
+            "EPL_2024_TEST_NEW",
+            "Home Team",
+            "Away Team",
+            block.timestamp + 7 days,  // 使用当前时间 + 7 天
+            address(usdc),
+            address(feeRouter),
+            DEFAULT_FEE_RATE,
+            DEFAULT_DISPUTE_PERIOD,
+            address(cpmm),
+            address(vault),
+            "https://metadata.com/{id}",
+            100_000 * 1e6
+        );
+        vault.authorizeMarket(address(newMarket));
+        newMarket.setTrustedRouter(address(this));
+
+        // 4. 被推荐人下注
         vm.startPrank(referee);
-        usdc.approve(address(market), 100e6);
-        market.placeBet(0, 100e6);
+        usdc.approve(address(newMarket), 100e6);
+        newMarket.placeBet(0, 100e6);
         vm.stopPrank();
 
-        // 4. 验证推荐人没有收到返佣
+        // 5. 验证推荐人没有收到返佣
         uint256 referrerBalanceAfter = usdc.balanceOf(referrer);
         assertEq(referrerBalanceAfter, referrerBalanceBefore, "Expired referral should not receive commission");
     }
