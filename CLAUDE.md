@@ -432,6 +432,12 @@ docker-compose up -d
 **模块组织**：
 - **✅ MarketBase.sol**：市场基础合约，定义市场生命周期（Open → Locked → Resolved → Finalized）
 - **✅ MarketTemplateRegistry.sol**：市场模板注册表，管理 WDL/OU/AH/比分等玩法模板
+- **✅ BettingRouter.sol**：统一投注入口合约（用户仅需授权一次即可投注所有市场）
+  - **核心功能**：单笔下注、批量下注、滑点保护
+  - **安全机制**：市场验证（工厂注册 + 状态检查 + trustedRouter 检查）
+  - **MarketBase_V2 集成**：通过 `trustedRouter` 机制，Router 调用 `placeBetFor()` 代理下注
+  - **强制要求**：所有市场创建后必须设置 `trustedRouter`，否则无法下注
+  - **详细文档**：`contracts/docs/BettingRouter_Usage.md`
 - **定价引擎**：
   - **✅ SimpleCPMM.sol**：二/三向 Constant Product Market Maker（23 测试，97.5% 覆盖率）
     - 用于 WDL、OU、AH、OddEven 等二/三向市场
