@@ -44,6 +44,35 @@ npm run deploy-local
 
 ## 本地部署
 
+### 部署流程概览
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant A as Anvil 测试链
+    participant D as Deploy.s.sol
+    participant F as Factory 合约
+    participant G as Graph Node
+    participant SG as Subgraph
+
+    Note over U,SG: 步骤 1-2: 启动 Anvil + 部署合约
+    U->>A: anvil --host 0.0.0.0
+    U->>D: forge script Deploy.s.sol
+    D->>A: 部署 USDC/Vault/FeeRouter/Factory/模板
+
+    Note over U,SG: 步骤 3-4: 创建市场 + 模拟投注
+    U->>F: CreateAllMarketTypes.s.sol
+    F->>A: 创建市场并触发事件
+
+    Note over U,SG: 步骤 5-6: 部署 Subgraph
+    U->>SG: graph codegen && graph build && graph deploy
+    G->>A: 订阅合约事件
+    G->>SG: 索引数据
+
+    Note over U,SG: 步骤 7: 验证
+    U->>SG: GraphQL 查询验证
+```
+
 ### 1. 启动 Graph Node 基础设施
 
 ```bash
@@ -1017,11 +1046,10 @@ type Order @entity {
 ## 参考资料
 
 - **设计文档**: [DESIGN.md](./DESIGN.md)
-- **项目状态**: [STATUS.md](./STATUS.md)
 - **The Graph 官方文档**: https://thegraph.com/docs/
 - **GraphQL 查询语言**: https://graphql.org/learn/
 - **AssemblyScript 文档**: https://www.assemblyscript.org/
 
 ---
 
-**最后更新**: 2025-11-12
+**最后更新**: 2025-12-15
