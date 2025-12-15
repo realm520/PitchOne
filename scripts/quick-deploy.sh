@@ -103,10 +103,11 @@ echo ""
 echo -e "${YELLOW}[4/5] 更新 Subgraph 配置...${NC}"
 cd "$SUBGRAPH_DIR"
 
-if [ -f "$SUBGRAPH_DIR/update-subgraph-config.sh" ]; then
-    bash "$SUBGRAPH_DIR/update-subgraph-config.sh"
+DEPLOYMENT_FILE="$CONTRACTS_DIR/deployments/localhost.json"
+if [ -f "$SUBGRAPH_DIR/config/update-config.js" ] && [ -f "$DEPLOYMENT_FILE" ]; then
+    node "$SUBGRAPH_DIR/config/update-config.js" "$DEPLOYMENT_FILE"
 else
-    echo -e "${YELLOW}⚠️  警告: update-subgraph-config.sh 不存在，跳过自动配置${NC}"
+    echo -e "${YELLOW}⚠️  警告: update-config.js 或 localhost.json 不存在，跳过自动配置${NC}"
 fi
 
 # 步骤 5: 部署 Subgraph

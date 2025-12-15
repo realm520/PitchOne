@@ -432,49 +432,52 @@ echo -e "${GREEN}✓ 所有关键合约已部署${NC}"
 echo ""
 
 ###############################################################################
-# 步骤 1.6: 生成 localhost.json
+# 步骤 1.6: 验证部署配置文件（由 Deploy.s.sol 自动生成）
 ###############################################################################
-echo -e "${BLUE}步骤 1.6: 生成部署配置文件...${NC}"
+echo -e "${BLUE}步骤 1.6: 验证部署配置文件...${NC}"
 echo ""
 
-mkdir -p deployments
+# Deploy.s.sol 会自动生成 deployments/localhost.json
+# 这里只需要验证文件存在且包含正确的地址
 
-cat > "$DEPLOYMENT_FILE" <<EOF
-{
-  "network": "localhost",
-  "chainId": 31337,
-  "timestamp": "$(date +%Y-%m-%d)",
-  "deployedAt": $(date +%s),
-  "contracts": {
-    "usdc": "$USDC",
-    "vault": "$VAULT",
-    "erc4626Provider": "$ERC4626_PROVIDER",
-    "parimutuelProvider": "$PARIMUTUEL_PROVIDER",
-    "providerFactory": "$PROVIDER_FACTORY",
-    "cpmm": "$CPMM",
-    "parimutuel": "$PARIMUTUEL",
-    "referralRegistry": "$REFERRAL_REGISTRY",
-    "feeRouter": "$FEE_ROUTER",
-    "factory": "$FACTORY"
-  },
-  "templates": {
-    "wdl": "$WDL_TEMPLATE_ID",
-    "ou": "$OU_TEMPLATE_ID",
-    "ouMultiLine": "$OU_MULTILINE_TEMPLATE_ID",
-    "ah": "$AH_TEMPLATE_ID",
-    "oddEven": "$ODDEVEN_TEMPLATE_ID",
-    "score": "$SCORE_TEMPLATE_ID",
-    "playerProps": "$PLAYERPROPS_TEMPLATE_ID"
-  },
-  "vaultStatus": {
-    "totalAssets": "1000000000000",
-    "availableLiquidity": "1000000000000"
-  }
-}
-EOF
+if [ ! -f "$DEPLOYMENT_FILE" ]; then
+    echo -e "${RED}✗ 部署配置文件未找到: $DEPLOYMENT_FILE${NC}"
+    echo "Deploy.s.sol 应该自动生成此文件"
+    exit 1
+fi
 
-echo -e "${GREEN}✓ localhost.json 已生成${NC}"
+# 验证 JSON 文件包含关键地址
+FACTORY_IN_JSON=$(jq -r '.contracts.factory' "$DEPLOYMENT_FILE" 2>/dev/null)
+if [[ -z "$FACTORY_IN_JSON" || "$FACTORY_IN_JSON" == "null" ]]; then
+    echo -e "${RED}✗ localhost.json 中未找到 factory 地址${NC}"
+    exit 1
+fi
+
+# 验证地址一致性（Deploy.s.sol 输出 vs JSON 文件）
+if [[ "${FACTORY_IN_JSON,,}" != "${FACTORY,,}" ]]; then
+    echo -e "${YELLOW}⚠ 地址不一致，更新 localhost.json...${NC}"
+    echo "  Deploy.s.sol 输出: $FACTORY"
+    echo "  JSON 文件: $FACTORY_IN_JSON"
+    # 如果不一致，使用 jq 更新
+    jq --arg factory "$FACTORY" \
+       --arg feeRouter "$FEE_ROUTER" \
+       --arg providerFactory "$PROVIDER_FACTORY" \
+       --arg erc4626Provider "$ERC4626_PROVIDER" \
+       --arg parimutuelProvider "$PARIMUTUEL_PROVIDER" \
+       --arg referralRegistry "$REFERRAL_REGISTRY" \
+       '.contracts.factory = $factory | .contracts.feeRouter = $feeRouter | .contracts.providerFactory = $providerFactory | .contracts.erc4626Provider = $erc4626Provider | .contracts.parimutuelProvider = $parimutuelProvider | .contracts.referralRegistry = $referralRegistry' \
+       "$DEPLOYMENT_FILE" > "${DEPLOYMENT_FILE}.tmp" && mv "${DEPLOYMENT_FILE}.tmp" "$DEPLOYMENT_FILE"
+fi
+
+echo -e "${GREEN}✓ localhost.json 已验证${NC}"
 echo "文件路径: $DEPLOYMENT_FILE"
+echo "包含地址："
+echo "  - Factory: $(jq -r '.contracts.factory' "$DEPLOYMENT_FILE")"
+echo "  - FeeRouter: $(jq -r '.contracts.feeRouter' "$DEPLOYMENT_FILE")"
+echo "  - ProviderFactory: $(jq -r '.contracts.providerFactory' "$DEPLOYMENT_FILE")"
+echo "  - ERC4626Provider: $(jq -r '.contracts.erc4626Provider' "$DEPLOYMENT_FILE")"
+echo "  - ParimutuelProvider: $(jq -r '.contracts.parimutuelProvider' "$DEPLOYMENT_FILE")"
+echo "  - ReferralRegistry: $(jq -r '.contracts.referralRegistry' "$DEPLOYMENT_FILE")"
 echo ""
 
 ###############################################################################
@@ -724,60 +727,22 @@ fi
 echo -e "${BLUE}步骤 3.6: 更新 Subgraph 配置文件...${NC}"
 echo ""
 
-echo "同步合约地址到 subgraph.yaml..."
+echo "使用统一配置脚本更新 subgraph.yaml..."
 
-# 读取当前配置的地址
-CURRENT_FACTORY=$(grep -A5 "name: MarketFactory" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-CURRENT_FEE_ROUTER=$(grep -A5 "name: FeeRouter" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-CURRENT_PROVIDER_FACTORY=$(grep -A5 "name: LiquidityProviderFactory" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-CURRENT_ERC4626=$(grep -A5 "name: ERC4626LiquidityProvider" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-CURRENT_PARIMUTUEL=$(grep -A5 "name: ParimutuelLiquidityProvider" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-CURRENT_REFERRAL=$(grep -A5 "name: ReferralRegistry" "$SUBGRAPH_DIR/subgraph.yaml" | grep "address:" | head -1 | sed 's/.*address: "\(.*\)".*/\1/')
-
-echo "  MarketFactory 地址:"
-echo "    旧: ${CURRENT_FACTORY:-未找到}"
-echo "    新: $FACTORY"
-
-echo "  FeeRouter 地址:"
-echo "    旧: ${CURRENT_FEE_ROUTER:-未找到}"
-echo "    新: $FEE_ROUTER"
-
-echo "  LiquidityProviderFactory 地址:"
-echo "    旧: ${CURRENT_PROVIDER_FACTORY:-未找到}"
-echo "    新: $PROVIDER_FACTORY"
-
-echo "  ERC4626LiquidityProvider 地址:"
-echo "    旧: ${CURRENT_ERC4626:-未找到}"
-echo "    新: $ERC4626_PROVIDER"
-
-echo "  ParimutuelLiquidityProvider 地址:"
-echo "    旧: ${CURRENT_PARIMUTUEL:-未找到}"
-echo "    新: $PARIMUTUEL_PROVIDER"
-
-echo "  ReferralRegistry 地址:"
-echo "    旧: ${CURRENT_REFERRAL:-未找到}"
-echo "    新: $REFERRAL_REGISTRY"
-
-# 使用基于上下文的精确替换（在特定的 dataSources 块内）
-# 替换 MarketFactory 地址
-sed -i "/name: MarketFactory$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$FACTORY\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-# 替换 FeeRouter 地址
-sed -i "/name: FeeRouter$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$FEE_ROUTER\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-# 替换 LiquidityProviderFactory 地址
-sed -i "/name: LiquidityProviderFactory$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$PROVIDER_FACTORY\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-# 替换 ERC4626LiquidityProvider 地址（第一个出现的）
-sed -i "/name: ERC4626LiquidityProvider$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$ERC4626_PROVIDER\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-# 替换 ParimutuelLiquidityProvider 地址
-sed -i "/name: ParimutuelLiquidityProvider$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$PARIMUTUEL_PROVIDER\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-# 替换 ReferralRegistry 地址
-sed -i "/name: ReferralRegistry$/,/startBlock:/ s|address: \"0x[a-fA-F0-9]\{40\}\"|address: \"$REFERRAL_REGISTRY\"|" "$SUBGRAPH_DIR/subgraph.yaml"
-
-echo -e "${GREEN}✓ subgraph.yaml 已更新（6 个合约地址）${NC}"
+# 使用 Node.js 脚本从 localhost.json 读取地址并更新配置
+if [ -f "$SUBGRAPH_DIR/config/update-config.js" ] && [ -f "$DEPLOYMENT_FILE" ]; then
+    node "$SUBGRAPH_DIR/config/update-config.js" "$DEPLOYMENT_FILE"
+    echo -e "${GREEN}✓ subgraph.yaml 已更新（6 个合约地址）${NC}"
+else
+    echo -e "${RED}✗ 配置更新失败${NC}"
+    if [ ! -f "$SUBGRAPH_DIR/config/update-config.js" ]; then
+        echo "  缺少: $SUBGRAPH_DIR/config/update-config.js"
+    fi
+    if [ ! -f "$DEPLOYMENT_FILE" ]; then
+        echo "  缺少: $DEPLOYMENT_FILE"
+    fi
+    exit 1
+fi
 echo ""
 
 ###############################################################################

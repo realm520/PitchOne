@@ -379,6 +379,39 @@ contract Deploy is Script {
         console.log("4. Run SimulateBets.s.sol to generate test data");
         console.log("========================================\n");
 
+        // ========================================
+        // 7. 生成部署配置文件 (JSON)
+        // ========================================
+        _writeDeploymentJson(
+            deployer,
+            usdc,
+            address(factory),
+            address(feeRouter),
+            address(providerFactory),
+            address(erc4626Provider),
+            address(parimutuelProvider),
+            address(referralRegistry),
+            address(bettingRouter),
+            address(vault),
+            address(cpmm),
+            address(parimutuel),
+            address(paramController),
+            address(wdlTemplate),
+            address(ouTemplate),
+            address(ouMultiLineTemplate),
+            address(ahTemplate),
+            address(oddEvenTemplate),
+            address(scoreTemplate),
+            address(playerPropsTemplate),
+            wdlTemplateId,
+            ouTemplateId,
+            ouMultiLineTemplateId,
+            ahTemplateId,
+            oddEvenTemplateId,
+            scoreTemplateId,
+            playerPropsTemplateId
+        );
+
         return DeployedContracts({
             usdc: usdc,
             vault: address(vault), // Deprecated
@@ -458,5 +491,111 @@ contract Deploy is Script {
     function getTokenDecimals(address token) internal view returns (uint8) {
         // 调用 decimals() 方法，如果失败则直接 revert
         return MockERC20(token).decimals();
+    }
+
+    /**
+     * @notice 生成部署配置 JSON 文件
+     * @dev 使用 Foundry 的 vm.serializeJson 和 vm.writeJson
+     *      输出到 deployments/localhost.json (测试网) 或 deployments/{network}.json (主网)
+     */
+    function _writeDeploymentJson(
+        address deployer,
+        address usdc,
+        address factory,
+        address feeRouter,
+        address providerFactory,
+        address erc4626Provider,
+        address parimutuelProvider,
+        address referralRegistry,
+        address bettingRouter,
+        address vault,
+        address cpmm,
+        address parimutuel,
+        address paramController,
+        address wdlTemplate,
+        address ouTemplate,
+        address ouMultiLineTemplate,
+        address ahTemplate,
+        address oddEvenTemplate,
+        address scoreTemplate,
+        address playerPropsTemplate,
+        bytes32 wdlTemplateId,
+        bytes32 ouTemplateId,
+        bytes32 ouMultiLineTemplateId,
+        bytes32 ahTemplateId,
+        bytes32 oddEvenTemplateId,
+        bytes32 scoreTemplateId,
+        bytes32 playerPropsTemplateId
+    ) internal {
+        // 确定网络名称
+        string memory networkName;
+        if (block.chainid == 31337) {
+            networkName = "localhost";
+        } else if (block.chainid == 1) {
+            networkName = "mainnet";
+        } else if (block.chainid == 42161) {
+            networkName = "arbitrum";
+        } else if (block.chainid == 8453) {
+            networkName = "base";
+        } else if (block.chainid == 56) {
+            networkName = "bsc";
+        } else {
+            networkName = vm.toString(block.chainid);
+        }
+
+        // 构建 contracts 对象
+        string memory contracts = "contracts";
+        vm.serializeAddress(contracts, "usdc", usdc);
+        vm.serializeAddress(contracts, "factory", factory);
+        vm.serializeAddress(contracts, "feeRouter", feeRouter);
+        vm.serializeAddress(contracts, "providerFactory", providerFactory);
+        vm.serializeAddress(contracts, "erc4626Provider", erc4626Provider);
+        vm.serializeAddress(contracts, "parimutuelProvider", parimutuelProvider);
+        vm.serializeAddress(contracts, "referralRegistry", referralRegistry);
+        vm.serializeAddress(contracts, "bettingRouter", bettingRouter);
+        vm.serializeAddress(contracts, "vault", vault);
+        vm.serializeAddress(contracts, "cpmm", cpmm);
+        vm.serializeAddress(contracts, "parimutuel", parimutuel);
+        string memory contractsJson = vm.serializeAddress(contracts, "paramController", paramController);
+
+        // 构建 templates 对象
+        string memory templates = "templates";
+        vm.serializeAddress(templates, "wdl", wdlTemplate);
+        vm.serializeAddress(templates, "ou", ouTemplate);
+        vm.serializeAddress(templates, "ouMultiLine", ouMultiLineTemplate);
+        vm.serializeAddress(templates, "ah", ahTemplate);
+        vm.serializeAddress(templates, "oddEven", oddEvenTemplate);
+        vm.serializeAddress(templates, "score", scoreTemplate);
+        string memory templatesJson = vm.serializeAddress(templates, "playerProps", playerPropsTemplate);
+
+        // 构建 templateIds 对象
+        string memory templateIds = "templateIds";
+        vm.serializeBytes32(templateIds, "wdl", wdlTemplateId);
+        vm.serializeBytes32(templateIds, "ou", ouTemplateId);
+        vm.serializeBytes32(templateIds, "ouMultiLine", ouMultiLineTemplateId);
+        vm.serializeBytes32(templateIds, "ah", ahTemplateId);
+        vm.serializeBytes32(templateIds, "oddEven", oddEvenTemplateId);
+        vm.serializeBytes32(templateIds, "score", scoreTemplateId);
+        string memory templateIdsJson = vm.serializeBytes32(templateIds, "playerProps", playerPropsTemplateId);
+
+        // 构建根对象
+        string memory root = "root";
+        vm.serializeString(root, "network", networkName);
+        vm.serializeUint(root, "chainId", block.chainid);
+        vm.serializeUint(root, "deployedAt", block.number);
+        vm.serializeAddress(root, "deployer", deployer);
+        vm.serializeString(root, "contracts", contractsJson);
+        vm.serializeString(root, "templates", templatesJson);
+        string memory finalJson = vm.serializeString(root, "templateIds", templateIdsJson);
+
+        // 确保 deployments 目录存在（Foundry 会自动创建）
+        string memory outputPath = string.concat("deployments/", networkName, ".json");
+        vm.writeJson(finalJson, outputPath);
+
+        console.log("\n========================================");
+        console.log("  Deployment Config Generated");
+        console.log("========================================");
+        console.log("Output:", outputPath);
+        console.log("========================================\n");
     }
 }
