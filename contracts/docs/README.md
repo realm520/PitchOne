@@ -2,7 +2,7 @@
 
 ## Overview
 
-PitchOne 是去中心化链上足球博彩平台的智能合约层，基于 Foundry 开发。
+PitchOne 是去中心化链上体育预测平台的智能合约层，基于 Foundry 开发。
 
 ## Quick Start
 

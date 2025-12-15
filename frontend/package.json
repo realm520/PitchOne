@@ -2,7 +2,7 @@
   "name": "pitchone-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "PitchOne - 去中心化链上足球博彩平台",
+  "description": "PitchOne - 去中心化链上体育预测平台",
   "scripts": {
     "dev:user": "pnpm --filter @pitchone/user dev",
     "dev:admin": "pnpm --filter @pitchone/admin dev",

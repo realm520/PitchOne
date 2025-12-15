@@ -1,6 +1,6 @@
 # 安全审计报告
 
-**项目**: PitchOne 去中心化足球博彩平台
+**项目**: PitchOne 去中心化体育预测平台
 **审计工具**: Slither v0.11.3
 **审计日期**: 2025-10-29
 **审计范围**: 核心合约（MarketBase, WDL_Template, SimpleCPMM, FeeRouter）

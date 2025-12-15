@@ -125,7 +125,7 @@ pnpm dev:user --port 3000
 # ✓ Ready in 848ms
 # ✓ Compiled / in 6.7s
 # GET / 200 in 7345ms
-# <title>PitchOne - 去中心化足球博彩平台</title>
+# <title>PitchOne - 去中心化体育预测平台</title>
 ```
 
 **结果**: ✅ 无 SSR 错误，页面正常渲染

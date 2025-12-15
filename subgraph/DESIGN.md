@@ -2,7 +2,7 @@
 
 ## 概述
 
-PitchOne Subgraph 是基于 The Graph 协议的链上数据索引服务，为去中心化足球博彩平台提供高效的数据查询能力。
+PitchOne Subgraph 是基于 The Graph 协议的链上数据索引服务，为去中心化体育预测平台提供高效的数据查询能力。
 
 ## 架构设计
 

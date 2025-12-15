@@ -1,6 +1,6 @@
 # PitchOne Subgraph
 
-基于 The Graph 协议的 PitchOne 去中心化足球博彩平台数据索引服务。
+基于 The Graph 协议的 PitchOne 去中心化体育预测平台数据索引服务。
 
 ## 📚 文档导航
 

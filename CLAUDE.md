@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个**去中心化链上足球博彩平台**（Decentralized Sportsbook），基于区块链实现非托管博彩市场，提供胜平负（WDL）、大小球（OU）、让球（AH）、精确比分、球员道具等多种玩法。
+这是一个**去中心化链上体育预测平台**（Decentralized Sportsbook），基于区块链实现非托管博彩市场，提供胜平负（WDL）、大小球（OU）、让球（AH）、精确比分、球员道具等多种玩法。
 
 **核心特性**：
 - 全链透明、非托管资产、自动化结算（乐观式预言机）
