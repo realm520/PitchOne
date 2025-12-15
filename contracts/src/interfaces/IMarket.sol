@@ -14,7 +14,8 @@ interface IMarket {
         Open,      // 开放下注
         Locked,    // 锁盘（比赛进行中）
         Resolved,  // 已结算（预言机上报结果）
-        Finalized  // 已终结（争议期结束）
+        Finalized, // 已终结（争议期结束）
+        Cancelled  // 已取消（比赛取消/无效）
     }
 
     // ============ 事件 ============
@@ -45,6 +46,23 @@ interface IMarket {
     /// @notice 终结事件（争议期结束）
     /// @param timestamp 终结时间
     event Finalized(uint256 timestamp);
+
+    /// @notice 取消事件（比赛取消/无效）
+    /// @param reason 取消原因
+    /// @param timestamp 取消时间
+    event Cancelled(string reason, uint256 timestamp);
+
+    /// @notice 退款事件（用户领取退款）
+    /// @param user 用户地址
+    /// @param outcomeId 结果ID
+    /// @param shares 退款份额
+    /// @param amount 退款金额
+    event Refunded(
+        address indexed user,
+        uint256 indexed outcomeId,
+        uint256 shares,
+        uint256 amount
+    );
 
     /// @notice 赎回事件
     /// @param user 用户地址
@@ -125,6 +143,16 @@ interface IMarket {
 
     /// @notice 终结（争议期结束后）
     function finalize() external;
+
+    /// @notice 取消市场（比赛取消/无效）
+    /// @param reason 取消原因
+    function cancel(string calldata reason) external;
+
+    /// @notice 退款（用户领取退款，仅 Cancelled 状态）
+    /// @param outcomeId 结果ID
+    /// @param shares 份额
+    /// @return amount 退款金额
+    function refund(uint256 outcomeId, uint256 shares) external returns (uint256 amount);
 
     /// @notice 赎回
     /// @param outcomeId 结果ID

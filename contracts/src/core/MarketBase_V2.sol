@@ -512,6 +512,104 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
     }
 
     /**
+     * @notice 取消市场（比赛取消/无效）
+     * @param reason 取消原因
+     * @dev 1. 仅允许从 Open 或 Locked 状态取消
+     *      2. 归还 Vault 本金
+     *      3. 用户可通过 refund() 领取退款
+     */
+    function cancel(string calldata reason)
+        external
+        override
+        onlyOwner
+        nonReentrant
+    {
+        require(
+            status == MarketStatus.Open || status == MarketStatus.Locked,
+            "MarketBase_V2: Cannot cancel in current status"
+        );
+
+        status = MarketStatus.Cancelled;
+
+        // 归还 Vault 本金（如果已借出且未归还）
+        if (liquidityBorrowed && !liquidityRepaid) {
+            _repayPrincipalOnly();
+        }
+
+        emit Cancelled(reason, block.timestamp);
+    }
+
+    /**
+     * @notice 退款（用户领取退款，仅 Cancelled 状态）
+     * @param outcomeId 结果ID
+     * @param shares 份额
+     * @return amount 退款金额
+     * @dev 按用户投入比例退款：amount = shares * distributableLiquidity / totalAllShares
+     */
+    function refund(uint256 outcomeId, uint256 shares)
+        external
+        override
+        onlyStatus(MarketStatus.Cancelled)
+        nonReentrant
+        returns (uint256 amount)
+    {
+        require(shares > 0, "MarketBase_V2: Zero shares");
+        require(
+            balanceOf(msg.sender, outcomeId) >= shares,
+            "MarketBase_V2: Insufficient balance"
+        );
+
+        // 计算所有 outcome 的总 shares
+        uint256 totalAllShares = 0;
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            totalAllShares += totalSupply(i);
+        }
+        require(totalAllShares > 0, "MarketBase_V2: No shares in market");
+
+        // 计算可分配流动性（已扣除 Vault 本金）
+        uint256 distributableLiquidity;
+        if (liquidityBorrowed && liquidityRepaid) {
+            // 本金已归还，使用当前余额
+            distributableLiquidity = settlementToken.balanceOf(address(this));
+        } else if (liquidityBorrowed && !liquidityRepaid) {
+            // 本金未归还（异常情况），扣除借款金额
+            distributableLiquidity = totalLiquidity > borrowedAmount
+                ? totalLiquidity - borrowedAmount
+                : 0;
+        } else {
+            // 未从 Vault 借款
+            distributableLiquidity = totalLiquidity;
+        }
+
+        // 按比例计算退款金额
+        amount = (shares * distributableLiquidity) / totalAllShares;
+        require(amount > 0, "MarketBase_V2: Zero refund amount");
+
+        // 更新状态（CEI 模式）
+        totalLiquidity -= amount;
+
+        // 销毁份额
+        _burn(msg.sender, outcomeId, shares);
+
+        // 转账
+        settlementToken.safeTransfer(msg.sender, amount);
+
+        emit Refunded(msg.sender, outcomeId, shares, amount);
+
+        // 检查是否所有用户都已退款，归还剩余流动性给 Vault
+        bool allRefunded = true;
+        for (uint256 i = 0; i < outcomeCount; i++) {
+            if (totalSupply(i) > 0) {
+                allRefunded = false;
+                break;
+            }
+        }
+        if (allRefunded && liquidityBorrowed && !liquidityRepaid) {
+            _repayToVault();
+        }
+    }
+
+    /**
      * @notice 赎回（用户领取奖金）
      * @param outcomeId 结果ID
      * @param shares 赎回份额
