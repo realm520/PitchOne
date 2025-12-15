@@ -17,13 +17,20 @@ import "../interfaces/IFeeRouter.sol";
 
 /**
  * @title MarketBase_V2
- * @notice 市场合约基类 V2 - 集成 LiquidityVault
+ * @notice 市场合约基类 V2 - 集成 LiquidityVault + Router-Only 下注
  * @dev 核心改进：
+ *      - 强制通过 BettingRouter 下注（用户不可直接调用市场）
  *      - 移除内部 LP 管理（addLiquidity）
  *      - 使用 LiquidityVault 提供流动性
  *      - 市场从 Vault borrow 流动性
  *      - 结算后 repay 本金+收益给 Vault
  *      - 添加紧急提款机制
+ *
+ * 下注流程：
+ *      1. 用户授权 USDC 到 BettingRouter（仅需一次）
+ *      2. 用户调用 Router.placeBet(market, outcomeId, amount)
+ *      3. Router 验证市场合法性后调用 market.placeBetFor(user, ...)
+ *      4. 市场铸造 Position Token 给用户
  *
  * 资金流：
  *      1. 市场创建 → 从 Vault borrow 初始流动性
@@ -189,52 +196,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         status = MarketStatus.Open;
     }
 
-    // ============ 核心函数 ============
-
-    /**
-     * @notice 下注
-     * @param outcomeId 结果ID（0 到 outcomeCount-1）
-     * @param amount 金额（稳定币，不含手续费）
-     * @return shares 获得的份额（position token 数量）
-     * @dev 1. 首次下注时从 Vault 借出初始流动性
-     *      2. 计算手续费（考虑折扣）
-     *      3. 调用子合约的定价函数计算 shares
-     *      4. 转账 + mint token
-     */
-    function placeBet(uint256 outcomeId, uint256 amount)
-        external
-        override
-        onlyStatus(MarketStatus.Open)
-        whenNotPaused
-        nonReentrant
-        returns (uint256 shares)
-    {
-        return _placeBetWithSlippage(outcomeId, amount, 10000); // 默认无滑点限制
-    }
-
-    /**
-     * @notice 下注（带滑点保护）
-     * @param outcomeId 结果ID
-     * @param amount 金额（稳定币，不含手续费）
-     * @param maxSlippageBps 最大滑点（基点，例如 500 = 5%）
-     * @return shares 获得的份额
-     * @dev 滑点计算：
-     *      effectivePrice = amount / shares
-     *      expectedPrice = getPrice(outcomeId) (交易前价格)
-     *      slippage = (effectivePrice - expectedPrice) / expectedPrice
-     */
-    function placeBetWithSlippage(uint256 outcomeId, uint256 amount, uint256 maxSlippageBps)
-        external
-        onlyStatus(MarketStatus.Open)
-        whenNotPaused
-        nonReentrant
-        returns (uint256 shares)
-    {
-        require(maxSlippageBps <= 10000, "MarketBase_V2: Invalid slippage limit");
-        return _placeBetWithSlippage(outcomeId, amount, maxSlippageBps);
-    }
-
-    // ============ 代理下注函数（Router 使用）============
+    // ============ 核心函数（仅限 Router 调用）============
 
     /**
      * @notice 代理下注（由受信任的 Router 调用）
@@ -329,61 +291,6 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         _mint(user, outcomeId, shares, "");
 
         emit BetPlaced(user, outcomeId, amount, shares, fee);
-    }
-
-    /**
-     * @notice 内部下注实现（带滑点保护）
-     */
-    function _placeBetWithSlippage(uint256 outcomeId, uint256 amount, uint256 maxSlippageBps)
-        internal
-        returns (uint256 shares)
-    {
-        // 强制要求：市场必须配置 trustedRouter 才能接受下注
-        require(trustedRouter != address(0), "MarketBase_V2: Router not configured");
-        require(outcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
-        require(amount > 0, "MarketBase_V2: Zero amount");
-
-        // 时间检查：如果已过开球时间，拒绝下注（但不改变市场状态）
-        require(kickoffTime == 0 || block.timestamp < kickoffTime, "MarketBase_V2: Betting closed, kickoff time reached");
-
-        // 首次下注时从 Vault 借出流动性
-        if (!liquidityBorrowed) {
-            _borrowInitialLiquidity();
-        }
-
-        // 1. 计算手续费
-        uint256 fee = calculateFee(msg.sender, amount);
-        uint256 netAmount = amount - fee;
-
-        // 2. 调用定价函数（由子合约实现）
-        shares = _calculateShares(outcomeId, netAmount);
-        require(shares > 0, "MarketBase_V2: Zero shares");
-
-        // 3. 滑点检查
-        if (maxSlippageBps < 10000) {
-            _checkSlippage(netAmount, shares, maxSlippageBps);
-        }
-
-        // 4. 转账
-        settlementToken.safeTransferFrom(msg.sender, address(this), netAmount);
-        if (fee > 0) {
-            // 先将手续费转给合约自己，然后调用 FeeRouter.routeFee()
-            settlementToken.safeTransferFrom(msg.sender, address(this), fee);
-
-            // 授权 FeeRouter 提取手续费
-            settlementToken.approve(feeRecipient, fee);
-
-            // 调用 FeeRouter 处理返佣和分配（传递下注总金额用于追踪交易量）
-            IFeeRouter(feeRecipient).routeFee(address(settlementToken), msg.sender, fee, amount);
-        }
-
-        // 5. 更新流动性（用户下注金额）
-        totalLiquidity += netAmount;
-
-        // 6. Mint position token
-        _mint(msg.sender, outcomeId, shares, "");
-
-        emit BetPlaced(msg.sender, outcomeId, amount, shares, fee);
     }
 
     /**
@@ -695,9 +602,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @dev 计算 Push 退款金额（1:1 退回用户投入本金）
      * @param outcomeId 用户持有的 outcome
      * @param shares 用户持有的份额
-     * @return refund 退款金额
+     * @return refundAmount 退款金额
      */
-    function _calculatePushRefund(uint256 outcomeId, uint256 shares) internal view returns (uint256 refund) {
+    function _calculatePushRefund(uint256 outcomeId, uint256 shares) internal view returns (uint256 refundAmount) {
         // Push 退款逻辑：
         // 在 Push 场景下，AMM 中所有 outcome 的价值应该相等（因为没有赢家）
         // 由于市场使用 ERC1155，shares 代表用户持有的头寸数量
@@ -728,9 +635,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
         // Push 退款：按用户份额占总份额的比例退回
         // 这确保了所有用户按其持仓比例获得退款，总和等于 totalLiquidity
-        refund = (shares * distributableLiquidity) / totalAllShares;
+        refundAmount = (shares * distributableLiquidity) / totalAllShares;
 
-        require(refund <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
+        require(refundAmount <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
     }
 
     /**

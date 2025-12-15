@@ -413,10 +413,14 @@ contract BettingRouterTest is BaseTest {
     }
 
     function test_UserFlow_DirectBetStillWorks() public {
-        // 用户仍然可以直接授权市场进行下注（绕过 Router）
+        // V2 版本要求通过 trustedRouter 下注，测试设置其他 router 仍然可以工作
+        // 首先部署一个新的 router 并设置为 trustedRouter
+        BettingRouter newRouter = new BettingRouter(address(usdc), address(factory));
+        market1.setTrustedRouter(address(newRouter));
+
         vm.startPrank(user2);
-        usdc.approve(address(market1), type(uint256).max);
-        uint256 shares = market1.placeBet(0, BET_AMOUNT);
+        usdc.approve(address(newRouter), type(uint256).max);
+        uint256 shares = newRouter.placeBet(address(market1), 0, BET_AMOUNT);
         vm.stopPrank();
 
         assertGt(shares, 0);

@@ -101,7 +101,11 @@ contract SystemIntegration_V2Test is Test {
         vault.deposit(INITIAL_LP_DEPOSIT, lpProvider);
         vm.stopPrank();
 
-        // 7. 为用户分配资金
+        // 6. 为测试合约（Router）分配资金并预授权
+        // 测试合约作为 trustedRouter，需要持有 USDC 来代理下注
+        usdc.mint(address(this), 10_000_000 * 1e6); // 铸造 10M USDC 给测试合约
+
+        // 7. 为用户分配资金（虽然现在不需要，但保留用于其他测试场景）
         usdc.mint(user1, BET_AMOUNT * 10);
         usdc.mint(user2, BET_AMOUNT * 10);
         usdc.mint(user3, BET_AMOUNT * 10);
@@ -141,6 +145,9 @@ contract SystemIntegration_V2Test is Test {
         // 使用测试合约地址作为 router，允许测试直接下注
         market.setTrustedRouter(address(this));
 
+        // 测试合约（Router）授权市场转账 USDC
+        usdc.approve(address(market), type(uint256).max);
+
         // 注册到Factory（用于Subgraph索引）
         bytes32 templateId = keccak256(abi.encode("WDL", "V2"));
         factory.recordMarket(address(market), templateId);
@@ -161,21 +168,11 @@ contract SystemIntegration_V2Test is Test {
 
         assertEq(uint256(market.status()), uint256(IMarket.MarketStatus.Open), "Market should be Open");
 
-        // 2. 用户下注（模拟真实市场）
-        vm.startPrank(user1);
-        usdc.approve(address(market), BET_AMOUNT * 3);
-        uint256 shares1 = market.placeBet(0, BET_AMOUNT * 3); // 30k on Win
-        vm.stopPrank();
-
-        vm.startPrank(user2);
-        usdc.approve(address(market), BET_AMOUNT * 2);
-        uint256 shares2 = market.placeBet(1, BET_AMOUNT * 2); // 20k on Draw
-        vm.stopPrank();
-
-        vm.startPrank(user3);
-        usdc.approve(address(market), BET_AMOUNT);
-        uint256 shares3 = market.placeBet(2, BET_AMOUNT); // 10k on Loss
-        vm.stopPrank();
+        // 2. 用户下注（通过测试合约作为 Router 代理）
+        // 测试合约已被设置为 trustedRouter，直接调用 placeBetFor
+        uint256 shares1 = market.placeBetFor(user1, 0, BET_AMOUNT * 3); // 30k on Win
+        uint256 shares2 = market.placeBetFor(user2, 1, BET_AMOUNT * 2); // 20k on Draw
+        uint256 shares3 = market.placeBetFor(user3, 2, BET_AMOUNT); // 10k on Loss
 
         // 验证流动性
         assertTrue(market.liquidityBorrowed(), "Should have borrowed from Vault");
@@ -232,14 +229,10 @@ contract SystemIntegration_V2Test is Test {
         assertEq(vaultTotalAssets, INITIAL_LP_DEPOSIT, "Vault should have LP deposit");
 
         // 3. 所有市场各有一笔下注（触发借款）
-        vm.startPrank(user1);
-        usdc.approve(address(market1), BET_AMOUNT);
-        usdc.approve(address(market2), BET_AMOUNT);
-        usdc.approve(address(market3), BET_AMOUNT);
-        market1.placeBet(0, BET_AMOUNT);
-        market2.placeBet(1, BET_AMOUNT);
-        market3.placeBet(2, BET_AMOUNT);
-        vm.stopPrank();
+        // 测试合约作为 Router 直接下注
+        market1.placeBetFor(user1, 0, BET_AMOUNT);
+        market2.placeBetFor(user1, 1, BET_AMOUNT);
+        market3.placeBetFor(user1, 2, BET_AMOUNT);
 
         // 4. 验证Vault借出金额
         uint256 totalBorrowed = vault.totalBorrowed();
@@ -287,10 +280,8 @@ contract SystemIntegration_V2Test is Test {
                 block.timestamp + 1000
             );
 
-            vm.startPrank(user1);
-            usdc.approve(address(markets[i]), BET_AMOUNT);
-            markets[i].placeBet(0, BET_AMOUNT);
-            vm.stopPrank();
+            // 测试合约作为 Router 直接下注
+            markets[i].placeBetFor(user1, 0, BET_AMOUNT);
         }
 
         // 3. 验证已借出90%
@@ -302,15 +293,12 @@ contract SystemIntegration_V2Test is Test {
 
         // 5. 尝试下注 - 市场会 gracefully 处理借款失败
         // 借款会失败（触发 BorrowFailed 事件），但下注仍可成功（使用虚拟储备）
-        vm.startPrank(user1);
-        usdc.approve(address(market10), BET_AMOUNT);
 
         // 记录借款前的 totalBorrowed
         uint256 borrowedBefore = vault.totalBorrowed();
 
         // 下注成功，但不会增加借款（因为已达上限）
-        uint256 shares = market10.placeBet(0, BET_AMOUNT);
-        vm.stopPrank();
+        uint256 shares = market10.placeBetFor(user1, 0, BET_AMOUNT);
 
         // 6. 验证
         assertGt(shares, 0, "Bet should succeed with virtual reserves");
@@ -331,11 +319,8 @@ contract SystemIntegration_V2Test is Test {
         uint256[] memory pricesBefore = market.getAllPrices();
 
         // 2. 大额下注（100k USDC on outcome 0）
-        vm.startPrank(user1);
-        usdc.mint(user1, 100_000 * 1e6);
-        usdc.approve(address(market), 100_000 * 1e6);
-        market.placeBet(0, 100_000 * 1e6);
-        vm.stopPrank();
+        // 测试合约作为 Router 直接下注
+        market.placeBetFor(user1, 0, 100_000 * 1e6);
 
         // 3. 验证价格变化
         uint256[] memory pricesAfter = market.getAllPrices();
@@ -360,20 +345,10 @@ contract SystemIntegration_V2Test is Test {
         WDL_Template_V2 market = createWDLMarket("MATCH_MULTI_WINNERS", block.timestamp + 3600);
 
         // 1. 三个用户都下注outcome 0（都是赢家）
-        vm.startPrank(user1);
-        usdc.approve(address(market), BET_AMOUNT * 3);
-        uint256 shares1 = market.placeBet(0, BET_AMOUNT * 3); // 30k
-        vm.stopPrank();
-
-        vm.startPrank(user2);
-        usdc.approve(address(market), BET_AMOUNT * 2);
-        uint256 shares2 = market.placeBet(0, BET_AMOUNT * 2); // 20k
-        vm.stopPrank();
-
-        vm.startPrank(user3);
-        usdc.approve(address(market), BET_AMOUNT);
-        uint256 shares3 = market.placeBet(0, BET_AMOUNT); // 10k
-        vm.stopPrank();
+        // 测试合约作为 Router 直接下注
+        uint256 shares1 = market.placeBetFor(user1, 0, BET_AMOUNT * 3); // 30k
+        uint256 shares2 = market.placeBetFor(user2, 0, BET_AMOUNT * 2); // 20k
+        uint256 shares3 = market.placeBetFor(user3, 0, BET_AMOUNT); // 10k
 
         // 2. 结算
         skipTime(3600);
@@ -416,29 +391,20 @@ contract SystemIntegration_V2Test is Test {
         WDL_Template_V2 market = createWDLMarket("MATCH_PAUSE", block.timestamp + 3600);
 
         // 1. 正常下注
-        vm.startPrank(user1);
-        usdc.approve(address(market), BET_AMOUNT);
-        market.placeBet(0, BET_AMOUNT);
-        vm.stopPrank();
+        market.placeBetFor(user1, 0, BET_AMOUNT);
 
         // 2. 暂停市场
         market.pause();
 
         // 3. 暂停期间无法下注
-        vm.startPrank(user2);
-        usdc.approve(address(market), BET_AMOUNT);
         vm.expectRevert();
-        market.placeBet(1, BET_AMOUNT);
-        vm.stopPrank();
+        market.placeBetFor(user2, 1, BET_AMOUNT);
 
         // 4. 恢复市场
         market.unpause();
 
         // 5. 恢复后可以下注
-        vm.startPrank(user2);
-        usdc.approve(address(market), BET_AMOUNT);
-        market.placeBet(1, BET_AMOUNT);
-        vm.stopPrank();
+        market.placeBetFor(user2, 1, BET_AMOUNT);
     }
 
     /**
@@ -477,8 +443,6 @@ contract SystemIntegration_V2Test is Test {
     function test_Integration_VirtualReservesBalance() public {
         WDL_Template_V2 market = createWDLMarket("MATCH_RESERVES", block.timestamp + 3600);
 
-        uint256 VIRTUAL_RESERVE_INIT = 100_000 * 1e6;
-
         // 1. 初始储备应该均等
         uint256[] memory reservesInit = market.getVirtualReserves();
         assertEq(reservesInit.length, 3, "Should have 3 reserves");
@@ -487,12 +451,9 @@ contract SystemIntegration_V2Test is Test {
         }
 
         // 2. 连续下注不同结果
-        vm.startPrank(user1);
-        usdc.approve(address(market), BET_AMOUNT * 3);
-        market.placeBet(0, BET_AMOUNT);
-        market.placeBet(1, BET_AMOUNT);
-        market.placeBet(2, BET_AMOUNT);
-        vm.stopPrank();
+        market.placeBetFor(user1, 0, BET_AMOUNT);
+        market.placeBetFor(user1, 1, BET_AMOUNT);
+        market.placeBetFor(user1, 2, BET_AMOUNT);
 
         // 3. 验证储备总体平衡（没有极端偏差）
         uint256[] memory reservesAfter = market.getVirtualReserves();

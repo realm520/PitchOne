@@ -110,6 +110,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
 
         // 5. 给用户分配 USDC 并授权
         _setupUsers();
+
+        // 6. 给测试合约（trustedRouter）铸造 USDC 并授权
+        _setupTestContract();
     }
 
     function _setupERC4626Provider() internal {
@@ -191,6 +194,16 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         }
     }
 
+    function _setupTestContract() internal {
+        // 给测试合约（trustedRouter）铸造足够的 USDC
+        // 用于执行 placeBetFor() 时转账
+        usdc.mint(address(this), 10_000_000 * 1e6); // 10M USDC
+
+        // 授权给所有市场
+        usdc.approve(address(market1), type(uint256).max);
+        usdc.approve(address(market2), type(uint256).max);
+    }
+
     /*//////////////////////////////////////////////////////////////
                     测试 1: 基础下注与流动性借出
     //////////////////////////////////////////////////////////////*/
@@ -202,8 +215,7 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         uint256 providerAvailableBefore = erc4626Provider.availableLiquidity();
 
         // User1 下注
-        vm.prank(user1);
-        uint256 shares = market1.placeBet(WIN, BET_AMOUNT_MEDIUM);
+        uint256 shares = market1.placeBetFor(user1, WIN, BET_AMOUNT_MEDIUM);
 
         // 验证下注成功
         assertGt(shares, 0, "Should receive shares");
@@ -230,9 +242,7 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
     /// @notice 测试用户下注时 Market 从 MockProvider 借出流动性
     function test_BasicBetting_WithMockProvider() public {
         uint256 mockProviderBalanceBefore = usdc.balanceOf(address(mockProvider));
-
-        vm.prank(user1);
-        uint256 shares = market2.placeBet(WIN, BET_AMOUNT_MEDIUM);
+        uint256 shares = market2.placeBetFor(user1, WIN, BET_AMOUNT_MEDIUM);
 
         assertGt(shares, 0);
         assertTrue(mockProvider.totalBorrowed() > 0, "Should have borrowed liquidity");
@@ -248,14 +258,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         uint256 utilizationBefore = erc4626Provider.utilizationRate();
 
         // 三个用户下注不同结果
-        vm.prank(user1);
-        market1.placeBet(WIN, BET_AMOUNT_LARGE);
-
-        vm.prank(user2);
-        market1.placeBet(DRAW, BET_AMOUNT_MEDIUM);
-
-        vm.prank(user3);
-        market1.placeBet(LOSS, BET_AMOUNT_SMALL);
+        market1.placeBetFor(user1, WIN, BET_AMOUNT_LARGE);
+        market1.placeBetFor(user2, DRAW, BET_AMOUNT_MEDIUM);
+        market1.placeBetFor(user3, LOSS, BET_AMOUNT_SMALL);
 
         // 验证 Provider 利用率
         uint256 utilizationAfter = erc4626Provider.utilizationRate();
@@ -278,8 +283,7 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         assertEq(erc4626Provider.utilizationRate(), 0, "Initial utilization should be 0");
 
         // 下注后触发借款
-        vm.prank(user1);
-        market1.placeBet(WIN, BET_AMOUNT_MEDIUM);
+        market1.placeBetFor(user1, WIN, BET_AMOUNT_MEDIUM);
 
         // 验证利用率更新
         uint256 utilization = erc4626Provider.utilizationRate();
@@ -304,8 +308,7 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
     /// @notice 测试 LP 在市场运行期间存款
     function test_LP_Deposit_DuringMarketOperation() public {
         // 市场接受下注
-        vm.prank(user1);
-        market1.placeBet(WIN, BET_AMOUNT_MEDIUM);
+        market1.placeBetFor(user1, WIN, BET_AMOUNT_MEDIUM);
 
         uint256 totalAssetsBefore = erc4626Provider.totalAssets();
 
@@ -384,16 +387,12 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         // 设置 trustedRouter（必需，否则无法下注）
         market3.setTrustedRouter(address(this));
 
-        // 用户授权
-        vm.prank(user1);
+        // 测试合约授权新市场
         usdc.approve(address(market3), type(uint256).max);
 
         // Market1 和 Market3 都接受下注
-        vm.prank(user1);
-        market1.placeBet(WIN, BET_AMOUNT_SMALL);
-
-        vm.prank(user1);
-        market3.placeBet(DRAW, BET_AMOUNT_SMALL);
+        market1.placeBetFor(user1, WIN, BET_AMOUNT_SMALL);
+        market3.placeBetFor(user1, DRAW, BET_AMOUNT_SMALL);
 
         // 验证 Provider 状态
         uint256 utilization = erc4626Provider.utilizationRate();
@@ -496,11 +495,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         // 设置 trustedRouter（必需，否则无法下注）
         newMarket.setTrustedRouter(address(this));
 
-        // 验证授权后可以下注
-        vm.startPrank(user1);
+        // 测试合约授权新市场并下注
         usdc.approve(address(newMarket), type(uint256).max);
-        uint256 shares = newMarket.placeBet(WIN, BET_AMOUNT_SMALL);
-        vm.stopPrank();
+        uint256 shares = newMarket.placeBetFor(user1, WIN, BET_AMOUNT_SMALL);
 
         assertGt(shares, 0, "Should be able to bet after authorization");
     }
@@ -516,14 +513,9 @@ contract MarketLiquidityProvider_IntegrationTest is Test {
         uint256 initialAssets = erc4626Provider.convertToAssets(initialShares);
 
         // 多次下注产生手续费
-        vm.prank(user1);
-        market1.placeBet(WIN, BET_AMOUNT_LARGE);
-
-        vm.prank(user2);
-        market1.placeBet(DRAW, BET_AMOUNT_MEDIUM);
-
-        vm.prank(user3);
-        market1.placeBet(LOSS, BET_AMOUNT_SMALL);
+        market1.placeBetFor(user1, WIN, BET_AMOUNT_LARGE);
+        market1.placeBetFor(user2, DRAW, BET_AMOUNT_MEDIUM);
+        market1.placeBetFor(user3, LOSS, BET_AMOUNT_SMALL);
 
         // 验证 LP 持有的 shares 对应的资产价值
         uint256 currentShares = erc4626Provider.balanceOf(lpProvider1);

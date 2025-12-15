@@ -128,11 +128,21 @@ interface IMarket {
 
     // ============ 写入函数 ============
 
-    /// @notice 下注
+    /// @notice 代理下注（仅限 trustedRouter 调用）
+    /// @dev 用户必须通过 BettingRouter 下注，不支持直接调用市场合约
+    /// @param user 实际下注用户地址
     /// @param outcomeId 结果ID
     /// @param amount 金额（稳定币）
     /// @return shares 获得的份额
-    function placeBet(uint256 outcomeId, uint256 amount) external returns (uint256 shares);
+    function placeBetFor(address user, uint256 outcomeId, uint256 amount) external returns (uint256 shares);
+
+    /// @notice 代理下注（带滑点保护，仅限 trustedRouter 调用）
+    /// @param user 实际下注用户地址
+    /// @param outcomeId 结果ID
+    /// @param amount 金额（稳定币）
+    /// @param maxSlippageBps 最大滑点（基点）
+    /// @return shares 获得的份额
+    function placeBetForWithSlippage(address user, uint256 outcomeId, uint256 amount, uint256 maxSlippageBps) external returns (uint256 shares);
 
     /// @notice 锁盘（管理员/Keeper）
     function lock() external;

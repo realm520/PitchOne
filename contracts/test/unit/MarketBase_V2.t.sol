@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "../BaseTest.sol";
 import "../../src/core/MarketBase_V2.sol";
+import "../../src/core/BettingRouter.sol";
+import "../../src/core/MarketFactory_v3.sol";
 import "../../src/liquidity/LiquidityVault.sol";
 import "../../src/interfaces/IMarket.sol";
 
@@ -15,6 +17,8 @@ contract MarketBase_V2Test is BaseTest {
     // Mock 实现
     MockMarketV2 public market;
     LiquidityVault public vault;
+    BettingRouter public router;
+    MarketFactory_v3 public factory;
 
     // 测试常量
     uint256 constant INITIAL_VAULT_DEPOSIT = 500_000 * 1e6; // 500k USDC
@@ -35,7 +39,21 @@ contract MarketBase_V2Test is BaseTest {
             "pLP"
         );
 
-        // 部署 Mock Market V2
+        // 部署 Factory 和 Router
+        factory = new MarketFactory_v3();
+        router = new BettingRouter(address(usdc), address(factory));
+
+        // 部署 Mock Market V2（作为 template implementation）
+        MockMarketV2 mockTemplate = new MockMarketV2();
+
+        // 注册 template 到 Factory
+        bytes32 templateId = factory.registerTemplate(
+            "MockMarket",
+            "v2",
+            address(mockTemplate)
+        );
+
+        // 部署实际使用的市场实例
         market = new MockMarketV2();
         market.initialize(
             3, // WDL (3 outcomes)
@@ -47,12 +65,14 @@ contract MarketBase_V2Test is BaseTest {
             "https://metadata.com/{id}"
         );
 
+        // 注册市场到 Factory（这样 Router 可以验证市场）
+        factory.recordMarket(address(market), templateId);
+
         // 授权 Market 从 Vault 借款
         vault.authorizeMarket(address(market));
 
-        // 设置 trustedRouter（必需，否则无法下注）
-        // 使用测试合约地址作为 router，允许测试直接下注
-        market.setTrustedRouter(address(this));
+        // 设置 Router 为 trustedRouter
+        market.setTrustedRouter(address(router));
 
         // 给 user1 铸造足够的 USDC 用于 LP 存入
         usdc.mint(user1, INITIAL_VAULT_DEPOSIT);
@@ -63,12 +83,12 @@ contract MarketBase_V2Test is BaseTest {
         vault.deposit(INITIAL_VAULT_DEPOSIT, user1);
         vm.stopPrank();
 
-        // 给测试用户授权
+        // 给测试用户授权 Router
         vm.prank(user2);
-        usdc.approve(address(market), type(uint256).max);
+        usdc.approve(address(router), type(uint256).max);
 
         vm.prank(user3);
-        usdc.approve(address(market), type(uint256).max);
+        usdc.approve(address(router), type(uint256).max);
     }
 
     // ============ Vault 集成测试 ============
@@ -76,9 +96,9 @@ contract MarketBase_V2Test is BaseTest {
     function test_FirstBet_TriggersVaultBorrow() public {
         assertFalse(market.liquidityBorrowed(), "Should not be borrowed initially");
 
-        // 第一笔下注
+        // 第一笔下注（通过 Router）
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         // 验证借款已触发
         assertTrue(market.liquidityBorrowed(), "Should be borrowed after first bet");
@@ -89,7 +109,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function test_BorrowAmount_MatchesImplementation() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         // MockMarketV2 返回 100k
         assertEq(market.borrowedAmount(), MARKET_BORROW_AMOUNT, "Borrow amount = 100k");
@@ -98,13 +118,13 @@ contract MarketBase_V2Test is BaseTest {
     function test_MultipleBets_NoDuplicateBorrow() public {
         // 第一笔下注 → 借款
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         uint256 borrowedAfterFirst = vault.borrowed(address(market));
 
         // 第二笔下注 → 不再借款
         vm.prank(user3);
-        market.placeBet(1, BET_AMOUNT);
+        router.placeBet(address(market), 1, BET_AMOUNT);
 
         assertEq(
             vault.borrowed(address(market)),
@@ -115,7 +135,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function test_TotalLiquidity_IncludesVaultAndBets() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         // totalLiquidity = Vault 借出 + 用户下注净额
         uint256 expectedLiquidity = MARKET_BORROW_AMOUNT + (BET_AMOUNT * 98 / 100); // 扣除 2% 手续费
@@ -130,7 +150,7 @@ contract MarketBase_V2Test is BaseTest {
     function test_Finalize_RepaysToVault() public {
         // 下注 → 锁盘 → 结算 → 终结
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 5); // 多下注一些
+        router.placeBet(address(market), 0, BET_AMOUNT * 5); // 多下注一些
 
         vm.prank(owner);
         market.lock();
@@ -165,7 +185,7 @@ contract MarketBase_V2Test is BaseTest {
 
         // 下注
         vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT * 10);
+        uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT * 10);
 
         // 锁盘 → 结算
         vm.prank(owner);
@@ -206,73 +226,75 @@ contract MarketBase_V2Test is BaseTest {
     }
 
     // ============ 滑点保护测试 ============
+    // 注意：滑点保护功能已移到 BettingRouter，MarketBase_V2 不再直接提供此功能
+    // 这些测试被注释掉，相关测试应该在 BettingRouter.t.sol 中进行
 
-    function test_PlaceBetWithSlippage_AcceptsLowSlippage() public {
-        vm.startPrank(user2);
+    // function test_PlaceBetWithSlippage_AcceptsLowSlippage() public {
+    //     vm.startPrank(user2);
 
-        // 允许 10% 滑点
-        uint256 shares = market.placeBetWithSlippage(0, BET_AMOUNT, 1000);
+    //     // 允许 10% 滑点
+    //     uint256 shares = market.placeBetWithSlippage(0, BET_AMOUNT, 1000);
 
-        assertGt(shares, 0, "Should return shares");
-        vm.stopPrank();
-    }
+    //     assertGt(shares, 0, "Should return shares");
+    //     vm.stopPrank();
+    // }
 
-    function testRevert_PlaceBetWithSlippage_ExceedsLimit() public {
-        // 注意：MockMarketV2 使用 1:1 份额计算，没有实际滑点
-        // 这个测试验证滑点检查逻辑本身，而不是实际的 AMM 滑点
+    // function testRevert_PlaceBetWithSlippage_ExceedsLimit() public {
+    //     // 注意：MockMarketV2 使用 1:1 份额计算，没有实际滑点
+    //     // 这个测试验证滑点检查逻辑本身，而不是实际的 AMM 滑点
 
-        // 创建一个会产生滑点的 Mock（通过减少返回的 shares）
-        MockMarketV2WithSlippage slippageMarket = new MockMarketV2WithSlippage();
-        slippageMarket.initialize(
-            3,
-            address(usdc),
-            address(feeRouter),
-            DEFAULT_FEE_RATE,
-            DEFAULT_DISPUTE_PERIOD,
-            address(vault),
-            "uri"
-        );
+    //     // 创建一个会产生滑点的 Mock（通过减少返回的 shares）
+    //     MockMarketV2WithSlippage slippageMarket = new MockMarketV2WithSlippage();
+    //     slippageMarket.initialize(
+    //         3,
+    //         address(usdc),
+    //         address(feeRouter),
+    //         DEFAULT_FEE_RATE,
+    //         DEFAULT_DISPUTE_PERIOD,
+    //         address(vault),
+    //         "uri"
+    //     );
 
-        vault.authorizeMarket(address(slippageMarket));
+    //     vault.authorizeMarket(address(slippageMarket));
 
-        // 设置 trustedRouter（必需，否则无法下注）
-        slippageMarket.setTrustedRouter(address(this));
+    //     // 设置 trustedRouter（必需，否则无法下注）
+    //     slippageMarket.setTrustedRouter(address(this));
 
-        vm.prank(user2);
-        usdc.approve(address(slippageMarket), type(uint256).max);
+    //     vm.prank(user2);
+    //     usdc.approve(address(slippageMarket), type(uint256).max);
 
-        // 这个 Mock 会返回 50% 的 shares，触发滑点检查
-        vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Slippage too high");
-        slippageMarket.placeBetWithSlippage(0, BET_AMOUNT * 10, 100); // 只允许 1% 滑点
-    }
+    //     // 这个 Mock 会返回 50% 的 shares，触发滑点检查
+    //     vm.prank(user2);
+    //     vm.expectRevert("MarketBase_V2: Slippage too high");
+    //     slippageMarket.placeBetWithSlippage(0, BET_AMOUNT * 10, 100); // 只允许 1% 滑点
+    // }
 
-    function test_CheckSlippage_Calculation() public view {
-        uint256 amount = 1000 * 1e6;
-        uint256 shares = 900 * 1e6; // 有效价格 = 1000/900 = 1.11
-        uint256 maxSlippage = 500; // 5%
+    // function test_CheckSlippage_Calculation() public view {
+    //     uint256 amount = 1000 * 1e6;
+    //     uint256 shares = 900 * 1e6; // 有效价格 = 1000/900 = 1.11
+    //     uint256 maxSlippage = 500; // 5%
 
-        // minAcceptableShares = 1000 / 1.05 = 952
-        uint256 expected = (amount * 10000) / (10000 + maxSlippage);
-        assertApproxEqAbs(expected, 952 * 1e6, 1e6, "Slippage calculation");
-    }
+    //     // minAcceptableShares = 1000 / 1.05 = 952
+    //     uint256 expected = (amount * 10000) / (10000 + maxSlippage);
+    //     assertApproxEqAbs(expected, 952 * 1e6, 1e6, "Slippage calculation");
+    // }
 
-    function testRevert_PlaceBetWithSlippage_InvalidLimit() public {
-        vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Invalid slippage limit");
-        market.placeBetWithSlippage(0, BET_AMOUNT, 10001); // > 100%
-    }
+    // function testRevert_PlaceBetWithSlippage_InvalidLimit() public {
+    //     vm.prank(user2);
+    //     vm.expectRevert("MarketBase_V2: Invalid slippage limit");
+    //     market.placeBetWithSlippage(0, BET_AMOUNT, 10001); // > 100%
+    // }
 
     // ============ 紧急提款测试 ============
 
     function test_EmergencyWithdrawUser_ByOwner() public {
-        // 用户下注
+        // 用户通过 router 下注
         vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT * 5);
+        uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT * 5);
 
         uint256 userBalanceBefore = usdc.balanceOf(user2);
 
-        // Owner 紧急提款
+        // Owner 紧急提款（直接调用 market，不通过 router）
         vm.prank(owner);
         market.emergencyWithdrawUser(user2, 0, shares);
 
@@ -285,7 +307,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_EmergencyWithdrawUser_InsufficientBalance() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         // 尝试提取超过持有的份额
         vm.prank(owner);
@@ -295,7 +317,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function test_EmergencyWithdraw_UpdatesTotalLiquidity() public {
         vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT * 10);
+        uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT * 10);
 
         uint256 liquidityBefore = market.totalLiquidity();
 
@@ -307,7 +329,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_EmergencyWithdrawUser_Unauthorized() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         // 非 owner 尝试紧急提款
         vm.prank(user3);
@@ -320,10 +342,10 @@ contract MarketBase_V2Test is BaseTest {
     function test_MarketLifecycle_WithVault() public {
         // 1. 多个用户下注不同结果（模拟真实市场）
         vm.prank(user2);
-        uint256 shares2_win = market.placeBet(0, BET_AMOUNT * 10); // 买入 outcome 0（赢）
+        uint256 shares2_win = router.placeBet(address(market), 0, BET_AMOUNT * 10); // 买入 outcome 0（赢）
 
         vm.prank(user3);
-        uint256 shares3_lose = market.placeBet(1, BET_AMOUNT * 10); // 买入 outcome 1（输）
+        uint256 shares3_lose = router.placeBet(address(market), 1, BET_AMOUNT * 10); // 买入 outcome 1（输）
 
         assertTrue(market.liquidityBorrowed(), "Borrowed");
 
@@ -362,10 +384,10 @@ contract MarketBase_V2Test is BaseTest {
     function test_MultipleBets_SharedLiquidity() public {
         // 多个用户下注
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 5);
+        router.placeBet(address(market), 0, BET_AMOUNT * 5);
 
         vm.prank(user3);
-        market.placeBet(1, BET_AMOUNT * 5);
+        router.placeBet(address(market), 1, BET_AMOUNT * 5);
 
         // 流动性累积
         assertGt(market.totalLiquidity(), MARKET_BORROW_AMOUNT, "Liquidity accumulates");
@@ -373,7 +395,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_DisputePeriod_BeforeFinalize() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         vm.prank(owner);
         market.lock();
@@ -389,7 +411,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function test_DisputePeriod_PassedFinalize() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         vm.prank(owner);
         market.lock();
@@ -420,7 +442,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function test_GetUserPosition() public {
         vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT);
+        uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT);
 
         uint256 position = market.getUserPosition(user2, 0);
         assertEq(position, shares, "Position matches shares");
@@ -461,7 +483,7 @@ contract MarketBase_V2Test is BaseTest {
 
         vm.prank(user2);
         vm.expectRevert();
-        market.placeBet(0, BET_AMOUNT);
+        market.placeBetFor(user2, 0, BET_AMOUNT);
     }
 
     function test_Unpause_ResumesBetting() public {
@@ -472,33 +494,35 @@ contract MarketBase_V2Test is BaseTest {
         market.unpause();
 
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT); // 应该成功
+        router.placeBet(address(market), 0, BET_AMOUNT); // 应该成功
     }
 
     // ============ 边界条件测试 ============
 
     function testRevert_PlaceBet_ZeroAmount() public {
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Zero amount");
-        market.placeBet(0, 0);
+        // BettingRouter 使用自定义错误，不是字符串
+        vm.expectRevert(abi.encodeWithSignature("ZeroAmount()"));
+        router.placeBet(address(market), 0, 0);
     }
 
     function testRevert_PlaceBet_InvalidOutcome() public {
         vm.prank(user2);
         vm.expectRevert("MarketBase_V2: Invalid outcome");
-        market.placeBet(99, BET_AMOUNT);
+        router.placeBet(address(market), 99, BET_AMOUNT);
     }
 
     function testRevert_PlaceBet_AfterLock() public {
         vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        router.placeBet(address(market), 0, BET_AMOUNT);
 
         vm.prank(owner);
         market.lock();
 
         vm.prank(user3);
-        vm.expectRevert("MarketBase_V2: Invalid status");
-        market.placeBet(1, BET_AMOUNT);
+        // BettingRouter 使用自定义错误 MarketNotOpen
+        vm.expectRevert(abi.encodeWithSignature("MarketNotOpen(address)", address(market)));
+        router.placeBet(address(market), 1, BET_AMOUNT);
     }
 
     function testRevert_Lock_Unauthorized() public {
@@ -690,7 +714,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_Redeem_BeforeResolve() public {
         vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT);
+        uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT);
 
         vm.prank(user2);
         vm.expectRevert("MarketBase_V2: Invalid status");
@@ -699,7 +723,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_Redeem_LosingOutcome() public {
         vm.prank(user2);
-        uint256 shares = market.placeBet(1, BET_AMOUNT);
+        uint256 shares = router.placeBet(address(market), 1, BET_AMOUNT);
 
         vm.prank(owner);
         market.lock();

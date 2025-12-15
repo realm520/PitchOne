@@ -71,11 +71,9 @@ contract WDL_Template_V2Test is BaseTest {
         vault.deposit(INITIAL_VAULT_DEPOSIT, user1);
         vm.stopPrank();
 
-        // 用户授权
-        vm.prank(user2);
-        usdc.approve(address(market), type(uint256).max);
-
-        vm.prank(user3);
+        // 给测试合约（作为 trustedRouter）分配代币并授权
+        // placeBetFor 会从 msg.sender (测试合约) 转账
+        usdc.mint(address(this), 1_000_000 * 1e6);  // 1M USDC
         usdc.approve(address(market), type(uint256).max);
     }
 
@@ -151,8 +149,7 @@ contract WDL_Template_V2Test is BaseTest {
         uint256[] memory reservesBefore = market.getVirtualReserves();
 
         // 下注 Outcome 0（主队胜）
-        vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT * 10);
+        uint256 shares = market.placeBetFor(user2, 0, BET_AMOUNT * 10);
 
         uint256[] memory reservesAfter = market.getVirtualReserves();
 
@@ -172,8 +169,7 @@ contract WDL_Template_V2Test is BaseTest {
         uint256[] memory reservesInitial = market.getVirtualReserves();
 
         // User2 买入 Outcome 0
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 5);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 5);
 
         uint256[] memory reservesAfterFirst = market.getVirtualReserves();
 
@@ -181,8 +177,7 @@ contract WDL_Template_V2Test is BaseTest {
         assertLt(reservesAfterFirst[0], reservesInitial[0], "Outcome 0 reduced after first bet");
 
         // User3 买入 Outcome 2
-        vm.prank(user3);
-        market.placeBet(2, BET_AMOUNT * 3);
+        market.placeBetFor(user3, 2, BET_AMOUNT * 3);
 
         uint256[] memory reserves = market.getVirtualReserves();
 
@@ -198,14 +193,13 @@ contract WDL_Template_V2Test is BaseTest {
     }
 
     function test_VirtualReserves_EmitsEvent() public {
-        vm.prank(user2);
-
         // 下注会触发 VirtualReservesUpdated 事件
         // 由于无法精确预测储备值，我们只验证事件被发出
         // 注意：vm.expectEmit 需要精确匹配事件签名和参数
 
         // 简化测试：只验证下注成功，不检查具体事件
-        uint256 shares = market.placeBet(0, BET_AMOUNT);
+        // 注意：测试合约是 trustedRouter，直接调用 placeBetFor
+        uint256 shares = market.placeBetFor(user2, 0, BET_AMOUNT);
 
         assertGt(shares, 0, "Bet successful, events were emitted");
 
@@ -234,8 +228,7 @@ contract WDL_Template_V2Test is BaseTest {
         uint256 priceBefore = market.getPrice(0);
 
         // 买入 Outcome 0
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 10);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 10);
 
         uint256 priceAfter = market.getPrice(0);
 
@@ -253,8 +246,7 @@ contract WDL_Template_V2Test is BaseTest {
     }
 
     function test_CalculateShares_UsesVirtualReserves() public {
-        vm.prank(user2);
-        uint256 shares = market.placeBet(0, BET_AMOUNT);
+        uint256 shares = market.placeBetFor(user2, 0, BET_AMOUNT);
 
         // 份额应该基于虚拟储备计算，不是简单的 1:1
         assertGt(shares, 0, "Should return shares");
@@ -298,8 +290,7 @@ contract WDL_Template_V2Test is BaseTest {
         assertEq(vault.borrowed(address(market)), 0, "No borrow initially");
 
         // 第一笔下注
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT);
+        market.placeBetFor(user2, 0, BET_AMOUNT);
 
         // 应该从 Vault 借出 100k
         assertEq(vault.borrowed(address(market)), 100_000 * 1e6, "Borrowed 100k");
@@ -312,8 +303,7 @@ contract WDL_Template_V2Test is BaseTest {
 
     function test_Finalize_ReturnsToVault() public {
         // 下注 → 锁盘 → 结算 → 终结
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 10);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 10);
 
         vm.prank(owner);
         market.lock();
@@ -339,14 +329,11 @@ contract WDL_Template_V2Test is BaseTest {
 
     function test_FullMarketCycle_WithVault() public {
         // 1. 多个用户下注
-        vm.prank(user2);
-        uint256 shares2 = market.placeBet(0, BET_AMOUNT * 10); // 主队胜
+        uint256 shares2 = market.placeBetFor(user2, 0, BET_AMOUNT * 10); // 主队胜
 
         uint256[] memory reservesAfterFirst = market.getVirtualReserves();
         assertLt(reservesAfterFirst[0], VIRTUAL_RESERVE_INIT, "Outcome 0 bought");
-
-        vm.prank(user3);
-        uint256 shares3 = market.placeBet(2, BET_AMOUNT * 5);  // 主队负
+        uint256 shares3 = market.placeBetFor(user3, 2, BET_AMOUNT * 5);  // 主队负
 
         // 2. 检查虚拟储备变化
         uint256[] memory reserves = market.getVirtualReserves();
@@ -388,13 +375,10 @@ contract WDL_Template_V2Test is BaseTest {
         uint256[] memory reservesBefore = market.getVirtualReserves();
 
         // 多个用户买同一个结果
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 5);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 5);
 
         uint256[] memory reservesMiddle = market.getVirtualReserves();
-
-        vm.prank(user3);
-        market.placeBet(0, BET_AMOUNT * 3);
+        market.placeBetFor(user3, 0, BET_AMOUNT * 3);
 
         uint256[] memory reservesAfter = market.getVirtualReserves();
 
@@ -407,8 +391,7 @@ contract WDL_Template_V2Test is BaseTest {
         uint256 priceBefore = market.getPrice(0);
 
         // 大额下注
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 50);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 50);
 
         uint256 priceAfter = market.getPrice(0);
 
@@ -419,32 +402,30 @@ contract WDL_Template_V2Test is BaseTest {
     // ============ 边界条件测试 ============
 
     function testRevert_PlaceBet_InvalidOutcome() public {
-        vm.prank(user2);
+        // 测试合约是 trustedRouter，直接调用 placeBetFor
         vm.expectRevert("MarketBase_V2: Invalid outcome");
-        market.placeBet(3, BET_AMOUNT); // WDL 只有 0, 1, 2
+        market.placeBetFor(user2, 3, BET_AMOUNT); // WDL 只有 0, 1, 2
     }
 
     function test_SmallBet_StillWorks() public {
         // 小额下注（1 USDC）
-        vm.prank(user2);
-        uint256 shares = market.placeBet(0, 1 * 1e6);
+        uint256 shares = market.placeBetFor(user2, 0, 1 * 1e6);
 
         assertGt(shares, 0, "Should return shares even for small bet");
     }
 
     function test_LargeBet_WithinLimits() public {
         // 大额下注（但不超过储备限制）
-        vm.prank(user2);
-        uint256 shares = market.placeBet(0, 30_000 * 1e6);
+        uint256 shares = market.placeBetFor(user2, 0, 30_000 * 1e6);
 
         assertGt(shares, 0, "Large bet should work");
     }
 
     function testRevert_PlaceBet_ExceedsReserve() public {
         // 尝试买光所有储备
-        vm.prank(user2);
+        // 测试合约是 trustedRouter，直接调用 placeBetFor
         vm.expectRevert("CPMM: Insufficient reserve");
-        market.placeBet(0, 500_000 * 1e6); // 远超储备量
+        market.placeBetFor(user2, 0, 500_000 * 1e6); // 远超储备量
     }
 
     // ============ 状态查询测试 ============
@@ -467,10 +448,9 @@ contract WDL_Template_V2Test is BaseTest {
     // ============ Gas 优化验证 ============
 
     function test_Gas_PlaceBet() public {
-        vm.prank(user2);
-
+        // 测试合约是 trustedRouter，直接调用 placeBetFor
         uint256 gasBefore = gasleft();
-        market.placeBet(0, BET_AMOUNT);
+        market.placeBetFor(user2, 0, BET_AMOUNT);
         uint256 gasUsed = gasBefore - gasleft();
 
         // 记录 gas 使用情况（应该在合理范围内）
@@ -484,8 +464,7 @@ contract WDL_Template_V2Test is BaseTest {
     function test_PriceDiscovery_ThreeWayMarket() public {
         // 模拟市场价格发现过程
         // 大量用户买主队胜 → 价格上涨
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 20);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 20);
 
         uint256 price0 = market.getPrice(0);
         uint256 price1 = market.getPrice(1);
@@ -504,8 +483,7 @@ contract WDL_Template_V2Test is BaseTest {
         uint256[] memory pricesBefore = market.getAllPrices();
 
         // 假设 Outcome 0 被大量买入，价格最高
-        vm.prank(user2);
-        market.placeBet(0, BET_AMOUNT * 30);
+        market.placeBetFor(user2, 0, BET_AMOUNT * 30);
 
         uint256[] memory pricesAfter = market.getAllPrices();
 

@@ -57,6 +57,11 @@ contract ReferralIntegrationTest is BaseTest {
         // 使用测试合约地址作为 router，允许测试直接下注
         market.setTrustedRouter(address(this));
 
+        // 给测试合约（trustedRouter）铸造 USDC 并授权给 market
+        // 因为 placeBetFor() 会从 msg.sender (trustedRouter) 转账
+        usdc.mint(address(this), 1_000_000e6);
+        usdc.approve(address(market), type(uint256).max);
+
         // LP 存入流动性
         usdc.mint(user1, 500_000e6);
         vm.startPrank(user1);
@@ -86,11 +91,10 @@ contract ReferralIntegrationTest is BaseTest {
         uint256 feeRouterBalanceBefore = usdc.balanceOf(address(feeRouter));
 
         // 3. 被推荐人下注 100 USDC
+        // 测试合约作为 trustedRouter 直接调用 placeBetFor
+        // placeBetFor() 会从 msg.sender (测试合约) 转账到市场
         uint256 betAmount = 100e6;
-        vm.startPrank(referee);
-        usdc.approve(address(market), betAmount);
-        market.placeBet(0, betAmount); // 投注 outcome 0 (主队胜)
-        vm.stopPrank();
+        market.placeBetFor(referee, 0, betAmount); // 投注 outcome 0 (主队胜)
 
         // 4. 验证返佣
         // 手续费 = 100 * 2% = 2 USDC
@@ -139,12 +143,9 @@ contract ReferralIntegrationTest is BaseTest {
      */
     function test_BetWithoutReferrer() public {
         // 被推荐人没有绑定推荐关系，直接下注
+        // 测试合约作为 trustedRouter 直接调用 placeBetFor
         uint256 betAmount = 100e6;
-
-        vm.startPrank(referee);
-        usdc.approve(address(market), betAmount);
-        market.placeBet(0, betAmount);
-        vm.stopPrank();
+        market.placeBetFor(referee, 0, betAmount);
 
         // 验证：无人收到返佣
         (uint256 count, uint256 totalRewards) = referralRegistry.getReferrerStats(referrer);
@@ -176,13 +177,11 @@ contract ReferralIntegrationTest is BaseTest {
         uint256 referrerBalanceBefore = usdc.balanceOf(referrer);
 
         // 2. 第一次下注 50 USDC
-        vm.startPrank(referee);
-        usdc.approve(address(market), 200e6);
-        market.placeBet(0, 50e6);
+        // 测试合约作为 trustedRouter 直接调用 placeBetFor
+        market.placeBetFor(referee, 0, 50e6);
 
         // 3. 第二次下注 100 USDC
-        market.placeBet(1, 100e6);
-        vm.stopPrank();
+        market.placeBetFor(referee, 1, 100e6);
 
         // 4. 验证累计返佣
         uint256 totalBet = 150e6;
@@ -237,11 +236,12 @@ contract ReferralIntegrationTest is BaseTest {
         vault.authorizeMarket(address(newMarket));
         newMarket.setTrustedRouter(address(this));
 
+        // 测试合约（trustedRouter）需要授权给新市场
+        usdc.approve(address(newMarket), type(uint256).max);
+
         // 4. 被推荐人下注
-        vm.startPrank(referee);
-        usdc.approve(address(newMarket), 100e6);
-        newMarket.placeBet(0, 100e6);
-        vm.stopPrank();
+        // 测试合约作为 trustedRouter 直接调用 placeBetFor
+        newMarket.placeBetFor(referee, 0, 100e6);
 
         // 5. 验证推荐人没有收到返佣
         uint256 referrerBalanceAfter = usdc.balanceOf(referrer);

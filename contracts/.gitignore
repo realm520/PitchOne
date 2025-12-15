@@ -1,3 +1,4 @@
 
 # 测试账户私钥（本地测试用）
 .test-accounts
+*.bak*
