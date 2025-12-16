@@ -1,6 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/**
+ * @title MarketBase_V2
+ * @notice 市场基础合约（V2 版本）
+ * @dev 此合约是旧版架构的一部分，仍在生产环境中使用。
+ *
+ * 新项目推荐使用 V3 架构：
+ *   - Market_V3.sol - 轻量级市场容器
+ *   - IPricingStrategy - 可插拔的定价策略（CPMM/LMSR/Parimutuel）
+ *   - IResultMapper - 可插拔的赛果映射器
+ *
+ * V3 架构的优势：
+ *   - 更清晰的职责分离
+ *   - 新增玩法只需实现 IResultMapper（~50 行），无需继承整个市场合约
+ *   - 支持半输半赢（通过 weights 数组）
+ *
+ * @custom:deprecated 此合约将在未来版本中废弃，请使用 Market_V3.sol
+ */
+
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
