@@ -429,8 +429,39 @@ docker-compose up -d
 
 ### 1. 合约层架构（contracts/src/）
 
+#### V3 架构（新）- 推荐用于新项目
+
+**分层设计**：
+```
+Market_V3 (容器) ─── IPricingStrategy (定价策略)
+       │                 ├── CPMMStrategy
+       │                 ├── LMSRStrategy
+       │                 └── ParimutuelStrategy
+       │
+       └──────────── IResultMapper (赛果映射)
+                          ├── WDL_Mapper
+                          ├── OU_Mapper
+                          ├── AH_Mapper
+                          ├── Score_Mapper
+                          └── OddEven_Mapper
+```
+
+**核心组件**：
+- **Market_V3.sol**：轻量级市场容器（~300 行），负责状态机管理和组件编排
+- **IPricingStrategy**：可插拔的定价策略接口（CPMM/LMSR/Parimutuel）
+- **IResultMapper**：可插拔的赛果映射接口，将比分映射到 outcome ID
+- **详细文档**：`contracts/docs/Architecture_V3.md`
+
+**V3 优势**：
+- 新增玩法只需实现 IResultMapper（~50 行），无需继承整个市场合约
+- 支持半输半赢（通过 weights 数组）
+- 1012 个测试全部通过
+
+#### V2 架构（当前生产）- 仍在使用
+
 **模块组织**：
-- **✅ MarketBase.sol**：市场基础合约，定义市场生命周期（Open → Locked → Resolved → Finalized）
+- **✅ MarketBase_V2.sol**：市场基础合约，定义市场生命周期（Open → Locked → Resolved → Finalized）
+  - **注意**：此合约将在未来版本中废弃，新项目请使用 Market_V3
 - **✅ MarketTemplateRegistry.sol**：市场模板注册表，管理 WDL/OU/AH/比分等玩法模板
 - **✅ BettingRouter.sol**：统一投注入口合约（用户仅需授权一次即可投注所有市场）
   - **核心功能**：单笔下注、批量下注、滑点保护
