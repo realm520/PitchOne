@@ -161,7 +161,9 @@ func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) e
 	}
 
 	// Check if this is an OU market and calculate outcome
+	// TODO: Use ouOutcome when OU market settlement is implemented
 	var ouOutcome *uint8
+	_ = ouOutcome // Suppress unused variable warning for now
 	if marketType, ok := market.MarketParams["type"].(string); ok && marketType == "OU" {
 		line, isHalfLine, err := parseOUParams(market.MarketParams)
 		if err != nil {
