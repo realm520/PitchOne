@@ -430,7 +430,7 @@ contract BettingRouter_V2 is IBettingRouter_V2, Ownable, ReentrancyGuard {
     function isValidMarket(address market) public view override returns (bool) {
         // 检查工厂注册
         if (factory != address(0)) {
-            try IMarketFactory(factory).isMarket(market) returns (bool registered) {
+            try IMarketFactory_V4(factory).isMarket(market) returns (bool registered) {
                 if (!registered) return false;
             } catch {
                 return false;
@@ -474,6 +474,6 @@ contract BettingRouter_V2 is IBettingRouter_V2, Ownable, ReentrancyGuard {
 
 // ============ 辅助接口 ============
 
-interface IMarketFactory {
+interface IMarketFactory_V4 {
     function isMarket(address market) external view returns (bool);
 }
