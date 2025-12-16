@@ -362,7 +362,7 @@ contract WDL_Template_V2Test is BaseTest {
 
         // 6. 输家尝试赎回（应该失败）
         vm.prank(user3);
-        vm.expectRevert("MarketBase_V2: Not winning outcome");
+        vm.expectRevert(NotWinningOutcome.selector);
         market.redeem(2, shares3);
 
         // 7. 终结（可选，验证完整流程）
@@ -403,7 +403,7 @@ contract WDL_Template_V2Test is BaseTest {
 
     function testRevert_PlaceBet_InvalidOutcome() public {
         // 测试合约是 trustedRouter，直接调用 placeBetFor
-        vm.expectRevert("MarketBase_V2: Invalid outcome");
+        vm.expectRevert(InvalidOutcome.selector);
         market.placeBetFor(user2, 3, BET_AMOUNT); // WDL 只有 0, 1, 2
     }
 

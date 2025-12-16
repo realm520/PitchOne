@@ -15,6 +15,39 @@ import "../interfaces/IResultOracle.sol";
 import "../interfaces/ILiquidityProvider.sol";
 import "../interfaces/IFeeRouter.sol";
 
+// ============ 自定义错误（节省 gas 和合约大小）============
+error InvalidStatus();
+error InvalidOutcomeCount();
+error InvalidToken();
+error InvalidFeeRecipient();
+error FeeRateTooHigh();
+error InvalidLiquidityProvider();
+error InvalidOutcome();
+error ZeroAmount();
+error ZeroShares();
+error BettingClosed();
+error NotTrustedRouter();
+error InvalidSlippageLimit();
+error SlippageTooHigh();
+error InsufficientBalance();
+error DisputePeriodNotEnded();
+error CannotCancelInCurrentStatus();
+error NoSharesInMarket();
+error ZeroRefundAmount();
+error NoWinningShares();
+error InsufficientLiquidity();
+error AlreadyBorrowed();
+error NotBorrowed();
+error AlreadyRepaid();
+error InvalidUser();
+error InvalidOracle();
+error InvalidRecipient();
+error DiscountTooHigh();
+error KickoffTimeInPast();
+error NotWinningOutcome();
+error ZeroPayout();
+error NoSharesForOutcome();
+
 /**
  * @title MarketBase_V2
  * @notice 市场合约基类 V2 - 集成 LiquidityVault + Router-Only 下注
@@ -137,16 +170,13 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
     /// @notice 仅在指定状态下可执行
     modifier onlyStatus(MarketStatus _status) {
-        require(status == _status, "MarketBase_V2: Invalid status");
+        if (status != _status) revert InvalidStatus();
         _;
     }
 
     /// @notice 仅在多个状态之一下可执行
     modifier onlyStatusIn(MarketStatus _status1, MarketStatus _status2) {
-        require(
-            status == _status1 || status == _status2,
-            "MarketBase_V2: Invalid status"
-        );
+        if (status != _status1 && status != _status2) revert InvalidStatus();
         _;
     }
 
@@ -181,11 +211,11 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         __Ownable_init(msg.sender);
         __Pausable_init();
 
-        require(_outcomeCount >= 2, "MarketBase_V2: Invalid outcome count");
-        require(_settlementToken != address(0), "MarketBase_V2: Invalid token");
-        require(_feeRecipient != address(0), "MarketBase_V2: Invalid fee recipient");
-        require(_feeRate <= 1000, "MarketBase_V2: Fee rate too high"); // 最大 10%
-        require(_liquidityProvider != address(0), "MarketBase_V2: Invalid liquidity provider");
+        if (_outcomeCount < 2) revert InvalidOutcomeCount();
+        if (_settlementToken == address(0)) revert InvalidToken();
+        if (_feeRecipient == address(0)) revert InvalidFeeRecipient();
+        if (_feeRate > 1000) revert FeeRateTooHigh();
+        if (_liquidityProvider == address(0)) revert InvalidLiquidityProvider();
 
         outcomeCount = _outcomeCount;
         settlementToken = IERC20(_settlementToken);
@@ -215,7 +245,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         nonReentrant
         returns (uint256 shares)
     {
-        require(msg.sender == trustedRouter, "MarketBase_V2: Not trusted router");
+        if (msg.sender != trustedRouter) revert NotTrustedRouter();
         return _placeBetForWithSlippage(user, outcomeId, amount, 10000);
     }
 
@@ -234,8 +264,8 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         nonReentrant
         returns (uint256 shares)
     {
-        require(msg.sender == trustedRouter, "MarketBase_V2: Not trusted router");
-        require(maxSlippageBps <= 10000, "MarketBase_V2: Invalid slippage limit");
+        if (msg.sender != trustedRouter) revert NotTrustedRouter();
+        if (maxSlippageBps > 10000) revert InvalidSlippageLimit();
         return _placeBetForWithSlippage(user, outcomeId, amount, maxSlippageBps);
     }
 
@@ -250,12 +280,12 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         internal
         returns (uint256 shares)
     {
-        require(user != address(0), "MarketBase_V2: Invalid user");
-        require(outcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
-        require(amount > 0, "MarketBase_V2: Zero amount");
+        if (user == address(0)) revert InvalidUser();
+        if (outcomeId >= outcomeCount) revert InvalidOutcome();
+        if (amount == 0) revert ZeroAmount();
 
         // 时间检查
-        require(kickoffTime == 0 || block.timestamp < kickoffTime, "MarketBase_V2: Betting closed");
+        if (kickoffTime != 0 && block.timestamp >= kickoffTime) revert BettingClosed();
 
         // 首次下注时从 Vault 借出流动性
         if (!liquidityBorrowed) {
@@ -268,7 +298,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
         // 2. 调用定价函数
         shares = _calculateShares(outcomeId, netAmount);
-        require(shares > 0, "MarketBase_V2: Zero shares");
+        if (shares == 0) revert ZeroShares();
 
         // 3. 滑点检查
         if (maxSlippageBps < 10000) {
@@ -304,7 +334,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         // 如果有效价格过高，说明滑点过大
         // 最小可接受 shares = amount / (1 + maxSlippage)
         uint256 minAcceptableShares = (amount * 10000) / (10000 + maxSlippageBps);
-        require(shares >= minAcceptableShares, "MarketBase_V2: Slippage too high");
+        if (shares < minAcceptableShares) revert SlippageTooHigh();
     }
 
     /**
@@ -328,7 +358,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @dev 只有 owner 可以修改开赛时间
      */
     function updateKickoffTime(uint256 newKickoffTime) external onlyOwner {
-        require(newKickoffTime > block.timestamp, "MarketBase_V2: Kickoff time must be in future");
+        if (newKickoffTime <= block.timestamp) revert KickoffTimeInPast();
 
         uint256 oldKickoffTime = kickoffTime;
         kickoffTime = newKickoffTime;
@@ -382,7 +412,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         onlyOwner
         onlyStatus(MarketStatus.Locked)
     {
-        require(winningOutcomeId < outcomeCount, "MarketBase_V2: Invalid outcome");
+        if (winningOutcomeId >= outcomeCount) revert InvalidOutcome();
 
         winningOutcome = winningOutcomeId;
         status = MarketStatus.Resolved;
@@ -402,10 +432,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         onlyOwner
         onlyStatus(MarketStatus.Resolved)
     {
-        require(
-            block.timestamp >= lockTimestamp + disputePeriod,
-            "MarketBase_V2: Dispute period not ended"
-        );
+        if (block.timestamp < lockTimestamp + disputePeriod) revert DisputePeriodNotEnded();
 
         status = MarketStatus.Finalized;
 
@@ -431,10 +458,9 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         onlyOwner
         nonReentrant
     {
-        require(
-            status == MarketStatus.Open || status == MarketStatus.Locked,
-            "MarketBase_V2: Cannot cancel in current status"
-        );
+        if (status != MarketStatus.Open && status != MarketStatus.Locked) {
+            revert CannotCancelInCurrentStatus();
+        }
 
         status = MarketStatus.Cancelled;
 
@@ -460,18 +486,15 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         nonReentrant
         returns (uint256 amount)
     {
-        require(shares > 0, "MarketBase_V2: Zero shares");
-        require(
-            balanceOf(msg.sender, outcomeId) >= shares,
-            "MarketBase_V2: Insufficient balance"
-        );
+        if (shares == 0) revert ZeroShares();
+        if (balanceOf(msg.sender, outcomeId) < shares) revert InsufficientBalance();
 
         // 计算所有 outcome 的总 shares
         uint256 totalAllShares = 0;
         for (uint256 i = 0; i < outcomeCount; i++) {
             totalAllShares += totalSupply(i);
         }
-        require(totalAllShares > 0, "MarketBase_V2: No shares in market");
+        if (totalAllShares == 0) revert NoSharesInMarket();
 
         // 计算可分配流动性（已扣除 Vault 本金）
         uint256 distributableLiquidity;
@@ -490,7 +513,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
         // 按比例计算退款金额
         amount = (shares * distributableLiquidity) / totalAllShares;
-        require(amount > 0, "MarketBase_V2: Zero refund amount");
+        if (amount == 0) revert ZeroRefundAmount();
 
         // 更新状态（CEI 模式）
         totalLiquidity -= amount;
@@ -533,18 +556,15 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         nonReentrant
         returns (uint256 payout)
     {
-        require(shares > 0, "MarketBase_V2: Zero shares");
-        require(
-            balanceOf(msg.sender, outcomeId) >= shares,
-            "MarketBase_V2: Insufficient balance"
-        );
+        if (shares == 0) revert ZeroShares();
+        if (balanceOf(msg.sender, outcomeId) < shares) revert InsufficientBalance();
 
         // 检测是否为 Push 退款场景
         bool isPushRefund = _isPushOutcome(winningOutcome);
 
         if (!isPushRefund) {
             // 常规赢家赔付逻辑：仅允许中奖结果赎回
-            require(outcomeId == winningOutcome, "MarketBase_V2: Not winning outcome");
+            if (outcomeId != winningOutcome) revert NotWinningOutcome();
         }
 
         // 1. 计算赔付
@@ -556,7 +576,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
             payout = _calculateNormalPayout(shares);
         }
 
-        require(payout > 0, "MarketBase_V2: Zero payout");
+        if (payout == 0) revert ZeroPayout();
 
         // 2. 更新状态（遵循 CEI 模式）
         totalLiquidity -= payout;
@@ -611,14 +631,14 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         // 在 CPMM 中，1 share ≈ 1 USDC 的价值（初始状态）
 
         uint256 totalOutcomeShares = totalSupply(outcomeId);
-        require(totalOutcomeShares > 0, "MarketBase_V2: No shares for outcome");
+        if (totalOutcomeShares == 0) revert NoSharesForOutcome();
 
         // 计算所有 outcome 的总 shares
         uint256 totalAllShares = 0;
         for (uint256 i = 0; i < outcomeCount; i++) {
             totalAllShares += totalSupply(i);
         }
-        require(totalAllShares > 0, "MarketBase_V2: No shares in market");
+        if (totalAllShares == 0) revert NoSharesInMarket();
 
         // 计算可分配流动性（与常规逻辑相同）
         uint256 distributableLiquidity;
@@ -637,7 +657,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         // 这确保了所有用户按其持仓比例获得退款，总和等于 totalLiquidity
         refundAmount = (shares * distributableLiquidity) / totalAllShares;
 
-        require(refundAmount <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
+        if (refundAmount > distributableLiquidity) revert InsufficientLiquidity();
     }
 
     /**
@@ -647,7 +667,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      */
     function _calculateNormalPayout(uint256 shares) internal view returns (uint256 payout) {
         uint256 totalWinningShares = totalSupply(winningOutcome);
-        require(totalWinningShares > 0, "MarketBase_V2: No winning shares");
+        if (totalWinningShares == 0) revert NoWinningShares();
 
         // 计算可分配给用户的流动性
         uint256 distributableLiquidity;
@@ -667,7 +687,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         }
 
         payout = (shares * distributableLiquidity) / totalWinningShares;
-        require(payout <= distributableLiquidity, "MarketBase_V2: Insufficient liquidity");
+        if (payout > distributableLiquidity) revert InsufficientLiquidity();
     }
 
     // ============ Vault 集成函数 ============
@@ -679,7 +699,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      *      如果返回 0（Parimutuel 模式），跳过借款但标记为已借（避免重复调用）
      */
     function _borrowInitialLiquidity() internal virtual {
-        require(!liquidityBorrowed, "MarketBase_V2: Already borrowed");
+        if (liquidityBorrowed) revert AlreadyBorrowed();
 
         uint256 amount = _getInitialBorrowAmount();
 
@@ -720,8 +740,8 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @dev finalize时调用，只归还本金，收益留给赢家
      */
     function _repayPrincipalOnly() internal virtual {
-        require(liquidityBorrowed, "MarketBase_V2: Not borrowed");
-        require(!liquidityRepaid, "MarketBase_V2: Already repaid");
+        if (!liquidityBorrowed) revert NotBorrowed();
+        if (liquidityRepaid) revert AlreadyRepaid();
 
         uint256 currentBalance = settlementToken.balanceOf(address(this));
 
@@ -747,8 +767,8 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      *      归还剩余的全部余额（本金+收益）
      */
     function _repayToVault() internal virtual {
-        require(liquidityBorrowed, "MarketBase_V2: Not borrowed");
-        require(!liquidityRepaid, "MarketBase_V2: Already repaid");
+        if (!liquidityBorrowed) revert NotBorrowed();
+        if (liquidityRepaid) revert AlreadyRepaid();
 
         uint256 currentBalance = settlementToken.balanceOf(address(this));
 
@@ -796,19 +816,16 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
         onlyOwner
         nonReentrant
     {
-        require(shares > 0, "MarketBase_V2: Zero shares");
-        require(
-            balanceOf(user, outcomeId) >= shares,
-            "MarketBase_V2: Insufficient balance"
-        );
+        if (shares == 0) revert ZeroShares();
+        if (balanceOf(user, outcomeId) < shares) revert InsufficientBalance();
 
         // 计算应退金额（简化版：按总流动性比例）
         uint256 totalShares = totalSupply(outcomeId);
-        require(totalShares > 0, "MarketBase_V2: No shares");
+        if (totalShares == 0) revert NoSharesForOutcome();
 
         uint256 refundAmount = (shares * totalLiquidity) / totalShares;
-        require(refundAmount > 0, "MarketBase_V2: Zero refund");
-        require(refundAmount <= totalLiquidity, "MarketBase_V2: Insufficient liquidity");
+        if (refundAmount == 0) revert ZeroRefundAmount();
+        if (refundAmount > totalLiquidity) revert InsufficientLiquidity();
 
         // 更新状态
         totalLiquidity -= refundAmount;
@@ -855,7 +872,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
 
         // Phase 1: 应用折扣
         uint256 discount = discountOracle.getDiscount(user);
-        require(discount <= 2000, "MarketBase_V2: Discount too high"); // 最大 20%
+        if (discount > 2000) revert DiscountTooHigh();
 
         return (amount * feeRate * (10000 - discount)) / 100_000_000;
     }
@@ -874,7 +891,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @notice 设置结果预言机
      */
     function setResultOracle(address _resultOracle) external onlyOwner {
-        require(_resultOracle != address(0), "MarketBase_V2: Invalid oracle");
+        if (_resultOracle == address(0)) revert InvalidOracle();
         resultOracle = IResultOracle(_resultOracle);
         emit ResultOracleUpdated(_resultOracle);
     }
@@ -883,7 +900,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @notice 更新手续费率
      */
     function setFeeRate(uint256 _feeRate) external onlyOwner {
-        require(_feeRate <= 1000, "MarketBase_V2: Fee rate too high");
+        if (_feeRate > 1000) revert FeeRateTooHigh();
         emit FeeRateUpdated(feeRate, _feeRate);
         feeRate = _feeRate;
     }
@@ -892,7 +909,7 @@ abstract contract MarketBase_V2 is IMarket, Initializable, ERC1155SupplyUpgradea
      * @notice 更新费用接收地址
      */
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
-        require(_feeRecipient != address(0), "MarketBase_V2: Invalid recipient");
+        if (_feeRecipient == address(0)) revert InvalidRecipient();
         emit FeeRecipientUpdated(feeRecipient, _feeRecipient);
         feeRecipient = _feeRecipient;
     }

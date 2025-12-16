@@ -206,11 +206,11 @@ contract SystemIntegration_V2Test is Test {
 
         // 7. 输家无法赎回
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Not winning outcome");
+        vm.expectRevert(NotWinningOutcome.selector);
         market.redeem(1, shares2);
 
         vm.prank(user3);
-        vm.expectRevert("MarketBase_V2: Not winning outcome");
+        vm.expectRevert(NotWinningOutcome.selector);
         market.redeem(2, shares3);
     }
 

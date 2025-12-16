@@ -311,7 +311,7 @@ contract MarketBase_V2Test is BaseTest {
 
         // 尝试提取超过持有的份额
         vm.prank(owner);
-        vm.expectRevert("MarketBase_V2: Insufficient balance");
+        vm.expectRevert(InsufficientBalance.selector);
         market.emergencyWithdrawUser(user2, 0, 10000 * 1e6);
     }
 
@@ -377,7 +377,7 @@ contract MarketBase_V2Test is BaseTest {
 
         // 6. 输家无法赎回
         vm.prank(user3);
-        vm.expectRevert("MarketBase_V2: Not winning outcome");
+        vm.expectRevert(NotWinningOutcome.selector);
         market.redeem(1, shares3_lose);
     }
 
@@ -405,7 +405,7 @@ contract MarketBase_V2Test is BaseTest {
 
         // 争议期未结束前尝试终结
         vm.prank(owner);
-        vm.expectRevert("MarketBase_V2: Dispute period not ended");
+        vm.expectRevert(DisputePeriodNotEnded.selector);
         market.finalize();
     }
 
@@ -464,7 +464,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_SetFeeRate_TooHigh() public {
         vm.prank(owner);
-        vm.expectRevert("MarketBase_V2: Fee rate too high");
+        vm.expectRevert(FeeRateTooHigh.selector);
         market.setFeeRate(1001); // > 10%
     }
 
@@ -508,7 +508,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_PlaceBet_InvalidOutcome() public {
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Invalid outcome");
+        vm.expectRevert(InvalidOutcome.selector);
         router.placeBet(address(market), 99, BET_AMOUNT);
     }
 
@@ -708,7 +708,7 @@ contract MarketBase_V2Test is BaseTest {
 
     function testRevert_Resolve_BeforeLock() public {
         vm.prank(owner);
-        vm.expectRevert("MarketBase_V2: Invalid status");
+        vm.expectRevert(InvalidStatus.selector);
         market.resolve(0);
     }
 
@@ -717,7 +717,7 @@ contract MarketBase_V2Test is BaseTest {
         uint256 shares = router.placeBet(address(market), 0, BET_AMOUNT);
 
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Invalid status");
+        vm.expectRevert(InvalidStatus.selector);
         market.redeem(0, shares);
     }
 
@@ -732,7 +732,7 @@ contract MarketBase_V2Test is BaseTest {
         market.resolve(0); // Outcome 0 胜利
 
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Not winning outcome");
+        vm.expectRevert(NotWinningOutcome.selector);
         market.redeem(1, shares); // 尝试赎回失败的 outcome
     }
 }

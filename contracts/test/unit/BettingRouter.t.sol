@@ -240,7 +240,7 @@ contract BettingRouterTest is BaseTest {
 
         // 尝试下注但滑点限制很严格
         vm.prank(user2);
-        vm.expectRevert("MarketBase_V2: Slippage too high");
+        vm.expectRevert(SlippageTooHigh.selector);
         router.placeBetWithSlippage(address(market1), 0, 10_000 * 1e6, 10); // 0.1% 滑点限制
     }
 
