@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/IMarket_V3.sol";
 import "../interfaces/IPricingStrategy.sol";
 import "../interfaces/IResultMapper.sol";
+import "../interfaces/ILiquidityVault_V3.sol";
 
 /**
  * @title Market_V3
@@ -49,6 +50,10 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     IPricingStrategy public pricingStrategy;
     IResultMapper public resultMapper;
 
+    // Vault 集成
+    ILiquidityVault_V3 public vault;
+    uint256 public borrowedAmount;
+
     // outcome 规则
     OutcomeRule[] private _outcomeRules;
 
@@ -60,6 +65,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     // 流动性追踪
     uint256 public totalLiquidity;
     uint256 public initialLiquidity;
+
+    // 已赔付金额追踪（用于计算 PnL）
+    uint256 public totalPayoutClaimed;
 
     // 每个 outcome 的统计
     mapping(uint256 => uint256) public totalSharesPerOutcome;
@@ -96,6 +104,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         uint256 shares,
         uint256 amount
     );
+    event VaultSettled(uint256 principal, int256 pnl);
 
     // ============ 错误定义 ============
 
@@ -148,6 +157,15 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         // 设置初始流动性
         totalLiquidity = config.initialLiquidity;
+
+        // Vault 集成：如果配置了 Vault，从 Vault 借款
+        if (config.vault != address(0) && config.initialLiquidity > 0) {
+            vault = ILiquidityVault_V3(config.vault);
+            borrowedAmount = config.initialLiquidity;
+
+            // 从 Vault 借出初始流动性
+            vault.borrow(config.initialLiquidity);
+        }
 
         // 设置角色
         _grantRole(DEFAULT_ADMIN_ROLE, config.admin);
@@ -248,10 +266,35 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
     /**
      * @notice 终结市场（可领取奖金）
+     * @dev 如果配置了 Vault，会计算 PnL 并结算
      */
     function finalize() external onlyRole(KEEPER_ROLE) {
         if (status != MarketStatus.Resolved) {
             revert InvalidStatus(MarketStatus.Resolved, status);
+        }
+
+        // Vault 集成：结算时归还 Vault
+        if (address(vault) != address(0) && borrowedAmount > 0) {
+            int256 pnl = _calculatePnL();
+
+            // 计算需要转给 Vault 的金额
+            uint256 transferAmount;
+            if (pnl >= 0) {
+                // LP 盈利：归还本金 + 利润
+                transferAmount = borrowedAmount + uint256(pnl);
+            } else {
+                // LP 亏损：归还本金 - 亏损（如果够的话）
+                uint256 loss = uint256(-pnl);
+                transferAmount = borrowedAmount > loss ? borrowedAmount - loss : 0;
+            }
+
+            // 授权并结算
+            if (transferAmount > 0) {
+                settlementToken.approve(address(vault), transferAmount);
+            }
+            vault.settle(borrowedAmount, pnl);
+
+            emit VaultSettled(borrowedAmount, pnl);
         }
 
         status = MarketStatus.Finalized;
@@ -261,12 +304,19 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     /**
      * @notice 取消市场
      * @param reason 取消原因
+     * @dev 如果配置了 Vault，会归还借款本金
      */
     function cancel(string calldata reason) external onlyRole(OPERATOR_ROLE) {
         require(
             status == MarketStatus.Open || status == MarketStatus.Locked,
             "Market: Cannot cancel"
         );
+
+        // Vault 集成：取消时归还本金
+        if (address(vault) != address(0) && borrowedAmount > 0) {
+            settlementToken.approve(address(vault), borrowedAmount);
+            vault.returnPrincipal(borrowedAmount);
+        }
 
         status = MarketStatus.Cancelled;
         emit MarketCancelled(reason);
@@ -324,6 +374,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         // 销毁头寸
         _burn(msg.sender, outcomeId, shares);
+
+        // 追踪已赔付金额
+        totalPayoutClaimed += payout;
 
         // 转账
         settlementToken.safeTransfer(msg.sender, payout);
@@ -439,7 +492,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     function getStats() external view returns (MarketStats memory stats) {
         uint256 count = _outcomeRules.length;
         stats.totalLiquidity = totalLiquidity;
-        stats.borrowedAmount = 0; // 暂不支持 Vault 借款
+        stats.borrowedAmount = borrowedAmount;
         stats.totalBetAmount = totalLiquidity - initialLiquidity;
 
         stats.totalSharesPerOutcome = new uint256[](count);
@@ -532,6 +585,10 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         payout = basePayout * weight / 10000;
 
         _burn(msg.sender, outcomeId, shares);
+
+        // 追踪已赔付金额
+        totalPayoutClaimed += payout;
+
         settlementToken.safeTransfer(msg.sender, payout);
 
         emit PayoutClaimed(msg.sender, outcomeId, shares, payout);
@@ -551,6 +608,79 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
             }
         }
         return (false, 0);
+    }
+
+    /**
+     * @notice 计算 LP 盈亏
+     * @return pnl 盈亏（正=LP赚，负=LP亏）
+     * @dev PnL = 用户下注总额 - 需支付的赔付总额
+     *
+     * 计算逻辑：
+     *   - 用户下注总额 = totalLiquidity - initialLiquidity
+     *   - 需支付的赔付 = 根据获胜 outcome 和总份额计算
+     *   - pnl > 0: 用户整体输钱，LP 赚
+     *   - pnl < 0: 用户整体赢钱，LP 亏
+     */
+    function _calculatePnL() internal view returns (int256 pnl) {
+        // 用户下注总额
+        uint256 totalBetAmount = totalLiquidity - initialLiquidity;
+
+        // 计算需支付的总赔付
+        uint256 totalExpectedPayout = _calculateTotalExpectedPayout();
+
+        // PnL = 收到的下注 - 支付的赔付
+        if (totalBetAmount >= totalExpectedPayout) {
+            pnl = int256(totalBetAmount - totalExpectedPayout);
+        } else {
+            pnl = -int256(totalExpectedPayout - totalBetAmount);
+        }
+    }
+
+    /**
+     * @notice 计算总预期赔付
+     * @return totalPayout 需支付给所有获胜者的总金额
+     */
+    function _calculateTotalExpectedPayout() internal view returns (uint256 totalPayout) {
+        // 遍历所有获胜的 outcome
+        for (uint256 i = 0; i < settlementResult.outcomeIds.length; i++) {
+            uint256 outcomeId = settlementResult.outcomeIds[i];
+            uint256 weight = settlementResult.weights[i];
+
+            uint256 sharesForOutcome = totalSharesPerOutcome[outcomeId];
+            if (sharesForOutcome == 0) continue;
+
+            // 获取赔付类型
+            IPricingStrategy.PayoutType payoutType = _outcomeRules[outcomeId].payoutType;
+
+            // 构建总份额数组
+            uint256[] memory sharesArray = new uint256[](_outcomeRules.length);
+            for (uint256 j = 0; j < _outcomeRules.length; j++) {
+                sharesArray[j] = totalSharesPerOutcome[j];
+            }
+
+            // 计算该 outcome 的总赔付
+            uint256 outcomePayout = pricingStrategy.calculatePayout(
+                outcomeId,
+                sharesForOutcome,  // 该 outcome 的所有份额
+                sharesArray,
+                totalLiquidity,
+                payoutType
+            );
+
+            // 应用权重
+            totalPayout += outcomePayout * weight / 10000;
+        }
+    }
+
+    /**
+     * @notice 获取当前 PnL（公开查询）
+     * @return pnl 当前盈亏
+     */
+    function getCurrentPnL() external view returns (int256 pnl) {
+        if (status != MarketStatus.Resolved && status != MarketStatus.Finalized) {
+            return 0;
+        }
+        return _calculatePnL();
     }
 
     // ============ ERC1155 元数据 ============
