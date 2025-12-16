@@ -59,16 +59,20 @@ import "../test/mocks/MockERC20.sol";
  *   - bsc: BNB Smart Chain
  *
  * 使用方法：
- *   1. Anvil 本地测试：
- *      forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+ *   1. Anvil 本地测试（仅 V3）：
+ *      DEPLOY_V2=false forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
  *
- *   2. 主网部署（需要设置 RPC_URL 和 PRIVATE_KEY）：
+ *   2. Anvil 本地测试（仅 V2）：
+ *      DEPLOY_V3=false forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast
+ *
+ *   3. 主网部署（需要设置 RPC_URL 和 PRIVATE_KEY）：
  *      forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --broadcast --verify
  *
  * 环境变量：
  *   - PRIVATE_KEY: 部署账户私钥（必需）
  *   - USDC_ADDRESS: USDC 代币地址（主网必需，测试网可选）
  *   - INITIAL_LP_AMOUNT: 初始 LP 金额（默认 1,000,000 USDC）
+ *   - DEPLOY_V2: 是否部署 V2 架构（默认 true）
  *   - DEPLOY_V3: 是否部署 V3 架构（默认 true）
  */
 contract Deploy is Script {
@@ -80,6 +84,7 @@ contract Deploy is Script {
         address promoPool;      // 推广池接收地址
         address insuranceFund;  // 保险基金接收地址
         address treasury;       // 财库接收地址
+        bool deployV2;          // 是否部署 V2 架构
         bool deployV3;          // 是否部署 V3 架构
     }
 
@@ -161,15 +166,17 @@ contract Deploy is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         console.log("\n========================================");
-        console.log("  PitchOne System Deployment (V2 + V3)");
+        console.log("  PitchOne System Deployment");
         console.log("========================================");
         console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);
         console.log("Balance:", deployer.balance / 1 ether, "ETH");
-        console.log("\n");
 
         // 获取部署配置
         DeployConfig memory config = getDeployConfig(deployer);
+        console.log("Deploy V2:", config.deployV2 ? "Yes" : "No");
+        console.log("Deploy V3:", config.deployV3 ? "Yes" : "No");
+        console.log("\n");
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -196,9 +203,67 @@ contract Deploy is Script {
         uint256 usdcUnit = 10 ** usdcDecimals;
 
         // ========================================
-        // 2. 部署流动性基础设施
+        // 2. 部署 V2 架构（如果启用）
         // ========================================
-        console.log("\nStep 2: Deploy Liquidity Infrastructure");
+        if (config.deployV2) {
+            _deployV2(deployed, config, usdc, deployer);
+        }
+
+        // ========================================
+        // 3. 部署 V3 架构（如果启用）
+        // ========================================
+        if (config.deployV3) {
+            _deployV3(deployed, config, usdc, deployer);
+        }
+
+        // ========================================
+        // 4. 初始化 LP（仅测试网）
+        // ========================================
+        if (config.usdc == address(0) && config.initialLpAmount > 0) {
+            console.log("\nStep: Initialize LP (Testnet Only)");
+            console.log("----------------------------------------");
+
+            MockERC20 mockUsdc = MockERC20(usdc);
+            mockUsdc.mint(deployer, config.initialLpAmount);
+            console.log("Minted USDC:", config.initialLpAmount / usdcUnit, "USDC");
+
+            if (config.deployV2 && deployed.v2.erc4626Provider != address(0)) {
+                IERC20(usdc).approve(deployed.v2.erc4626Provider, config.initialLpAmount);
+                ERC4626LiquidityProvider(deployed.v2.erc4626Provider).deposit(config.initialLpAmount, deployer);
+                console.log("Deposited to ERC4626Provider:", config.initialLpAmount / usdcUnit, "USDC");
+            }
+        }
+
+        vm.stopBroadcast();
+
+        // ========================================
+        // 5. 输出部署摘要
+        // ========================================
+        _printDeploySummary(deployed, config, usdcUnit);
+
+        // ========================================
+        // 6. 生成部署配置文件 (JSON)
+        // ========================================
+        _writeDeploymentJson(deployer, deployed, config);
+
+        return deployed;
+    }
+
+    // ========================================
+    // V2 部署逻辑（独立函数，便于后续删除）
+    // ========================================
+    function _deployV2(
+        DeployedContracts memory deployed,
+        DeployConfig memory config,
+        address usdc,
+        address deployer
+    ) internal {
+        console.log("\n========================================");
+        console.log("  V2 Architecture Deployment");
+        console.log("========================================");
+
+        // 2.1 部署流动性基础设施
+        console.log("\nStep 2.1: Deploy V2 Liquidity Infrastructure");
         console.log("----------------------------------------");
 
         LiquidityProviderFactory providerFactory = new LiquidityProviderFactory();
@@ -239,10 +304,8 @@ contract Deploy is Script {
         deployed.v2.parimutuel = address(parimutuel);
         console.log("ParimutuelPricing:", address(parimutuel));
 
-        // ========================================
-        // 3. 部署核心基础设施
-        // ========================================
-        console.log("\nStep 3: Deploy Core Infrastructure");
+        // 2.2 部署核心基础设施
+        console.log("\nStep 2.2: Deploy V2 Core Infrastructure");
         console.log("----------------------------------------");
 
         ReferralRegistry referralRegistry = new ReferralRegistry(deployer);
@@ -269,10 +332,8 @@ contract Deploy is Script {
         deployed.v2.paramController = address(paramController);
         console.log("ParamController:", address(paramController));
 
-        // ========================================
-        // 4. 部署 V2 市场工厂和模板
-        // ========================================
-        console.log("\nStep 4: Deploy V2 MarketFactory & Templates");
+        // 2.3 部署 V2 市场工厂和模板
+        console.log("\nStep 2.3: Deploy V2 MarketFactory & Templates");
         console.log("----------------------------------------");
 
         MarketFactory_v2 factoryV2 = new MarketFactory_v2();
@@ -315,254 +376,297 @@ contract Deploy is Script {
         deployed.v2.playerPropsTemplate = address(playerPropsTemplate);
         console.log("PlayerProps_Template_V2:", address(playerPropsTemplate));
 
-        // ========================================
-        // 5. 部署 V3 架构（如果启用）
-        // ========================================
-        if (config.deployV3) {
-            console.log("\nStep 5: Deploy V3 Architecture");
+        console.log("\n  V2 Architecture deployed successfully!");
+    }
+
+    // ========================================
+    // V3 部署逻辑（独立函数）
+    // ========================================
+    function _deployV3(
+        DeployedContracts memory deployed,
+        DeployConfig memory config,
+        address usdc,
+        address deployer
+    ) internal {
+        console.log("\n========================================");
+        console.log("  V3 Architecture Deployment");
+        console.log("========================================");
+
+        // 如果没有部署 V2，需要先部署共享基础设施
+        address feeRouterAddr = deployed.v2.feeRouter;
+        if (feeRouterAddr == address(0)) {
+            console.log("\nStep 3.0: Deploy Shared Infrastructure (V3 standalone)");
             console.log("----------------------------------------");
 
-            // 5.1 部署 Market_V3 实现合约
-            Market_V3 marketImpl = new Market_V3();
-            deployed.v3.marketImplementation = address(marketImpl);
-            console.log("Market_V3 Implementation:", address(marketImpl));
-
-            // 5.2 部署定价策略
-            console.log("\n  5.2 Deploy Pricing Strategies:");
-            CPMMStrategy cpmmStrategy = new CPMMStrategy();
-            deployed.v3.cpmmStrategy = address(cpmmStrategy);
-            console.log("    CPMMStrategy:", address(cpmmStrategy));
-
-            LMSRStrategy lmsrStrategy = new LMSRStrategy();
-            deployed.v3.lmsrStrategy = address(lmsrStrategy);
-            console.log("    LMSRStrategy:", address(lmsrStrategy));
-
-            ParimutuelStrategy parimutuelStrategy = new ParimutuelStrategy();
-            deployed.v3.parimutuelStrategy = address(parimutuelStrategy);
-            console.log("    ParimutuelStrategy:", address(parimutuelStrategy));
-
-            // 5.3 部署赛果映射器
-            console.log("\n  5.3 Deploy Result Mappers:");
-            WDL_Mapper wdlMapper = new WDL_Mapper();
-            deployed.v3.wdlMapper = address(wdlMapper);
-            console.log("    WDL_Mapper:", address(wdlMapper));
-
-            OU_Mapper ouMapper = new OU_Mapper(2500); // 默认 2.5 球盘口（精度 1000）
-            deployed.v3.ouMapper = address(ouMapper);
-            console.log("    OU_Mapper (line=2.5):", address(ouMapper));
-
-            AH_Mapper ahMapper = new AH_Mapper(-500); // 默认 -0.5 让球（精度 1000）
-            deployed.v3.ahMapper = address(ahMapper);
-            console.log("    AH_Mapper (handicap=-0.5):", address(ahMapper));
-
-            OddEven_Mapper oddEvenMapper = new OddEven_Mapper();
-            deployed.v3.oddEvenMapper = address(oddEvenMapper);
-            console.log("    OddEven_Mapper:", address(oddEvenMapper));
-
-            Score_Mapper scoreMapper = new Score_Mapper(5); // 最大 5 球
-            deployed.v3.scoreMapper = address(scoreMapper);
-            console.log("    Score_Mapper (maxGoals=5):", address(scoreMapper));
-
-            // 5.4 部署 MarketFactory_V4
-            MarketFactory_V4 factoryV4 = new MarketFactory_V4(
-                address(marketImpl),
-                usdc,
-                deployer
+            // 部署 ERC4626 Provider 用于 FeeRouter
+            ERC4626LiquidityProvider erc4626Provider = new ERC4626LiquidityProvider(
+                IERC20(usdc),
+                "PitchOne Liquidity V3",
+                "pLP-v3"
             );
-            deployed.v3.factoryV4 = address(factoryV4);
-            console.log("\n  MarketFactory_V4:", address(factoryV4));
+            deployed.v2.erc4626Provider = address(erc4626Provider);
+            console.log("ERC4626LiquidityProvider:", address(erc4626Provider));
 
-            // 5.5 部署 BettingRouter_V2
-            BettingRouter_V2 bettingRouterV2 = new BettingRouter_V2(
-                address(factoryV4),
-                usdc,
-                address(feeRouter),
-                200 // 2% 基础费率
+            ReferralRegistry referralRegistry = new ReferralRegistry(deployer);
+            deployed.v2.referralRegistry = address(referralRegistry);
+            console.log("ReferralRegistry:", address(referralRegistry));
+
+            FeeRouter feeRouter = new FeeRouter(
+                FeeRouter.FeeRecipients({
+                    lpVault: config.lpVault != address(0) ? config.lpVault : address(erc4626Provider),
+                    promoPool: config.promoPool != address(0) ? config.promoPool : deployer,
+                    insuranceFund: config.insuranceFund != address(0) ? config.insuranceFund : deployer,
+                    treasury: config.treasury != address(0) ? config.treasury : deployer
+                }),
+                address(referralRegistry)
             );
-            deployed.v3.bettingRouterV2 = address(bettingRouterV2);
-            console.log("  BettingRouter_V2:", address(bettingRouterV2));
+            deployed.v2.feeRouter = address(feeRouter);
+            feeRouterAddr = address(feeRouter);
+            console.log("FeeRouter:", address(feeRouter));
 
-            // 5.6 配置 Factory V4
-            factoryV4.setRouter(address(bettingRouterV2));
-            factoryV4.setKeeper(deployer); // 测试环境使用 deployer
-            factoryV4.setOracle(deployer); // 测试环境使用 deployer
-            console.log("  Factory V4 configured");
+            referralRegistry.setAuthorizedCaller(address(feeRouter), true);
 
-            // 5.7 注册定价策略
-            factoryV4.registerStrategy("CPMM", address(cpmmStrategy));
-            factoryV4.registerStrategy("LMSR", address(lmsrStrategy));
-            factoryV4.registerStrategy("PARIMUTUEL", address(parimutuelStrategy));
-            console.log("  Registered 3 pricing strategies");
+            uint256 timelockDelay = block.chainid == 31337 ? 1 hours : 2 days;
+            ParamController paramController = new ParamController(deployer, timelockDelay);
+            deployed.v2.paramController = address(paramController);
+            console.log("ParamController:", address(paramController));
+        }
 
-            // 5.8 注册映射器
-            factoryV4.registerMapper(address(wdlMapper));
-            factoryV4.registerMapper(address(ouMapper));
-            factoryV4.registerMapper(address(ahMapper));
-            factoryV4.registerMapper(address(oddEvenMapper));
-            factoryV4.registerMapper(address(scoreMapper));
-            console.log("  Registered 5 result mappers");
+        // 3.1 部署 Market_V3 实现合约
+        console.log("\nStep 3.1: Deploy Market_V3 Implementation");
+        console.log("----------------------------------------");
 
-            // 5.9 注册 V3 市场模板
-            console.log("\n  5.9 Register V3 Market Templates:");
+        Market_V3 marketImpl = new Market_V3();
+        deployed.v3.marketImplementation = address(marketImpl);
+        console.log("Market_V3 Implementation:", address(marketImpl));
 
-            // WDL 模板（使用 CPMM，3 个结果）
-            IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
-            wdlOutcomes[0] = IMarket_V3.OutcomeRule({
-                name: "Home Win",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-            wdlOutcomes[1] = IMarket_V3.OutcomeRule({
-                name: "Draw",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-            wdlOutcomes[2] = IMarket_V3.OutcomeRule({
-                name: "Away Win",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
+        // 3.2 部署定价策略
+        console.log("\nStep 3.2: Deploy Pricing Strategies");
+        console.log("----------------------------------------");
 
-            bytes32 wdlTemplateIdV3 = keccak256("WDL_V3");
-            factoryV4.registerTemplate(
-                wdlTemplateIdV3,
-                "WDL",
-                "CPMM",
-                address(cpmmStrategy),
-                address(wdlMapper),
-                wdlOutcomes,
-                100_000 * 10**6 // 100k USDC 初始流动性
-            );
-            deployed.v3.wdlTemplateId = wdlTemplateIdV3;
-            console.log("    WDL Template ID:", vm.toString(wdlTemplateIdV3));
+        CPMMStrategy cpmmStrategy = new CPMMStrategy();
+        deployed.v3.cpmmStrategy = address(cpmmStrategy);
+        console.log("CPMMStrategy:", address(cpmmStrategy));
 
-            // OU 模板（使用 CPMM，2 个结果）
-            IMarket_V3.OutcomeRule[] memory ouOutcomes = new IMarket_V3.OutcomeRule[](2);
-            ouOutcomes[0] = IMarket_V3.OutcomeRule({
-                name: "Over",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-            ouOutcomes[1] = IMarket_V3.OutcomeRule({
-                name: "Under",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
+        LMSRStrategy lmsrStrategy = new LMSRStrategy();
+        deployed.v3.lmsrStrategy = address(lmsrStrategy);
+        console.log("LMSRStrategy:", address(lmsrStrategy));
 
-            bytes32 ouTemplateIdV3 = keccak256("OU_V3");
-            factoryV4.registerTemplate(
-                ouTemplateIdV3,
-                "OU",
-                "CPMM",
-                address(cpmmStrategy),
-                address(ouMapper),
-                ouOutcomes,
-                100_000 * 10**6
-            );
-            deployed.v3.ouTemplateId = ouTemplateIdV3;
-            console.log("    OU Template ID:", vm.toString(ouTemplateIdV3));
+        ParimutuelStrategy parimutuelStrategy = new ParimutuelStrategy();
+        deployed.v3.parimutuelStrategy = address(parimutuelStrategy);
+        console.log("ParimutuelStrategy:", address(parimutuelStrategy));
 
-            // AH 模板（使用 CPMM，2 个结果）
-            IMarket_V3.OutcomeRule[] memory ahOutcomes = new IMarket_V3.OutcomeRule[](2);
-            ahOutcomes[0] = IMarket_V3.OutcomeRule({
-                name: "Home -0.5",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-            ahOutcomes[1] = IMarket_V3.OutcomeRule({
-                name: "Away +0.5",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
+        // 3.3 部署赛果映射器
+        console.log("\nStep 3.3: Deploy Result Mappers");
+        console.log("----------------------------------------");
 
-            bytes32 ahTemplateIdV3 = keccak256("AH_V3");
-            factoryV4.registerTemplate(
-                ahTemplateIdV3,
-                "AH",
-                "CPMM",
-                address(cpmmStrategy),
-                address(ahMapper),
-                ahOutcomes,
-                100_000 * 10**6
-            );
-            deployed.v3.ahTemplateId = ahTemplateIdV3;
-            console.log("    AH Template ID:", vm.toString(ahTemplateIdV3));
+        WDL_Mapper wdlMapper = new WDL_Mapper();
+        deployed.v3.wdlMapper = address(wdlMapper);
+        console.log("WDL_Mapper:", address(wdlMapper));
 
-            // OddEven 模板（使用 CPMM，2 个结果）
-            IMarket_V3.OutcomeRule[] memory oddEvenOutcomes = new IMarket_V3.OutcomeRule[](2);
-            oddEvenOutcomes[0] = IMarket_V3.OutcomeRule({
-                name: "Odd",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-            oddEvenOutcomes[1] = IMarket_V3.OutcomeRule({
-                name: "Even",
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
+        OU_Mapper ouMapper = new OU_Mapper(2500); // 默认 2.5 球盘口（精度 1000）
+        deployed.v3.ouMapper = address(ouMapper);
+        console.log("OU_Mapper (line=2.5):", address(ouMapper));
 
-            bytes32 oddEvenTemplateIdV3 = keccak256("OddEven_V3");
-            factoryV4.registerTemplate(
-                oddEvenTemplateIdV3,
-                "OddEven",
-                "CPMM",
-                address(cpmmStrategy),
-                address(oddEvenMapper),
-                oddEvenOutcomes,
-                100_000 * 10**6
-            );
-            deployed.v3.oddEvenTemplateId = oddEvenTemplateIdV3;
-            console.log("    OddEven Template ID:", vm.toString(oddEvenTemplateIdV3));
+        AH_Mapper ahMapper = new AH_Mapper(-500); // 默认 -0.5 让球（精度 1000）
+        deployed.v3.ahMapper = address(ahMapper);
+        console.log("AH_Mapper (handicap=-0.5):", address(ahMapper));
 
-            // Score 模板（使用 LMSR，36 个结果：0-5 x 0-5）
-            IMarket_V3.OutcomeRule[] memory scoreOutcomes = new IMarket_V3.OutcomeRule[](36);
-            uint256 idx = 0;
-            for (uint256 h = 0; h <= 5; h++) {
-                for (uint256 a = 0; a <= 5; a++) {
-                    scoreOutcomes[idx] = IMarket_V3.OutcomeRule({
-                        name: string(abi.encodePacked(vm.toString(h), "-", vm.toString(a))),
-                        payoutType: IPricingStrategy.PayoutType.WINNER
-                    });
-                    idx++;
-                }
+        OddEven_Mapper oddEvenMapper = new OddEven_Mapper();
+        deployed.v3.oddEvenMapper = address(oddEvenMapper);
+        console.log("OddEven_Mapper:", address(oddEvenMapper));
+
+        Score_Mapper scoreMapper = new Score_Mapper(5); // 最大 5 球
+        deployed.v3.scoreMapper = address(scoreMapper);
+        console.log("Score_Mapper (maxGoals=5):", address(scoreMapper));
+
+        // 3.4 部署 MarketFactory_V4
+        console.log("\nStep 3.4: Deploy MarketFactory_V4");
+        console.log("----------------------------------------");
+
+        MarketFactory_V4 factoryV4 = new MarketFactory_V4(
+            address(marketImpl),
+            usdc,
+            deployer
+        );
+        deployed.v3.factoryV4 = address(factoryV4);
+        console.log("MarketFactory_V4:", address(factoryV4));
+
+        // 3.5 部署 BettingRouter_V2
+        BettingRouter_V2 bettingRouterV2 = new BettingRouter_V2(
+            address(factoryV4),
+            usdc,
+            feeRouterAddr,
+            200 // 2% 基础费率
+        );
+        deployed.v3.bettingRouterV2 = address(bettingRouterV2);
+        console.log("BettingRouter_V2:", address(bettingRouterV2));
+
+        // 3.6 配置 Factory V4
+        factoryV4.setRouter(address(bettingRouterV2));
+        factoryV4.setKeeper(deployer); // 测试环境使用 deployer
+        factoryV4.setOracle(deployer); // 测试环境使用 deployer
+        console.log("Factory V4 configured");
+
+        // 3.7 注册定价策略
+        factoryV4.registerStrategy("CPMM", address(cpmmStrategy));
+        factoryV4.registerStrategy("LMSR", address(lmsrStrategy));
+        factoryV4.registerStrategy("PARIMUTUEL", address(parimutuelStrategy));
+        console.log("Registered 3 pricing strategies");
+
+        // 3.8 注册映射器
+        factoryV4.registerMapper(address(wdlMapper));
+        factoryV4.registerMapper(address(ouMapper));
+        factoryV4.registerMapper(address(ahMapper));
+        factoryV4.registerMapper(address(oddEvenMapper));
+        factoryV4.registerMapper(address(scoreMapper));
+        console.log("Registered 5 result mappers");
+
+        // 3.9 注册 V3 市场模板
+        console.log("\nStep 3.9: Register V3 Market Templates");
+        console.log("----------------------------------------");
+
+        _registerV3Templates(deployed, factoryV4, cpmmStrategy, lmsrStrategy, wdlMapper, ouMapper, ahMapper, oddEvenMapper, scoreMapper);
+
+        console.log("\n  V3 Architecture deployed successfully!");
+    }
+
+    function _registerV3Templates(
+        DeployedContracts memory deployed,
+        MarketFactory_V4 factoryV4,
+        CPMMStrategy cpmmStrategy,
+        LMSRStrategy lmsrStrategy,
+        WDL_Mapper wdlMapper,
+        OU_Mapper ouMapper,
+        AH_Mapper ahMapper,
+        OddEven_Mapper oddEvenMapper,
+        Score_Mapper scoreMapper
+    ) internal {
+        // WDL 模板（使用 CPMM，3 个结果）
+        IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
+        wdlOutcomes[0] = IMarket_V3.OutcomeRule({
+            name: "Home Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        wdlOutcomes[1] = IMarket_V3.OutcomeRule({
+            name: "Draw",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        wdlOutcomes[2] = IMarket_V3.OutcomeRule({
+            name: "Away Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        bytes32 wdlTemplateIdV3 = keccak256("WDL_V3");
+        factoryV4.registerTemplate(
+            wdlTemplateIdV3,
+            "WDL",
+            "CPMM",
+            address(cpmmStrategy),
+            address(wdlMapper),
+            wdlOutcomes,
+            100_000 * 10**6 // 100k USDC 初始流动性
+        );
+        deployed.v3.wdlTemplateId = wdlTemplateIdV3;
+        console.log("WDL Template ID:", vm.toString(wdlTemplateIdV3));
+
+        // OU 模板（使用 CPMM，2 个结果）
+        IMarket_V3.OutcomeRule[] memory ouOutcomes = new IMarket_V3.OutcomeRule[](2);
+        ouOutcomes[0] = IMarket_V3.OutcomeRule({
+            name: "Over",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        ouOutcomes[1] = IMarket_V3.OutcomeRule({
+            name: "Under",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        bytes32 ouTemplateIdV3 = keccak256("OU_V3");
+        factoryV4.registerTemplate(
+            ouTemplateIdV3,
+            "OU",
+            "CPMM",
+            address(cpmmStrategy),
+            address(ouMapper),
+            ouOutcomes,
+            100_000 * 10**6
+        );
+        deployed.v3.ouTemplateId = ouTemplateIdV3;
+        console.log("OU Template ID:", vm.toString(ouTemplateIdV3));
+
+        // AH 模板（使用 CPMM，2 个结果）
+        IMarket_V3.OutcomeRule[] memory ahOutcomes = new IMarket_V3.OutcomeRule[](2);
+        ahOutcomes[0] = IMarket_V3.OutcomeRule({
+            name: "Home -0.5",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        ahOutcomes[1] = IMarket_V3.OutcomeRule({
+            name: "Away +0.5",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        bytes32 ahTemplateIdV3 = keccak256("AH_V3");
+        factoryV4.registerTemplate(
+            ahTemplateIdV3,
+            "AH",
+            "CPMM",
+            address(cpmmStrategy),
+            address(ahMapper),
+            ahOutcomes,
+            100_000 * 10**6
+        );
+        deployed.v3.ahTemplateId = ahTemplateIdV3;
+        console.log("AH Template ID:", vm.toString(ahTemplateIdV3));
+
+        // OddEven 模板（使用 CPMM，2 个结果）
+        IMarket_V3.OutcomeRule[] memory oddEvenOutcomes = new IMarket_V3.OutcomeRule[](2);
+        oddEvenOutcomes[0] = IMarket_V3.OutcomeRule({
+            name: "Odd",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        oddEvenOutcomes[1] = IMarket_V3.OutcomeRule({
+            name: "Even",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        bytes32 oddEvenTemplateIdV3 = keccak256("OddEven_V3");
+        factoryV4.registerTemplate(
+            oddEvenTemplateIdV3,
+            "OddEven",
+            "CPMM",
+            address(cpmmStrategy),
+            address(oddEvenMapper),
+            oddEvenOutcomes,
+            100_000 * 10**6
+        );
+        deployed.v3.oddEvenTemplateId = oddEvenTemplateIdV3;
+        console.log("OddEven Template ID:", vm.toString(oddEvenTemplateIdV3));
+
+        // Score 模板（使用 LMSR，36 个结果：0-5 x 0-5）
+        IMarket_V3.OutcomeRule[] memory scoreOutcomes = new IMarket_V3.OutcomeRule[](36);
+        uint256 idx = 0;
+        for (uint256 h = 0; h <= 5; h++) {
+            for (uint256 a = 0; a <= 5; a++) {
+                scoreOutcomes[idx] = IMarket_V3.OutcomeRule({
+                    name: string(abi.encodePacked(vm.toString(h), "-", vm.toString(a))),
+                    payoutType: IPricingStrategy.PayoutType.WINNER
+                });
+                idx++;
             }
-
-            bytes32 scoreTemplateIdV3 = keccak256("Score_V3");
-            factoryV4.registerTemplate(
-                scoreTemplateIdV3,
-                "Score",
-                "LMSR",
-                address(lmsrStrategy),
-                address(scoreMapper),
-                scoreOutcomes,
-                50_000 * 10**6 // LMSR 需要较少初始流动性
-            );
-            deployed.v3.scoreTemplateId = scoreTemplateIdV3;
-            console.log("    Score Template ID:", vm.toString(scoreTemplateIdV3));
-
-            console.log("\n  V3 Architecture deployed successfully!");
         }
 
-        // ========================================
-        // 6. 初始化 LP（仅测试网）
-        // ========================================
-        if (config.usdc == address(0) && config.initialLpAmount > 0) {
-            console.log("\nStep 6: Initialize LP (Testnet Only)");
-            console.log("----------------------------------------");
-
-            MockERC20 mockUsdc = MockERC20(usdc);
-            mockUsdc.mint(deployer, config.initialLpAmount);
-            console.log("Minted USDC:", config.initialLpAmount / usdcUnit, "USDC");
-
-            IERC20(usdc).approve(address(erc4626Provider), config.initialLpAmount);
-            erc4626Provider.deposit(config.initialLpAmount, deployer);
-            console.log("Deposited to ERC4626Provider:", config.initialLpAmount / usdcUnit, "USDC");
-        }
-
-        vm.stopBroadcast();
-
-        // ========================================
-        // 7. 输出部署摘要
-        // ========================================
-        _printDeploySummary(deployed, config, usdcUnit);
-
-        // ========================================
-        // 8. 生成部署配置文件 (JSON)
-        // ========================================
-        _writeDeploymentJson(deployer, deployed, config.deployV3);
-
-        return deployed;
+        bytes32 scoreTemplateIdV3 = keccak256("Score_V3");
+        factoryV4.registerTemplate(
+            scoreTemplateIdV3,
+            "Score",
+            "LMSR",
+            address(lmsrStrategy),
+            address(scoreMapper),
+            scoreOutcomes,
+            50_000 * 10**6 // LMSR 需要较少初始流动性
+        );
+        deployed.v3.scoreTemplateId = scoreTemplateIdV3;
+        console.log("Score Template ID:", vm.toString(scoreTemplateIdV3));
     }
 
     /**
@@ -580,6 +684,7 @@ contract Deploy is Script {
             initialLpAmount = vm.envOr("INITIAL_LP_AMOUNT", uint256(1_000_000 * (10 ** decimals)));
         }
 
+        bool deployV2 = vm.envOr("DEPLOY_V2", true);
         bool deployV3 = vm.envOr("DEPLOY_V3", true);
 
         return DeployConfig({
@@ -589,6 +694,7 @@ contract Deploy is Script {
             promoPool: vm.envOr("PROMO_POOL_ADDRESS", address(0)),
             insuranceFund: vm.envOr("INSURANCE_FUND_ADDRESS", address(0)),
             treasury: vm.envOr("TREASURY_ADDRESS", address(0)),
+            deployV2: deployV2,
             deployV3: deployV3
         });
     }
@@ -612,27 +718,31 @@ contract Deploy is Script {
         console.log("  Deployment Summary");
         console.log("========================================");
 
-        console.log("\n--- V2 Contracts ---");
-        console.log("Core:");
+        console.log("\n--- Shared Contracts ---");
         console.log("  USDC:", deployed.v2.usdc);
-        console.log("  MarketFactory_v2:", deployed.v2.factory);
-        console.log("  BettingRouter (V1):", deployed.v2.bettingRouter);
         console.log("  FeeRouter:", deployed.v2.feeRouter);
         console.log("  ReferralRegistry:", deployed.v2.referralRegistry);
         console.log("  ParamController:", deployed.v2.paramController);
-
-        console.log("\nLiquidity:");
-        console.log("  LiquidityProviderFactory:", deployed.v2.providerFactory);
         console.log("  ERC4626LiquidityProvider:", deployed.v2.erc4626Provider);
-        console.log("  ParimutuelLiquidityProvider:", deployed.v2.parimutuelProvider);
 
-        console.log("\nV2 Templates:");
-        console.log("  WDL_Template_V2:", deployed.v2.wdlTemplate);
-        console.log("  OU_Template_V2:", deployed.v2.ouTemplate);
-        console.log("  OU_MultiLine_V2:", deployed.v2.ouMultiLineTemplate);
-        console.log("  AH_Template_V2:", deployed.v2.ahTemplate);
-        console.log("  OddEven_Template_V2:", deployed.v2.oddEvenTemplate);
-        console.log("  PlayerProps_Template_V2:", deployed.v2.playerPropsTemplate);
+        if (config.deployV2) {
+            console.log("\n--- V2 Contracts ---");
+            console.log("Core:");
+            console.log("  MarketFactory_v2:", deployed.v2.factory);
+            console.log("  BettingRouter (V1):", deployed.v2.bettingRouter);
+
+            console.log("\nLiquidity:");
+            console.log("  LiquidityProviderFactory:", deployed.v2.providerFactory);
+            console.log("  ParimutuelLiquidityProvider:", deployed.v2.parimutuelProvider);
+
+            console.log("\nV2 Templates:");
+            console.log("  WDL_Template_V2:", deployed.v2.wdlTemplate);
+            console.log("  OU_Template_V2:", deployed.v2.ouTemplate);
+            console.log("  OU_MultiLine_V2:", deployed.v2.ouMultiLineTemplate);
+            console.log("  AH_Template_V2:", deployed.v2.ahTemplate);
+            console.log("  OddEven_Template_V2:", deployed.v2.oddEvenTemplate);
+            console.log("  PlayerProps_Template_V2:", deployed.v2.playerPropsTemplate);
+        }
 
         if (config.deployV3) {
             console.log("\n--- V3 Contracts ---");
@@ -665,7 +775,9 @@ contract Deploy is Script {
         console.log("  Next Steps");
         console.log("========================================");
         console.log("1. Update subgraph/subgraph.yaml with:");
-        console.log("   - V2 Factory:", deployed.v2.factory);
+        if (config.deployV2) {
+            console.log("   - V2 Factory:", deployed.v2.factory);
+        }
         console.log("   - FeeRouter:", deployed.v2.feeRouter);
         if (config.deployV3) {
             console.log("   - V4 Factory:", deployed.v3.factoryV4);
@@ -681,7 +793,7 @@ contract Deploy is Script {
     function _writeDeploymentJson(
         address deployer,
         DeployedContracts memory deployed,
-        bool hasV3
+        DeployConfig memory config
     ) internal {
         string memory networkName;
         if (block.chainid == 31337) {
@@ -698,47 +810,53 @@ contract Deploy is Script {
             networkName = vm.toString(block.chainid);
         }
 
-        // 构建 v2.contracts 对象
-        string memory v2Contracts = "v2Contracts";
-        vm.serializeAddress(v2Contracts, "usdc", deployed.v2.usdc);
-        vm.serializeAddress(v2Contracts, "factory", deployed.v2.factory);
-        vm.serializeAddress(v2Contracts, "feeRouter", deployed.v2.feeRouter);
-        vm.serializeAddress(v2Contracts, "providerFactory", deployed.v2.providerFactory);
-        vm.serializeAddress(v2Contracts, "erc4626Provider", deployed.v2.erc4626Provider);
-        vm.serializeAddress(v2Contracts, "parimutuelProvider", deployed.v2.parimutuelProvider);
-        vm.serializeAddress(v2Contracts, "referralRegistry", deployed.v2.referralRegistry);
-        vm.serializeAddress(v2Contracts, "bettingRouter", deployed.v2.bettingRouter);
-        vm.serializeAddress(v2Contracts, "vault", deployed.v2.vault);
-        vm.serializeAddress(v2Contracts, "cpmm", deployed.v2.cpmm);
-        vm.serializeAddress(v2Contracts, "parimutuel", deployed.v2.parimutuel);
-        string memory v2ContractsJson = vm.serializeAddress(v2Contracts, "paramController", deployed.v2.paramController);
+        // 构建 shared 对象（共享基础设施）
+        string memory shared = "shared";
+        vm.serializeAddress(shared, "usdc", deployed.v2.usdc);
+        vm.serializeAddress(shared, "feeRouter", deployed.v2.feeRouter);
+        vm.serializeAddress(shared, "referralRegistry", deployed.v2.referralRegistry);
+        vm.serializeAddress(shared, "paramController", deployed.v2.paramController);
+        string memory sharedJson = vm.serializeAddress(shared, "erc4626Provider", deployed.v2.erc4626Provider);
 
-        // 构建 v2.templates 对象
-        string memory v2Templates = "v2Templates";
-        vm.serializeAddress(v2Templates, "wdl", deployed.v2.wdlTemplate);
-        vm.serializeAddress(v2Templates, "ou", deployed.v2.ouTemplate);
-        vm.serializeAddress(v2Templates, "ouMultiLine", deployed.v2.ouMultiLineTemplate);
-        vm.serializeAddress(v2Templates, "ah", deployed.v2.ahTemplate);
-        vm.serializeAddress(v2Templates, "oddEven", deployed.v2.oddEvenTemplate);
-        string memory v2TemplatesJson = vm.serializeAddress(v2Templates, "playerProps", deployed.v2.playerPropsTemplate);
+        string memory v2Json = "";
+        if (config.deployV2) {
+            // 构建 v2.contracts 对象
+            string memory v2Contracts = "v2Contracts";
+            vm.serializeAddress(v2Contracts, "factory", deployed.v2.factory);
+            vm.serializeAddress(v2Contracts, "providerFactory", deployed.v2.providerFactory);
+            vm.serializeAddress(v2Contracts, "parimutuelProvider", deployed.v2.parimutuelProvider);
+            vm.serializeAddress(v2Contracts, "bettingRouter", deployed.v2.bettingRouter);
+            vm.serializeAddress(v2Contracts, "vault", deployed.v2.vault);
+            vm.serializeAddress(v2Contracts, "cpmm", deployed.v2.cpmm);
+            string memory v2ContractsJson = vm.serializeAddress(v2Contracts, "parimutuel", deployed.v2.parimutuel);
 
-        // 构建 v2.templateIds 对象
-        string memory v2TemplateIds = "v2TemplateIds";
-        vm.serializeBytes32(v2TemplateIds, "wdl", deployed.v2.wdlTemplateId);
-        vm.serializeBytes32(v2TemplateIds, "ou", deployed.v2.ouTemplateId);
-        vm.serializeBytes32(v2TemplateIds, "ouMultiLine", deployed.v2.ouMultiLineTemplateId);
-        vm.serializeBytes32(v2TemplateIds, "ah", deployed.v2.ahTemplateId);
-        vm.serializeBytes32(v2TemplateIds, "oddEven", deployed.v2.oddEvenTemplateId);
-        string memory v2TemplateIdsJson = vm.serializeBytes32(v2TemplateIds, "playerProps", deployed.v2.playerPropsTemplateId);
+            // 构建 v2.templates 对象
+            string memory v2Templates = "v2Templates";
+            vm.serializeAddress(v2Templates, "wdl", deployed.v2.wdlTemplate);
+            vm.serializeAddress(v2Templates, "ou", deployed.v2.ouTemplate);
+            vm.serializeAddress(v2Templates, "ouMultiLine", deployed.v2.ouMultiLineTemplate);
+            vm.serializeAddress(v2Templates, "ah", deployed.v2.ahTemplate);
+            vm.serializeAddress(v2Templates, "oddEven", deployed.v2.oddEvenTemplate);
+            string memory v2TemplatesJson = vm.serializeAddress(v2Templates, "playerProps", deployed.v2.playerPropsTemplate);
 
-        // 构建 v2 对象
-        string memory v2 = "v2";
-        vm.serializeString(v2, "contracts", v2ContractsJson);
-        vm.serializeString(v2, "templates", v2TemplatesJson);
-        string memory v2Json = vm.serializeString(v2, "templateIds", v2TemplateIdsJson);
+            // 构建 v2.templateIds 对象
+            string memory v2TemplateIds = "v2TemplateIds";
+            vm.serializeBytes32(v2TemplateIds, "wdl", deployed.v2.wdlTemplateId);
+            vm.serializeBytes32(v2TemplateIds, "ou", deployed.v2.ouTemplateId);
+            vm.serializeBytes32(v2TemplateIds, "ouMultiLine", deployed.v2.ouMultiLineTemplateId);
+            vm.serializeBytes32(v2TemplateIds, "ah", deployed.v2.ahTemplateId);
+            vm.serializeBytes32(v2TemplateIds, "oddEven", deployed.v2.oddEvenTemplateId);
+            string memory v2TemplateIdsJson = vm.serializeBytes32(v2TemplateIds, "playerProps", deployed.v2.playerPropsTemplateId);
+
+            // 构建 v2 对象
+            string memory v2 = "v2";
+            vm.serializeString(v2, "contracts", v2ContractsJson);
+            vm.serializeString(v2, "templates", v2TemplatesJson);
+            v2Json = vm.serializeString(v2, "templateIds", v2TemplateIdsJson);
+        }
 
         string memory v3Json = "";
-        if (hasV3) {
+        if (config.deployV3) {
             // 构建 v3.contracts 对象
             string memory v3Contracts = "v3Contracts";
             vm.serializeAddress(v3Contracts, "marketImplementation", deployed.v3.marketImplementation);
@@ -781,13 +899,18 @@ contract Deploy is Script {
         vm.serializeUint(root, "chainId", block.chainid);
         vm.serializeUint(root, "deployedAt", block.number);
         vm.serializeAddress(root, "deployer", deployer);
-        vm.serializeString(root, "v2", v2Json);
+        vm.serializeString(root, "shared", sharedJson);
 
         string memory finalJson;
-        if (hasV3) {
+        if (config.deployV2 && config.deployV3) {
+            vm.serializeString(root, "v2", v2Json);
+            finalJson = vm.serializeString(root, "v3", v3Json);
+        } else if (config.deployV2) {
+            finalJson = vm.serializeString(root, "v2", v2Json);
+        } else if (config.deployV3) {
             finalJson = vm.serializeString(root, "v3", v3Json);
         } else {
-            finalJson = vm.serializeString(root, "v2", v2Json);
+            finalJson = vm.serializeString(root, "shared", sharedJson);
         }
 
         string memory outputPath = string.concat("deployments/", networkName, ".json");

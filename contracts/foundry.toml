@@ -7,7 +7,7 @@ optimizer_runs = 50  # 最小化合约部署大小（针对 ScoreTemplate_V2）
 evm_version = 'cancun'
 via_ir = true
 fs_permissions = [
-    { access = "read", path = "./deployments" }
+    { access = "read-write", path = "./deployments" }
 ]
 
 remappings = [
