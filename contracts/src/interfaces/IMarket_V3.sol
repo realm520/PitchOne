@@ -54,6 +54,7 @@ interface IMarket_V3 {
         OutcomeRule[] outcomeRules;         // 各 outcome 的规则
         string uri;                         // ERC1155 元数据 URI
         address admin;                      // 管理员地址
+        address paramController;            // 参数控制器地址（可选）
     }
 
     /// @notice 结算结果

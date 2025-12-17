@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ReferralRegistry.sol";
+import "../interfaces/IParamController.sol";
+import "../governance/ParamKeys.sol";
 
 /**
  * @title FeeRouter
@@ -65,6 +67,12 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
 
     /// @notice 推荐注册表
     ReferralRegistry public referralRegistry;
+
+    /// @notice 参数控制器（可选，用于读取全局费用分成参数）
+    IParamController public paramController;
+
+    /// @notice 是否使用 ParamController 的实时参数
+    bool public useParamControllerForSplit;
 
     /// @notice 基点分母（100%）
     uint256 public constant BPS_DENOMINATOR = 10000;
@@ -140,6 +148,11 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
      * @notice 推荐注册表变更事件
      */
     event ReferralRegistryUpdated(address indexed newRegistry);
+
+    /**
+     * @notice ParamController 变更事件
+     */
+    event ParamControllerUpdated(address indexed newController, bool useForSplit);
 
     /**
      * @notice 批量处理完成事件
@@ -391,16 +404,20 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
      * @notice 分配费用到各池（精确分配,无舍入误差）
      * @dev 修复: Treasury获得剩余全部金额,确保 sum(分配金额) == amount
      *      验证: 添加断言检查分配总和
+     *      支持从 ParamController 实时读取分成比例
      */
     function _distributeFees(address token, uint256 amount) internal {
         if (amount == 0) return;
 
         IERC20 erc20 = IERC20(token);
 
+        // 获取有效的分成配置（可能来自 ParamController）
+        FeeSplit memory split = getEffectiveFeeSplit();
+
         // 1. 计算各池精确金额（向下取整）
-        uint256 lpAmount = (amount * feeSplit.lpBps) / BPS_DENOMINATOR;
-        uint256 promoAmount = (amount * feeSplit.promoBps) / BPS_DENOMINATOR;
-        uint256 insuranceAmount = (amount * feeSplit.insuranceBps) / BPS_DENOMINATOR;
+        uint256 lpAmount = (amount * split.lpBps) / BPS_DENOMINATOR;
+        uint256 promoAmount = (amount * split.promoBps) / BPS_DENOMINATOR;
+        uint256 insuranceAmount = (amount * split.insuranceBps) / BPS_DENOMINATOR;
 
         // 2. Treasury获得剩余全部金额（吸收所有舍入误差）
         uint256 treasuryAmount = amount - lpAmount - promoAmount - insuranceAmount;
@@ -474,9 +491,12 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
 
         uint256 remaining = amount - referralAmount;
 
-        lpAmount = (remaining * feeSplit.lpBps) / BPS_DENOMINATOR;
-        promoAmount = (remaining * feeSplit.promoBps) / BPS_DENOMINATOR;
-        insuranceAmount = (remaining * feeSplit.insuranceBps) / BPS_DENOMINATOR;
+        // 使用有效的分成配置
+        FeeSplit memory split = getEffectiveFeeSplit();
+
+        lpAmount = (remaining * split.lpBps) / BPS_DENOMINATOR;
+        promoAmount = (remaining * split.promoBps) / BPS_DENOMINATOR;
+        insuranceAmount = (remaining * split.insuranceBps) / BPS_DENOMINATOR;
         treasuryAmount = remaining - lpAmount - promoAmount - insuranceAmount;
     }
 
@@ -549,6 +569,59 @@ contract FeeRouter is Ownable, Pausable, ReentrancyGuard {
         if (_registry == address(0)) revert ZeroAddress("registry");
         referralRegistry = ReferralRegistry(_registry);
         emit ReferralRegistryUpdated(_registry);
+    }
+
+    /**
+     * @notice 设置参数控制器
+     * @param _paramController ParamController 地址
+     * @param _useForSplit 是否使用 ParamController 的实时分成参数
+     */
+    function setParamController(address _paramController, bool _useForSplit) external onlyOwner {
+        paramController = IParamController(_paramController);
+        useParamControllerForSplit = _useForSplit;
+        emit ParamControllerUpdated(_paramController, _useForSplit);
+    }
+
+    /**
+     * @notice 从 ParamController 同步费用分成配置
+     * @dev 一次性同步，适用于不想实时读取的场景
+     */
+    function syncFeeSplitFromParams() external onlyOwner {
+        require(address(paramController) != address(0), "FeeRouter: No param controller");
+
+        uint256 lpBps = paramController.tryGetParam(ParamKeys.FEE_LP_SHARE_BPS, feeSplit.lpBps);
+        uint256 promoBps = paramController.tryGetParam(ParamKeys.FEE_PROMO_SHARE_BPS, feeSplit.promoBps);
+        uint256 insuranceBps = paramController.tryGetParam(ParamKeys.FEE_INSURANCE_SHARE_BPS, feeSplit.insuranceBps);
+        uint256 treasuryBps = paramController.tryGetParam(ParamKeys.FEE_TREASURY_SHARE_BPS, feeSplit.treasuryBps);
+
+        uint256 total = lpBps + promoBps + insuranceBps + treasuryBps;
+        if (total != BPS_DENOMINATOR) {
+            revert InvalidFeeSplit(total);
+        }
+
+        feeSplit = FeeSplit({
+            lpBps: lpBps,
+            promoBps: promoBps,
+            insuranceBps: insuranceBps,
+            treasuryBps: treasuryBps
+        });
+
+        emit FeeSplitUpdated(lpBps, promoBps, insuranceBps, treasuryBps);
+    }
+
+    /**
+     * @notice 获取当前有效的费用分成配置
+     * @dev 如果启用了实时读取，返回 ParamController 中的值
+     */
+    function getEffectiveFeeSplit() public view returns (FeeSplit memory split) {
+        if (useParamControllerForSplit && address(paramController) != address(0)) {
+            split.lpBps = paramController.tryGetParam(ParamKeys.FEE_LP_SHARE_BPS, feeSplit.lpBps);
+            split.promoBps = paramController.tryGetParam(ParamKeys.FEE_PROMO_SHARE_BPS, feeSplit.promoBps);
+            split.insuranceBps = paramController.tryGetParam(ParamKeys.FEE_INSURANCE_SHARE_BPS, feeSplit.insuranceBps);
+            split.treasuryBps = paramController.tryGetParam(ParamKeys.FEE_TREASURY_SHARE_BPS, feeSplit.treasuryBps);
+        } else {
+            split = feeSplit;
+        }
     }
 
     /**

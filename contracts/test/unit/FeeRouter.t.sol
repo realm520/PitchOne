@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 import "../../src/core/FeeRouter.sol";
 import "../../src/core/ReferralRegistry.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "../../test/mocks/MockParamController.sol";
+import "../../src/governance/ParamKeys.sol";
 
 /**
  * @title Mock ERC20 Token for testing
@@ -612,5 +614,284 @@ contract FeeRouterTest is Test {
         uint256 total = usdc.balanceOf(lpVault) + usdc.balanceOf(promoPool) +
                         usdc.balanceOf(insuranceFund) + usdc.balanceOf(treasury);
         assertEq(total, amount);
+    }
+}
+
+/**
+ * @title FeeRouter ParamController 集成测试
+ */
+contract FeeRouter_ParamController_Test is Test {
+    FeeRouter public router;
+    ReferralRegistry public registry;
+    MockParamController public mockParamController;
+    MockERC20 public usdc;
+
+    address public owner = address(this);
+    address public lpVault = address(0x10);
+    address public promoPool = address(0x20);
+    address public insuranceFund = address(0x30);
+    address public treasury = address(0x40);
+    address public market = address(0x50);
+    address public alice = address(0x60);
+
+    function setUp() public {
+        usdc = new MockERC20();
+        registry = new ReferralRegistry(owner);
+
+        FeeRouter.FeeRecipients memory recipients = FeeRouter.FeeRecipients({
+            lpVault: lpVault,
+            promoPool: promoPool,
+            insuranceFund: insuranceFund,
+            treasury: treasury
+        });
+
+        router = new FeeRouter(recipients, address(registry));
+        registry.transferOwnership(address(router));
+
+        // 部署 MockParamController
+        mockParamController = new MockParamController();
+
+        // 设置 ParamController 参数（LP 50%, Promo 20%, Insurance 15%, Treasury 15%）
+        mockParamController.setParam(ParamKeys.FEE_LP_SHARE_BPS, 5000);
+        mockParamController.setParam(ParamKeys.FEE_PROMO_SHARE_BPS, 2000);
+        mockParamController.setParam(ParamKeys.FEE_INSURANCE_SHARE_BPS, 1500);
+        mockParamController.setParam(ParamKeys.FEE_TREASURY_SHARE_BPS, 1500);
+
+        usdc.mint(market, 1_000_000e6);
+    }
+
+    // ============================================================================
+    // setParamController Tests
+    // ============================================================================
+
+    function test_setParamController_Success() public {
+        router.setParamController(address(mockParamController), false);
+
+        assertEq(address(router.paramController()), address(mockParamController));
+        assertFalse(router.useParamControllerForSplit());
+    }
+
+    function test_setParamController_WithUseForSplit() public {
+        router.setParamController(address(mockParamController), true);
+
+        assertEq(address(router.paramController()), address(mockParamController));
+        assertTrue(router.useParamControllerForSplit());
+    }
+
+    function test_setParamController_EmitsEvent() public {
+        vm.expectEmit(true, true, true, true);
+        emit FeeRouter.ParamControllerUpdated(address(mockParamController), true);
+
+        router.setParamController(address(mockParamController), true);
+    }
+
+    function test_setParamController_RevertIf_NotOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", alice));
+        router.setParamController(address(mockParamController), true);
+    }
+
+    // ============================================================================
+    // syncFeeSplitFromParams Tests
+    // ============================================================================
+
+    function test_syncFeeSplitFromParams_Success() public {
+        router.setParamController(address(mockParamController), false);
+
+        router.syncFeeSplitFromParams();
+
+        (uint256 lpBps, uint256 promoBps, uint256 insuranceBps, uint256 treasuryBps) = router.feeSplit();
+        assertEq(lpBps, 5000);
+        assertEq(promoBps, 2000);
+        assertEq(insuranceBps, 1500);
+        assertEq(treasuryBps, 1500);
+    }
+
+    function test_syncFeeSplitFromParams_EmitsEvent() public {
+        router.setParamController(address(mockParamController), false);
+
+        vm.expectEmit(true, true, true, true);
+        emit FeeRouter.FeeSplitUpdated(5000, 2000, 1500, 1500);
+
+        router.syncFeeSplitFromParams();
+    }
+
+    function test_syncFeeSplitFromParams_RevertIf_NoParamController() public {
+        vm.expectRevert("FeeRouter: No param controller");
+        router.syncFeeSplitFromParams();
+    }
+
+    function test_syncFeeSplitFromParams_RevertIf_InvalidTotal() public {
+        router.setParamController(address(mockParamController), false);
+
+        // 设置总和不等于 10000 的分成
+        mockParamController.setParam(ParamKeys.FEE_LP_SHARE_BPS, 5000);
+        mockParamController.setParam(ParamKeys.FEE_PROMO_SHARE_BPS, 2000);
+        mockParamController.setParam(ParamKeys.FEE_INSURANCE_SHARE_BPS, 1500);
+        mockParamController.setParam(ParamKeys.FEE_TREASURY_SHARE_BPS, 1000); // 总和 9500
+
+        vm.expectRevert(abi.encodeWithSelector(FeeRouter.InvalidFeeSplit.selector, 9500));
+        router.syncFeeSplitFromParams();
+    }
+
+    function test_syncFeeSplitFromParams_RevertIf_NotOwner() public {
+        router.setParamController(address(mockParamController), false);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", alice));
+        router.syncFeeSplitFromParams();
+    }
+
+    // ============================================================================
+    // getEffectiveFeeSplit Tests
+    // ============================================================================
+
+    function test_getEffectiveFeeSplit_DefaultSplit() public view {
+        FeeRouter.FeeSplit memory split = router.getEffectiveFeeSplit();
+
+        // 默认分成 LP 40%, Promo 30%, Insurance 10%, Treasury 20%
+        assertEq(split.lpBps, 4000);
+        assertEq(split.promoBps, 3000);
+        assertEq(split.insuranceBps, 1000);
+        assertEq(split.treasuryBps, 2000);
+    }
+
+    function test_getEffectiveFeeSplit_UsesParamController() public {
+        router.setParamController(address(mockParamController), true);
+
+        FeeRouter.FeeSplit memory split = router.getEffectiveFeeSplit();
+
+        // 应该返回 ParamController 中的值
+        assertEq(split.lpBps, 5000);
+        assertEq(split.promoBps, 2000);
+        assertEq(split.insuranceBps, 1500);
+        assertEq(split.treasuryBps, 1500);
+    }
+
+    function test_getEffectiveFeeSplit_ParamControllerDisabled() public {
+        router.setParamController(address(mockParamController), false);
+
+        FeeRouter.FeeSplit memory split = router.getEffectiveFeeSplit();
+
+        // 应该返回本地配置的值（默认）
+        assertEq(split.lpBps, 4000);
+        assertEq(split.promoBps, 3000);
+        assertEq(split.insuranceBps, 1000);
+        assertEq(split.treasuryBps, 2000);
+    }
+
+    // ============================================================================
+    // Real-time Fee Split Tests
+    // ============================================================================
+
+    function test_routeFee_UsesParamControllerSplit() public {
+        router.setParamController(address(mockParamController), true);
+
+        uint256 feeAmount = 10000e6; // 10000 USDC
+
+        vm.startPrank(market);
+        usdc.approve(address(router), feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
+        vm.stopPrank();
+
+        // 验证使用 ParamController 的分成（LP 50%, Promo 20%, Insurance 15%, Treasury 15%）
+        assertEq(usdc.balanceOf(lpVault), 5000e6);       // 50%
+        assertEq(usdc.balanceOf(promoPool), 2000e6);     // 20%
+        assertEq(usdc.balanceOf(insuranceFund), 1500e6); // 15%
+        assertEq(usdc.balanceOf(treasury), 1500e6);      // 15%
+    }
+
+    function test_routeFee_UsesDefaultSplit_WhenParamControllerDisabled() public {
+        router.setParamController(address(mockParamController), false);
+
+        uint256 feeAmount = 10000e6; // 10000 USDC
+
+        vm.startPrank(market);
+        usdc.approve(address(router), feeAmount);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
+        vm.stopPrank();
+
+        // 验证使用默认分成（LP 40%, Promo 30%, Insurance 10%, Treasury 20%）
+        assertEq(usdc.balanceOf(lpVault), 4000e6);       // 40%
+        assertEq(usdc.balanceOf(promoPool), 3000e6);     // 30%
+        assertEq(usdc.balanceOf(insuranceFund), 1000e6); // 10%
+        assertEq(usdc.balanceOf(treasury), 2000e6);      // 20%
+    }
+
+    function test_routeFee_DynamicParamChange() public {
+        router.setParamController(address(mockParamController), true);
+
+        uint256 feeAmount = 10000e6;
+
+        // 第一次路由费用
+        vm.startPrank(market);
+        usdc.approve(address(router), feeAmount * 2);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
+        vm.stopPrank();
+
+        // 验证第一次分成（LP 50%）
+        assertEq(usdc.balanceOf(lpVault), 5000e6);
+
+        // 动态修改 ParamController 参数（LP 60%, Promo 20%, Insurance 10%, Treasury 10%）
+        mockParamController.setParam(ParamKeys.FEE_LP_SHARE_BPS, 6000);
+        mockParamController.setParam(ParamKeys.FEE_PROMO_SHARE_BPS, 2000);
+        mockParamController.setParam(ParamKeys.FEE_INSURANCE_SHARE_BPS, 1000);
+        mockParamController.setParam(ParamKeys.FEE_TREASURY_SHARE_BPS, 1000);
+
+        // 第二次路由费用
+        vm.prank(market);
+        router.routeFee(address(usdc), alice, feeAmount, 100e6);
+
+        // 验证第二次使用新的分成（LP 累计 5000 + 6000 = 11000）
+        assertEq(usdc.balanceOf(lpVault), 11000e6);
+    }
+
+    function test_previewFeeSplit_UsesParamController() public {
+        router.setParamController(address(mockParamController), true);
+
+        (
+            uint256 referralAmount,
+            uint256 lpAmount,
+            uint256 promoAmount,
+            uint256 insuranceAmount,
+            uint256 treasuryAmount
+        ) = router.previewFeeSplit(10000e6, false);
+
+        assertEq(referralAmount, 0);
+        assertEq(lpAmount, 5000e6);       // 50%
+        assertEq(promoAmount, 2000e6);    // 20%
+        assertEq(insuranceAmount, 1500e6);// 15%
+        assertEq(treasuryAmount, 1500e6); // 15%
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    function test_paramController_UsesDefaultOnMissingParam() public {
+        // 创建一个没有设置任何参数的 ParamController
+        MockParamController emptyController = new MockParamController();
+        router.setParamController(address(emptyController), true);
+
+        // 应该使用 feeSplit 中的默认值
+        FeeRouter.FeeSplit memory split = router.getEffectiveFeeSplit();
+        assertEq(split.lpBps, 4000);  // 默认值
+        assertEq(split.promoBps, 3000);
+        assertEq(split.insuranceBps, 1000);
+        assertEq(split.treasuryBps, 2000);
+    }
+
+    function test_paramController_CanBeCleared() public {
+        router.setParamController(address(mockParamController), true);
+        assertEq(address(router.paramController()), address(mockParamController));
+
+        // 清除 ParamController
+        router.setParamController(address(0), false);
+        assertEq(address(router.paramController()), address(0));
+        assertFalse(router.useParamControllerForSplit());
+
+        // 应该使用默认分成
+        FeeRouter.FeeSplit memory split = router.getEffectiveFeeSplit();
+        assertEq(split.lpBps, 4000);
     }
 }

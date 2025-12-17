@@ -12,6 +12,8 @@ import "../interfaces/IMarket_V3.sol";
 import "../interfaces/IPricingStrategy.sol";
 import "../interfaces/IResultMapper.sol";
 import "../interfaces/ILiquidityVault_V3.sol";
+import "../interfaces/IParamController.sol";
+import "../governance/ParamKeys.sol";
 
 /**
  * @title Market_V3
@@ -59,6 +61,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     ILiquidityVault_V3 public vault;
     uint256 public borrowedAmount;
 
+    // 参数控制器
+    IParamController public paramController;
+
     // outcome 规则
     OutcomeRule[] private _outcomeRules;
 
@@ -77,6 +82,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     // 每个 outcome 的统计
     mapping(uint256 => uint256) public totalSharesPerOutcome;
     mapping(uint256 => uint256) public totalBetAmountPerOutcome;
+
+    // 用户敞口追踪（潜在最大赔付）
+    mapping(address => uint256) public userExposure;
 
     // ============ 事件 ============
 
@@ -122,6 +130,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     error BeforeKickoff();
     error AfterKickoff();
     error OnlyFactory();
+    error OddsOutOfRange(uint256 odds, uint256 minOdds, uint256 maxOdds);
+    error UserExposureLimitExceeded(address user, uint256 currentExposure, uint256 limit);
+    error MarketPayoutCapExceeded(uint256 totalExposure, uint256 cap);
 
     // ============ 构造函数 ============
 
@@ -183,6 +194,11 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
             vault = ILiquidityVault_V3(config.vault);
         }
 
+        // 参数控制器（可选）
+        if (config.paramController != address(0)) {
+            paramController = IParamController(config.paramController);
+        }
+
         // 设置角色
         _grantRole(DEFAULT_ADMIN_ROLE, config.admin);
         _grantRole(OPERATOR_ROLE, config.admin);
@@ -233,6 +249,48 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 滑点检查
         if (shares < minShares) {
             revert SlippageExceeded(minShares, shares);
+        }
+
+        // 参数控制器检查（如果配置了）
+        if (address(paramController) != address(0)) {
+            // 赔率检查（赔率 = shares / amount，需要转换为 4 位小数格式）
+            // shares 是赔付份额，amount 是投入金额
+            // 赔率 = (shares * 10000) / amount（使用 10000 作为基点）
+            uint256 odds = (shares * 10000) / amount;
+            uint256 minOdds = paramController.tryGetParam(ParamKeys.MIN_ODDS, 10000);   // 默认 1.0x
+            uint256 maxOdds = paramController.tryGetParam(ParamKeys.MAX_ODDS, 10_000_000); // 默认 1000x
+            if (odds < minOdds || odds > maxOdds) {
+                revert OddsOutOfRange(odds, minOdds, maxOdds);
+            }
+
+            // 用户敞口限制检查
+            // 敞口 = 用户潜在最大赔付（即 shares）
+            uint256 userExposureLimit = paramController.tryGetParam(
+                ParamKeys.USER_EXPOSURE_LIMIT,
+                50_000_000_000  // 默认 50,000 USDC (6 位小数)
+            );
+            uint256 newUserExposure = userExposure[user] + shares;
+            if (newUserExposure > userExposureLimit) {
+                revert UserExposureLimitExceeded(user, newUserExposure, userExposureLimit);
+            }
+
+            // 市场赔付上限检查（仅对做市引擎生效，Parimutuel 不需要）
+            // 做市引擎 (CPMM/LMSR) 需要 LP 提供初始流动性，有赔付风险
+            // Parimutuel 赔付来自投注池本身，不需要限制
+            if (pricingStrategy.requiresInitialLiquidity()) {
+                uint256 marketPayoutCap = paramController.tryGetParam(
+                    ParamKeys.MARKET_PAYOUT_CAP,
+                    10_000_000_000_000  // 默认 10,000,000 USDC (6 位小数)
+                );
+                // 计算市场总潜在赔付（简化：总流动性 + 新下注额 = 可能赔付的上限）
+                uint256 totalPotentialPayout = totalLiquidity + amount + shares;
+                if (totalPotentialPayout > marketPayoutCap) {
+                    revert MarketPayoutCapExceeded(totalPotentialPayout, marketPayoutCap);
+                }
+            }
+
+            // 更新用户敞口
+            userExposure[user] = newUserExposure;
         }
 
         // 更新状态

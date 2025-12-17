@@ -8,6 +8,8 @@ import "../../src/interfaces/IParamController.sol";
  */
 contract MockParamController is IParamController {
     mapping(bytes32 => uint256) private params;
+    mapping(bytes32 => address) private _validators;
+    uint256 private _timelockDelay = 2 days;
 
     function getParam(bytes32 key) external view override returns (uint256 value) {
         return params[key];
@@ -31,8 +33,24 @@ contract MockParamController is IParamController {
         return params[key] != 0;
     }
 
-    // Helper function for testing
+    function validators(bytes32 key) external view override returns (address validator) {
+        return _validators[key];
+    }
+
+    function timelockDelay() external view override returns (uint256 delay) {
+        return _timelockDelay;
+    }
+
+    // Helper functions for testing
     function setParam(bytes32 key, uint256 value) external {
         params[key] = value;
+    }
+
+    function setValidator(bytes32 key, address validator) external {
+        _validators[key] = validator;
+    }
+
+    function setTimelockDelay(uint256 delay) external {
+        _timelockDelay = delay;
     }
 }

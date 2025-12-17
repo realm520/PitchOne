@@ -75,6 +75,9 @@ contract MarketFactory_V3 is AccessControl {
     /// @notice 默认 Vault 地址
     address public defaultVault;
 
+    /// @notice 参数控制器地址
+    address public paramController;
+
     /// @notice 模板注册表
     mapping(bytes32 => MarketTemplate) public templates;
     bytes32[] public templateIds;
@@ -108,6 +111,7 @@ contract MarketFactory_V3 is AccessControl {
     event KeeperUpdated(address indexed newKeeper);
     event OracleUpdated(address indexed newOracle);
     event VaultUpdated(address indexed newVault);
+    event ParamControllerUpdated(address indexed newParamController);
 
     // ============ 错误定义 ============
 
@@ -280,7 +284,8 @@ contract MarketFactory_V3 is AccessControl {
             initialLiquidity: initialLiquidity,
             outcomeRules: outcomes,
             uri: "",
-            admin: msg.sender
+            admin: msg.sender,
+            paramController: paramController
         });
 
         // 初始化市场
@@ -347,6 +352,15 @@ contract MarketFactory_V3 is AccessControl {
     function setVault(address _vault) external onlyRole(DEFAULT_ADMIN_ROLE) {
         defaultVault = _vault;
         emit VaultUpdated(_vault);
+    }
+
+    /**
+     * @notice 设置参数控制器
+     * @param _paramController 参数控制器地址
+     */
+    function setParamController(address _paramController) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        paramController = _paramController;
+        emit ParamControllerUpdated(_paramController);
     }
 
     /**

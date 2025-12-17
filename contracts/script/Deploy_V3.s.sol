@@ -195,11 +195,12 @@ contract Deploy_V3 is Script {
 
         referralRegistry.setAuthorizedCaller(address(feeRouter), true);
 
-        // ParamController
+        // ParamController (MIN_TIMELOCK_DELAY = 1 hour)
         uint256 timelockDelay = block.chainid == 31337 ? 1 hours : 2 days;
         ParamController paramController = new ParamController(deployer, timelockDelay);
         deployed.paramController = address(paramController);
         console.log("ParamController:", address(paramController));
+        console.log("  Timelock Delay:", timelockDelay / 60, "minutes");
 
         // ========================================
         // 3. 部署 MarketFactory_V3（使用临时 implementation）
@@ -303,7 +304,16 @@ contract Deploy_V3 is Script {
         factoryV4.setKeeper(deployer); // 测试环境使用 deployer
         factoryV4.setOracle(deployer); // 测试环境使用 deployer
         factoryV4.setVault(address(liquidityVault)); // 设置默认 Vault
-        console.log("Factory V4 configured (Router, Keeper, Oracle, Vault)");
+        factoryV4.setParamController(address(paramController)); // 设置参数控制器
+        console.log("Factory V4 configured (Router, Keeper, Oracle, Vault, ParamController)");
+
+        // 配置 BettingRouter 参数控制器
+        router.setParamController(address(paramController));
+        console.log("BettingRouter_V3 ParamController configured");
+
+        // 配置 FeeRouter 参数控制器（可选：启用实时参数读取）
+        feeRouter.setParamController(address(paramController), false); // 默认不启用实时读取
+        console.log("FeeRouter ParamController configured");
 
         // ========================================
         // 8. 注册定价策略和映射器

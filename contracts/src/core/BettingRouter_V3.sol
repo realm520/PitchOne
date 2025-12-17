@@ -9,6 +9,8 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {IBettingRouter_V3} from "../interfaces/IBettingRouter_V3.sol";
 import {IMarket_V3} from "../interfaces/IMarket_V3.sol";
+import {IParamController} from "../interfaces/IParamController.sol";
+import {ParamKeys} from "../governance/ParamKeys.sol";
 
 /**
  * @title BettingRouter_V3
@@ -48,6 +50,9 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
 
     /// @notice 默认费用接收地址
     address public defaultFeeRecipient;
+
+    /// @notice 参数控制器（可选，用于读取全局参数）
+    IParamController public paramController;
 
     // ============ 修饰器 ============
 
@@ -530,6 +535,18 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice 设置参数控制器
+     * @param _paramController ParamController 地址
+     */
+    function setParamController(address _paramController) external onlyOwner {
+        paramController = IParamController(_paramController);
+        emit ParamControllerUpdated(_paramController);
+    }
+
+    /// @notice ParamController 更新事件
+    event ParamControllerUpdated(address indexed paramController);
+
+    /**
      * @notice 紧急提取代币
      * @param token 代币地址
      * @param amount 金额
@@ -570,17 +587,39 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
         if (!_supportedTokens.contains(token)) revert UnsupportedToken(token);
 
         TokenInfo storage info = _tokenInfo[token];
-        if (info.minBetAmount > 0 && amount < info.minBetAmount) {
-            revert BetAmountTooLow(amount, info.minBetAmount);
+
+        // 获取最小投注限制：优先代币配置 -> ParamController -> 0
+        uint256 minBet = info.minBetAmount;
+        if (minBet == 0 && address(paramController) != address(0)) {
+            minBet = paramController.tryGetParam(ParamKeys.MIN_BET_AMOUNT, 0);
         }
-        if (info.maxBetAmount > 0 && amount > info.maxBetAmount) {
-            revert BetAmountTooHigh(amount, info.maxBetAmount);
+
+        // 获取最大投注限制：优先代币配置 -> ParamController -> 无限
+        uint256 maxBet = info.maxBetAmount;
+        if (maxBet == 0 && address(paramController) != address(0)) {
+            maxBet = paramController.tryGetParam(ParamKeys.MAX_BET_AMOUNT, 0);
+        }
+
+        if (minBet > 0 && amount < minBet) {
+            revert BetAmountTooLow(amount, minBet);
+        }
+        if (maxBet > 0 && amount > maxBet) {
+            revert BetAmountTooHigh(amount, maxBet);
         }
     }
 
     function _getFeeRate(address token) internal view returns (uint256) {
         TokenInfo storage info = _tokenInfo[token];
-        return info.supported ? info.feeRateBps : defaultFeeRateBps;
+        // 优先使用代币特定配置
+        if (info.supported && info.feeRateBps > 0) {
+            return info.feeRateBps;
+        }
+        // 其次从 ParamController 读取全局费率
+        if (address(paramController) != address(0)) {
+            return paramController.tryGetParam(ParamKeys.FEE_RATE, defaultFeeRateBps);
+        }
+        // 最后使用默认值
+        return defaultFeeRateBps;
     }
 
     function _getFeeRecipient(address token) internal view returns (address) {

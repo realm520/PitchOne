@@ -8,9 +8,13 @@ import "../../src/interfaces/IMarket_V3.sol";
 import "../../src/interfaces/IPricingStrategy.sol";
 import "../../src/interfaces/IResultMapper.sol";
 import "../../src/pricing/CPMMStrategy.sol";
+import "../../src/pricing/ParimutuelStrategy.sol";
 import "../../src/mappers/WDL_Mapper.sol";
 import "../../src/mappers/OddEven_Mapper.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "../../src/governance/ParamController.sol";
+import "../../src/governance/ParamKeys.sol";
+import "../../test/mocks/MockParamController.sol";
 
 /**
  * @title MockUSDC
@@ -624,5 +628,375 @@ contract Market_V3_Test is Test {
         vm.prank(user2);
         uint256 payout = market.redeem(1, drawShares);
         assertTrue(payout > 3000e6, "Draw bettor should profit");
+    }
+}
+
+/**
+ * @title Market_V3_ParamController_Test
+ * @notice 测试 Market_V3 与 ParamController 的集成
+ */
+contract Market_V3_ParamController_Test is Test {
+    MarketFactory_V3 public factory;
+    Market_V3 public marketImpl;
+    Market_V3 public market;
+    CPMMStrategy public strategy;
+    WDL_Mapper public mapper;
+    MockUSDC public usdc;
+    MockParamController public paramController;
+
+    bytes32 public templateId;
+
+    address public admin = address(1);
+    address public router = address(2);
+    address public keeper = address(3);
+    address public oracle = address(4);
+    address public user1 = address(5);
+    address public user2 = address(6);
+
+    uint256 constant INITIAL_LIQUIDITY = 1_000_000e6; // 1M USDC
+    uint256 constant BET_AMOUNT = 1_000e6; // 1k USDC
+
+    function setUp() public {
+        vm.startPrank(admin);
+
+        // 部署依赖合约
+        strategy = new CPMMStrategy();
+        mapper = new WDL_Mapper();
+        usdc = new MockUSDC();
+        paramController = new MockParamController();
+
+        // 设置默认参数
+        paramController.setParam(ParamKeys.MIN_ODDS, 10_000);      // 1.0x
+        paramController.setParam(ParamKeys.MAX_ODDS, 10_000_000);  // 1000x
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 1_000_000_000_000);  // 1,000,000 USDC (足够高以允许正常下注)
+        paramController.setParam(ParamKeys.MARKET_PAYOUT_CAP, 10_000_000_000_000); // 10M USDC
+
+        // 部署 Factory（先用一个临时地址，稍后设置实际实现）
+        factory = new MarketFactory_V3(
+            address(1), // 临时占位
+            address(usdc),
+            admin
+        );
+
+        // 部署 Market 实现合约（传入 factory 地址）
+        marketImpl = new Market_V3(address(factory));
+
+        // 更新 Factory 配置
+        factory.setImplementation(address(marketImpl));
+        factory.setRouter(router);
+        factory.setKeeper(keeper);
+        factory.setOracle(oracle);
+        factory.setParamController(address(paramController));
+
+        // 准备 outcome 规则
+        IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](3);
+        rules[0] = IMarket_V3.OutcomeRule({
+            name: "Home Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        rules[1] = IMarket_V3.OutcomeRule({
+            name: "Draw",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        rules[2] = IMarket_V3.OutcomeRule({
+            name: "Away Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        // 注册模板
+        templateId = keccak256("WDL");
+        factory.registerTemplate(
+            templateId,
+            "WDL",
+            "CPMM",
+            address(strategy),
+            address(mapper),
+            rules,
+            INITIAL_LIQUIDITY
+        );
+
+        // 创建市场
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: templateId,
+            matchId: "EPL_2024_MUN_vs_MCI",
+            kickoffTime: block.timestamp + 1 days,
+            mapperInitData: "",
+            initialLiquidity: INITIAL_LIQUIDITY,
+            outcomeRules: new IMarket_V3.OutcomeRule[](0)
+        });
+
+        address marketAddr = factory.createMarket(params);
+        market = Market_V3(marketAddr);
+
+        vm.stopPrank();
+
+        // 给用户分发 USDC 并授权
+        usdc.mint(user1, 100_000e6);
+        usdc.mint(user2, 100_000e6);
+        usdc.mint(router, 1_000_000e6);
+
+        vm.prank(router);
+        usdc.approve(address(market), type(uint256).max);
+
+        // 给 Market 初始流动性
+        usdc.mint(address(market), INITIAL_LIQUIDITY);
+    }
+
+    // ============ ParamController 集成测试 ============
+
+    function test_paramController_IsSet() public view {
+        assertEq(address(market.paramController()), address(paramController));
+    }
+
+    function test_placeBetFor_WithinOddsRange_Success() public {
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        // 正常下注应该成功
+        uint256 shares = market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+
+        assertTrue(shares > 0);
+        assertEq(market.balanceOf(user1, 0), shares);
+    }
+
+    function test_placeBetFor_OddsTooLow_Reverts() public {
+        // AMM 的赔率计算: shares * 10000 / amount
+        // 初始流动性 1M USDC，下注 1K USDC 大约获得 333K shares
+        // 赔率约为 333K * 10000 / 1K = 3,333,333 (约 333x)
+        // 设置最小赔率为 500x = 5,000,000，这样正常下注会因为赔率太低而失败
+        paramController.setParam(ParamKeys.MIN_ODDS, 5_000_000);
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        // 正常的 AMM 赔率约 333x，低于 500x 应该失败
+        vm.expectRevert(); // OddsOutOfRange
+        market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_OddsTooHigh_Reverts() public {
+        // 设置很低的最大赔率限制（比如 2.0x = 20000）
+        paramController.setParam(ParamKeys.MAX_ODDS, 20_000);
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        // 正常的 AMM 赔率约 3x，高于 2x 应该失败
+        vm.expectRevert(); // OddsOutOfRange
+        market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_UserExposureLimit_Success() public {
+        // 设置用户敞口限制为 10M USDC
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 10_000_000_000_000);
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        uint256 shares = market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+
+        assertTrue(shares > 0);
+        assertEq(market.userExposure(user1), shares);
+    }
+
+    function test_placeBetFor_UserExposureLimitExceeded_Reverts() public {
+        // 设置非常低的用户敞口限制（1 USDC）
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 1_000_000);
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        // 1000 USDC 下注会产生远超 1 USDC 的敞口
+        vm.expectRevert(); // UserExposureLimitExceeded
+        market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_UserExposure_Accumulates() public {
+        // 设置较高的用户敞口限制
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 100_000_000_000_000);
+
+        vm.startPrank(router);
+
+        // 第一次下注
+        usdc.transfer(address(market), BET_AMOUNT);
+        uint256 shares1 = market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        uint256 exposure1 = market.userExposure(user1);
+        assertEq(exposure1, shares1);
+
+        // 第二次下注（同一用户）
+        usdc.transfer(address(market), BET_AMOUNT);
+        uint256 shares2 = market.placeBetFor(user1, 1, BET_AMOUNT, 0);
+        uint256 exposure2 = market.userExposure(user1);
+
+        // 敞口应该累加
+        assertEq(exposure2, shares1 + shares2);
+
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_MarketPayoutCap_Success() public {
+        // 设置较高的市场赔付上限
+        paramController.setParam(ParamKeys.MARKET_PAYOUT_CAP, 100_000_000_000_000);
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        uint256 shares = market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+
+        assertTrue(shares > 0);
+    }
+
+    function test_placeBetFor_MarketPayoutCapExceeded_Reverts() public {
+        // 设置非常低的市场赔付上限（低于初始流动性）
+        paramController.setParam(ParamKeys.MARKET_PAYOUT_CAP, 100_000); // 0.1 USDC
+
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        vm.expectRevert(); // MarketPayoutCapExceeded
+        market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_NoParamController_SkipsChecks() public {
+        // 创建一个没有 ParamController 的市场
+        vm.startPrank(admin);
+
+        // 清除 factory 的 paramController
+        factory.setParamController(address(0));
+
+        // 创建新市场
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: templateId,
+            matchId: "EPL_2024_NO_PARAM",
+            kickoffTime: block.timestamp + 1 days,
+            mapperInitData: "",
+            initialLiquidity: INITIAL_LIQUIDITY,
+            outcomeRules: new IMarket_V3.OutcomeRule[](0)
+        });
+
+        address marketAddr = factory.createMarket(params);
+        Market_V3 marketNoParam = Market_V3(marketAddr);
+
+        vm.stopPrank();
+
+        // 验证没有 ParamController
+        assertEq(address(marketNoParam.paramController()), address(0));
+
+        // 给市场流动性
+        usdc.mint(address(marketNoParam), INITIAL_LIQUIDITY);
+
+        // 即使没有 ParamController，下注也应该成功
+        vm.startPrank(router);
+        usdc.transfer(address(marketNoParam), BET_AMOUNT);
+        uint256 shares = marketNoParam.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+
+        assertTrue(shares > 0);
+    }
+
+    function test_paramController_DynamicParamChange() public {
+        // 初始设置允许下注
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 100_000_000_000_000);
+
+        vm.startPrank(router);
+
+        // 第一次下注成功
+        usdc.transfer(address(market), BET_AMOUNT);
+        uint256 shares1 = market.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        assertTrue(shares1 > 0);
+
+        vm.stopPrank();
+
+        // 管理员降低用户敞口限制（小于当前敞口）
+        paramController.setParam(ParamKeys.USER_EXPOSURE_LIMIT, 1);
+
+        // 第二次下注应该失败
+        vm.startPrank(router);
+        usdc.transfer(address(market), BET_AMOUNT);
+
+        vm.expectRevert(); // UserExposureLimitExceeded
+        market.placeBetFor(user1, 1, BET_AMOUNT, 0);
+        vm.stopPrank();
+    }
+
+    function test_placeBetFor_Parimutuel_SkipsMarketPayoutCap() public {
+        // Parimutuel 策略不需要初始流动性，因此不应检查市场赔付上限
+        vm.startPrank(admin);
+
+        // 部署 Parimutuel 策略
+        ParimutuelStrategy parimutuelStrategy = new ParimutuelStrategy();
+
+        // 验证 Parimutuel 不需要初始流动性
+        assertFalse(parimutuelStrategy.requiresInitialLiquidity());
+
+        // 注册 Parimutuel 模板
+        bytes32 parimutuelTemplateId = keccak256("PARIMUTUEL_WDL");
+        factory.registerTemplate(
+            parimutuelTemplateId,
+            "Parimutuel WDL",
+            "PARIMUTUEL",
+            address(parimutuelStrategy),
+            address(mapper),
+            _getDefaultOutcomeRules(),
+            0  // Parimutuel 不需要初始流动性
+        );
+
+        // 设置非常低的市场赔付上限（对 CPMM 会失败）
+        paramController.setParam(ParamKeys.MARKET_PAYOUT_CAP, 1);  // 几乎为 0
+
+        // 恢复 ParamController
+        factory.setParamController(address(paramController));
+
+        // 创建 Parimutuel 市场
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: parimutuelTemplateId,
+            matchId: "EPL_2024_PARI_TEST",
+            kickoffTime: block.timestamp + 1 days,
+            mapperInitData: "",
+            initialLiquidity: 0,
+            outcomeRules: new IMarket_V3.OutcomeRule[](0)
+        });
+
+        address marketAddr = factory.createMarket(params);
+        Market_V3 parimutuelMarket = Market_V3(marketAddr);
+
+        vm.stopPrank();
+
+        // 验证市场有 ParamController
+        assertEq(address(parimutuelMarket.paramController()), address(paramController));
+
+        // 即使 MARKET_PAYOUT_CAP 很低，Parimutuel 下注也应该成功
+        // 因为 Parimutuel 不需要做市流动性，不会触发此检查
+        vm.startPrank(router);
+        usdc.transfer(address(parimutuelMarket), BET_AMOUNT);
+        uint256 shares = parimutuelMarket.placeBetFor(user1, 0, BET_AMOUNT, 0);
+        vm.stopPrank();
+
+        // Parimutuel 模式：shares == amount
+        assertEq(shares, BET_AMOUNT);
+    }
+
+    // 辅助函数：获取默认 outcome 规则
+    function _getDefaultOutcomeRules() internal pure returns (IMarket_V3.OutcomeRule[] memory rules) {
+        rules = new IMarket_V3.OutcomeRule[](3);
+        rules[0] = IMarket_V3.OutcomeRule({
+            name: "Home Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        rules[1] = IMarket_V3.OutcomeRule({
+            name: "Draw",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+        rules[2] = IMarket_V3.OutcomeRule({
+            name: "Away Win",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
     }
 }
