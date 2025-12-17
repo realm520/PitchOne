@@ -12,6 +12,10 @@ import {
   Unpaused as UnpausedEvent,
 } from "../generated/ERC4626LiquidityProvider/ERC4626LiquidityProvider";
 import {
+  Deposit as VaultDepositEvent,
+  Withdraw as VaultWithdrawEvent,
+} from "../generated/LiquidityVault_V3/LiquidityVault_V3";
+import {
   PoolContribution as PoolContributionEvent,
   RevenueDistributed as RevenueDistributedEvent,
 } from "../generated/ParimutuelLiquidityProvider/ParimutuelLiquidityProvider";
@@ -31,6 +35,68 @@ import {
 } from "../generated/schema";
 import { toDecimal, generateEventId } from "./helpers";
 import { ERC4626LiquidityProvider } from "../generated/ERC4626LiquidityProvider/ERC4626LiquidityProvider";
+
+// ============================================================================
+// LiquidityVault_V3 - Vault 存取款事件
+// ============================================================================
+
+/**
+ * 处理 V3 Vault 存款事件
+ */
+export function handleVaultDeposit(event: VaultDepositEvent): void {
+  const vaultAddress = event.address;
+  const sender = event.params.sender;
+  const owner = event.params.owner;
+  const assets = event.params.assets;
+  const shares = event.params.shares;
+
+  log.info("Vault V3: Deposit - vault: {}, sender: {}, owner: {}, assets: {}, shares: {}", [
+    vaultAddress.toHexString(),
+    sender.toHexString(),
+    owner.toHexString(),
+    assets.toString(),
+    shares.toString(),
+  ]);
+
+  // 加载或创建 Provider 实体
+  let provider = loadOrCreateProvider(vaultAddress);
+
+  // 更新 Provider 状态
+  updateProviderStateFromChain(provider, vaultAddress);
+  provider.lastUpdatedAt = event.block.timestamp;
+  provider.lastUpdatedAtBlock = event.block.number;
+  provider.save();
+}
+
+/**
+ * 处理 V3 Vault 取款事件
+ */
+export function handleVaultWithdraw(event: VaultWithdrawEvent): void {
+  const vaultAddress = event.address;
+  const sender = event.params.sender;
+  const receiver = event.params.receiver;
+  const owner = event.params.owner;
+  const assets = event.params.assets;
+  const shares = event.params.shares;
+
+  log.info("Vault V3: Withdraw - vault: {}, sender: {}, receiver: {}, owner: {}, assets: {}, shares: {}", [
+    vaultAddress.toHexString(),
+    sender.toHexString(),
+    receiver.toHexString(),
+    owner.toHexString(),
+    assets.toString(),
+    shares.toString(),
+  ]);
+
+  // 加载或创建 Provider 实体
+  let provider = loadOrCreateProvider(vaultAddress);
+
+  // 更新 Provider 状态
+  updateProviderStateFromChain(provider, vaultAddress);
+  provider.lastUpdatedAt = event.block.timestamp;
+  provider.lastUpdatedAtBlock = event.block.number;
+  provider.save();
+}
 
 // ============================================================================
 // ERC4626LiquidityProvider - 借贷事件

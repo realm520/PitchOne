@@ -46,8 +46,17 @@ type Market @entity(immutable: false) {
   "最终确认时间戳"
   finalizedAt: BigInt
 
+  "取消时间戳（V3）"
+  cancelledAt: BigInt
+
+  "取消原因（V3）"
+  cancelReason: String
+
   "获胜结果（0=主队胜/大, 1=平局, 2=客队胜/小）"
   winnerOutcome: Int
+
+  "结果数量（V3）"
+  outcomeCount: Int
 
   "市场参数（编码后的 bytes）"
   params: Bytes
@@ -279,6 +288,9 @@ type Redemption @entity(immutable: false) {
 
   "获得的金额（USDC）"
   payout: BigDecimal!
+
+  "是否为退款（市场取消时）"
+  isRefund: Boolean
 
   "时间戳"
   timestamp: BigInt!
