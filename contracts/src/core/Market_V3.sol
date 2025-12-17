@@ -186,6 +186,8 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 设置角色
         _grantRole(DEFAULT_ADMIN_ROLE, config.admin);
         _grantRole(OPERATOR_ROLE, config.admin);
+        // 给工厂授予管理员权限，以便设置 Router/Keeper/Oracle 角色
+        _grantRole(DEFAULT_ADMIN_ROLE, factory);
 
         status = MarketStatus.Open;
 

@@ -5,7 +5,6 @@ import "forge-std/Script.sol";
 
 // V3 核心合约
 import "../src/core/Market_V3.sol";
-import "../src/core/MarketFactory_v3.sol";
 import "../src/core/MarketFactory_V4.sol";
 import "../src/core/BettingRouter_V3.sol";
 
@@ -80,11 +79,8 @@ contract Deploy_V3 is Script {
         address paramController;
 
         // V3 核心合约
-        address factoryV3;              // MarketFactory_v3
+        address factory;                // MarketFactory_V4
         address marketImplementation;   // Market_V3 实现
-        bytes32 marketTemplateId;       // Market_V3 模板 ID
-
-        address factoryV4;              // MarketFactory_V4
         address bettingRouter;          // BettingRouter_V3
         address liquidityVault;         // LiquidityVault_V3
 
@@ -106,6 +102,11 @@ contract Deploy_V3 is Script {
         bytes32 ahTemplateId;
         bytes32 oddEvenTemplateId;
         bytes32 scoreTemplateId;
+
+        // Parimutuel 模板 ID
+        bytes32 wdlPariTemplateId;
+        bytes32 scorePariTemplateId;
+        bytes32 firstGoalscorerTemplateId;
     }
 
     // 网络配置（主网 USDC 地址）
@@ -201,31 +202,38 @@ contract Deploy_V3 is Script {
         console.log("ParamController:", address(paramController));
 
         // ========================================
-        // 3. 部署 MarketFactory_v3 和 Market_V3 实现
+        // 3. 部署 MarketFactory_V4（使用临时 implementation）
         // ========================================
-        console.log("\nStep 3: Deploy MarketFactory_v3 and Market_V3");
+        console.log("\nStep 3: Deploy MarketFactory_V4");
         console.log("----------------------------------------");
 
-        MarketFactory_v3 factoryV3 = new MarketFactory_v3();
-        deployed.factoryV3 = address(factoryV3);
-        console.log("MarketFactory_v3:", address(factoryV3));
+        // 先用 deployer 作为临时 implementation（后面会更新）
+        MarketFactory_V4 factoryV4 = new MarketFactory_V4(
+            deployer,  // 临时 implementation，后面更新
+            deployed.usdc,
+            deployer
+        );
+        deployed.factory = address(factoryV4);
+        console.log("MarketFactory_V4:", address(factoryV4));
 
-        Market_V3 marketImpl = new Market_V3(address(factoryV3));
+        // ========================================
+        // 4. 部署 Market_V3 实现（使用 Factory V4 地址）
+        // ========================================
+        console.log("\nStep 4: Deploy Market_V3 Implementation");
+        console.log("----------------------------------------");
+
+        Market_V3 marketImpl = new Market_V3(address(factoryV4));
         deployed.marketImplementation = address(marketImpl);
         console.log("Market_V3 Implementation:", address(marketImpl));
 
-        bytes32 marketV3TemplateId = factoryV3.registerTemplate(
-            "Market_V3",
-            "1.0.0",
-            address(marketImpl)
-        );
-        deployed.marketTemplateId = marketV3TemplateId;
-        console.log("Market_V3 Template ID:", vm.toString(marketV3TemplateId));
+        // 更新 Factory 的 implementation
+        factoryV4.setImplementation(address(marketImpl));
+        console.log("Updated Factory implementation to Market_V3");
 
         // ========================================
-        // 4. 部署定价策略
+        // 5. 部署定价策略
         // ========================================
-        console.log("\nStep 4: Deploy Pricing Strategies");
+        console.log("\nStep 5: Deploy Pricing Strategies");
         console.log("----------------------------------------");
 
         CPMMStrategy cpmmStrategy = new CPMMStrategy();
@@ -241,9 +249,9 @@ contract Deploy_V3 is Script {
         console.log("ParimutuelStrategy:", address(parimutuelStrategy));
 
         // ========================================
-        // 5. 部署赛果映射器
+        // 6. 部署赛果映射器
         // ========================================
-        console.log("\nStep 5: Deploy Result Mappers");
+        console.log("\nStep 6: Deploy Result Mappers");
         console.log("----------------------------------------");
 
         WDL_Mapper wdlMapper = new WDL_Mapper();
@@ -267,20 +275,6 @@ contract Deploy_V3 is Script {
         console.log("Score_Mapper (maxGoals=5):", address(scoreMapper));
 
         // ========================================
-        // 6. 部署 MarketFactory_V4
-        // ========================================
-        console.log("\nStep 6: Deploy MarketFactory_V4");
-        console.log("----------------------------------------");
-
-        MarketFactory_V4 factoryV4 = new MarketFactory_V4(
-            address(marketImpl),
-            deployed.usdc,
-            deployer
-        );
-        deployed.factoryV4 = address(factoryV4);
-        console.log("MarketFactory_V4:", address(factoryV4));
-
-        // ========================================
         // 7. 部署 BettingRouter_V3
         // ========================================
         console.log("\nStep 7: Deploy BettingRouter_V3");
@@ -299,16 +293,17 @@ contract Deploy_V3 is Script {
             deployed.usdc,
             200,     // 2% 费率
             deployer, // 费用接收地址
-            1e6,     // 最小下注 1 USDC
+            usdcUnit,     // 最小下注 1 代币单位
             0        // 无最大限制
         );
-        console.log("Added USDC to supported tokens");
+        console.log("Added USDC to supported tokens (min bet: 1 token unit)");
 
         // 配置 Factory V4
         factoryV4.setRouter(address(router));
         factoryV4.setKeeper(deployer); // 测试环境使用 deployer
         factoryV4.setOracle(deployer); // 测试环境使用 deployer
-        console.log("Factory V4 configured");
+        factoryV4.setVault(address(liquidityVault)); // 设置默认 Vault
+        console.log("Factory V4 configured (Router, Keeper, Oracle, Vault)");
 
         // ========================================
         // 8. 注册定价策略和映射器
@@ -339,11 +334,13 @@ contract Deploy_V3 is Script {
             factoryV4,
             cpmmStrategy,
             lmsrStrategy,
+            parimutuelStrategy,
             wdlMapper,
             ouMapper,
             ahMapper,
             oddEvenMapper,
-            scoreMapper
+            scoreMapper,
+            usdcUnit
         );
 
         // ========================================
@@ -365,14 +362,23 @@ contract Deploy_V3 is Script {
         vm.stopBroadcast();
 
         // ========================================
-        // 11. 输出部署摘要
-        // ========================================
-        _printDeploySummary(deployed);
-
-        // ========================================
-        // 12. 生成部署配置文件 (JSON)
+        // 11. 生成部署配置文件 (JSON)
         // ========================================
         _writeDeploymentJson(deployer, deployed, config);
+
+        // ========================================
+        // 12. 生成部署摘要文件 (TXT)
+        // ========================================
+        string memory summaryPath = _writeSummaryFile(deployer, deployed, config, usdcDecimals);
+
+        // 简短提示
+        console.log("\n");
+        console.log("========================================");
+        console.log("  DEPLOYMENT COMPLETE!");
+        console.log("========================================");
+        console.log("Summary: ", summaryPath);
+        console.log("JSON:    deployments/localhost_v3.json");
+        console.log("========================================");
 
         return deployed;
     }
@@ -382,12 +388,18 @@ contract Deploy_V3 is Script {
         MarketFactory_V4 factoryV4,
         CPMMStrategy cpmmStrategy,
         LMSRStrategy lmsrStrategy,
+        ParimutuelStrategy parimutuelStrategy,
         WDL_Mapper wdlMapper,
         OU_Mapper ouMapper,
         AH_Mapper ahMapper,
         OddEven_Mapper oddEvenMapper,
-        Score_Mapper scoreMapper
+        Score_Mapper scoreMapper,
+        uint256 tokenUnit
     ) internal {
+        // 动态计算初始流动性（基于代币精度）
+        // 注意：测试环境使用较小的流动性以适配 Vault 容量
+        uint256 cpmmLiquidity = 10_000 * tokenUnit;  // 10k 代币（测试环境）
+        uint256 lmsrLiquidity = 5_000 * tokenUnit;   // 5k 代币（LMSR 需要较少）
         // WDL 模板（使用 CPMM，3 个结果）
         IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
         wdlOutcomes[0] = IMarket_V3.OutcomeRule({
@@ -411,7 +423,7 @@ contract Deploy_V3 is Script {
             address(cpmmStrategy),
             address(wdlMapper),
             wdlOutcomes,
-            100_000 * 10**6 // 100k USDC 初始流动性
+            cpmmLiquidity
         );
         deployed.wdlTemplateId = wdlTemplateIdV3;
         console.log("WDL Template ID:", vm.toString(wdlTemplateIdV3));
@@ -435,7 +447,7 @@ contract Deploy_V3 is Script {
             address(cpmmStrategy),
             address(ouMapper),
             ouOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.ouTemplateId = ouTemplateIdV3;
         console.log("OU Template ID:", vm.toString(ouTemplateIdV3));
@@ -459,7 +471,7 @@ contract Deploy_V3 is Script {
             address(cpmmStrategy),
             address(ahMapper),
             ahOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.ahTemplateId = ahTemplateIdV3;
         console.log("AH Template ID:", vm.toString(ahTemplateIdV3));
@@ -483,7 +495,7 @@ contract Deploy_V3 is Script {
             address(cpmmStrategy),
             address(oddEvenMapper),
             oddEvenOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.oddEvenTemplateId = oddEvenTemplateIdV3;
         console.log("OddEven Template ID:", vm.toString(oddEvenTemplateIdV3));
@@ -509,10 +521,69 @@ contract Deploy_V3 is Script {
             address(lmsrStrategy),
             address(scoreMapper),
             scoreOutcomes,
-            50_000 * 10**6 // LMSR 需要较少初始流动性
+            lmsrLiquidity
         );
         deployed.scoreTemplateId = scoreTemplateIdV3;
         console.log("Score Template ID:", vm.toString(scoreTemplateIdV3));
+
+        // ========================================
+        // Parimutuel 模板（彩池模式，不需要初始流动性）
+        // ========================================
+
+        // WDL_Pari 模板（胜平负彩池模式）
+        bytes32 wdlPariTemplateId = keccak256("WDL_Pari_V3");
+        factoryV4.registerTemplate(
+            wdlPariTemplateId,
+            "WDL_Pari",
+            "PARIMUTUEL",
+            address(parimutuelStrategy),
+            address(wdlMapper),
+            wdlOutcomes,  // 复用 WDL 的 outcomes
+            0             // Parimutuel 不需要初始流动性
+        );
+        deployed.wdlPariTemplateId = wdlPariTemplateId;
+        console.log("WDL_Pari Template ID:", vm.toString(wdlPariTemplateId));
+
+        // Score_Pari 模板（精确比分彩池模式，传统足彩）
+        bytes32 scorePariTemplateId = keccak256("Score_Pari_V3");
+        factoryV4.registerTemplate(
+            scorePariTemplateId,
+            "Score_Pari",
+            "PARIMUTUEL",
+            address(parimutuelStrategy),
+            address(scoreMapper),
+            scoreOutcomes,  // 复用 Score 的 outcomes
+            0               // Parimutuel 不需要初始流动性
+        );
+        deployed.scorePariTemplateId = scorePariTemplateId;
+        console.log("Score_Pari Template ID:", vm.toString(scorePariTemplateId));
+
+        // FirstGoalscorer 模板（首位进球者，多结果彩池）
+        // 假设有 20 个球员选项 + 1 个 "无进球/其他" 选项
+        IMarket_V3.OutcomeRule[] memory fgsOutcomes = new IMarket_V3.OutcomeRule[](21);
+        for (uint256 i = 0; i < 20; i++) {
+            fgsOutcomes[i] = IMarket_V3.OutcomeRule({
+                name: string(abi.encodePacked("Player ", vm.toString(i + 1))),
+                payoutType: IPricingStrategy.PayoutType.WINNER
+            });
+        }
+        fgsOutcomes[20] = IMarket_V3.OutcomeRule({
+            name: "No Goal / Other",
+            payoutType: IPricingStrategy.PayoutType.WINNER
+        });
+
+        bytes32 fgsTemplateId = keccak256("FirstGoalscorer_V3");
+        factoryV4.registerTemplate(
+            fgsTemplateId,
+            "FirstGoalscorer",
+            "PARIMUTUEL",
+            address(parimutuelStrategy),
+            address(0),     // 首位进球者不需要赛果映射器（直接由预言机指定结果）
+            fgsOutcomes,
+            0               // Parimutuel 不需要初始流动性
+        );
+        deployed.firstGoalscorerTemplateId = fgsTemplateId;
+        console.log("FirstGoalscorer Template ID:", vm.toString(fgsTemplateId));
     }
 
     /**
@@ -548,58 +619,146 @@ contract Deploy_V3 is Script {
     }
 
     /**
-     * @notice 打印部署摘要
+     * @notice 将部署摘要写入文件
      */
-    function _printDeploySummary(
-        DeployedContracts memory deployed
-    ) internal view {
-        console.log("\n========================================");
-        console.log("  V3 Deployment Summary");
-        console.log("========================================");
+    function _writeSummaryFile(
+        address deployer,
+        DeployedContracts memory deployed,
+        DeployConfig memory config,
+        uint8 usdcDecimals
+    ) internal returns (string memory) {
+        uint256 usdcUnit = 10 ** usdcDecimals;
 
-        console.log("\n--- Base Token ---");
-        console.log("  USDC:", deployed.usdc);
+        // 构建摘要内容
+        string memory summary = string.concat(
+            "################################################################################\n",
+            "##                         V3 DEPLOYMENT SUMMARY                              ##\n",
+            "################################################################################\n\n",
+            "Deployed at block: ", vm.toString(block.number), "\n",
+            "Deployer: ", vm.toString(deployer), "\n\n"
+        );
 
-        console.log("\n--- Shared Infrastructure ---");
-        console.log("  FeeRouter:", deployed.feeRouter);
-        console.log("  ReferralRegistry:", deployed.referralRegistry);
-        console.log("  ParamController:", deployed.paramController);
-        console.log("  LiquidityVault_V3:", deployed.liquidityVault);
+        // USDC 信息
+        summary = string.concat(
+            summary,
+            "[USDC Token]\n",
+            "  Address:           ", vm.toString(deployed.usdc), "\n",
+            "  Decimals:          ", vm.toString(usdcDecimals), "\n",
+            "  Is Mock:           ", config.usdc == address(0) ? "Yes" : "No", "\n\n"
+        );
 
-        console.log("\n--- Core Contracts ---");
-        console.log("  MarketFactory_v3:", deployed.factoryV3);
-        console.log("  Market_V3 Implementation:", deployed.marketImplementation);
-        console.log("  MarketFactory_V4:", deployed.factoryV4);
-        console.log("  BettingRouter_V3:", deployed.bettingRouter);
+        // Vault 信息
+        LiquidityVault_V3 vault = LiquidityVault_V3(deployed.liquidityVault);
+        uint256 totalAssets = vault.totalAssets();
+        uint256 totalShares = vault.totalSupply();
+        summary = string.concat(
+            summary,
+            "[LiquidityVault_V3]\n",
+            "  Address:           ", vm.toString(deployed.liquidityVault), "\n",
+            "  Total Assets:      ", vm.toString(totalAssets / usdcUnit), " USDC\n",
+            "  Total Shares:      ", vm.toString(totalShares / usdcUnit), " pLP-V3\n",
+            "  Initial Deposit:   ", vm.toString(config.initialLpAmount / usdcUnit), " USDC\n\n"
+        );
 
-        console.log("\n--- Pricing Strategies ---");
-        console.log("  CPMMStrategy:", deployed.cpmmStrategy);
-        console.log("  LMSRStrategy:", deployed.lmsrStrategy);
-        console.log("  ParimutuelStrategy:", deployed.parimutuelStrategy);
+        // 共享基础设施
+        summary = string.concat(
+            summary,
+            "[Shared Infrastructure]\n",
+            "  FeeRouter:         ", vm.toString(deployed.feeRouter), "\n",
+            "  ReferralRegistry:  ", vm.toString(deployed.referralRegistry), "\n",
+            "  ParamController:   ", vm.toString(deployed.paramController), "\n\n"
+        );
 
-        console.log("\n--- Result Mappers ---");
-        console.log("  WDL_Mapper:", deployed.wdlMapper);
-        console.log("  OU_Mapper:", deployed.ouMapper);
-        console.log("  AH_Mapper:", deployed.ahMapper);
-        console.log("  OddEven_Mapper:", deployed.oddEvenMapper);
-        console.log("  Score_Mapper:", deployed.scoreMapper);
+        // 核心合约
+        summary = string.concat(
+            summary,
+            "[Core Contracts]\n",
+            "  MarketFactory_V4:  ", vm.toString(deployed.factory), "\n",
+            "  Market_V3 Impl:    ", vm.toString(deployed.marketImplementation), "\n",
+            "  BettingRouter_V3:  ", vm.toString(deployed.bettingRouter), "\n\n"
+        );
 
-        console.log("\n--- Template IDs ---");
-        console.log("  WDL:", vm.toString(deployed.wdlTemplateId));
-        console.log("  OU:", vm.toString(deployed.ouTemplateId));
-        console.log("  AH:", vm.toString(deployed.ahTemplateId));
-        console.log("  OddEven:", vm.toString(deployed.oddEvenTemplateId));
-        console.log("  Score:", vm.toString(deployed.scoreTemplateId));
+        // 定价策略
+        summary = string.concat(
+            summary,
+            "[Pricing Strategies]\n",
+            "  CPMMStrategy:      ", vm.toString(deployed.cpmmStrategy), "\n",
+            "  LMSRStrategy:      ", vm.toString(deployed.lmsrStrategy), "\n",
+            "  ParimutuelStrategy:", vm.toString(deployed.parimutuelStrategy), "\n\n"
+        );
 
-        console.log("\n========================================");
-        console.log("  Next Steps");
-        console.log("========================================");
-        console.log("1. Update subgraph/subgraph.yaml with:");
-        console.log("   - Factory V4:", deployed.factoryV4);
-        console.log("   - FeeRouter:", deployed.feeRouter);
-        console.log("2. Run CreateAllMarketTypes_V3.s.sol to create test markets");
-        console.log("3. Run SimulateBets_V3.s.sol to generate test data");
-        console.log("========================================\n");
+        // 赛果映射器
+        summary = string.concat(
+            summary,
+            "[Result Mappers]\n",
+            "  WDL_Mapper:        ", vm.toString(deployed.wdlMapper), "\n",
+            "  OU_Mapper:         ", vm.toString(deployed.ouMapper), "\n",
+            "  AH_Mapper:         ", vm.toString(deployed.ahMapper), "\n",
+            "  OddEven_Mapper:    ", vm.toString(deployed.oddEvenMapper), "\n",
+            "  Score_Mapper:      ", vm.toString(deployed.scoreMapper), "\n\n"
+        );
+
+        // 模板 ID - CPMM
+        summary = string.concat(
+            summary,
+            "[Template IDs - CPMM]\n",
+            "  WDL:               ", vm.toString(deployed.wdlTemplateId), "\n",
+            "  OU:                ", vm.toString(deployed.ouTemplateId), "\n",
+            "  AH:                ", vm.toString(deployed.ahTemplateId), "\n",
+            "  OddEven:           ", vm.toString(deployed.oddEvenTemplateId), "\n\n"
+        );
+
+        // 模板 ID - LMSR
+        summary = string.concat(
+            summary,
+            "[Template IDs - LMSR]\n",
+            "  Score:             ", vm.toString(deployed.scoreTemplateId), "\n\n"
+        );
+
+        // 模板 ID - Parimutuel
+        summary = string.concat(
+            summary,
+            "[Template IDs - Parimutuel]\n",
+            "  WDL_Pari:          ", vm.toString(deployed.wdlPariTemplateId), "\n",
+            "  Score_Pari:        ", vm.toString(deployed.scorePariTemplateId), "\n",
+            "  FirstGoalscorer:   ", vm.toString(deployed.firstGoalscorerTemplateId), "\n\n"
+        );
+
+        // 统计
+        summary = string.concat(
+            summary,
+            "[Deployment Stats]\n",
+            "  Total Contracts:    19\n",
+            "    - Infrastructure: 4 (USDC, FeeRouter, ReferralRegistry, ParamController)\n",
+            "    - Core:           4 (Vault, Factory_V4, Market_V3 Impl, Router)\n",
+            "    - Strategies:     3 (CPMM, LMSR, Parimutuel)\n",
+            "    - Mappers:        5 (WDL, OU, AH, OddEven, Score)\n",
+            "    - Templates:      8 (4 CPMM + 1 LMSR + 3 Parimutuel)\n\n"
+        );
+
+        // 下一步
+        summary = string.concat(
+            summary,
+            "================================================================================\n",
+            "                              NEXT STEPS\n",
+            "================================================================================\n",
+            "1. Update subgraph/subgraph.yaml with:\n",
+            "   - Factory V4: ", vm.toString(deployed.factory), "\n",
+            "   - FeeRouter:  ", vm.toString(deployed.feeRouter), "\n\n",
+            "2. Create test markets:\n",
+            "   PRIVATE_KEY=0x... forge script script/CreateAllMarketTypes_V3.s.sol \\\n",
+            "     --rpc-url http://localhost:8545 --broadcast\n\n",
+            "3. Simulate bets:\n",
+            "   PRIVATE_KEY=0x... forge script script/SimulateBets_V3.s.sol \\\n",
+            "     --rpc-url http://localhost:8545 --broadcast\n",
+            "################################################################################\n"
+        );
+
+        // 写入文件
+        string memory outputPath = "deployments/deploy_summary_v3.txt";
+        vm.writeFile(outputPath, summary);
+
+        return outputPath;
     }
 
     /**
@@ -632,9 +791,8 @@ contract Deploy_V3 is Script {
         vm.serializeAddress(contracts, "referralRegistry", deployed.referralRegistry);
         vm.serializeAddress(contracts, "paramController", deployed.paramController);
         vm.serializeAddress(contracts, "liquidityVault", deployed.liquidityVault);
-        vm.serializeAddress(contracts, "factoryV3", deployed.factoryV3);
+        vm.serializeAddress(contracts, "factory", deployed.factory);
         vm.serializeAddress(contracts, "marketImplementation", deployed.marketImplementation);
-        vm.serializeAddress(contracts, "factory", deployed.factoryV4);
         string memory contractsJson = vm.serializeAddress(contracts, "bettingRouter", deployed.bettingRouter);
 
         // 构建 strategies 对象
@@ -653,12 +811,15 @@ contract Deploy_V3 is Script {
 
         // 构建 templateIds 对象
         string memory templateIds = "templateIds";
-        vm.serializeBytes32(templateIds, "market", deployed.marketTemplateId);
         vm.serializeBytes32(templateIds, "wdl", deployed.wdlTemplateId);
         vm.serializeBytes32(templateIds, "ou", deployed.ouTemplateId);
         vm.serializeBytes32(templateIds, "ah", deployed.ahTemplateId);
         vm.serializeBytes32(templateIds, "oddEven", deployed.oddEvenTemplateId);
-        string memory templateIdsJson = vm.serializeBytes32(templateIds, "score", deployed.scoreTemplateId);
+        vm.serializeBytes32(templateIds, "score", deployed.scoreTemplateId);
+        // Parimutuel 模板 ID
+        vm.serializeBytes32(templateIds, "wdlPari", deployed.wdlPariTemplateId);
+        vm.serializeBytes32(templateIds, "scorePari", deployed.scorePariTemplateId);
+        string memory templateIdsJson = vm.serializeBytes32(templateIds, "firstGoalscorer", deployed.firstGoalscorerTemplateId);
 
         // 构建根对象
         string memory root = "root";

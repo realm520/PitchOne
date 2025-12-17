@@ -72,6 +72,9 @@ contract MarketFactory_V4 is AccessControl {
     /// @notice 信任的 Router 地址
     address public trustedRouter;
 
+    /// @notice 默认 Vault 地址
+    address public defaultVault;
+
     /// @notice 模板注册表
     mapping(bytes32 => MarketTemplate) public templates;
     bytes32[] public templateIds;
@@ -104,6 +107,7 @@ contract MarketFactory_V4 is AccessControl {
     event RouterUpdated(address indexed newRouter);
     event KeeperUpdated(address indexed newKeeper);
     event OracleUpdated(address indexed newOracle);
+    event VaultUpdated(address indexed newVault);
 
     // ============ 错误定义 ============
 
@@ -272,7 +276,7 @@ contract MarketFactory_V4 is AccessControl {
             settlementToken: settlementToken,
             pricingStrategy: IPricingStrategy(template.pricingStrategy),
             resultMapper: IResultMapper(mapper),
-            vault: address(0), // 暂不支持 Vault
+            vault: defaultVault,
             initialLiquidity: initialLiquidity,
             outcomeRules: outcomes,
             uri: "",
@@ -334,6 +338,15 @@ contract MarketFactory_V4 is AccessControl {
     function setOracle(address _oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
         oracle = _oracle;
         emit OracleUpdated(_oracle);
+    }
+
+    /**
+     * @notice 设置默认 Vault
+     * @param _vault Vault 地址
+     */
+    function setVault(address _vault) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        defaultVault = _vault;
+        emit VaultUpdated(_vault);
     }
 
     /**

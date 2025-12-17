@@ -3,12 +3,13 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "../src/core/MarketFactory_v3.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "../src/core/MarketFactory_V4.sol";
 import "../src/core/Market_V3.sol";
 import "../src/interfaces/IMarket_V3.sol";
 import "../src/interfaces/IPricingStrategy.sol";
 import "../src/interfaces/IResultMapper.sol";
-import "../src/liquidity/LiquidityVault.sol";
+import "../src/liquidity/LiquidityVault_V3.sol";
 import "../src/pricing/CPMMStrategy.sol";
 import "../src/pricing/LMSRStrategy.sol";
 import "../src/mappers/WDL_Mapper.sol";
@@ -46,8 +47,9 @@ contract CreateAllMarketTypes_V3 is Script {
     // 默认地址（可通过环境变量覆盖）
     address constant DEFAULT_OWNER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Anvil 默认账户
 
-    // 部署文件路径
-    string constant DEPLOYMENT_FILE = "deployments/localhost.json";
+    // 部署文件路径（优先读取 V3 配置）
+    string constant DEPLOYMENT_FILE_V3 = "deployments/localhost_v3.json";
+    string constant DEPLOYMENT_FILE_V2 = "deployments/localhost.json";
 
     // 从环境变量或 JSON 文件读取的地址（运行时设置）
     address public USDC;
@@ -57,8 +59,14 @@ contract CreateAllMarketTypes_V3 is Script {
     // 是否已从 JSON 文件加载
     bool public loadedFromJson;
 
-    // 初始流动性（CPMM/LMSR 需要初始流动性来初始化储备）
-    uint256 constant INITIAL_LIQUIDITY = 100_000 * 1e6; // 100k (假设 6 位精度)
+    // 初始流动性配置（以整数表示，运行时乘以 tokenUnit）
+    uint256 constant INITIAL_LIQUIDITY_AMOUNT = 10_000; // 10k per market
+    uint256 constant INITIAL_VAULT_DEPOSIT_AMOUNT = 500_000; // 500k USDC
+
+    // 运行时计算的实际金额（基于代币精度）
+    uint256 public initialLiquidity;
+    uint256 public initialVaultDeposit;
+    uint256 public tokenUnit;
 
     // ============ 状态变量 ============
 
@@ -71,14 +79,18 @@ contract CreateAllMarketTypes_V3 is Script {
     address[] public oddEvenMarkets;
     address[] public scoreMarkets;
 
-    // 部署的合约
-    MarketFactory_v3 public factory;
+    // 部署的合约（使用 V4 Factory）
+    MarketFactory_V4 public factory;
     CPMMStrategy public cpmmStrategy;
     LMSRStrategy public lmsrStrategy;
     address public marketV3Implementation;
 
-    // Market_V3 模板 ID（在注册时生成）
-    bytes32 public marketV3TemplateId;
+    // 模板 ID（从 Deploy_V3 已注册的模板）
+    bytes32 public wdlTemplateId;
+    bytes32 public ouTemplateId;
+    bytes32 public ahTemplateId;
+    bytes32 public oddEvenTemplateId;
+    bytes32 public scoreTemplateId;
 
     // ============ 主函数 ============
 
@@ -103,7 +115,7 @@ contract CreateAllMarketTypes_V3 is Script {
 
             // 环境变量优先级高于 JSON 文件
             if (existingFactory != address(0)) {
-                factory = MarketFactory_v3(existingFactory);
+                factory = MarketFactory_V4(existingFactory);
             }
             if (existingUsdc != address(0)) {
                 USDC = existingUsdc;
@@ -115,7 +127,7 @@ contract CreateAllMarketTypes_V3 is Script {
             USDC = existingUsdc;
             VAULT = existingVault;
             if (existingFactory != address(0)) {
-                factory = MarketFactory_v3(existingFactory);
+                factory = MarketFactory_V4(existingFactory);
             }
         }
 
@@ -125,9 +137,7 @@ contract CreateAllMarketTypes_V3 is Script {
         console.log("  Creating V3 Markets (5 types)");
         console.log("========================================\n");
 
-        if (loadedFromJson) {
-            console.log("Loaded addresses from:", DEPLOYMENT_FILE);
-        }
+        // loadedFromJson 信息已在 _loadFromDeploymentFile 中输出
 
         // 0. 如果 USDC 未设置，部署一个 Mock ERC20
         if (USDC == address(0)) {
@@ -138,56 +148,41 @@ contract CreateAllMarketTypes_V3 is Script {
             console.log("0. Using existing USDC:", USDC);
         }
 
-        // 1. 部署或使用现有的 Factory
-        if (address(factory) == address(0)) {
-            console.log("\n1. Deploying MarketFactory_v3...");
-            factory = new MarketFactory_v3();
-            console.log("   MarketFactory_v3:", address(factory));
-        } else {
-            console.log("\n1. Using existing Factory:", address(factory));
-        }
+        // 0.5. 初始化代币精度相关变量
+        uint8 decimals = IERC20Metadata(USDC).decimals();
+        tokenUnit = 10 ** decimals;
+        initialLiquidity = INITIAL_LIQUIDITY_AMOUNT * tokenUnit;
+        initialVaultDeposit = INITIAL_VAULT_DEPOSIT_AMOUNT * tokenUnit;
+        console.log("   Token decimals:", decimals);
+        console.log("   Initial liquidity per market:", INITIAL_LIQUIDITY_AMOUNT);
+        console.log("   Initial vault deposit:", INITIAL_VAULT_DEPOSIT_AMOUNT);
 
-        // 2. 检查是否有现有的 Market_V3 实现，或部署新的
-        if (marketV3Implementation == address(0)) {
-            console.log("\n2. Deploying Market_V3 Implementation...");
-            marketV3Implementation = address(new Market_V3(address(factory)));
-            console.log("   Market_V3 Implementation:", marketV3Implementation);
-        } else {
-            console.log("\n2. Using existing Market_V3 Implementation:", marketV3Implementation);
-        }
+        // 1. 检查 Factory V4（必须已部署）
+        require(address(factory) != address(0), "Factory V4 not loaded, please run Deploy_V3 first");
+        console.log("\n1. Using existing Factory V4:", address(factory));
 
-        // 3. 在 Factory 中注册 Market_V3 模板（如果尚未注册）
-        if (marketV3TemplateId == bytes32(0)) {
-            console.log("\n3. Registering Market_V3 template in Factory...");
-            marketV3TemplateId = factory.registerTemplate(
-                "Market_V3",
-                "1.0.0",
-                marketV3Implementation
-            );
-            console.log("   Template ID:", vm.toString(marketV3TemplateId));
-        } else {
-            console.log("\n3. Using existing Market_V3 template ID:", vm.toString(marketV3TemplateId));
-        }
+        // 2. 检查 Market_V3 实现（从 Factory 读取）
+        marketV3Implementation = factory.marketImplementation();
+        require(marketV3Implementation != address(0), "Market implementation not found");
+        console.log("\n2. Using Market_V3 Implementation:", marketV3Implementation);
 
-        // 4. 部署或使用现有的定价策略
-        console.log("\n4. Setting up Pricing Strategies...");
-        if (address(cpmmStrategy) == address(0)) {
-            cpmmStrategy = new CPMMStrategy();
-            console.log("   Deployed CPMMStrategy:", address(cpmmStrategy));
-        } else {
-            console.log("   Using existing CPMMStrategy:", address(cpmmStrategy));
-        }
-        if (address(lmsrStrategy) == address(0)) {
-            lmsrStrategy = new LMSRStrategy();
-            console.log("   Deployed LMSRStrategy:", address(lmsrStrategy));
-        } else {
-            console.log("   Using existing LMSRStrategy:", address(lmsrStrategy));
-        }
+        // 3. 检查模板 ID（从 JSON 或 Deploy_V3 已注册）
+        require(wdlTemplateId != bytes32(0), "Template IDs not loaded, please check deployment file");
+        console.log("\n3. Using existing Template IDs:");
+        console.log("   WDL:", vm.toString(wdlTemplateId));
+        console.log("   OU:", vm.toString(ouTemplateId));
+        console.log("   AH:", vm.toString(ahTemplateId));
+        console.log("   OddEven:", vm.toString(oddEvenTemplateId));
+        console.log("   Score:", vm.toString(scoreTemplateId));
 
-        // 4.5. 确保 Vault 有足够流动性（如果配置了 Vault）
-        if (VAULT != address(0)) {
-            _ensureVaultLiquidity();
-        }
+        // 4. 定价策略（从 JSON 加载）
+        console.log("\n4. Using Pricing Strategies:");
+        console.log("   CPMMStrategy:", address(cpmmStrategy));
+        console.log("   LMSRStrategy:", address(lmsrStrategy));
+
+        // 4.5. 部署或确保 V3 Vault 有足够流动性
+        // 注意：V3 市场必须使用 V3 Vault，不兼容 V2 Vault
+        _ensureVaultLiquidity();
 
         // 5. 创建 WDL 市场 (胜平负)
         console.log("\n5. Creating WDL Markets (Win/Draw/Loss)...");
@@ -221,20 +216,14 @@ contract CreateAllMarketTypes_V3 is Script {
     // ============ 创建各类型市场 ============
 
     function _createWDLMarkets() internal {
-        // WDL 使用 CPMM + WDL_Mapper
+        // WDL 使用 CPMM + WDL_Mapper（模板已预配置）
         string[3] memory matches = ["MUN_vs_MCI", "LIV_vs_CHE", "ARS_vs_TOT"];
 
         for (uint256 i = 0; i < 3; i++) {
-            // 部署 WDL Mapper（无参数）
-            WDL_Mapper mapper = new WDL_Mapper();
-
-            // 构建 MarketConfig
-            address market = _createMarket(
-                string(abi.encodePacked("EPL_2024_WDL_", _uint2str(i + 1))),
+            address market = _createMarketV4(
+                wdlTemplateId,
                 matches[i],
-                mapper,
-                3,  // WDL 有 3 个结果
-                i + 1
+                block.timestamp + (i + 1) * 1 days
             );
 
             createdMarkets.push(market);
@@ -244,65 +233,48 @@ contract CreateAllMarketTypes_V3 is Script {
     }
 
     function _createOUMarkets() internal {
-        // OU 使用 CPMM + OU_Mapper
-        int256[3] memory lines = [int256(2500), int256(3500), int256(1500)]; // 2.5, 3.5, 1.5
+        // OU 使用 CPMM + OU_Mapper（模板已预配置）
+        string[3] memory matches = ["OU_MUN_vs_MCI", "OU_LIV_vs_CHE", "OU_ARS_vs_TOT"];
 
         for (uint256 i = 0; i < 3; i++) {
-            // 部署 OU Mapper（带盘口线参数）
-            OU_Mapper mapper = new OU_Mapper(lines[i]);
-
-            // 构建 MarketConfig
-            address market = _createMarket(
-                string(abi.encodePacked("EPL_2024_OU_", _uint2str(i + 1))),
-                string(abi.encodePacked("OU_", _uint2str(uint256(lines[i])))),
-                mapper,
-                3,  // OU 有 3 个结果（Over/Push/Under）
-                i + 4
+            address market = _createMarketV4(
+                ouTemplateId,
+                matches[i],
+                block.timestamp + (i + 4) * 1 days
             );
 
             createdMarkets.push(market);
             ouMarkets.push(market);
-            console.log("   Created OU market (line:", uint256(lines[i]), "):", market);
+            console.log("   Created OU market:", market);
         }
     }
 
     function _createAHMarkets() internal {
-        // AH 使用 CPMM + AH_Mapper
-        int256[3] memory lines = [int256(-500), int256(500), int256(-1000)]; // -0.5, +0.5, -1.0
+        // AH 使用 CPMM + AH_Mapper（模板已预配置）
+        string[3] memory matches = ["AH_MUN_vs_MCI", "AH_LIV_vs_CHE", "AH_ARS_vs_TOT"];
 
         for (uint256 i = 0; i < 3; i++) {
-            // 部署 AH Mapper
-            AH_Mapper mapper = new AH_Mapper(lines[i]);
-
-            // 构建 MarketConfig
-            address market = _createMarket(
-                string(abi.encodePacked("EPL_2024_AH_", _uint2str(i + 1))),
-                string(abi.encodePacked("AH_", _int2str(lines[i]))),
-                mapper,
-                3,  // AH 有 3 个结果
-                i + 7
+            address market = _createMarketV4(
+                ahTemplateId,
+                matches[i],
+                block.timestamp + (i + 7) * 1 days
             );
 
             createdMarkets.push(market);
             ahMarkets.push(market);
-            console.log("   Created AH market (line:", _int2str(lines[i]), "):", market);
+            console.log("   Created AH market:", market);
         }
     }
 
     function _createOddEvenMarkets() internal {
-        // OddEven 使用 CPMM + OddEven_Mapper
+        // OddEven 使用 CPMM + OddEven_Mapper（模板已预配置）
+        string[3] memory matches = ["OE_MUN_vs_MCI", "OE_LIV_vs_CHE", "OE_ARS_vs_TOT"];
 
         for (uint256 i = 0; i < 3; i++) {
-            // 部署 OddEven Mapper（无参数）
-            OddEven_Mapper mapper = new OddEven_Mapper();
-
-            // 构建 MarketConfig
-            address market = _createMarket(
-                string(abi.encodePacked("EPL_2024_OE_", _uint2str(i + 1))),
-                string(abi.encodePacked("OddEven_", _uint2str(i + 1))),
-                mapper,
-                2,  // OddEven 只有 2 个结果
-                i + 10
+            address market = _createMarketV4(
+                oddEvenTemplateId,
+                matches[i],
+                block.timestamp + (i + 10) * 1 days
             );
 
             createdMarkets.push(market);
@@ -312,18 +284,14 @@ contract CreateAllMarketTypes_V3 is Script {
     }
 
     function _createScoreMarkets() internal {
-        // Score 使用 LMSR + Score_Mapper（适合多结果市场）
+        // Score 使用 LMSR + Score_Mapper（模板已预配置）
+        string[3] memory matches = ["SC_MUN_vs_MCI", "SC_LIV_vs_CHE", "SC_ARS_vs_TOT"];
 
         for (uint256 i = 0; i < 3; i++) {
-            // 部署 Score Mapper（maxGoals = 5，共 37 个结果）
-            Score_Mapper mapper = new Score_Mapper(5);
-
-            // 构建 MarketConfig（使用 LMSR）
-            address market = _createScoreMarket(
-                string(abi.encodePacked("EPL_2024_SC_", _uint2str(i + 1))),
-                string(abi.encodePacked("Score_", _uint2str(i + 1))),
-                mapper,
-                i + 13
+            address market = _createMarketV4(
+                scoreTemplateId,
+                matches[i],
+                block.timestamp + (i + 13) * 1 days
             );
 
             createdMarkets.push(market);
@@ -335,163 +303,114 @@ contract CreateAllMarketTypes_V3 is Script {
     // ============ 市场创建辅助函数 ============
 
     /**
-     * @notice 创建使用 CPMM 策略的市场
-     * @dev 必须通过 Factory 创建，因为 Market_V3 强制要求 msg.sender == factory
+     * @notice 使用 Factory V4 创建市场
+     * @dev Factory V4 使用预注册的模板，包含 Strategy、Mapper、Outcomes 和 InitialLiquidity
+     * @param templateId 模板 ID
+     * @param matchId 比赛 ID
+     * @param kickoffTime 开球时间
      */
-    function _createMarket(
-        string memory marketIdStr,
+    function _createMarketV4(
+        bytes32 templateId,
         string memory matchId,
-        IResultMapper mapper,
-        uint256 outcomeCount,
-        uint256 dayOffset
+        uint256 kickoffTime
     ) internal returns (address market) {
-        // 构建 outcome 规则
-        IMarket_V3.OutcomeRule[] memory outcomeRules = new IMarket_V3.OutcomeRule[](outcomeCount);
-        string[] memory names = mapper.getAllOutcomeNames();
+        // 创建空的 outcome 规则数组（使用模板默认值）
+        IMarket_V3.OutcomeRule[] memory emptyOutcomes;
 
-        for (uint256 i = 0; i < outcomeCount; i++) {
-            outcomeRules[i] = IMarket_V3.OutcomeRule({
-                name: names[i],
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-        }
-
-        // 构建 MarketConfig
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256(abi.encodePacked(marketIdStr)),
+        // 构建 CreateMarketParams（Factory V4 接口）
+        MarketFactory_V4.CreateMarketParams memory params = MarketFactory_V4.CreateMarketParams({
+            templateId: templateId,
             matchId: matchId,
-            kickoffTime: block.timestamp + dayOffset * 1 days,
-            settlementToken: USDC,
-            pricingStrategy: IPricingStrategy(address(cpmmStrategy)),
-            resultMapper: mapper,
-            vault: VAULT,
-            initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: outcomeRules,
-            uri: string(abi.encodePacked("ipfs://", marketIdStr)),
-            admin: OWNER
+            kickoffTime: kickoffTime,
+            mapperInitData: "",  // 使用模板默认 Mapper
+            initialLiquidity: 0, // 使用模板默认流动性
+            outcomeRules: emptyOutcomes // 使用模板默认 outcomes
         });
 
-        // 通过 Factory 创建市场
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-        market = factory.createMarket(marketV3TemplateId, initData);
+        // 通过 Factory V4 创建市场
+        market = factory.createMarket(params);
 
         // 如果配置了 Vault，授权市场并从 Vault 获取流动性
-        if (VAULT != address(0) && INITIAL_LIQUIDITY > 0) {
+        if (VAULT != address(0)) {
             _authorizeAndFundMarket(market);
         }
     }
 
     /**
-     * @notice 创建使用 LMSR 策略的市场（用于多结果市场如精确比分）
-     * @dev 必须通过 Factory 创建，因为 Market_V3 强制要求 msg.sender == factory
-     */
-    function _createScoreMarket(
-        string memory marketIdStr,
-        string memory matchId,
-        Score_Mapper mapper,
-        uint256 dayOffset
-    ) internal returns (address market) {
-        uint256 outcomeCount = mapper.totalOutcomes();
-
-        // 构建 outcome 规则
-        IMarket_V3.OutcomeRule[] memory outcomeRules = new IMarket_V3.OutcomeRule[](outcomeCount);
-        string[] memory names = mapper.getAllOutcomeNames();
-
-        for (uint256 i = 0; i < outcomeCount; i++) {
-            outcomeRules[i] = IMarket_V3.OutcomeRule({
-                name: names[i],
-                payoutType: IPricingStrategy.PayoutType.WINNER
-            });
-        }
-
-        // 构建 MarketConfig（使用 LMSR 策略）
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256(abi.encodePacked(marketIdStr)),
-            matchId: matchId,
-            kickoffTime: block.timestamp + dayOffset * 1 days,
-            settlementToken: USDC,
-            pricingStrategy: IPricingStrategy(address(lmsrStrategy)),
-            resultMapper: IResultMapper(address(mapper)),
-            vault: VAULT,
-            initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: outcomeRules,
-            uri: string(abi.encodePacked("ipfs://", marketIdStr)),
-            admin: OWNER
-        });
-
-        // 通过 Factory 创建市场
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-        market = factory.createMarket(marketV3TemplateId, initData);
-
-        // 如果配置了 Vault，授权市场并从 Vault 获取流动性
-        if (VAULT != address(0) && INITIAL_LIQUIDITY > 0) {
-            _authorizeAndFundMarket(market);
-        }
-    }
-
-    /**
-     * @notice 确保 Vault 有足够流动性来为所有市场提供初始资金
-     * @dev 15 个市场 × 100k USDC = 1.5M USDC 总需求
-     *      V2 Vault 有 90% 利用率限制，所以需要存入 1.5M / 0.9 ≈ 1.67M
+     * @notice 部署或检查 V3 Vault，确保有足够流动性
+     * @dev V3 Vault 特性：
+     *      - 90% 最大利用率
+     *      - 20% 单市场借款上限
+     *      - 储备金机制
      */
     function _ensureVaultLiquidity() internal {
-        // 考虑 90% 利用率限制：需要存入 = 借款需求 / 0.9
-        uint256 requiredBorrow = 15 * INITIAL_LIQUIDITY; // 15 markets × 100k = 1.5M
-        uint256 requiredLiquidity = (requiredBorrow * 10000) / 9000 + 1; // 额外 1 wei 确保足够
-        LiquidityVault vaultContract = LiquidityVault(VAULT);
-        uint256 currentAssets = vaultContract.totalAssets();
+        console.log("\n4.5. Setting up LiquidityVault_V3...");
 
-        console.log("\n4.5. Checking Vault liquidity...");
-        console.log("   Current Vault assets:", currentAssets / 1e6, "USDC");
-        console.log("   Required for 15 markets:", requiredLiquidity / 1e6, "USDC");
+        // 如果 VAULT 未设置，部署新的 V3 Vault
+        if (VAULT == address(0)) {
+            console.log("   Deploying new LiquidityVault_V3...");
+            LiquidityVault_V3 newVault = new LiquidityVault_V3(
+                IERC20(USDC),
+                "PitchOne LP V3",
+                "pLP-V3"
+            );
+            VAULT = address(newVault);
+            console.log("   LiquidityVault_V3:", VAULT);
 
-        if (currentAssets < requiredLiquidity) {
-            uint256 needed = requiredLiquidity - currentAssets;
-            console.log("   Need to deposit:", needed / 1e6, "USDC");
+            // Mint USDC 并存入 Vault
+            console.log("   Minting", initialVaultDeposit / tokenUnit, "tokens for initial LP...");
+            MockERC20(USDC).mint(OWNER, initialVaultDeposit);
 
-            // 先给广播账户 mint 足够的 USDC（测试环境）
-            // 注意：在 startBroadcast 后，OWNER 是广播账户地址
-            IERC20 usdcToken = IERC20(USDC);
-
-            // 尝试 mint（如果 USDC 是 MockERC20）
-            try MockERC20(USDC).mint(OWNER, needed) {
-                console.log("   Minted", needed / 1e6, "USDC to deployer:", OWNER);
-            } catch {
-                // 如果不是 MockERC20，检查余额是否足够
-                uint256 balance = usdcToken.balanceOf(OWNER);
-                if (balance < needed) {
-                    console.log("   Warning: Insufficient USDC balance. Need", needed / 1e6, ", have", balance / 1e6);
-                    console.log("   Markets will be created but may not be funded from Vault");
-                    return;
-                }
-            }
-
-            // 存入 Vault（作为 LP 存入，接收者也是 OWNER）
-            usdcToken.approve(VAULT, needed);
-            vaultContract.deposit(needed, OWNER);
-            console.log("   Deposited", needed / 1e6, "USDC to Vault");
-            console.log("   New Vault assets:", vaultContract.totalAssets() / 1e6, "USDC");
+            // 存入 Vault
+            IERC20(USDC).approve(VAULT, initialVaultDeposit);
+            newVault.deposit(initialVaultDeposit, OWNER);
+            console.log("   Deposited", initialVaultDeposit / tokenUnit, "tokens to Vault");
+            console.log("   Vault total assets:", newVault.totalAssets() / tokenUnit, "tokens");
         } else {
-            console.log("   Vault has sufficient liquidity");
+            // 使用现有 V3 Vault，检查流动性
+            LiquidityVault_V3 vaultContract = LiquidityVault_V3(VAULT);
+            uint256 currentAssets = vaultContract.totalAssets();
+
+            console.log("   Using existing V3 Vault:", VAULT);
+            console.log("   Current Vault assets:", currentAssets / tokenUnit, "tokens");
+
+            // 考虑 90% 利用率限制：需要存入 = 借款需求 / 0.9
+            uint256 requiredBorrow = 15 * initialLiquidity; // 15 markets × 10k = 150k
+            uint256 requiredLiquidity = (requiredBorrow * 10000) / 9000 + 1;
+            console.log("   Required for 15 markets:", requiredLiquidity / tokenUnit, "tokens");
+
+            if (currentAssets < requiredLiquidity) {
+                uint256 needed = requiredLiquidity - currentAssets;
+                console.log("   Need to deposit:", needed / tokenUnit, "tokens");
+
+                // Mint 并存入
+                try MockERC20(USDC).mint(OWNER, needed) {
+                    console.log("   Minted", needed / tokenUnit, "tokens");
+                    IERC20(USDC).approve(VAULT, needed);
+                    vaultContract.deposit(needed, OWNER);
+                    console.log("   Deposited", needed / tokenUnit, "tokens to Vault");
+                } catch {
+                    console.log("   Warning: Could not mint USDC, markets may not be funded");
+                }
+            } else {
+                console.log("   Vault has sufficient liquidity");
+            }
         }
     }
 
     /**
-     * @notice 在 Vault 中授权市场并从 Vault 获取初始流动性
-     * @dev 流程：1. Vault.authorizeMarket(market) → 2. Market.fundFromVault()
+     * @notice 在 V3 Vault 中授权市场并从 Vault 获取初始流动性
+     * @dev 流程：1. Vault.authorizeMarket(market, maxLiabilityBps) → 2. Market.fundFromVault()
+     *      V3 Vault 使用 AccessControl，需要 OPERATOR_ROLE
      */
     function _authorizeAndFundMarket(address market) internal {
-        LiquidityVault vaultContract = LiquidityVault(VAULT);
+        LiquidityVault_V3 vaultContract = LiquidityVault_V3(VAULT);
 
-        // 1. 在 Vault 中授权市场（需要 Vault owner 权限）
-        try vaultContract.authorizeMarket(market) {
-            console.log("      Authorized market in Vault");
+        // 1. 在 V3 Vault 中授权市场（需要 OPERATOR_ROLE）
+        // V3 接口：authorizeMarket(address market, uint256 maxLiabilityBps)
+        // 使用默认的 5% 最大亏损限制 (500 bps)
+        try vaultContract.authorizeMarket(market, 500) {
+            console.log("      Authorized market in V3 Vault (maxLiability: 5%)");
         } catch {
             console.log("      Warning: Could not authorize market (already authorized or no permission)");
             return;
@@ -499,7 +418,7 @@ contract CreateAllMarketTypes_V3 is Script {
 
         // 2. 调用市场的 fundFromVault() 从 Vault 借款
         try Market_V3(market).fundFromVault() {
-            console.log("      Funded from Vault:", INITIAL_LIQUIDITY / 1e6, "USDC");
+            console.log("      Funded from Vault:", initialLiquidity / tokenUnit, "tokens");
         } catch Error(string memory reason) {
             console.log("      Warning: Could not fund from Vault:", reason);
         }
@@ -508,15 +427,25 @@ contract CreateAllMarketTypes_V3 is Script {
     // ============ 辅助函数 ============
 
     /**
-     * @notice 从 deployments/localhost.json 加载已部署的合约地址
-     * @dev 使用 vm.readFile 和 vm.parseJson
+     * @notice 从部署文件加载已部署的合约地址
+     * @dev 优先读取 localhost_v3.json，如果不存在则从 localhost.json 读取 USDC
      */
     function _loadFromDeploymentFile() internal {
-        // 检查文件是否存在
-        try vm.readFile(DEPLOYMENT_FILE) returns (string memory jsonContent) {
-            console.log("Loading addresses from deployment file...");
+        // 优先尝试读取 V3 配置文件
+        try vm.readFile(DEPLOYMENT_FILE_V3) returns (string memory jsonContent) {
+            console.log("Loading from V3 deployment file:", DEPLOYMENT_FILE_V3);
+            _parseV3Config(jsonContent);
+            loadedFromJson = true;
+            return;
+        } catch {
+            console.log("V3 deployment file not found, trying V2 file...");
+        }
 
-            // 解析 shared.usdc
+        // 回退到 V2 配置文件（只读取 USDC 地址）
+        try vm.readFile(DEPLOYMENT_FILE_V2) returns (string memory jsonContent) {
+            console.log("Loading USDC from V2 deployment file:", DEPLOYMENT_FILE_V2);
+
+            // 只解析 shared.usdc
             try vm.parseJsonAddress(jsonContent, ".shared.usdc") returns (address usdc) {
                 if (usdc != address(0)) {
                     USDC = usdc;
@@ -524,55 +453,105 @@ contract CreateAllMarketTypes_V3 is Script {
                 }
             } catch {}
 
-            // 解析 v2.contracts.vault（V2 的 Vault 也可用于 V3）
-            try vm.parseJsonAddress(jsonContent, ".v2.contracts.vault") returns (address vault) {
-                if (vault != address(0)) {
-                    VAULT = vault;
-                    console.log("   Loaded Vault:", VAULT);
-                }
-            } catch {}
-
-            // 尝试加载 V3 特定的合约（如果 Deploy.s.sol 已经部署了 V3）
-            // 注意：当前 localhost.json 可能还没有 v3 字段，这些是可选的
-            try vm.parseJsonAddress(jsonContent, ".v3.factory") returns (address factoryAddr) {
-                if (factoryAddr != address(0)) {
-                    factory = MarketFactory_v3(factoryAddr);
-                    console.log("   Loaded Factory:", address(factory));
-                }
-            } catch {}
-
-            try vm.parseJsonAddress(jsonContent, ".v3.marketImplementation") returns (address impl) {
-                if (impl != address(0)) {
-                    marketV3Implementation = impl;
-                    console.log("   Loaded Market_V3 Implementation:", marketV3Implementation);
-                }
-            } catch {}
-
-            try vm.parseJsonBytes32(jsonContent, ".v3.marketTemplateId") returns (bytes32 templateId) {
-                if (templateId != bytes32(0)) {
-                    marketV3TemplateId = templateId;
-                    console.log("   Loaded Market_V3 Template ID");
-                }
-            } catch {}
-
-            try vm.parseJsonAddress(jsonContent, ".v3.cpmmStrategy") returns (address cpmm) {
-                if (cpmm != address(0)) {
-                    cpmmStrategy = CPMMStrategy(cpmm);
-                    console.log("   Loaded CPMMStrategy:", address(cpmmStrategy));
-                }
-            } catch {}
-
-            try vm.parseJsonAddress(jsonContent, ".v3.lmsrStrategy") returns (address lmsr) {
-                if (lmsr != address(0)) {
-                    lmsrStrategy = LMSRStrategy(lmsr);
-                    console.log("   Loaded LMSRStrategy:", address(lmsrStrategy));
-                }
-            } catch {}
-
+            // 注意：不从 V2 加载 Vault，接口不兼容
+            console.log("   V3 Vault will be deployed (V2 Vault not compatible)");
             loadedFromJson = true;
         } catch {
-            console.log("Deployment file not found or invalid, will deploy fresh contracts");
+            console.log("No deployment files found, will deploy fresh contracts");
         }
+    }
+
+    /**
+     * @notice 解析 V3 配置文件（localhost_v3.json）
+     * @dev Deploy_V3.s.sol 生成的配置结构
+     */
+    function _parseV3Config(string memory jsonContent) internal {
+        // 解析 USDC
+        try vm.parseJsonAddress(jsonContent, ".contracts.usdc") returns (address usdc) {
+            if (usdc != address(0)) {
+                USDC = usdc;
+                console.log("   Loaded USDC:", USDC);
+            }
+        } catch {}
+
+        // 解析 V3 Vault（liquidityVault）
+        try vm.parseJsonAddress(jsonContent, ".contracts.liquidityVault") returns (address vault) {
+            if (vault != address(0)) {
+                VAULT = vault;
+                console.log("   Loaded V3 Vault:", VAULT);
+            }
+        } catch {
+            console.log("   V3 Vault not found, will deploy new one");
+        }
+
+        // 解析 Factory V4（注意：JSON 字段名是 "factory" 不是 "factoryV3"）
+        try vm.parseJsonAddress(jsonContent, ".contracts.factory") returns (address factoryAddr) {
+            if (factoryAddr != address(0)) {
+                factory = MarketFactory_V4(factoryAddr);
+                console.log("   Loaded Factory V4:", address(factory));
+            }
+        } catch {
+            console.log("   Factory not found in JSON");
+        }
+
+        // 解析 Market_V3 Implementation
+        try vm.parseJsonAddress(jsonContent, ".contracts.marketImplementation") returns (address impl) {
+            if (impl != address(0)) {
+                marketV3Implementation = impl;
+                console.log("   Loaded Market_V3 Implementation:", marketV3Implementation);
+            }
+        } catch {}
+
+        // 解析模板 ID（与 Deploy_V3 生成的字段名一致）
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.wdl") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                wdlTemplateId = templateId;
+                console.log("   Loaded WDL Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.ou") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                ouTemplateId = templateId;
+                console.log("   Loaded OU Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.ah") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                ahTemplateId = templateId;
+                console.log("   Loaded AH Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.oddEven") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                oddEvenTemplateId = templateId;
+                console.log("   Loaded OddEven Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.score") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                scoreTemplateId = templateId;
+                console.log("   Loaded Score Template ID");
+            }
+        } catch {}
+
+        // 解析定价策略
+        try vm.parseJsonAddress(jsonContent, ".strategies.cpmm") returns (address cpmm) {
+            if (cpmm != address(0)) {
+                cpmmStrategy = CPMMStrategy(cpmm);
+                console.log("   Loaded CPMMStrategy:", address(cpmmStrategy));
+            }
+        } catch {}
+
+        try vm.parseJsonAddress(jsonContent, ".strategies.lmsr") returns (address lmsr) {
+            if (lmsr != address(0)) {
+                lmsrStrategy = LMSRStrategy(lmsr);
+                console.log("   Loaded LMSRStrategy:", address(lmsrStrategy));
+            }
+        } catch {}
     }
 
     function _printSummary() internal view {
@@ -588,9 +567,8 @@ contract CreateAllMarketTypes_V3 is Script {
         console.log("  - Score: 3");
         console.log("  Total: 15 markets (5 types x 3 each)");
         console.log("\nDeployed Contracts:");
-        console.log("  - MarketFactory_v3:", address(factory));
+        console.log("  - MarketFactory_V4:", address(factory));
         console.log("  - Market_V3 Implementation:", marketV3Implementation);
-        console.log("  - Market_V3 Template ID:", vm.toString(marketV3TemplateId));
         console.log("  - CPMMStrategy:", address(cpmmStrategy));
         console.log("  - LMSRStrategy:", address(lmsrStrategy));
         console.log("\nAll markets (via Factory):");
@@ -614,7 +592,6 @@ contract CreateAllMarketTypes_V3 is Script {
         json = string(abi.encodePacked(json, '  "infrastructure": {\n'));
         json = string(abi.encodePacked(json, '    "factory": "', _addr2str(address(factory)), '",\n'));
         json = string(abi.encodePacked(json, '    "marketV3Implementation": "', _addr2str(marketV3Implementation), '",\n'));
-        json = string(abi.encodePacked(json, '    "marketV3TemplateId": "', vm.toString(marketV3TemplateId), '",\n'));
         json = string(abi.encodePacked(json, '    "cpmmStrategy": "', _addr2str(address(cpmmStrategy)), '",\n'));
         json = string(abi.encodePacked(json, '    "lmsrStrategy": "', _addr2str(address(lmsrStrategy)), '",\n'));
         json = string(abi.encodePacked(json, '    "usdc": "', _addr2str(USDC), '",\n'));

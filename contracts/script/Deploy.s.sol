@@ -209,14 +209,14 @@ contract Deploy is Script {
         // 2. 部署 V2 架构（如果启用）
         // ========================================
         if (config.deployV2) {
-            _deployV2(deployed, config, usdc, deployer);
+            _deployV2(deployed, config, usdc, deployer, usdcUnit);
         }
 
         // ========================================
         // 3. 部署 V3 架构（如果启用）
         // ========================================
         if (config.deployV3) {
-            _deployV3(deployed, config, usdc, deployer);
+            _deployV3(deployed, config, usdc, deployer, usdcUnit);
         }
 
         // ========================================
@@ -259,7 +259,8 @@ contract Deploy is Script {
         DeployedContracts memory deployed,
         DeployConfig memory config,
         address usdc,
-        address deployer
+        address deployer,
+        uint256 tokenUnit
     ) internal {
         console.log("\n========================================");
         console.log("  V2 Architecture Deployment");
@@ -299,7 +300,7 @@ contract Deploy is Script {
         console.log("LiquidityVault (Deprecated):", address(vault));
 
         // V2 定价引擎
-        SimpleCPMM cpmm = new SimpleCPMM(100_000 * 10**6);
+        SimpleCPMM cpmm = new SimpleCPMM(100_000 * tokenUnit);
         deployed.v2.cpmm = address(cpmm);
         console.log("SimpleCPMM:", address(cpmm));
 
@@ -389,7 +390,8 @@ contract Deploy is Script {
         DeployedContracts memory deployed,
         DeployConfig memory config,
         address usdc,
-        address deployer
+        address deployer,
+        uint256 tokenUnit
     ) internal {
         console.log("\n========================================");
         console.log("  V3 Architecture Deployment");
@@ -517,7 +519,7 @@ contract Deploy is Script {
             deployer // 默认费用接收地址
         );
         // 添加 USDC 到支持的代币列表
-        bettingRouter.addToken(usdc, 200, deployer, 1e6, 0);
+        bettingRouter.addToken(usdc, 200, deployer, tokenUnit, 0);
         deployed.v3.bettingRouter = address(bettingRouter);
         console.log("BettingRouter_V3:", address(bettingRouter));
 
@@ -545,7 +547,7 @@ contract Deploy is Script {
         console.log("\nStep 3.9: Register V3 Market Templates");
         console.log("----------------------------------------");
 
-        _registerV3Templates(deployed, factoryV4, cpmmStrategy, lmsrStrategy, wdlMapper, ouMapper, ahMapper, oddEvenMapper, scoreMapper);
+        _registerV3Templates(deployed, factoryV4, cpmmStrategy, lmsrStrategy, wdlMapper, ouMapper, ahMapper, oddEvenMapper, scoreMapper, tokenUnit);
 
         console.log("\n  V3 Architecture deployed successfully!");
     }
@@ -559,8 +561,13 @@ contract Deploy is Script {
         OU_Mapper ouMapper,
         AH_Mapper ahMapper,
         OddEven_Mapper oddEvenMapper,
-        Score_Mapper scoreMapper
+        Score_Mapper scoreMapper,
+        uint256 tokenUnit
     ) internal {
+        // 动态计算初始流动性（基于代币精度）
+        uint256 cpmmLiquidity = 100_000 * tokenUnit;  // 100k 代币
+        uint256 lmsrLiquidity = 50_000 * tokenUnit;   // 50k 代币（LMSR 需要较少）
+
         // WDL 模板（使用 CPMM，3 个结果）
         IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
         wdlOutcomes[0] = IMarket_V3.OutcomeRule({
@@ -584,7 +591,7 @@ contract Deploy is Script {
             address(cpmmStrategy),
             address(wdlMapper),
             wdlOutcomes,
-            100_000 * 10**6 // 100k USDC 初始流动性
+            cpmmLiquidity
         );
         deployed.v3.wdlTemplateId = wdlTemplateIdV3;
         console.log("WDL Template ID:", vm.toString(wdlTemplateIdV3));
@@ -608,7 +615,7 @@ contract Deploy is Script {
             address(cpmmStrategy),
             address(ouMapper),
             ouOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.v3.ouTemplateId = ouTemplateIdV3;
         console.log("OU Template ID:", vm.toString(ouTemplateIdV3));
@@ -632,7 +639,7 @@ contract Deploy is Script {
             address(cpmmStrategy),
             address(ahMapper),
             ahOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.v3.ahTemplateId = ahTemplateIdV3;
         console.log("AH Template ID:", vm.toString(ahTemplateIdV3));
@@ -656,7 +663,7 @@ contract Deploy is Script {
             address(cpmmStrategy),
             address(oddEvenMapper),
             oddEvenOutcomes,
-            100_000 * 10**6
+            cpmmLiquidity
         );
         deployed.v3.oddEvenTemplateId = oddEvenTemplateIdV3;
         console.log("OddEven Template ID:", vm.toString(oddEvenTemplateIdV3));
@@ -682,7 +689,7 @@ contract Deploy is Script {
             address(lmsrStrategy),
             address(scoreMapper),
             scoreOutcomes,
-            50_000 * 10**6 // LMSR 需要较少初始流动性
+            lmsrLiquidity
         );
         deployed.v3.scoreTemplateId = scoreTemplateIdV3;
         console.log("Score Template ID:", vm.toString(scoreTemplateIdV3));
