@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "../src/core/MarketFactory_V4.sol";
+import "../src/core/MarketFactory_V3.sol";
 import "../src/core/Market_V3.sol";
 import "../src/interfaces/IMarket_V3.sol";
 import "../src/interfaces/IPricingStrategy.sol";
@@ -26,7 +26,7 @@ import "../src/mappers/Score_Mapper.sol";
  *      - 可插拔的定价策略（CPMMStrategy / LMSRStrategy）
  *      - 可插拔的赛果映射器（WDL_Mapper / OU_Mapper / AH_Mapper 等）
  *
- * 重要：Market_V3 必须通过 MarketFactory_v3 创建，构造函数强制绑定 factory 地址
+ * 重要：Market_V3 必须通过 MarketFactory_V3 创建，构造函数强制绑定 factory 地址
  *
  * 使用方法：
  *   1. 自动从 deployments/localhost.json 读取已部署的合约（推荐）：
@@ -80,7 +80,7 @@ contract CreateAllMarketTypes_V3 is Script {
     address[] public scoreMarkets;
 
     // 部署的合约（使用 V4 Factory）
-    MarketFactory_V4 public factory;
+    MarketFactory_V3 public factory;
     CPMMStrategy public cpmmStrategy;
     LMSRStrategy public lmsrStrategy;
     address public marketV3Implementation;
@@ -115,7 +115,7 @@ contract CreateAllMarketTypes_V3 is Script {
 
             // 环境变量优先级高于 JSON 文件
             if (existingFactory != address(0)) {
-                factory = MarketFactory_V4(existingFactory);
+                factory = MarketFactory_V3(existingFactory);
             }
             if (existingUsdc != address(0)) {
                 USDC = existingUsdc;
@@ -127,7 +127,7 @@ contract CreateAllMarketTypes_V3 is Script {
             USDC = existingUsdc;
             VAULT = existingVault;
             if (existingFactory != address(0)) {
-                factory = MarketFactory_V4(existingFactory);
+                factory = MarketFactory_V3(existingFactory);
             }
         }
 
@@ -318,7 +318,7 @@ contract CreateAllMarketTypes_V3 is Script {
         IMarket_V3.OutcomeRule[] memory emptyOutcomes;
 
         // 构建 CreateMarketParams（Factory V4 接口）
-        MarketFactory_V4.CreateMarketParams memory params = MarketFactory_V4.CreateMarketParams({
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
             templateId: templateId,
             matchId: matchId,
             kickoffTime: kickoffTime,
@@ -487,7 +487,7 @@ contract CreateAllMarketTypes_V3 is Script {
         // 解析 Factory V4（注意：JSON 字段名是 "factory" 不是 "factoryV3"）
         try vm.parseJsonAddress(jsonContent, ".contracts.factory") returns (address factoryAddr) {
             if (factoryAddr != address(0)) {
-                factory = MarketFactory_V4(factoryAddr);
+                factory = MarketFactory_V3(factoryAddr);
                 console.log("   Loaded Factory V4:", address(factory));
             }
         } catch {
@@ -567,7 +567,7 @@ contract CreateAllMarketTypes_V3 is Script {
         console.log("  - Score: 3");
         console.log("  Total: 15 markets (5 types x 3 each)");
         console.log("\nDeployed Contracts:");
-        console.log("  - MarketFactory_V4:", address(factory));
+        console.log("  - MarketFactory_V3:", address(factory));
         console.log("  - Market_V3 Implementation:", marketV3Implementation);
         console.log("  - CPMMStrategy:", address(cpmmStrategy));
         console.log("  - LMSRStrategy:", address(lmsrStrategy));

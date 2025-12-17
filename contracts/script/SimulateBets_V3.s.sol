@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import "../src/core/MarketFactory_v3.sol";
+import "../src/core/MarketFactory_V3.sol";
 import "../src/core/Market_V3.sol";
 import "../src/core/BettingRouter_V3.sol";
 import "../src/interfaces/IMarket_V3.sol";
@@ -103,7 +103,7 @@ contract SimulateBets_V3 is Script {
         console.log("  Skip Locked:", skipLocked);
         console.log("");
 
-        MarketFactory_v3 factory = MarketFactory_v3(factoryAddr);
+        MarketFactory_V3 factory = MarketFactory_V3(factoryAddr);
 
         // 获取所有市场
         uint256 marketCount = factory.getMarketCount();

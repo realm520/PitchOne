@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 
 // V3 核心合约
 import "../src/core/Market_V3.sol";
-import "../src/core/MarketFactory_V4.sol";
+import "../src/core/MarketFactory_V3.sol";
 import "../src/core/BettingRouter_V3.sol";
 
 // 定价策略
@@ -79,7 +79,7 @@ contract Deploy_V3 is Script {
         address paramController;
 
         // V3 核心合约
-        address factory;                // MarketFactory_V4
+        address factory;                // MarketFactory_V3
         address marketImplementation;   // Market_V3 实现
         address bettingRouter;          // BettingRouter_V3
         address liquidityVault;         // LiquidityVault_V3
@@ -202,19 +202,19 @@ contract Deploy_V3 is Script {
         console.log("ParamController:", address(paramController));
 
         // ========================================
-        // 3. 部署 MarketFactory_V4（使用临时 implementation）
+        // 3. 部署 MarketFactory_V3（使用临时 implementation）
         // ========================================
-        console.log("\nStep 3: Deploy MarketFactory_V4");
+        console.log("\nStep 3: Deploy MarketFactory_V3");
         console.log("----------------------------------------");
 
         // 先用 deployer 作为临时 implementation（后面会更新）
-        MarketFactory_V4 factoryV4 = new MarketFactory_V4(
+        MarketFactory_V3 factoryV4 = new MarketFactory_V3(
             deployer,  // 临时 implementation，后面更新
             deployed.usdc,
             deployer
         );
         deployed.factory = address(factoryV4);
-        console.log("MarketFactory_V4:", address(factoryV4));
+        console.log("MarketFactory_V3:", address(factoryV4));
 
         // ========================================
         // 4. 部署 Market_V3 实现（使用 Factory V4 地址）
@@ -385,7 +385,7 @@ contract Deploy_V3 is Script {
 
     function _registerV3Templates(
         DeployedContracts memory deployed,
-        MarketFactory_V4 factoryV4,
+        MarketFactory_V3 factoryV4,
         CPMMStrategy cpmmStrategy,
         LMSRStrategy lmsrStrategy,
         ParimutuelStrategy parimutuelStrategy,
@@ -673,7 +673,7 @@ contract Deploy_V3 is Script {
         summary = string.concat(
             summary,
             "[Core Contracts]\n",
-            "  MarketFactory_V4:  ", vm.toString(deployed.factory), "\n",
+            "  MarketFactory_V3:  ", vm.toString(deployed.factory), "\n",
             "  Market_V3 Impl:    ", vm.toString(deployed.marketImplementation), "\n",
             "  BettingRouter_V3:  ", vm.toString(deployed.bettingRouter), "\n\n"
         );

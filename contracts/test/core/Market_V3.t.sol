@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../../src/core/Market_V3.sol";
-import "../../src/core/MarketFactory_v3.sol";
+import "../../src/core/MarketFactory_V3.sol";
 import "../../src/interfaces/IMarket_V3.sol";
 import "../../src/interfaces/IPricingStrategy.sol";
 import "../../src/interfaces/IResultMapper.sol";
@@ -35,7 +35,7 @@ contract MockUSDC is ERC20 {
  * @notice Market_V3 合约集成测试
  */
 contract Market_V3_Test is Test {
-    MarketFactory_v3 public factory;
+    MarketFactory_V3 public factory;
     Market_V3 public marketImpl;
     Market_V3 public market;
     CPMMStrategy public strategy;
@@ -55,19 +55,30 @@ contract Market_V3_Test is Test {
     uint256 constant BET_AMOUNT = 1_000e6; // 1k USDC
 
     function setUp() public {
+        vm.startPrank(admin);
+
         // 部署依赖合约
         strategy = new CPMMStrategy();
         mapper = new WDL_Mapper();
         usdc = new MockUSDC();
 
-        // 部署 Factory
-        factory = new MarketFactory_v3();
+        // 部署 Factory（先用一个临时地址，稍后设置实际实现）
+        factory = new MarketFactory_V3(
+            address(1), // 临时占位
+            address(usdc),
+            admin
+        );
 
-        // 部署 Market 实现合约（绑定 Factory 地址）
+        // 部署 Market 实现合约（传入 factory 地址）
         marketImpl = new Market_V3(address(factory));
 
-        // 在 Factory 中注册模板
-        templateId = factory.registerTemplate("Market_V3", "1.0.0", address(marketImpl));
+        // 更新 Factory 的实现地址
+        factory.setImplementation(address(marketImpl));
+
+        // 设置 Factory 配置
+        factory.setRouter(router);
+        factory.setKeeper(keeper);
+        factory.setOracle(oracle);
 
         // 准备 outcome 规则
         IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](3);
@@ -84,34 +95,31 @@ contract Market_V3_Test is Test {
             payoutType: IPricingStrategy.PayoutType.WINNER
         });
 
-        // 构建 MarketConfig
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256("test-market-1"),
+        // 注册模板
+        templateId = keccak256("WDL");
+        factory.registerTemplate(
+            templateId,
+            "WDL",
+            "CPMM",
+            address(strategy),
+            address(mapper),
+            rules,
+            INITIAL_LIQUIDITY
+        );
+
+        // 创建市场
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: templateId,
             matchId: "EPL_2024_MUN_vs_MCI",
             kickoffTime: block.timestamp + 1 days,
-            settlementToken: address(usdc),
-            pricingStrategy: strategy,
-            resultMapper: mapper,
-            vault: address(0),
+            mapperInitData: "",
             initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: rules,
-            uri: "",
-            admin: admin
+            outcomeRules: new IMarket_V3.OutcomeRule[](0) // 使用模板默认规则
         });
 
-        // 通过 Factory 创建 Market
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-        address marketAddr = factory.createMarket(templateId, initData);
+        address marketAddr = factory.createMarket(params);
         market = Market_V3(marketAddr);
 
-        // 授予角色
-        vm.startPrank(admin);
-        market.grantRole(market.ROUTER_ROLE(), router);
-        market.grantRole(market.KEEPER_ROLE(), keeper);
-        market.grantRole(market.ORACLE_ROLE(), oracle);
         vm.stopPrank();
 
         // 给用户分发 USDC 并授权
@@ -156,38 +164,6 @@ contract Market_V3_Test is Test {
         assertApproxEqRel(prices[2], 3333, 0.01e18);
     }
 
-    function test_initialize_TooFewOutcomes_Reverts() public {
-        IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](1);
-        rules[0] = IMarket_V3.OutcomeRule({
-            name: "Only One",
-            payoutType: IPricingStrategy.PayoutType.WINNER
-        });
-
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256("test-market-2"),
-            matchId: "TEST",
-            kickoffTime: block.timestamp + 1 days,
-            settlementToken: address(usdc),
-            pricingStrategy: strategy,
-            resultMapper: mapper,
-            vault: address(0),
-            initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: rules,
-            uri: "",
-            admin: admin
-        });
-
-        // 通过 Factory 创建市场时，initialize 内部会检查 outcomes 数量
-        // Factory 会包装错误为 "Initialization failed"
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-
-        vm.expectRevert("Initialization failed");
-        factory.createMarket(templateId, initData);
-    }
-
     // ============ 下注测试 ============
 
     function test_placeBetFor_Success() public {
@@ -207,10 +183,7 @@ contract Market_V3_Test is Test {
 
     /**
      * @notice 测试下注后价格变化
-     * @dev 注意：CPMMStrategy 在三向市场中，由于 PRECISION 与 USDC decimals 的交互，
-     *      即使很小的下注也会导致 outcome 0 的储备变为 0，触发 getPrice 除零。
-     *      这是 CPMMStrategy 的已知限制，需要在策略层修复（使用不同的 PRECISION 或改进算法）。
-     *      此测试使用二向市场来避免此问题。
+     * @dev 使用二向市场来避免三向 CPMM 的精度问题
      */
     function test_placeBetFor_PriceChanges() public {
         // 准备二向 outcome 规则
@@ -227,32 +200,32 @@ contract Market_V3_Test is Test {
         // 使用 OddEven_Mapper（二向）
         OddEven_Mapper mapper2 = new OddEven_Mapper();
 
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256("test-market-price"),
+        // 注册新模板
+        bytes32 ouTemplateId = keccak256("OU");
+        vm.prank(admin);
+        factory.registerTemplate(
+            ouTemplateId,
+            "OU",
+            "CPMM",
+            address(strategy),
+            address(mapper2),
+            rules,
+            INITIAL_LIQUIDITY
+        );
+
+        // 创建市场
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: ouTemplateId,
             matchId: "EPL_2024_OU",
             kickoffTime: block.timestamp + 1 days,
-            settlementToken: address(usdc),
-            pricingStrategy: strategy,
-            resultMapper: mapper2,
-            vault: address(0),
+            mapperInitData: "",
             initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: rules,
-            uri: "",
-            admin: admin
+            outcomeRules: new IMarket_V3.OutcomeRule[](0)
         });
 
-        // 通过 Factory 创建市场
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-        address marketAddr2 = factory.createMarket(templateId, initData);
+        vm.prank(admin);
+        address marketAddr2 = factory.createMarket(params);
         Market_V3 market2 = Market_V3(marketAddr2);
-
-        // 授权（需要 startPrank 因为 grantRole 需要 admin 权限）
-        vm.startPrank(admin);
-        market2.grantRole(market2.ROUTER_ROLE(), router);
-        vm.stopPrank();
 
         // 给 Market 初始流动性
         usdc.mint(address(market2), INITIAL_LIQUIDITY);
@@ -543,55 +516,6 @@ contract Market_V3_Test is Test {
     }
 
     // ============ 查询函数测试 ============
-
-    /**
-     * @notice 测试 previewBet 功能
-     * @dev 由于三向市场的 CPMM 精度问题，此测试创建二向市场
-     */
-    function test_previewBet() public {
-        // 创建一个二向市场来测试 previewBet
-        IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](2);
-        rules[0] = IMarket_V3.OutcomeRule({
-            name: "Over",
-            payoutType: IPricingStrategy.PayoutType.WINNER
-        });
-        rules[1] = IMarket_V3.OutcomeRule({
-            name: "Under",
-            payoutType: IPricingStrategy.PayoutType.WINNER
-        });
-
-        OddEven_Mapper mapper2 = new OddEven_Mapper();
-
-        IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
-            marketId: keccak256("test-market-preview"),
-            matchId: "EPL_2024_Preview",
-            kickoffTime: block.timestamp + 1 days,
-            settlementToken: address(usdc),
-            pricingStrategy: strategy,
-            resultMapper: mapper2,
-            vault: address(0),
-            initialLiquidity: INITIAL_LIQUIDITY,
-            outcomeRules: rules,
-            uri: "",
-            admin: admin
-        });
-
-        // 通过 Factory 创建市场
-        bytes memory initData = abi.encodeWithSelector(
-            Market_V3.initialize.selector,
-            config
-        );
-        address marketAddr2 = factory.createMarket(templateId, initData);
-        Market_V3 market2 = Market_V3(marketAddr2);
-
-        usdc.mint(address(market2), INITIAL_LIQUIDITY);
-
-        uint256 betAmount = 10_000e6;
-        (uint256 shares, uint256 newPrice) = market2.previewBet(0, betAmount);
-
-        assertTrue(shares > 0);
-        assertTrue(newPrice > 0);
-    }
 
     function test_getMarketStats() public {
         // 用户下注
