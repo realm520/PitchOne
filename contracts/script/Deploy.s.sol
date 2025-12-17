@@ -14,8 +14,9 @@ import "../src/templates/PlayerProps_Template_V2.sol";
 
 // V3 核心合约
 import "../src/core/Market_V3.sol";
+import "../src/core/MarketFactory_v3.sol";
 import "../src/core/MarketFactory_V4.sol";
-import "../src/core/BettingRouter_V2.sol";
+import "../src/core/BettingRouter_V3.sol";
 
 // 定价策略
 import "../src/pricing/CPMMStrategy.sol";
@@ -120,9 +121,11 @@ contract Deploy is Script {
     // V3 部署结果
     struct DeployedContractsV3 {
         // 核心合约
+        address factory;                // MarketFactory_v3
         address marketImplementation;
+        bytes32 marketTemplateId;       // Market_V3 模板 ID
         address factoryV4;
-        address bettingRouterV2;
+        address bettingRouter;
         // 定价策略
         address cpmmStrategy;
         address lmsrStrategy;
@@ -432,13 +435,28 @@ contract Deploy is Script {
             console.log("ParamController:", address(paramController));
         }
 
-        // 3.1 部署 Market_V3 实现合约
-        console.log("\nStep 3.1: Deploy Market_V3 Implementation");
+        // 3.1 部署 MarketFactory_v3 和 Market_V3 实现合约
+        console.log("\nStep 3.1: Deploy MarketFactory_v3 and Market_V3 Implementation");
         console.log("----------------------------------------");
 
-        Market_V3 marketImpl = new Market_V3();
+        // 先部署 Factory
+        MarketFactory_v3 factoryV3 = new MarketFactory_v3();
+        deployed.v3.factory = address(factoryV3);
+        console.log("MarketFactory_v3:", address(factoryV3));
+
+        // 部署 Market_V3 实现，绑定 Factory 地址
+        Market_V3 marketImpl = new Market_V3(address(factoryV3));
         deployed.v3.marketImplementation = address(marketImpl);
         console.log("Market_V3 Implementation:", address(marketImpl));
+
+        // 在 Factory 中注册 Market_V3 模板
+        bytes32 marketV3TemplateId = factoryV3.registerTemplate(
+            "Market_V3",
+            "1.0.0",
+            address(marketImpl)
+        );
+        deployed.v3.marketTemplateId = marketV3TemplateId;
+        console.log("Market_V3 Template ID:", vm.toString(marketV3TemplateId));
 
         // 3.2 部署定价策略
         console.log("\nStep 3.2: Deploy Pricing Strategies");
@@ -492,18 +510,19 @@ contract Deploy is Script {
         deployed.v3.factoryV4 = address(factoryV4);
         console.log("MarketFactory_V4:", address(factoryV4));
 
-        // 3.5 部署 BettingRouter_V2
-        BettingRouter_V2 bettingRouterV2 = new BettingRouter_V2(
+        // 3.5 部署 BettingRouter_V3（多代币支持）
+        BettingRouter_V3 bettingRouter = new BettingRouter_V3(
             address(factoryV4),
-            usdc,
-            feeRouterAddr,
-            200 // 2% 基础费率
+            200,     // 2% 默认费率
+            deployer // 默认费用接收地址
         );
-        deployed.v3.bettingRouterV2 = address(bettingRouterV2);
-        console.log("BettingRouter_V2:", address(bettingRouterV2));
+        // 添加 USDC 到支持的代币列表
+        bettingRouter.addToken(usdc, 200, deployer, 1e6, 0);
+        deployed.v3.bettingRouter = address(bettingRouter);
+        console.log("BettingRouter_V3:", address(bettingRouter));
 
         // 3.6 配置 Factory V4
-        factoryV4.setRouter(address(bettingRouterV2));
+        factoryV4.setRouter(address(bettingRouter));
         factoryV4.setKeeper(deployer); // 测试环境使用 deployer
         factoryV4.setOracle(deployer); // 测试环境使用 deployer
         console.log("Factory V4 configured");
@@ -749,7 +768,7 @@ contract Deploy is Script {
             console.log("Core:");
             console.log("  Market_V3 Implementation:", deployed.v3.marketImplementation);
             console.log("  MarketFactory_V4:", deployed.v3.factoryV4);
-            console.log("  BettingRouter_V2:", deployed.v3.bettingRouterV2);
+            console.log("  BettingRouter_V3:", deployed.v3.bettingRouter);
 
             console.log("\nPricing Strategies:");
             console.log("  CPMMStrategy:", deployed.v3.cpmmStrategy);
@@ -861,7 +880,7 @@ contract Deploy is Script {
             string memory v3Contracts = "v3Contracts";
             vm.serializeAddress(v3Contracts, "marketImplementation", deployed.v3.marketImplementation);
             vm.serializeAddress(v3Contracts, "factory", deployed.v3.factoryV4);
-            string memory v3ContractsJson = vm.serializeAddress(v3Contracts, "bettingRouter", deployed.v3.bettingRouterV2);
+            string memory v3ContractsJson = vm.serializeAddress(v3Contracts, "bettingRouter", deployed.v3.bettingRouter);
 
             // 构建 v3.strategies 对象
             string memory v3Strategies = "v3Strategies";
