@@ -40,6 +40,11 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
+    // ============ 不可变变量 ============
+
+    /// @notice 工厂合约地址（只能通过工厂创建市场）
+    address public immutable factory;
+
     // ============ 状态变量 ============
 
     // 市场配置
@@ -104,6 +109,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         uint256 shares,
         uint256 amount
     );
+    event VaultFunded(address indexed vault, uint256 amount);
     event VaultSettled(uint256 principal, int256 pnl);
 
     // ============ 错误定义 ============
@@ -115,10 +121,19 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     error NotWinningOutcome(uint256 outcomeId);
     error BeforeKickoff();
     error AfterKickoff();
+    error OnlyFactory();
 
     // ============ 构造函数 ============
 
-    constructor() ERC1155("") {
+    /**
+     * @notice 构造函数
+     * @param _factory 工厂合约地址
+     * @dev factory 地址在构造时设置，Clone 时会继承此值
+     *      这确保所有市场实例只能通过指定的工厂初始化
+     */
+    constructor(address _factory) ERC1155("") {
+        require(_factory != address(0), "Market: Invalid factory");
+        factory = _factory;
         _disableInitializers();
     }
 
@@ -127,8 +142,12 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     /**
      * @notice 初始化市场
      * @param config 市场配置
+     * @dev 只能由工厂合约调用
      */
     function initialize(MarketConfig calldata config) external initializer {
+        // 验证调用者是工厂合约
+        if (msg.sender != factory) revert OnlyFactory();
+
         require(config.outcomeRules.length >= 2, "Market: Min 2 outcomes");
         require(config.outcomeRules.length <= 100, "Market: Max 100 outcomes");
         require(address(config.pricingStrategy) != address(0), "Market: Invalid pricing strategy");
@@ -158,13 +177,10 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 设置初始流动性
         totalLiquidity = config.initialLiquidity;
 
-        // Vault 集成：如果配置了 Vault，从 Vault 借款
-        if (config.vault != address(0) && config.initialLiquidity > 0) {
+        // Vault 集成：设置 Vault 地址（不在 initialize 中自动借款）
+        // 注意：需要先在 Vault 中授权市场，然后调用 fundFromVault()
+        if (config.vault != address(0)) {
             vault = ILiquidityVault_V3(config.vault);
-            borrowedAmount = config.initialLiquidity;
-
-            // 从 Vault 借出初始流动性
-            vault.borrow(config.initialLiquidity);
         }
 
         // 设置角色
@@ -227,6 +243,25 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         _mint(user, outcomeId, shares, "");
 
         emit BetPlaced(user, outcomeId, amount, shares);
+    }
+
+    // ============ Vault 集成 ============
+
+    /**
+     * @notice 从 Vault 借入初始流动性
+     * @dev 必须在 Vault 授权市场后调用
+     *      流程：1. 创建市场 → 2. Vault.authorizeMarket() → 3. fundFromVault()
+     */
+    function fundFromVault() external onlyRole(OPERATOR_ROLE) {
+        require(address(vault) != address(0), "Market: No vault configured");
+        require(borrowedAmount == 0, "Market: Already funded");
+        require(initialLiquidity > 0, "Market: No initial liquidity");
+        require(status == MarketStatus.Open, "Market: Not open");
+
+        borrowedAmount = initialLiquidity;
+        vault.borrow(initialLiquidity);
+
+        emit VaultFunded(address(vault), initialLiquidity);
     }
 
     // ============ 生命周期管理 ============

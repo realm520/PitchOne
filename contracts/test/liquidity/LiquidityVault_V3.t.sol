@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "../../src/liquidity/LiquidityVault_V3.sol";
 import "../../src/core/Market_V3.sol";
+import "../../src/core/MarketFactory_v3.sol";
 import "../../src/pricing/CPMMStrategy.sol";
 import "../../src/mappers/WDL_Mapper.sol";
 import "../../src/interfaces/IMarket_V3.sol";
@@ -28,6 +29,7 @@ contract LiquidityVaultV3Test is Test {
     MockUSDC public usdc;
     CPMMStrategy public cpmm;
     WDL_Mapper public mapper;
+    MarketFactory_v3 public factory;
     Market_V3 public marketImpl;
 
     address public admin = address(1);
@@ -57,8 +59,11 @@ contract LiquidityVaultV3Test is Test {
         cpmm = new CPMMStrategy();
         mapper = new WDL_Mapper();
 
-        // Deploy market implementation
-        marketImpl = new Market_V3();
+        // Deploy Factory
+        factory = new MarketFactory_v3();
+
+        // Deploy market implementation（绑定 Factory 地址）
+        marketImpl = new Market_V3(address(factory));
 
         // Setup LP accounts
         usdc.transfer(lp1, INITIAL_LP_DEPOSIT);

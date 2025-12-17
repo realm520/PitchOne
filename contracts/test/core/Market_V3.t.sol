@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../../src/core/Market_V3.sol";
+import "../../src/core/MarketFactory_v3.sol";
 import "../../src/interfaces/IMarket_V3.sol";
 import "../../src/interfaces/IPricingStrategy.sol";
 import "../../src/interfaces/IResultMapper.sol";
@@ -10,7 +11,6 @@ import "../../src/pricing/CPMMStrategy.sol";
 import "../../src/mappers/WDL_Mapper.sol";
 import "../../src/mappers/OddEven_Mapper.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
 
 /**
  * @title MockUSDC
@@ -35,11 +35,14 @@ contract MockUSDC is ERC20 {
  * @notice Market_V3 合约集成测试
  */
 contract Market_V3_Test is Test {
+    MarketFactory_v3 public factory;
     Market_V3 public marketImpl;
     Market_V3 public market;
     CPMMStrategy public strategy;
     WDL_Mapper public mapper;
     MockUSDC public usdc;
+
+    bytes32 public templateId;
 
     address public admin = address(1);
     address public router = address(2);
@@ -57,11 +60,14 @@ contract Market_V3_Test is Test {
         mapper = new WDL_Mapper();
         usdc = new MockUSDC();
 
-        // 部署 Market 实现合约
-        marketImpl = new Market_V3();
+        // 部署 Factory
+        factory = new MarketFactory_v3();
 
-        // 使用 Clone 部署 Market 实例
-        market = Market_V3(Clones.clone(address(marketImpl)));
+        // 部署 Market 实现合约（绑定 Factory 地址）
+        marketImpl = new Market_V3(address(factory));
+
+        // 在 Factory 中注册模板
+        templateId = factory.registerTemplate("Market_V3", "1.0.0", address(marketImpl));
 
         // 准备 outcome 规则
         IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](3);
@@ -78,7 +84,7 @@ contract Market_V3_Test is Test {
             payoutType: IPricingStrategy.PayoutType.WINNER
         });
 
-        // 初始化 Market
+        // 构建 MarketConfig
         IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
             marketId: keccak256("test-market-1"),
             matchId: "EPL_2024_MUN_vs_MCI",
@@ -93,7 +99,13 @@ contract Market_V3_Test is Test {
             admin: admin
         });
 
-        market.initialize(config);
+        // 通过 Factory 创建 Market
+        bytes memory initData = abi.encodeWithSelector(
+            Market_V3.initialize.selector,
+            config
+        );
+        address marketAddr = factory.createMarket(templateId, initData);
+        market = Market_V3(marketAddr);
 
         // 授予角色
         vm.startPrank(admin);
@@ -145,8 +157,6 @@ contract Market_V3_Test is Test {
     }
 
     function test_initialize_TooFewOutcomes_Reverts() public {
-        Market_V3 newMarket = Market_V3(Clones.clone(address(marketImpl)));
-
         IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](1);
         rules[0] = IMarket_V3.OutcomeRule({
             name: "Only One",
@@ -167,8 +177,15 @@ contract Market_V3_Test is Test {
             admin: admin
         });
 
-        vm.expectRevert("Market: Min 2 outcomes");
-        newMarket.initialize(config);
+        // 通过 Factory 创建市场时，initialize 内部会检查 outcomes 数量
+        // Factory 会包装错误为 "Initialization failed"
+        bytes memory initData = abi.encodeWithSelector(
+            Market_V3.initialize.selector,
+            config
+        );
+
+        vm.expectRevert("Initialization failed");
+        factory.createMarket(templateId, initData);
     }
 
     // ============ 下注测试 ============
@@ -196,9 +213,6 @@ contract Market_V3_Test is Test {
      *      此测试使用二向市场来避免此问题。
      */
     function test_placeBetFor_PriceChanges() public {
-        // 创建一个二向市场来测试价格变化
-        Market_V3 market2 = Market_V3(Clones.clone(address(marketImpl)));
-
         // 准备二向 outcome 规则
         IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](2);
         rules[0] = IMarket_V3.OutcomeRule({
@@ -210,7 +224,7 @@ contract Market_V3_Test is Test {
             payoutType: IPricingStrategy.PayoutType.WINNER
         });
 
-        // 使用 OU_Mapper（二向）
+        // 使用 OddEven_Mapper（二向）
         OddEven_Mapper mapper2 = new OddEven_Mapper();
 
         IMarket_V3.MarketConfig memory config = IMarket_V3.MarketConfig({
@@ -227,7 +241,13 @@ contract Market_V3_Test is Test {
             admin: admin
         });
 
-        market2.initialize(config);
+        // 通过 Factory 创建市场
+        bytes memory initData = abi.encodeWithSelector(
+            Market_V3.initialize.selector,
+            config
+        );
+        address marketAddr2 = factory.createMarket(templateId, initData);
+        Market_V3 market2 = Market_V3(marketAddr2);
 
         // 授权（需要 startPrank 因为 grantRole 需要 admin 权限）
         vm.startPrank(admin);
@@ -530,8 +550,6 @@ contract Market_V3_Test is Test {
      */
     function test_previewBet() public {
         // 创建一个二向市场来测试 previewBet
-        Market_V3 market2 = Market_V3(Clones.clone(address(marketImpl)));
-
         IMarket_V3.OutcomeRule[] memory rules = new IMarket_V3.OutcomeRule[](2);
         rules[0] = IMarket_V3.OutcomeRule({
             name: "Over",
@@ -558,7 +576,14 @@ contract Market_V3_Test is Test {
             admin: admin
         });
 
-        market2.initialize(config);
+        // 通过 Factory 创建市场
+        bytes memory initData = abi.encodeWithSelector(
+            Market_V3.initialize.selector,
+            config
+        );
+        address marketAddr2 = factory.createMarket(templateId, initData);
+        Market_V3 market2 = Market_V3(marketAddr2);
+
         usdc.mint(address(market2), INITIAL_LIQUIDITY);
 
         uint256 betAmount = 10_000e6;
