@@ -105,7 +105,7 @@ contract CorrelationGuard is ICorrelationGuard, Ownable, AccessControl {
                 bytes32 matchId2 = getMatchId(legs[j].market);
 
                 // 获取相关性规则
-                (uint256 penaltyBps, bool blocked) = _getRule(matchId1, matchId2);
+                (, bool blocked) = _getRule(matchId1, matchId2);
 
                 if (blocked && policy == CorrelationPolicy.STRICT_BLOCK) {
                     return (

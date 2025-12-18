@@ -145,9 +145,9 @@ contract CreditToken is ERC1155, AccessControl, Pausable {
 
     /**
      * @notice 构造函数
-     * @param uri 基础 URI
+     * @param baseUri 基础 URI
      */
-    constructor(string memory uri) ERC1155(uri) {
+    constructor(string memory baseUri) ERC1155(baseUri) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
