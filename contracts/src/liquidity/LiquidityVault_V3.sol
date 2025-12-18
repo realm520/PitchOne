@@ -339,10 +339,9 @@ contract LiquidityVault_V3 is ILiquidityVault_V3, ERC4626, AccessControl, Pausab
             emit ReserveFundUpdated(_reserveFund, false);
         } else if (_reserveFund > 0) {
             // 储备金不足，用尽储备金，剩余由 LP 承担
-            uint256 coveredByReserve = _reserveFund;
             _reserveFund = 0;
             emit ReserveFundUpdated(0, false);
-            // 剩余的 loss - coveredByReserve 由 LP 承担（体现在 totalAssets 减少）
+            // 剩余的 loss 由 LP 承担（体现在 totalAssets 减少）
         }
         // 如果储备金为 0，全部亏损由 LP 承担
     }

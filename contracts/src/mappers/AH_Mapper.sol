@@ -174,19 +174,13 @@ contract AH_Mapper is IResultMapper {
      *      - 平局：客队全赢
      *      - 客队赢：客队全赢
      */
-    function _handleQuarterLine(int256 adjustedDiff, int256 goalDiff)
+    function _handleQuarterLine(int256 adjustedDiff, int256 /* goalDiff */)
         internal
-        view
+        pure
         returns (uint256[] memory outcomeIds, uint256[] memory weights)
     {
         // 获取盘口线的小数部分来判断是 .25 还是 .75
-        int256 remainder = line % LINE_PRECISION;
-        if (remainder < 0) remainder = -remainder;
-        bool isPoint75 = (remainder == 750);
-        bool isPoint25 = (remainder == 250);
-
-        // 计算让球后的整数差值
-        int256 baseAdjustedDiff = goalDiff * LINE_PRECISION + (line / LINE_PRECISION) * LINE_PRECISION;
+        // （预留变量用于未来的四分之一盘口优化逻辑）
 
         if (adjustedDiff > LINE_PRECISION / 2) {
             // 明显赢盘（差值 > 0.5 球）
@@ -253,7 +247,7 @@ contract AH_Mapper is IResultMapper {
     // ============ 辅助查询 ============
 
     /// @inheritdoc IResultMapper
-    function getOutcomeName(uint256 outcomeId) external view override returns (string memory name) {
+    function getOutcomeName(uint256 outcomeId) external pure override returns (string memory name) {
         if (outcomeId == OUTCOME_HOME_WIN) return "Home +line";
         if (outcomeId == OUTCOME_PUSH) return "Push";
         if (outcomeId == OUTCOME_AWAY_WIN) return "Away -line";
@@ -261,7 +255,7 @@ contract AH_Mapper is IResultMapper {
     }
 
     /// @inheritdoc IResultMapper
-    function getAllOutcomeNames() external view override returns (string[] memory names) {
+    function getAllOutcomeNames() external pure override returns (string[] memory names) {
         names = new string[](3);
         names[0] = "Home +line";
         names[1] = "Push";

@@ -61,20 +61,21 @@ library ScoreMarketLib {
     /**
      * @notice 构建有效的 Outcome IDs
      * @param maxGoals 最大进球数
-     * @return validIds 有效结果ID数组
-     * @return idToIndex Outcome ID 到数组索引的映射
+     * @dev 注意：此函数签名不可用（Solidity 不允许在库函数中返回 storage 映射），
+     *      需要在合约中内联或重新设计。返回值未命名以避免编译警告。
      */
     function buildOutcomeIds(uint8 maxGoals)
         internal
         pure
         returns (
-            uint256[] memory validIds,
-            mapping(uint256 => uint256) storage idToIndex,
-            mapping(uint256 => bool) storage isValid
+            uint256[] memory,
+            mapping(uint256 => uint256) storage,
+            mapping(uint256 => bool) storage
         )
     {
         // 注意：Solidity 不允许在库函数中返回 storage 映射
         // 此函数签名不可用，需要在合约中内联或重新设计
+        maxGoals; // silence unused parameter warning
         revert("Not implemented - use in contract");
     }
 

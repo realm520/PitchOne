@@ -107,7 +107,7 @@ contract OU_Mapper is IResultMapper {
     // ============ 元数据 ============
 
     /// @inheritdoc IResultMapper
-    function outcomeCount() external view override returns (uint256) {
+    function outcomeCount() external pure override returns (uint256) {
         // 整球盘有 3 个结果（含 Push），半球盘只有 2 个有效结果
         // 但为了接口一致性，都返回 3
         return 3;

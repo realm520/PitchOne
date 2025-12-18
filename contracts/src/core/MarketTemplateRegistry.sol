@@ -238,9 +238,6 @@ contract MarketTemplateRegistry is Ownable, Pausable {
         onlyActiveTemplate(templateId)
         returns (address market)
     {
-        // 获取模板实现地址
-        address implementation = templates[templateId].implementation;
-
         // 使用 low-level call 创建市场
         // 注意: 这里需要模板合约实现工厂函数或使用 Proxy 模式
         // 简化版: 假设调用者传入完整的 bytecode + constructor args

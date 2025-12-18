@@ -780,7 +780,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
     // ============ ERC1155 元数据 ============
 
-    function uri(uint256 outcomeId) public view override returns (string memory) {
+    function uri(uint256 /* outcomeId */) public pure override returns (string memory) {
         // 返回空或实现自定义 URI 逻辑
         return "";
     }
