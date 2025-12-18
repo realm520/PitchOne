@@ -12,11 +12,13 @@ import "../src/interfaces/IResultMapper.sol";
 import "../src/liquidity/LiquidityVault_V3.sol";
 import "../src/pricing/CPMMStrategy.sol";
 import "../src/pricing/LMSRStrategy.sol";
+import "../src/pricing/ParimutuelStrategy.sol";
 import "../src/mappers/WDL_Mapper.sol";
 import "../src/mappers/OU_Mapper.sol";
 import "../src/mappers/AH_Mapper.sol";
 import "../src/mappers/OddEven_Mapper.sol";
 import "../src/mappers/Score_Mapper.sol";
+// Identity_Mapper 已在 Deploy_V3.s.sol 中部署
 
 /**
  * @title CreateAllMarketTypes_V3
@@ -60,8 +62,11 @@ contract CreateAllMarketTypes_V3 is Script {
     bool public loadedFromJson;
 
     // 初始流动性配置（以整数表示，运行时乘以 tokenUnit）
-    uint256 constant INITIAL_LIQUIDITY_AMOUNT = 10_000; // 10k per market
-    uint256 constant INITIAL_VAULT_DEPOSIT_AMOUNT = 500_000; // 500k USDC
+    // 注意：实际流动性由模板定义（Deploy_V3 注册时设置）
+    // CPMM 模板: 5k, LMSR 模板: 5k
+    // 15 个市场总需求约 75k，考虑 90% 利用率需要约 84k
+    uint256 constant INITIAL_LIQUIDITY_AMOUNT = 5_000; // 5k per market (for calculation)
+    uint256 constant INITIAL_VAULT_DEPOSIT_AMOUNT = 100_000; // 100k USDC
 
     // 运行时计算的实际金额（基于代币精度）
     uint256 public initialLiquidity;
@@ -79,18 +84,29 @@ contract CreateAllMarketTypes_V3 is Script {
     address[] public oddEvenMarkets;
     address[] public scoreMarkets;
 
+    // Parimutuel（彩池）市场
+    address[] public wdlPariMarkets;
+    address[] public scorePariMarkets;
+    address[] public firstGoalscorerMarkets;
+
     // 部署的合约（使用 V4 Factory）
     MarketFactory_V3 public factory;
     CPMMStrategy public cpmmStrategy;
     LMSRStrategy public lmsrStrategy;
+    ParimutuelStrategy public parimutuelStrategy;
     address public marketV3Implementation;
 
-    // 模板 ID（从 Deploy_V3 已注册的模板）
+    // 模板 ID（从 Deploy_V3 已注册的模板）- AMM 模式
     bytes32 public wdlTemplateId;
     bytes32 public ouTemplateId;
     bytes32 public ahTemplateId;
     bytes32 public oddEvenTemplateId;
     bytes32 public scoreTemplateId;
+
+    // 模板 ID（从 Deploy_V3 已注册的模板）- Parimutuel（彩池）模式
+    bytes32 public wdlPariTemplateId;
+    bytes32 public scorePariTemplateId;
+    bytes32 public firstGoalscorerTemplateId;
 
     // ============ 主函数 ============
 
@@ -134,7 +150,9 @@ contract CreateAllMarketTypes_V3 is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         console.log("\n========================================");
-        console.log("  Creating V3 Markets (5 types)");
+        console.log("  Creating V3 Markets (8 types)");
+        console.log("  AMM: WDL, OU, AH, OddEven, Score");
+        console.log("  Pari: WDL_Pari, Score_Pari, FGS");
         console.log("========================================\n");
 
         // loadedFromJson 信息已在 _loadFromDeploymentFile 中输出
@@ -169,16 +187,22 @@ contract CreateAllMarketTypes_V3 is Script {
         // 3. 检查模板 ID（从 JSON 或 Deploy_V3 已注册）
         require(wdlTemplateId != bytes32(0), "Template IDs not loaded, please check deployment file");
         console.log("\n3. Using existing Template IDs:");
+        console.log("   [AMM Mode]");
         console.log("   WDL:", vm.toString(wdlTemplateId));
         console.log("   OU:", vm.toString(ouTemplateId));
         console.log("   AH:", vm.toString(ahTemplateId));
         console.log("   OddEven:", vm.toString(oddEvenTemplateId));
         console.log("   Score:", vm.toString(scoreTemplateId));
+        console.log("   [Parimutuel Mode]");
+        console.log("   WDL_Pari:", vm.toString(wdlPariTemplateId));
+        console.log("   Score_Pari:", vm.toString(scorePariTemplateId));
+        console.log("   FirstGoalscorer:", vm.toString(firstGoalscorerTemplateId));
 
         // 4. 定价策略（从 JSON 加载）
         console.log("\n4. Using Pricing Strategies:");
         console.log("   CPMMStrategy:", address(cpmmStrategy));
         console.log("   LMSRStrategy:", address(lmsrStrategy));
+        console.log("   ParimutuelStrategy:", address(parimutuelStrategy));
 
         // 4.5. 部署或确保 V3 Vault 有足够流动性
         // 注意：V3 市场必须使用 V3 Vault，不兼容 V2 Vault
@@ -204,20 +228,54 @@ contract CreateAllMarketTypes_V3 is Script {
         console.log("\n9. Creating Score Markets (Correct Score)...");
         _createScoreMarkets();
 
+        // ========================================
+        // Parimutuel（彩池）市场 - 不需要初始流动性
+        // ========================================
+
+        // 10. 创建 WDL_Pari 市场（彩池模式胜平负）
+        if (wdlPariTemplateId != bytes32(0)) {
+            console.log("\n10. Creating WDL_Pari Markets (Parimutuel Mode)...");
+            _createWDLPariMarkets();
+        } else {
+            console.log("\n10. Skipping WDL_Pari Markets (template not registered)");
+        }
+
+        // 11. 创建 Score_Pari 市场（彩池模式精确比分）
+        if (scorePariTemplateId != bytes32(0)) {
+            console.log("\n11. Creating Score_Pari Markets (Parimutuel Mode)...");
+            _createScorePariMarkets();
+        } else {
+            console.log("\n11. Skipping Score_Pari Markets (template not registered)");
+        }
+
+        // 12. 创建 FirstGoalscorer 市场（首位进球者）
+        if (firstGoalscorerTemplateId != bytes32(0)) {
+            console.log("\n12. Creating FirstGoalscorer Markets (Parimutuel Mode)...");
+            _createFirstGoalscorerMarkets();
+        } else {
+            console.log("\n12. Skipping FirstGoalscorer Markets (template not registered)");
+        }
+
         vm.stopBroadcast();
 
         // 输出总结
         _printSummary();
 
-        // 写入部署文件
+        // 写入部署文件（JSON + TXT 摘要）
         _writeDeploymentFile();
+        _writeSummaryFile();
     }
 
     // ============ 创建各类型市场 ============
 
     function _createWDLMarkets() internal {
         // WDL 使用 CPMM + WDL_Mapper（模板已预配置）
-        string[3] memory matches = ["MUN_vs_MCI", "LIV_vs_CHE", "ARS_vs_TOT"];
+        // Match ID 格式: {联赛}_{赛季}_{轮次}_{主队}_vs_{客队}_{玩法}
+        string[3] memory matches = [
+            "EPL_2425_R20_MUN_vs_MCI_WDL",
+            "EPL_2425_R20_LIV_vs_CHE_WDL",
+            "EPL_2425_R20_ARS_vs_TOT_WDL"
+        ];
 
         for (uint256 i = 0; i < 3; i++) {
             address market = _createMarketV4(
@@ -234,7 +292,12 @@ contract CreateAllMarketTypes_V3 is Script {
 
     function _createOUMarkets() internal {
         // OU 使用 CPMM + OU_Mapper（模板已预配置）
-        string[3] memory matches = ["OU_MUN_vs_MCI", "OU_LIV_vs_CHE", "OU_ARS_vs_TOT"];
+        // Match ID 格式: {联赛}_{赛季}_{轮次}_{主队}_vs_{客队}_{玩法}_{盘口}
+        string[3] memory matches = [
+            "EPL_2425_R20_MUN_vs_MCI_OU_2.5",
+            "EPL_2425_R20_LIV_vs_CHE_OU_2.5",
+            "EPL_2425_R20_ARS_vs_TOT_OU_2.5"
+        ];
 
         for (uint256 i = 0; i < 3; i++) {
             address market = _createMarketV4(
@@ -251,7 +314,12 @@ contract CreateAllMarketTypes_V3 is Script {
 
     function _createAHMarkets() internal {
         // AH 使用 CPMM + AH_Mapper（模板已预配置）
-        string[3] memory matches = ["AH_MUN_vs_MCI", "AH_LIV_vs_CHE", "AH_ARS_vs_TOT"];
+        // Match ID 格式: {联赛}_{赛季}_{轮次}_{主队}_vs_{客队}_{玩法}_{盘口}
+        string[3] memory matches = [
+            "EPL_2425_R20_MUN_vs_MCI_AH_-0.5",
+            "EPL_2425_R20_LIV_vs_CHE_AH_-0.5",
+            "EPL_2425_R20_ARS_vs_TOT_AH_-0.5"
+        ];
 
         for (uint256 i = 0; i < 3; i++) {
             address market = _createMarketV4(
@@ -268,7 +336,12 @@ contract CreateAllMarketTypes_V3 is Script {
 
     function _createOddEvenMarkets() internal {
         // OddEven 使用 CPMM + OddEven_Mapper（模板已预配置）
-        string[3] memory matches = ["OE_MUN_vs_MCI", "OE_LIV_vs_CHE", "OE_ARS_vs_TOT"];
+        // Match ID 格式: {联赛}_{赛季}_{轮次}_{主队}_vs_{客队}_{玩法}
+        string[3] memory matches = [
+            "EPL_2425_R20_MUN_vs_MCI_ODDEVEN",
+            "EPL_2425_R20_LIV_vs_CHE_ODDEVEN",
+            "EPL_2425_R20_ARS_vs_TOT_ODDEVEN"
+        ];
 
         for (uint256 i = 0; i < 3; i++) {
             address market = _createMarketV4(
@@ -285,7 +358,12 @@ contract CreateAllMarketTypes_V3 is Script {
 
     function _createScoreMarkets() internal {
         // Score 使用 LMSR + Score_Mapper（模板已预配置）
-        string[3] memory matches = ["SC_MUN_vs_MCI", "SC_LIV_vs_CHE", "SC_ARS_vs_TOT"];
+        // Match ID 格式: {联赛}_{赛季}_{轮次}_{主队}_vs_{客队}_{玩法}
+        string[3] memory matches = [
+            "EPL_2425_R20_MUN_vs_MCI_SCORE",
+            "EPL_2425_R20_LIV_vs_CHE_SCORE",
+            "EPL_2425_R20_ARS_vs_TOT_SCORE"
+        ];
 
         for (uint256 i = 0; i < 3; i++) {
             address market = _createMarketV4(
@@ -297,6 +375,92 @@ contract CreateAllMarketTypes_V3 is Script {
             createdMarkets.push(market);
             scoreMarkets.push(market);
             console.log("   Created Score market:", market);
+        }
+    }
+
+    // ============ Parimutuel（彩池）市场创建 ============
+
+    /**
+     * @notice 创建 WDL_Pari（彩池模式胜平负）市场
+     * @dev Parimutuel 特点：
+     *      - 不需要初始流动性
+     *      - 赔率在结算时计算：odds = totalPool / winningPool
+     *      - 所有投注进入池子，1:1 兑换份额
+     */
+    function _createWDLPariMarkets() internal {
+        // WDL_Pari 使用 Parimutuel + WDL_Mapper
+        // Match ID 后缀使用 _PARI 区分彩池模式
+        string[3] memory matches = [
+            "LALIGA_2425_R18_RMA_vs_BAR_WDL_PARI",
+            "LALIGA_2425_R18_ATM_vs_SEV_WDL_PARI",
+            "LALIGA_2425_R18_VAL_vs_VIL_WDL_PARI"
+        ];
+
+        for (uint256 i = 0; i < 3; i++) {
+            address market = _createParimutuelMarket(
+                wdlPariTemplateId,
+                matches[i],
+                block.timestamp + (i + 16) * 1 days
+            );
+
+            createdMarkets.push(market);
+            wdlPariMarkets.push(market);
+            console.log("   Created WDL_Pari market:", market);
+        }
+    }
+
+    /**
+     * @notice 创建 Score_Pari（彩池模式精确比分）市场
+     * @dev 传统足彩玩法，适合 14 场胜负彩
+     */
+    function _createScorePariMarkets() internal {
+        // Score_Pari 使用 Parimutuel + Score_Mapper
+        string[3] memory matches = [
+            "LALIGA_2425_R18_RMA_vs_BAR_SCORE_PARI",
+            "LALIGA_2425_R18_ATM_vs_SEV_SCORE_PARI",
+            "LALIGA_2425_R18_VAL_vs_VIL_SCORE_PARI"
+        ];
+
+        for (uint256 i = 0; i < 3; i++) {
+            address market = _createParimutuelMarket(
+                scorePariTemplateId,
+                matches[i],
+                block.timestamp + (i + 19) * 1 days
+            );
+
+            createdMarkets.push(market);
+            scorePariMarkets.push(market);
+            console.log("   Created Score_Pari market:", market);
+        }
+    }
+
+    /**
+     * @notice 创建 FirstGoalscorer（首位进球者）市场
+     * @dev 高赔率玩法，球员道具彩池模式
+     *      - 21 个选项：20 个球员 + 1 个 "无进球/其他"
+     *      - 赔率完全由投注分布决定
+     *      - Identity_Mapper 已在 Deploy_V3.s.sol Step 6 部署
+     */
+    function _createFirstGoalscorerMarkets() internal {
+        // Identity_Mapper 已在 Deploy_V3.s.sol 中部署并注册到模板
+        // 直接创建市场即可
+
+        string[3] memory matches = [
+            "LALIGA_2425_R18_RMA_vs_BAR_FGS",
+            "LALIGA_2425_R18_ATM_vs_SEV_FGS",
+            "LALIGA_2425_R18_VAL_vs_VIL_FGS"
+        ];
+
+        for (uint256 i = 0; i < 3; i++) {
+            address market = _createParimutuelMarket(
+                firstGoalscorerTemplateId,
+                matches[i],
+                block.timestamp + (i + 22) * 1 days
+            );
+
+            createdMarkets.push(market);
+            firstGoalscorerMarkets.push(market);
+            console.log("   Created FirstGoalscorer market:", market);
         }
     }
 
@@ -333,6 +497,51 @@ contract CreateAllMarketTypes_V3 is Script {
         // 如果配置了 Vault，授权市场并从 Vault 获取流动性
         if (VAULT != address(0)) {
             _authorizeAndFundMarket(market);
+        }
+    }
+
+    /**
+     * @notice 创建 Parimutuel（彩池）市场
+     * @dev Parimutuel 市场特点：
+     *      - 不需要初始流动性（initialLiquidity = 0）
+     *      - 不需要从 Vault 借款
+     *      - 赔率在结算时计算
+     * @param templateId 模板 ID（必须是 Parimutuel 策略）
+     * @param matchId 比赛 ID
+     * @param kickoffTime 开球时间
+     */
+    function _createParimutuelMarket(
+        bytes32 templateId,
+        string memory matchId,
+        uint256 kickoffTime
+    ) internal returns (address market) {
+        // 创建空的 outcome 规则数组（使用模板默认值）
+        IMarket_V3.OutcomeRule[] memory emptyOutcomes;
+
+        // 构建 CreateMarketParams
+        // Parimutuel 不需要初始流动性
+        MarketFactory_V3.CreateMarketParams memory params = MarketFactory_V3.CreateMarketParams({
+            templateId: templateId,
+            matchId: matchId,
+            kickoffTime: kickoffTime,
+            mapperInitData: "",  // 使用模板默认 Mapper
+            initialLiquidity: 0, // Parimutuel 不需要初始流动性
+            outcomeRules: emptyOutcomes // 使用模板默认 outcomes
+        });
+
+        // 通过 Factory V4 创建市场
+        market = factory.createMarket(params);
+
+        // Parimutuel 市场不需要从 Vault 借款
+        // 但仍需要授权以便后续可能的结算操作
+        if (VAULT != address(0)) {
+            LiquidityVault_V3 vaultContract = LiquidityVault_V3(VAULT);
+            // 授权但不借款（maxLiabilityBps = 0 表示只授权）
+            try vaultContract.authorizeMarket(market, 0) {
+                console.log("      Authorized Parimutuel market in Vault");
+            } catch {
+                // Parimutuel 市场不依赖 Vault，授权失败不影响功能
+            }
         }
     }
 
@@ -375,7 +584,8 @@ contract CreateAllMarketTypes_V3 is Script {
             console.log("   Current Vault assets:", currentAssets / tokenUnit, "tokens");
 
             // 考虑 90% 利用率限制：需要存入 = 借款需求 / 0.9
-            uint256 requiredBorrow = 15 * initialLiquidity; // 15 markets × 10k = 150k
+            // 15 markets × 100k = 1.5M，/0.9 ≈ 1.67M
+            uint256 requiredBorrow = 15 * initialLiquidity;
             uint256 requiredLiquidity = (requiredBorrow * 10000) / 9000 + 1;
             console.log("   Required for 15 markets:", requiredLiquidity / tokenUnit, "tokens");
 
@@ -552,32 +762,353 @@ contract CreateAllMarketTypes_V3 is Script {
                 console.log("   Loaded LMSRStrategy:", address(lmsrStrategy));
             }
         } catch {}
+
+        try vm.parseJsonAddress(jsonContent, ".strategies.parimutuel") returns (address pari) {
+            if (pari != address(0)) {
+                parimutuelStrategy = ParimutuelStrategy(pari);
+                console.log("   Loaded ParimutuelStrategy:", address(parimutuelStrategy));
+            }
+        } catch {}
+
+        // 解析 Parimutuel 模板 ID
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.wdlPari") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                wdlPariTemplateId = templateId;
+                console.log("   Loaded WDL_Pari Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.scorePari") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                scorePariTemplateId = templateId;
+                console.log("   Loaded Score_Pari Template ID");
+            }
+        } catch {}
+
+        try vm.parseJsonBytes32(jsonContent, ".templateIds.firstGoalscorer") returns (bytes32 templateId) {
+            if (templateId != bytes32(0)) {
+                firstGoalscorerTemplateId = templateId;
+                console.log("   Loaded FirstGoalscorer Template ID");
+            }
+        } catch {}
     }
 
     function _printSummary() internal view {
-        console.log("\n========================================");
-        console.log("  V3 Markets Created Successfully!");
-        console.log("========================================");
-        console.log("Total Markets Created:", createdMarkets.length);
-        console.log("\nBreakdown by Type:");
-        console.log("  - WDL: 3");
-        console.log("  - OU: 3");
-        console.log("  - AH: 3");
-        console.log("  - OddEven: 3");
-        console.log("  - Score: 3");
-        console.log("  Total: 15 markets (5 types x 3 each)");
-        console.log("\nDeployed Contracts:");
-        console.log("  - MarketFactory_V3:", address(factory));
-        console.log("  - Market_V3 Implementation:", marketV3Implementation);
-        console.log("  - CPMMStrategy:", address(cpmmStrategy));
-        console.log("  - LMSRStrategy:", address(lmsrStrategy));
-        console.log("\nAll markets (via Factory):");
-        for (uint256 i = 0; i < createdMarkets.length; i++) {
-            console.log("  ", i + 1, ":", createdMarkets[i]);
+        console.log("\n");
+        console.log("================================================================================");
+        console.log("                    V3 MARKETS CREATION SUMMARY");
+        console.log("================================================================================");
+        console.log("");
+
+        // 1. 概览统计
+        console.log("1. OVERVIEW");
+        console.log("--------------------------------------------------------------------------------");
+        console.log("   Total Markets Created:", createdMarkets.length);
+        console.log("   Market Types: 8");
+        console.log("     - AMM Mode: WDL, OU, AH, OddEven, Score (5 types)");
+        console.log("     - Parimutuel Mode: WDL_Pari, Score_Pari, FirstGoalscorer (3 types)");
+        console.log("   Markets per Type: 3");
+        console.log("");
+
+        // 2. 基础设施
+        console.log("2. INFRASTRUCTURE");
+        console.log("--------------------------------------------------------------------------------");
+        console.log("   Factory V4:            ", address(factory));
+        console.log("   Market Implementation: ", marketV3Implementation);
+        console.log("   USDC Token:            ", USDC);
+        console.log("   Liquidity Vault V3:    ", VAULT);
+        console.log("");
+        console.log("   Pricing Strategies:");
+        console.log("     - CPMMStrategy:      ", address(cpmmStrategy));
+        console.log("     - LMSRStrategy:      ", address(lmsrStrategy));
+        console.log("     - ParimutuelStrategy:", address(parimutuelStrategy));
+        console.log("");
+
+        // 3. WDL 市场详情
+        console.log("3. WDL MARKETS (Win/Draw/Loss) - CPMM Strategy");
+        console.log("--------------------------------------------------------------------------------");
+        _printMarketDetails(wdlMarkets, "WDL");
+        console.log("");
+
+        // 4. OU 市场详情
+        console.log("4. OU MARKETS (Over/Under 2.5) - CPMM Strategy");
+        console.log("--------------------------------------------------------------------------------");
+        _printMarketDetails(ouMarkets, "OU");
+        console.log("");
+
+        // 5. AH 市场详情
+        console.log("5. AH MARKETS (Asian Handicap -0.5) - CPMM Strategy");
+        console.log("--------------------------------------------------------------------------------");
+        _printMarketDetails(ahMarkets, "AH");
+        console.log("");
+
+        // 6. OddEven 市场详情
+        console.log("6. ODDEVEN MARKETS (Odd/Even Goals) - CPMM Strategy");
+        console.log("--------------------------------------------------------------------------------");
+        _printMarketDetails(oddEvenMarkets, "OddEven");
+        console.log("");
+
+        // 7. Score 市场详情
+        console.log("7. SCORE MARKETS (Correct Score) - LMSR Strategy");
+        console.log("--------------------------------------------------------------------------------");
+        _printScoreMarketDetails(scoreMarkets);
+        console.log("");
+
+        // ========================================
+        // Parimutuel（彩池）市场
+        // ========================================
+
+        // 8. WDL_Pari 市场详情
+        if (wdlPariMarkets.length > 0) {
+            console.log("8. WDL_PARI MARKETS (Win/Draw/Loss) - Parimutuel Strategy");
+            console.log("--------------------------------------------------------------------------------");
+            _printParimutuelMarketDetails(wdlPariMarkets, "WDL_Pari");
+            console.log("");
         }
-        console.log("\nQuery all markets from Factory:");
-        console.log("  factory.getMarketCount() =", factory.getMarketCount());
-        console.log("========================================\n");
+
+        // 9. Score_Pari 市场详情
+        if (scorePariMarkets.length > 0) {
+            console.log("9. SCORE_PARI MARKETS (Correct Score) - Parimutuel Strategy");
+            console.log("--------------------------------------------------------------------------------");
+            _printParimutuelMarketDetails(scorePariMarkets, "Score_Pari");
+            console.log("");
+        }
+
+        // 10. FirstGoalscorer 市场详情
+        if (firstGoalscorerMarkets.length > 0) {
+            console.log("10. FIRSTGOALSCORER MARKETS (First Goalscorer) - Parimutuel Strategy");
+            console.log("--------------------------------------------------------------------------------");
+            _printParimutuelMarketDetails(firstGoalscorerMarkets, "FirstGoalscorer");
+            console.log("");
+        }
+
+        // 11. Vault 状态
+        if (VAULT != address(0)) {
+            console.log("11. VAULT STATUS");
+            console.log("--------------------------------------------------------------------------------");
+            LiquidityVault_V3 vaultContract = LiquidityVault_V3(VAULT);
+            console.log("   Total Assets:     ", vaultContract.totalAssets() / tokenUnit, "USDC");
+            console.log("   Total Borrowed:   ", vaultContract.totalBorrowed() / tokenUnit, "USDC");
+            console.log("   Available:        ", (vaultContract.totalAssets() - vaultContract.totalBorrowed()) / tokenUnit, "USDC");
+            console.log("");
+        }
+
+        // 12. 汇总表格
+        console.log("12. MARKET SUMMARY TABLE");
+        console.log("--------------------------------------------------------------------------------");
+        console.log("   [AMM Mode - Requires Initial Liquidity]");
+        console.log("   Type     | Count | Strategy | Outcomes | Initial Liquidity");
+        console.log("   ---------|-------|----------|----------|------------------");
+        console.log("   WDL      |   3   | CPMM     |    3     | 5,000 USDC");
+        console.log("   OU       |   3   | CPMM     |    2     | 5,000 USDC");
+        console.log("   AH       |   3   | CPMM     |    2     | 5,000 USDC");
+        console.log("   OddEven  |   3   | CPMM     |    2     | 5,000 USDC");
+        console.log("   Score    |   3   | LMSR     |   36     | 5,000 USDC");
+        console.log("   ---------|-------|----------|----------|------------------");
+        console.log("   Subtotal |  15   |    -     |    -     | 75,000 USDC");
+        console.log("");
+        console.log("   [Parimutuel Mode - No Initial Liquidity Required]");
+        console.log("   Type          | Count | Strategy    | Outcomes | Initial Liquidity");
+        console.log("   --------------|-------|-------------|----------|------------------");
+        console.log("   WDL_Pari      |   3   | Parimutuel  |    3     | 0 (pool-based)");
+        console.log("   Score_Pari    |   3   | Parimutuel  |   36     | 0 (pool-based)");
+        console.log("   FirstGS       |   3   | Parimutuel  |   21     | 0 (pool-based)");
+        console.log("   --------------|-------|-------------|----------|------------------");
+        console.log("   Subtotal      |   9   |    -        |    -     | 0 USDC");
+        console.log("");
+        console.log("   ======================================================================");
+        console.log("   TOTAL         |  24   |    -        |    -     | 75,000 USDC");
+        console.log("");
+
+        console.log("================================================================================");
+        console.log("                         CREATION COMPLETE");
+        console.log("================================================================================");
+        console.log("");
+    }
+
+    /**
+     * @notice 打印单个市场类型的详情（CPMM 策略）
+     */
+    function _printMarketDetails(address[] storage markets, string memory marketType) internal view {
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market_V3 market = Market_V3(markets[i]);
+            uint256 outcomes = market.outcomeCount();
+            uint256 liquidity = market.totalLiquidity();
+
+            console.log("   Market", i + 1, ":", markets[i]);
+            console.log("     Match ID:        ", market.matchId());
+            console.log("     Outcomes:        ", outcomes);
+            console.log("     Liquidity:       ", liquidity / tokenUnit, "USDC");
+
+            // 获取并显示价格/赔率
+            uint256[] memory prices = market.getAllPrices();
+            if (prices.length > 0) {
+                console.log("     Initial Odds (basis points):");
+                for (uint256 j = 0; j < prices.length && j < 5; j++) {
+                    // 计算十进制赔率: odds = 10000 / price
+                    uint256 decimalOdds = prices[j] > 0 ? (10000 * 100) / prices[j] : 0;
+                    _printOutcomeOdds(marketType, j, prices[j], decimalOdds);
+                }
+            }
+            if (i < markets.length - 1) console.log("");
+        }
+    }
+
+    /**
+     * @notice 打印 Score 市场详情（LMSR 策略，多 outcome）
+     */
+    function _printScoreMarketDetails(address[] storage markets) internal view {
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market_V3 market = Market_V3(markets[i]);
+            uint256 outcomes = market.outcomeCount();
+            uint256 liquidity = market.totalLiquidity();
+
+            console.log("   Market", i + 1, ":", markets[i]);
+            console.log("     Match ID:        ", market.matchId());
+            console.log("     Outcomes:        ", outcomes, "(correct scores 0-0 to 4-4 + Other)");
+            console.log("     Liquidity:       ", liquidity / tokenUnit, "USDC");
+
+            // LMSR 市场只显示前 5 个和最后一个 outcome 的价格
+            uint256[] memory prices = market.getAllPrices();
+            if (prices.length > 0) {
+                console.log("     Sample Odds (basis points):");
+                // 显示前 5 个
+                for (uint256 j = 0; j < 5 && j < prices.length; j++) {
+                    uint256 decimalOdds = prices[j] > 0 ? (10000 * 100) / prices[j] : 0;
+                    _printScoreOutcomeOdds(j, prices[j], decimalOdds);
+                }
+                if (prices.length > 5) {
+                    console.log("       ... (", prices.length - 5, "more outcomes)");
+                }
+            }
+            if (i < markets.length - 1) console.log("");
+        }
+    }
+
+    /**
+     * @notice 打印单个 outcome 的赔率（根据市场类型）
+     * @dev Foundry console.log 最多支持 4 个参数
+     */
+    function _printOutcomeOdds(string memory marketType, uint256 outcomeId, uint256 price, uint256 decimalOdds) internal pure {
+        // 格式化赔率字符串: "X.XX"
+        string memory oddsStr = _formatDecimalOdds(decimalOdds);
+        string memory priceStr = _uint2str(price);
+
+        // 根据市场类型显示 outcome 名称
+        if (_strEq(marketType, "WDL")) {
+            if (outcomeId == 0) console.log(string(abi.encodePacked("       Home Win:     ", priceStr, " bps -> ", oddsStr, "x")));
+            else if (outcomeId == 1) console.log(string(abi.encodePacked("       Draw:         ", priceStr, " bps -> ", oddsStr, "x")));
+            else if (outcomeId == 2) console.log(string(abi.encodePacked("       Away Win:     ", priceStr, " bps -> ", oddsStr, "x")));
+        } else if (_strEq(marketType, "OU")) {
+            if (outcomeId == 0) console.log(string(abi.encodePacked("       Over 2.5:     ", priceStr, " bps -> ", oddsStr, "x")));
+            else if (outcomeId == 1) console.log(string(abi.encodePacked("       Under 2.5:    ", priceStr, " bps -> ", oddsStr, "x")));
+        } else if (_strEq(marketType, "AH")) {
+            if (outcomeId == 0) console.log(string(abi.encodePacked("       Home -0.5:    ", priceStr, " bps -> ", oddsStr, "x")));
+            else if (outcomeId == 1) console.log(string(abi.encodePacked("       Away +0.5:    ", priceStr, " bps -> ", oddsStr, "x")));
+        } else if (_strEq(marketType, "OddEven")) {
+            if (outcomeId == 0) console.log(string(abi.encodePacked("       Odd Goals:    ", priceStr, " bps -> ", oddsStr, "x")));
+            else if (outcomeId == 1) console.log(string(abi.encodePacked("       Even Goals:   ", priceStr, " bps -> ", oddsStr, "x")));
+        } else {
+            console.log(string(abi.encodePacked("       Outcome ", _uint2str(outcomeId), ":    ", priceStr, " bps -> ", oddsStr, "x")));
+        }
+    }
+
+    /**
+     * @notice 打印 Parimutuel 市场详情
+     * @dev Parimutuel 市场初始没有赔率（赔率在结算时计算）
+     */
+    function _printParimutuelMarketDetails(address[] storage markets, string memory marketType) internal view {
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market_V3 market = Market_V3(markets[i]);
+            uint256 outcomes = market.outcomeCount();
+            uint256 liquidity = market.totalLiquidity();
+
+            console.log("   Market", i + 1, ":", markets[i]);
+            console.log("     Match ID:        ", market.matchId());
+            console.log("     Outcomes:        ", outcomes);
+            console.log("     Current Pool:    ", liquidity / tokenUnit, "USDC (from bets)");
+            console.log("     Mode:            Parimutuel (odds calculated at settlement)");
+
+            // Parimutuel 市场显示当前投注分布而非固定赔率
+            uint256[] memory prices = market.getAllPrices();
+            if (prices.length > 0) {
+                console.log("     Current Distribution (basis points):");
+                uint256 maxDisplay = _strEq(marketType, "FirstGoalscorer") ? 5 : prices.length;
+                for (uint256 j = 0; j < maxDisplay && j < prices.length; j++) {
+                    _printParimutuelOutcome(marketType, j, prices[j]);
+                }
+                if (_strEq(marketType, "FirstGoalscorer") && prices.length > 5) {
+                    console.log("       ... (", prices.length - 5, "more players)");
+                }
+            }
+            if (i < markets.length - 1) console.log("");
+        }
+    }
+
+    /**
+     * @notice 打印 Parimutuel 市场的单个 outcome
+     */
+    function _printParimutuelOutcome(string memory marketType, uint256 outcomeId, uint256 price) internal pure {
+        string memory priceStr = _uint2str(price);
+
+        if (_strEq(marketType, "WDL_Pari")) {
+            if (outcomeId == 0) console.log(string(abi.encodePacked("       Home Win:     ", priceStr, " bps")));
+            else if (outcomeId == 1) console.log(string(abi.encodePacked("       Draw:         ", priceStr, " bps")));
+            else if (outcomeId == 2) console.log(string(abi.encodePacked("       Away Win:     ", priceStr, " bps")));
+        } else if (_strEq(marketType, "Score_Pari")) {
+            uint256 homeGoals = outcomeId / 6;
+            uint256 awayGoals = outcomeId % 6;
+            console.log(string(abi.encodePacked("       Score ", _uint2str(homeGoals), "-", _uint2str(awayGoals), ":    ", priceStr, " bps")));
+        } else if (_strEq(marketType, "FirstGoalscorer")) {
+            if (outcomeId < 20) {
+                console.log(string(abi.encodePacked("       Player ", _uint2str(outcomeId + 1), ":   ", priceStr, " bps")));
+            } else {
+                console.log(string(abi.encodePacked("       No Goal/Other: ", priceStr, " bps")));
+            }
+        } else {
+            console.log(string(abi.encodePacked("       Outcome ", _uint2str(outcomeId), ": ", priceStr, " bps")));
+        }
+    }
+
+    /**
+     * @notice 打印 Score 市场的 outcome 赔率
+     */
+    function _printScoreOutcomeOdds(uint256 outcomeId, uint256 price, uint256 decimalOdds) internal pure {
+        // Score outcome ID 编码: 前 25 个是 0-0 到 4-4
+        uint256 homeGoals = outcomeId / 5;
+        uint256 awayGoals = outcomeId % 5;
+        string memory oddsStr = _formatDecimalOdds(decimalOdds);
+        string memory priceStr = _uint2str(price);
+        console.log(string(abi.encodePacked(
+            "       Score ", _uint2str(homeGoals), "-", _uint2str(awayGoals), ":    ",
+            priceStr, " bps -> ", oddsStr, "x"
+        )));
+    }
+
+    /**
+     * @notice 格式化十进制赔率为字符串 "X.XX"
+     */
+    function _formatDecimalOdds(uint256 decimalOdds) internal pure returns (string memory) {
+        uint256 whole = decimalOdds / 100;
+        uint256 decimal = decimalOdds % 100;
+
+        // 构建字符串
+        string memory wholeStr = _uint2str(whole);
+        string memory decimalStr;
+        if (decimal < 10) {
+            decimalStr = string(abi.encodePacked("0", _uint2str(decimal)));
+        } else {
+            decimalStr = _uint2str(decimal);
+        }
+
+        return string(abi.encodePacked(wholeStr, ".", decimalStr));
+    }
+
+    /**
+     * @notice 字符串比较辅助函数
+     */
+    function _strEq(string memory a, string memory b) internal pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 
     function _writeDeploymentFile() internal {
@@ -644,6 +1175,34 @@ contract CreateAllMarketTypes_V3 is Script {
         }
         json = string(abi.encodePacked(json, '  ],\n'));
 
+        // Parimutuel 市场
+        // WDL_Pari 市场
+        json = string(abi.encodePacked(json, '  "wdlPariMarkets": [\n'));
+        for (uint256 i = 0; i < wdlPariMarkets.length; i++) {
+            json = string(abi.encodePacked(json, '    "', _addr2str(wdlPariMarkets[i]), '"'));
+            if (i < wdlPariMarkets.length - 1) json = string(abi.encodePacked(json, ','));
+            json = string(abi.encodePacked(json, '\n'));
+        }
+        json = string(abi.encodePacked(json, '  ],\n'));
+
+        // Score_Pari 市场
+        json = string(abi.encodePacked(json, '  "scorePariMarkets": [\n'));
+        for (uint256 i = 0; i < scorePariMarkets.length; i++) {
+            json = string(abi.encodePacked(json, '    "', _addr2str(scorePariMarkets[i]), '"'));
+            if (i < scorePariMarkets.length - 1) json = string(abi.encodePacked(json, ','));
+            json = string(abi.encodePacked(json, '\n'));
+        }
+        json = string(abi.encodePacked(json, '  ],\n'));
+
+        // FirstGoalscorer 市场
+        json = string(abi.encodePacked(json, '  "firstGoalscorerMarkets": [\n'));
+        for (uint256 i = 0; i < firstGoalscorerMarkets.length; i++) {
+            json = string(abi.encodePacked(json, '    "', _addr2str(firstGoalscorerMarkets[i]), '"'));
+            if (i < firstGoalscorerMarkets.length - 1) json = string(abi.encodePacked(json, ','));
+            json = string(abi.encodePacked(json, '\n'));
+        }
+        json = string(abi.encodePacked(json, '  ],\n'));
+
         // 所有市场
         json = string(abi.encodePacked(json, '  "allMarkets": [\n'));
         for (uint256 i = 0; i < createdMarkets.length; i++) {
@@ -701,6 +1260,209 @@ contract CreateAllMarketTypes_V3 is Script {
             str[3 + i * 2] = alphabet[uint8(data[i] & 0x0f)];
         }
         return string(str);
+    }
+
+    /**
+     * @notice 生成摘要文件（TXT 格式）
+     */
+    function _writeSummaryFile() internal {
+        string memory outputPath = "deployments/markets_summary_v3.txt";
+
+        // 构建摘要内容
+        string memory summary = string.concat(
+            "################################################################################\n",
+            "##                    V3 MARKETS CREATION SUMMARY                             ##\n",
+            "################################################################################\n\n",
+            "Created at block: ", _uint2str(block.number), "\n",
+            "Timestamp: ", _uint2str(block.timestamp), "\n",
+            "Chain ID: ", _uint2str(block.chainid), "\n\n"
+        );
+
+        // 1. 概览
+        summary = string.concat(
+            summary,
+            "================================================================================\n",
+            "1. OVERVIEW\n",
+            "================================================================================\n",
+            "Total Markets Created: ", _uint2str(createdMarkets.length), "\n",
+            "Market Types: 8\n",
+            "  - AMM Mode: WDL, OU, AH, OddEven, Score (5 types)\n",
+            "  - Parimutuel Mode: WDL_Pari, Score_Pari, FirstGoalscorer (3 types)\n",
+            "Markets per Type: 3\n\n"
+        );
+
+        // 2. 基础设施
+        summary = string.concat(
+            summary,
+            "================================================================================\n",
+            "2. INFRASTRUCTURE\n",
+            "================================================================================\n",
+            "Factory V4:             ", _addr2str(address(factory)), "\n",
+            "Market Implementation:  ", _addr2str(marketV3Implementation), "\n",
+            "USDC Token:             ", _addr2str(USDC), "\n",
+            "Liquidity Vault V3:     ", _addr2str(VAULT), "\n\n",
+            "Pricing Strategies:\n",
+            "  - CPMMStrategy:       ", _addr2str(address(cpmmStrategy)), "\n",
+            "  - LMSRStrategy:       ", _addr2str(address(lmsrStrategy)), "\n",
+            "  - ParimutuelStrategy: ", _addr2str(address(parimutuelStrategy)), "\n\n"
+        );
+
+        // 3. WDL 市场
+        summary = string.concat(
+            summary,
+            "================================================================================\n",
+            "3. WDL MARKETS (Win/Draw/Loss) - CPMM Strategy\n",
+            "================================================================================\n"
+        );
+        summary = _appendMarketList(summary, wdlMarkets);
+
+        // 4. OU 市场
+        summary = string.concat(
+            summary,
+            "\n================================================================================\n",
+            "4. OU MARKETS (Over/Under 2.5) - CPMM Strategy\n",
+            "================================================================================\n"
+        );
+        summary = _appendMarketList(summary, ouMarkets);
+
+        // 5. AH 市场
+        summary = string.concat(
+            summary,
+            "\n================================================================================\n",
+            "5. AH MARKETS (Asian Handicap -0.5) - CPMM Strategy\n",
+            "================================================================================\n"
+        );
+        summary = _appendMarketList(summary, ahMarkets);
+
+        // 6. OddEven 市场
+        summary = string.concat(
+            summary,
+            "\n================================================================================\n",
+            "6. ODDEVEN MARKETS (Odd/Even Goals) - CPMM Strategy\n",
+            "================================================================================\n"
+        );
+        summary = _appendMarketList(summary, oddEvenMarkets);
+
+        // 7. Score 市场
+        summary = string.concat(
+            summary,
+            "\n================================================================================\n",
+            "7. SCORE MARKETS (Correct Score) - LMSR Strategy\n",
+            "================================================================================\n"
+        );
+        summary = _appendMarketList(summary, scoreMarkets);
+
+        // 8. WDL_Pari 市场
+        if (wdlPariMarkets.length > 0) {
+            summary = string.concat(
+                summary,
+                "\n================================================================================\n",
+                "8. WDL_PARI MARKETS (Win/Draw/Loss) - Parimutuel Strategy\n",
+                "================================================================================\n"
+            );
+            summary = _appendMarketList(summary, wdlPariMarkets);
+        }
+
+        // 9. Score_Pari 市场
+        if (scorePariMarkets.length > 0) {
+            summary = string.concat(
+                summary,
+                "\n================================================================================\n",
+                "9. SCORE_PARI MARKETS (Correct Score) - Parimutuel Strategy\n",
+                "================================================================================\n"
+            );
+            summary = _appendMarketList(summary, scorePariMarkets);
+        }
+
+        // 10. FirstGoalscorer 市场
+        if (firstGoalscorerMarkets.length > 0) {
+            summary = string.concat(
+                summary,
+                "\n================================================================================\n",
+                "10. FIRSTGOALSCORER MARKETS - Parimutuel Strategy\n",
+                "================================================================================\n"
+            );
+            summary = _appendMarketList(summary, firstGoalscorerMarkets);
+        }
+
+        // 11. Vault 状态
+        if (VAULT != address(0)) {
+            LiquidityVault_V3 vaultContract = LiquidityVault_V3(VAULT);
+            uint256 totalAssets = vaultContract.totalAssets();
+            uint256 totalBorrowed = vaultContract.totalBorrowed();
+            uint256 available = totalAssets > totalBorrowed ? totalAssets - totalBorrowed : 0;
+
+            summary = string.concat(
+                summary,
+                "\n================================================================================\n",
+                "11. VAULT STATUS\n",
+                "================================================================================\n",
+                "Total Assets:   ", _uint2str(totalAssets / tokenUnit), " USDC\n",
+                "Total Borrowed: ", _uint2str(totalBorrowed / tokenUnit), " USDC\n",
+                "Available:      ", _uint2str(available / tokenUnit), " USDC\n"
+            );
+        }
+
+        // 12. 汇总表格
+        summary = string.concat(
+            summary,
+            "\n================================================================================\n",
+            "12. MARKET SUMMARY TABLE\n",
+            "================================================================================\n\n",
+            "[AMM Mode - Requires Initial Liquidity]\n",
+            "Type     | Count | Strategy | Outcomes | Initial Liquidity\n",
+            "---------|-------|----------|----------|------------------\n",
+            "WDL      |   3   | CPMM     |    3     | 5,000 USDC\n",
+            "OU       |   3   | CPMM     |    2     | 5,000 USDC\n",
+            "AH       |   3   | CPMM     |    2     | 5,000 USDC\n",
+            "OddEven  |   3   | CPMM     |    2     | 5,000 USDC\n",
+            "Score    |   3   | LMSR     |   36     | 5,000 USDC\n",
+            "---------|-------|----------|----------|------------------\n",
+            "Subtotal |  15   |    -     |    -     | 75,000 USDC\n\n",
+            "[Parimutuel Mode - No Initial Liquidity Required]\n",
+            "Type          | Count | Strategy    | Outcomes | Initial Liquidity\n",
+            "--------------|-------|-------------|----------|------------------\n",
+            "WDL_Pari      |   3   | Parimutuel  |    3     | 0 (pool-based)\n",
+            "Score_Pari    |   3   | Parimutuel  |   36     | 0 (pool-based)\n",
+            "FirstGS       |   3   | Parimutuel  |   21     | 0 (pool-based)\n",
+            "--------------|-------|-------------|----------|------------------\n",
+            "Subtotal      |   9   |    -        |    -     | 0 USDC\n\n",
+            "======================================================================\n",
+            "TOTAL         |  24   |    -        |    -     | 75,000 USDC\n"
+        );
+
+        // 结尾
+        summary = string.concat(
+            summary,
+            "\n################################################################################\n",
+            "##                         CREATION COMPLETE                                  ##\n",
+            "################################################################################\n"
+        );
+
+        // 写入文件
+        vm.writeFile(outputPath, summary);
+        console.log("Summary file written to:", outputPath);
+    }
+
+    /**
+     * @notice 将市场列表追加到摘要字符串
+     */
+    function _appendMarketList(string memory summary, address[] storage markets)
+        internal
+        view
+        returns (string memory)
+    {
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market_V3 market = Market_V3(markets[i]);
+            summary = string.concat(
+                summary,
+                "Market ", _uint2str(i + 1), ": ", _addr2str(markets[i]), "\n",
+                "  Match ID:   ", market.matchId(), "\n",
+                "  Outcomes:   ", _uint2str(market.outcomeCount()), "\n",
+                "  Liquidity:  ", _uint2str(market.totalLiquidity() / tokenUnit), " USDC\n"
+            );
+        }
+        return summary;
     }
 }
 

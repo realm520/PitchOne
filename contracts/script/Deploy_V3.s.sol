@@ -19,6 +19,7 @@ import "../src/mappers/OU_Mapper.sol";
 import "../src/mappers/AH_Mapper.sol";
 import "../src/mappers/OddEven_Mapper.sol";
 import "../src/mappers/Score_Mapper.sol";
+import "../src/mappers/Identity_Mapper.sol";
 
 // 流动性
 import "../src/liquidity/LiquidityVault_V3.sol";
@@ -95,6 +96,7 @@ contract Deploy_V3 is Script {
         address ahMapper;
         address oddEvenMapper;
         address scoreMapper;
+        address identityMapper;  // FirstGoalscorer 用
 
         // V3 模板 ID (用于 Factory V4)
         bytes32 wdlTemplateId;
@@ -202,6 +204,12 @@ contract Deploy_V3 is Script {
         console.log("ParamController:", address(paramController));
         console.log("  Timelock Delay:", timelockDelay / 60, "minutes");
 
+        // 注册默认参数（禁用赔率检查，方便测试）
+        paramController.registerParam(ParamKeys.MIN_ODDS, 0, address(0));  // 禁用最小赔率检查
+        paramController.registerParam(ParamKeys.MAX_ODDS, 1_000_000_000_000, address(0));  // 设置超大的最大赔率
+        paramController.registerParam(ParamKeys.USER_EXPOSURE_LIMIT, 1_000_000_000_000_000, address(0));  // 1,000,000 USDC 用户敞口限制
+        console.log("  Registered MIN_ODDS = 0, MAX_ODDS = 1T, USER_EXPOSURE_LIMIT = 1M USDC");
+
         // ========================================
         // 3. 部署 MarketFactory_V3（使用临时 implementation）
         // ========================================
@@ -274,6 +282,11 @@ contract Deploy_V3 is Script {
         Score_Mapper scoreMapper = new Score_Mapper(5); // 最大 5 球
         deployed.scoreMapper = address(scoreMapper);
         console.log("Score_Mapper (maxGoals=5):", address(scoreMapper));
+
+        // Identity_Mapper - 无状态，一个实例服务所有使用它的市场
+        Identity_Mapper identityMapper = new Identity_Mapper();
+        deployed.identityMapper = address(identityMapper);
+        console.log("Identity_Mapper:", address(identityMapper));
 
         // ========================================
         // 7. 部署 BettingRouter_V3
@@ -407,9 +420,14 @@ contract Deploy_V3 is Script {
         uint256 tokenUnit
     ) internal {
         // 动态计算初始流动性（基于代币精度）
-        // 注意：测试环境使用较小的流动性以适配 Vault 容量
-        uint256 cpmmLiquidity = 10_000 * tokenUnit;  // 10k 代币（测试环境）
-        uint256 lmsrLiquidity = 5_000 * tokenUnit;   // 5k 代币（LMSR 需要较少）
+        // 注意：
+        // - CPMM 需要足够流动性避免单笔下注耗尽储备
+        // - LMSR 的 b 参数 = liquidity / (outcomeCount² * 10000)，需要足够大以支持小额下注
+        // - Score 市场有 36 个 outcomes
+        // - 每个市场 5k 初始流动性（足够支持小额下注测试）
+        // - 24 个市场（15 AMM + 9 Parimutuel）× 5k = 75k（Parimutuel 不需要流动性）
+        uint256 cpmmLiquidity = 5_000 * tokenUnit;  // 5k 代币
+        uint256 lmsrLiquidity = 5_000 * tokenUnit;  // 5k 代币
         // WDL 模板（使用 CPMM，3 个结果）
         IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
         wdlOutcomes[0] = IMarket_V3.OutcomeRule({
@@ -569,7 +587,7 @@ contract Deploy_V3 is Script {
         console.log("Score_Pari Template ID:", vm.toString(scorePariTemplateId));
 
         // FirstGoalscorer 模板（首位进球者，多结果彩池）
-        // 假设有 20 个球员选项 + 1 个 "无进球/其他" 选项
+        // 21 个选项：20 个球员 + 1 个 "无进球/其他"
         IMarket_V3.OutcomeRule[] memory fgsOutcomes = new IMarket_V3.OutcomeRule[](21);
         for (uint256 i = 0; i < 20; i++) {
             fgsOutcomes[i] = IMarket_V3.OutcomeRule({
@@ -588,9 +606,9 @@ contract Deploy_V3 is Script {
             "FirstGoalscorer",
             "PARIMUTUEL",
             address(parimutuelStrategy),
-            address(0),     // 首位进球者不需要赛果映射器（直接由预言机指定结果）
+            deployed.identityMapper,  // 使用 Step 6 部署的 Identity Mapper
             fgsOutcomes,
-            0               // Parimutuel 不需要初始流动性
+            0                         // Parimutuel 不需要初始流动性
         );
         deployed.firstGoalscorerTemplateId = fgsTemplateId;
         console.log("FirstGoalscorer Template ID:", vm.toString(fgsTemplateId));
@@ -599,7 +617,7 @@ contract Deploy_V3 is Script {
     /**
      * @notice 获取部署配置
      */
-    function getDeployConfig(address deployer) internal view returns (DeployConfig memory) {
+    function getDeployConfig(address /* deployer */) internal view returns (DeployConfig memory) {
         address usdcFromEnv = vm.envOr("USDC_ADDRESS", address(0));
         address usdc = usdcFromEnv != address(0) ? usdcFromEnv : usdcAddresses[block.chainid];
 
@@ -607,6 +625,7 @@ contract Deploy_V3 is Script {
         if (usdc != address(0)) {
             initialLpAmount = 0;
         } else {
+            // 默认 1M USDC，支持大量测试市场（考虑 90% 利用率）
             uint8 decimals = 6;
             initialLpAmount = vm.envOr("INITIAL_LP_AMOUNT", uint256(1_000_000 * (10 ** decimals)));
         }
@@ -705,7 +724,8 @@ contract Deploy_V3 is Script {
             "  OU_Mapper:         ", vm.toString(deployed.ouMapper), "\n",
             "  AH_Mapper:         ", vm.toString(deployed.ahMapper), "\n",
             "  OddEven_Mapper:    ", vm.toString(deployed.oddEvenMapper), "\n",
-            "  Score_Mapper:      ", vm.toString(deployed.scoreMapper), "\n\n"
+            "  Score_Mapper:      ", vm.toString(deployed.scoreMapper), "\n",
+            "  Identity_Mapper:   ", vm.toString(deployed.identityMapper), "\n\n"
         );
 
         // 模板 ID - CPMM
@@ -738,11 +758,11 @@ contract Deploy_V3 is Script {
         summary = string.concat(
             summary,
             "[Deployment Stats]\n",
-            "  Total Contracts:    19\n",
+            "  Total Contracts:    20\n",
             "    - Infrastructure: 4 (USDC, FeeRouter, ReferralRegistry, ParamController)\n",
             "    - Core:           4 (Vault, Factory_V4, Market_V3 Impl, Router)\n",
             "    - Strategies:     3 (CPMM, LMSR, Parimutuel)\n",
-            "    - Mappers:        5 (WDL, OU, AH, OddEven, Score)\n",
+            "    - Mappers:        6 (WDL, OU, AH, OddEven, Score, Identity)\n",
             "    - Templates:      8 (4 CPMM + 1 LMSR + 3 Parimutuel)\n\n"
         );
 
@@ -777,7 +797,7 @@ contract Deploy_V3 is Script {
     function _writeDeploymentJson(
         address deployer,
         DeployedContracts memory deployed,
-        DeployConfig memory config
+        DeployConfig memory /* config */
     ) internal {
         string memory networkName;
         if (block.chainid == 31337) {
@@ -817,7 +837,8 @@ contract Deploy_V3 is Script {
         vm.serializeAddress(mappers, "ou", deployed.ouMapper);
         vm.serializeAddress(mappers, "ah", deployed.ahMapper);
         vm.serializeAddress(mappers, "oddEven", deployed.oddEvenMapper);
-        string memory mappersJson = vm.serializeAddress(mappers, "score", deployed.scoreMapper);
+        vm.serializeAddress(mappers, "score", deployed.scoreMapper);
+        string memory mappersJson = vm.serializeAddress(mappers, "identity", deployed.identityMapper);
 
         // 构建 templateIds 对象
         string memory templateIds = "templateIds";

@@ -194,7 +194,7 @@ contract SimulateBets_V3 is Script {
                     continue;
                 }
 
-                // 选择下注选项
+                // 初始选择下注选项
                 uint256 outcomeId = selectOutcome(
                     distribution,
                     outcomeCount,
@@ -202,30 +202,64 @@ contract SimulateBets_V3 is Script {
                     b
                 );
 
-                // 生成下注金额
+                // 生成初始下注金额
                 uint256 betAmount = minBetAmount + (
                     uint256(keccak256(abi.encodePacked(bettor, marketAddr, b))) % (maxBetAmount - minBetAmount)
                 );
 
+                // 智能预检查：尝试找到可行的下注组合
+                bool betFound = false;
+                uint256 finalOutcome = outcomeId;
+                uint256 finalAmount = betAmount;
+
+                // 尝试不同的 outcome 和金额组合
+                for (uint256 tryOutcome = 0; tryOutcome < outcomeCount && !betFound; tryOutcome++) {
+                    uint256 testOutcome = (outcomeId + tryOutcome) % outcomeCount;
+
+                    // 尝试不同的金额（从原始金额递减）
+                    for (uint256 amountScale = 100; amountScale >= 20 && !betFound; amountScale -= 20) {
+                        uint256 testAmount = betAmount * amountScale / 100;
+                        if (testAmount < minBetAmount) testAmount = minBetAmount;
+
+                        // 使用 previewBet 检查是否可行
+                        try router.previewBet(marketAddr, testOutcome, testAmount) returns (address, uint256, uint256 previewShares, uint256) {
+                            if (previewShares > 0) {
+                                betFound = true;
+                                finalOutcome = testOutcome;
+                                finalAmount = testAmount;
+                            }
+                        } catch {
+                            // 继续尝试下一个组合
+                        }
+                    }
+                }
+
+                if (!betFound) {
+                    // 所有组合都失败，跳过这笔下注
+                    stats.skippedMarkets++;
+                    console.log("  Skipped: No viable bet found for market");
+                    continue;
+                }
+
                 // Mint USDC 给下注者
-                usdc.mint(bettor, betAmount);
+                usdc.mint(bettor, finalAmount);
 
                 // Approve Router 使用 USDC（用户只需授权给 Router）
-                usdc.approve(routerAddr, betAmount);
+                usdc.approve(routerAddr, finalAmount);
 
                 // 通过 BettingRouter_V3 下注
                 // minShares = 0 表示不限制滑点
-                try router.placeBet(marketAddr, outcomeId, betAmount, 0) returns (uint256 shares) {
+                try router.placeBet(marketAddr, finalOutcome, finalAmount, 0) returns (uint256 shares) {
                     stats.totalBets++;
                     stats.successfulBets++;
-                    stats.totalVolume += betAmount;
+                    stats.totalVolume += finalAmount;
                     userBets++;
-                    userVolume += betAmount;
+                    userVolume += finalAmount;
 
                     console.log("  Bet placed via Router");
                     console.log("    Market:", marketAddr);
-                    console.log("    Amount (USDC):", betAmount / usdcUnit);
-                    console.log("    Outcome:", outcomeId);
+                    console.log("    Amount (USDC):", finalAmount / usdcUnit);
+                    console.log("    Outcome:", finalOutcome);
                     console.log("    Shares:", shares / 1e18);
                 } catch Error(string memory reason) {
                     stats.totalBets++;

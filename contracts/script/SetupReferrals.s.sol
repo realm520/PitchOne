@@ -42,7 +42,7 @@ contract SetupReferrals is Script {
 
         // 读取部署配置文件
         string memory deploymentJson = vm.readFile(DEPLOYMENT_FILE);
-        address registryAddr = vm.parseJsonAddress(deploymentJson, ".contracts.referralRegistry");
+        address registryAddr = vm.parseJsonAddress(deploymentJson, ".shared.referralRegistry");
 
         ReferralRegistry registry = ReferralRegistry(registryAddr);
 
