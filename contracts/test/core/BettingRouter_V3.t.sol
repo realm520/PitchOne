@@ -673,7 +673,8 @@ contract BettingRouter_V3_ParamController_Test is Test {
 
         uint256 feeRecipientBalanceBefore = usdc.balanceOf(feeRecipient);
         router.placeBet(address(market), 0, BET_AMOUNT, 0);
-        uint256 fee1 = usdc.balanceOf(feeRecipient) - feeRecipientBalanceBefore;
+        // fee1 用于与后续费率变更后的费用比较（当前测试可选）
+        // uint256 fee1 = usdc.balanceOf(feeRecipient) - feeRecipientBalanceBefore;
 
         vm.stopPrank();
 

@@ -101,7 +101,7 @@ contract LiquidityVaultV3Test is Test {
 
         // Then withdraw
         uint256 shares = vault.balanceOf(lp1);
-        uint256 assets = vault.redeem(shares, lp1, lp1);
+        vault.redeem(shares, lp1, lp1);
 
         assertEq(vault.balanceOf(lp1), 0);
         assertEq(usdc.balanceOf(lp1), INITIAL_LP_DEPOSIT);
