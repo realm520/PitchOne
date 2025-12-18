@@ -415,20 +415,19 @@ contract LMSR_Optimized is IPricingEngine, Ownable {
     /**
      * @notice 更新储备量（LMSR 使用内部 quantityShares 管理）
      * @param outcomeId 结果ID
-     * @param amount 投注金额（未使用，LMSR 直接使用 shares）
      * @param shares 增加的份额
-     * @param reserves 当前储备（输入参数，LMSR 不使用）
      * @return newReserves 更新后的储备（返回当前所有持仓量）
      *
      * @dev LMSR 的储备实际上就是累计持仓量（quantityShares）
      *      - 更新内部的 quantityShares[outcomeId]
      *      - 返回所有结果的持仓量作为 "储备"
+     *      注意：amount 和 reserves 参数用于接口兼容，LMSR 直接使用 shares 和内部 quantityShares
      */
     function updateReserves(
         uint256 outcomeId,
-        uint256 amount,
+        uint256 /* amount */,
         uint256 shares,
-        uint256[] memory reserves
+        uint256[] memory /* reserves */
     ) external override returns (uint256[] memory newReserves) {
         require(outcomeId < outcomeCount, "Invalid outcome ID");
         require(shares > 0, "Zero shares");

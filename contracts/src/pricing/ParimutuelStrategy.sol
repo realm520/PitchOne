@@ -80,10 +80,10 @@ contract ParimutuelStrategy is IPricingStrategy {
 
     /// @inheritdoc IPricingStrategy
     function calculateRefund(
-        uint256 outcomeId,
+        uint256 /* outcomeId */,
         uint256 shares,
         uint256 totalSharesForOutcome,
-        uint256 totalBetAmountForOutcome
+        uint256 /* totalBetAmountForOutcome */
     ) external pure override returns (uint256 refundAmount) {
         // 在 Parimutuel 中，shares == 投注金额
         // 直接返还份额数量（即原始投注金额）

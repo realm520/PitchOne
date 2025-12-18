@@ -133,7 +133,6 @@ contract ParimutuelPricing is IPricingEngine {
      * @notice 更新储备（在用户下注后调用）
      * @param outcomeId 结果ID
      * @param amount 净金额（已扣除手续费）
-     * @param shares 用户获得的份额（由 calculateShares 计算）
      * @param reserves 当前储备
      * @return newReserves 更新后的储备
      *
@@ -143,6 +142,7 @@ contract ParimutuelPricing is IPricingEngine {
      *      - 其他结果储备不变
      *
      *      这与 SimpleCPMM 完全不同（CPMM 是减少目标储备,增加对手盘储备）
+     *      注意：shares 参数用于接口兼容，Parimutuel 直接使用 amount
      *
      * 示例：
      *      初始状态: [100, 200]（Outcome 0 有 100 USDC，Outcome 1 有 200 USDC）
@@ -152,7 +152,7 @@ contract ParimutuelPricing is IPricingEngine {
     function updateReserves(
         uint256 outcomeId,
         uint256 amount,
-        uint256 shares,
+        uint256 /* shares */,
         uint256[] memory reserves
     ) external pure override returns (uint256[] memory newReserves) {
         uint256 n = reserves.length;

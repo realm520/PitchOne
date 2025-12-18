@@ -29,6 +29,10 @@ contract CPMMStrategy is IPricingStrategy {
     uint256 private constant BASIS_POINTS = 10000;
     uint256 private constant PRECISION = 1e18;
 
+    // 最小储备量，防止除零错误
+    // 设置为 1e6（对于 6 位精度代币 = 1 USDC）
+    uint256 private constant MIN_RESERVE = 1e6;
+
     // ============ 下注相关 ============
 
     /// @inheritdoc IPricingStrategy
@@ -61,6 +65,12 @@ contract CPMMStrategy is IPricingStrategy {
         // 目标储备 = k / productOthers
         // shares = reserves[outcomeId] - newReserves[outcomeId]
         uint256 newTargetReserve = k * PRECISION / productOthers;
+
+        // 确保储备不会低于最小值（防止除零错误）
+        if (newTargetReserve < MIN_RESERVE) {
+            newTargetReserve = MIN_RESERVE;
+        }
+
         require(reserves[outcomeId] > newTargetReserve, "CPMM: Insufficient liquidity");
 
         shares = reserves[outcomeId] - newTargetReserve;
@@ -100,7 +110,7 @@ contract CPMMStrategy is IPricingStrategy {
 
     /// @inheritdoc IPricingStrategy
     function calculateRefund(
-        uint256 outcomeId,
+        uint256 /* outcomeId */,
         uint256 shares,
         uint256 totalSharesForOutcome,
         uint256 totalBetAmountForOutcome
@@ -272,6 +282,12 @@ contract CPMMStrategy is IPricingStrategy {
         }
 
         uint256 newTargetReserve = k * PRECISION / productOthers;
+
+        // 确保储备不会低于最小值（防止除零错误）
+        if (newTargetReserve < MIN_RESERVE) {
+            newTargetReserve = MIN_RESERVE;
+        }
+
         require(reserves[outcomeId] > newTargetReserve, "CPMM: Insufficient liquidity");
 
         shares = reserves[outcomeId] - newTargetReserve;
