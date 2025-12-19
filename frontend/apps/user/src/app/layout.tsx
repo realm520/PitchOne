@@ -6,6 +6,7 @@ import { I18nProvider } from "@pitchone/i18n";
 import { Header } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
 import { ParlayProvider } from "../lib/parlay-store";
+import { BetSlipProvider } from "../lib/betslip-store";
 import { SidebarProvider } from "../lib/sidebar-store";
 import { ParlayCart } from "../components/parlay";
 import { ReferralBinder } from "../components/referral";
@@ -32,6 +33,7 @@ export default function RootLayout({
           <I18nProvider>
             <SidebarProvider>
               <ParlayProvider>
+              <BetSlipProvider>
                 {/* 推荐系统 - URL 参数检测和自动绑定 */}
                 <ReferralBinder />
 
@@ -53,6 +55,7 @@ export default function RootLayout({
                   <AppFooter />
                   <ParlayCart />
                 </div>
+              </BetSlipProvider>
               </ParlayProvider>
             </SidebarProvider>
           </I18nProvider>

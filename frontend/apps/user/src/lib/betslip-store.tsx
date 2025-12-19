@@ -1,0 +1,105 @@
+'use client';
+
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+
+type Address = `0x${string}`;
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+export interface SelectedBet {
+  marketAddress: Address;
+  marketId: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  outcomeId: number;
+  outcomeName: string;
+  odds: string;
+  templateType: string;
+  line?: number; // For OU/AH markets
+}
+
+interface BetSlipStore {
+  selectedBet: SelectedBet | null;
+  selectBet: (bet: SelectedBet) => void;
+  clearBet: () => void;
+  isSelected: (marketAddress: Address, outcomeId: number) => boolean;
+  updateOdds: (marketAddress: Address, outcomeId: number, newOdds: string) => void;
+}
+
+// ============================================================================
+// Context
+// ============================================================================
+
+const BetSlipContext = createContext<BetSlipStore | undefined>(undefined);
+
+// ============================================================================
+// Provider
+// ============================================================================
+
+export function BetSlipProvider({ children }: { children: ReactNode }) {
+  const [selectedBet, setSelectedBet] = useState<SelectedBet | null>(null);
+
+  // Select or replace bet
+  const selectBet = useCallback((bet: SelectedBet) => {
+    setSelectedBet(bet);
+  }, []);
+
+  // Clear selection
+  const clearBet = useCallback(() => {
+    setSelectedBet(null);
+  }, []);
+
+  // Check if specific market/outcome is selected
+  const isSelected = useCallback(
+    (marketAddress: Address, outcomeId: number) => {
+      if (!selectedBet) return false;
+      return (
+        selectedBet.marketAddress.toLowerCase() === marketAddress.toLowerCase() &&
+        selectedBet.outcomeId === outcomeId
+      );
+    },
+    [selectedBet]
+  );
+
+  // Update odds for selected bet (for real-time updates)
+  const updateOdds = useCallback(
+    (marketAddress: Address, outcomeId: number, newOdds: string) => {
+      setSelectedBet((prev) => {
+        if (!prev) return null;
+        if (
+          prev.marketAddress.toLowerCase() === marketAddress.toLowerCase() &&
+          prev.outcomeId === outcomeId
+        ) {
+          return { ...prev, odds: newOdds };
+        }
+        return prev;
+      });
+    },
+    []
+  );
+
+  const value: BetSlipStore = {
+    selectedBet,
+    selectBet,
+    clearBet,
+    isSelected,
+    updateOdds,
+  };
+
+  return <BetSlipContext.Provider value={value}>{children}</BetSlipContext.Provider>;
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
+
+export function useBetSlipStore() {
+  const context = useContext(BetSlipContext);
+  if (!context) {
+    throw new Error('useBetSlipStore must be used within BetSlipProvider');
+  }
+  return context;
+}
