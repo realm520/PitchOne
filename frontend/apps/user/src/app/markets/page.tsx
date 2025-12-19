@@ -2,27 +2,19 @@
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import { LoadingSpinner } from '@pitchone/ui';
+import { LoadingFallback } from '../../components/LoadingFallback';
 
 const MarketsContent = dynamic(
   () => import('./MarketsContent').then((mod) => ({ default: mod.MarketsContent })),
   {
     ssr: false,
-    loading: () => (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载市场数据..." />
-      </div>
-    ),
+    loading: () => <LoadingFallback type="market" height="100vh" />,
   }
 );
 
 export default function MarketsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载市场数据..." />
-      </div>
-    }>
+    <Suspense fallback={<LoadingFallback type="market" height="100vh" />}>
       <MarketsContent />
     </Suspense>
   );

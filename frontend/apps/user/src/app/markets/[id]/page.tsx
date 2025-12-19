@@ -2,17 +2,13 @@
 
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { LoadingSpinner } from '@pitchone/ui';
+import { LoadingFallback } from '../../../components/LoadingFallback';
 
 const MarketDetailClient = dynamic(
   () => import('./MarketDetailClient').then((mod) => ({ default: mod.MarketDetailClient })),
   {
     ssr: false,
-    loading: () => (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载市场详情..." />
-      </div>
-    ),
+    loading: () => <LoadingFallback type="marketDetail" height="100vh" />,
   }
 );
 

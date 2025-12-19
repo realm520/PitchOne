@@ -1,4 +1,19 @@
 {
+  "meta": {
+    "title": "PitchOne - 탈중앙화 축구 예측 플랫폼",
+    "description": "온체인 투명성, 비수탁형, 자동 정산 축구 예측 플랫폼",
+    "parlay": {
+      "title": "파레이 | PitchOne",
+      "description": "파레이 베팅 생성 및 관리"
+    }
+  },
+  "loading": {
+    "chart": "차트 로딩 중...",
+    "activity": "활동 로딩 중...",
+    "market": "마켓 데이터 로딩 중...",
+    "marketDetail": "마켓 상세 로딩 중...",
+    "position": "포지션 로딩 중..."
+  },
   "common": {
     "loading": "로딩 중...",
     "error": "오류",
@@ -213,6 +228,8 @@
   "parlay": {
     "title": "파레이",
     "pageTitle": "파레이 베팅",
+    "loadError": "파레이 목록 로드 실패",
+    "loadParlayError": "파레이 로드 실패",
     "pageSubtitle": "여러 경기를 조합하여 배당률을 곱하고, 모두 맞추면 더 높은 수익!",
     "cart": "베팅 슬립",
     "empty": "경기를 추가하세요",

@@ -12,13 +12,14 @@ import { ParlayCart } from "../components/parlay";
 import { ReferralBinder } from "../components/referral";
 import { Navigation, HeaderActions } from "../components/Navigation";
 import { AppFooter } from "../components/AppFooter";
+import { DynamicHead } from "../components/DynamicHead";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PitchOne - 去中心化足球预测平台",
-  description: "链上透明、非托管资产、自动化结算的足球预测平台",
+  title: "PitchOne - Decentralized Football Prediction Platform",
+  description: "On-chain transparency, non-custodial assets, automated settlement football prediction platform",
 };
 
 export default function RootLayout({
@@ -27,14 +28,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
           <I18nProvider>
+            <DynamicHead />
             <SidebarProvider>
               <ParlayProvider>
               <BetSlipProvider>
-                {/* 推荐系统 - URL 参数检测和自动绑定 */}
                 <ReferralBinder />
 
                 <div className="flex flex-col min-h-screen">

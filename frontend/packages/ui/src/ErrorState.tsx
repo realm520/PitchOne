@@ -13,10 +13,10 @@ export interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = '出错了',
+  title,
   message,
   onRetry,
-  retryText = '重试',
+  retryText,
   icon,
   className,
 }: ErrorStateProps) {

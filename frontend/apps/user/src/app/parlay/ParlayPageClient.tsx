@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container } from '@pitchone/ui';
 import { ParlayBuilder, ParlayList } from '../../components/parlay';
 import { useAccount } from '@pitchone/web3';
@@ -8,10 +8,15 @@ import { useParlayStore } from '../../lib/parlay-store';
 import { useTranslation } from '@pitchone/i18n';
 
 /**
- * 串关页面客户端组件
+ * Parlay page client component
  */
 export function ParlayPageClient() {
   const { t } = useTranslation();
+
+  // Dynamic page title based on locale
+  useEffect(() => {
+    document.title = t('meta.parlay.title');
+  }, [t]);
   const { address, isConnected } = useAccount();
   const { selectedOutcomes, removeOutcome, clearAll } = useParlayStore();
   const [activeTab, setActiveTab] = useState<'create' | 'my-parlays'>('create');

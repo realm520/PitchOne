@@ -1,4 +1,19 @@
 {
+  "meta": {
+    "title": "PitchOne - 去中心化足球预测平台",
+    "description": "链上透明、非托管资产、自动化结算的足球预测平台",
+    "parlay": {
+      "title": "串关 | PitchOne",
+      "description": "创建和管理你的串关投注"
+    }
+  },
+  "loading": {
+    "chart": "加载图表...",
+    "activity": "加载活动流...",
+    "market": "加载市场数据...",
+    "marketDetail": "加载市场详情...",
+    "position": "加载头寸数据..."
+  },
   "common": {
     "loading": "加载中...",
     "error": "出错了",
@@ -213,6 +228,8 @@
   "parlay": {
     "title": "串关",
     "pageTitle": "串关投注",
+    "loadError": "加载串关列表失败",
+    "loadParlayError": "加载串关失败",
     "pageSubtitle": "组合多场比赛，赔率相乘，全中获得更高回报！",
     "cart": "串关单",
     "empty": "请添加比赛到串关",

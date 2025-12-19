@@ -1,4 +1,19 @@
 {
+  "meta": {
+    "title": "PitchOne - Decentralized Football Prediction Platform",
+    "description": "On-chain transparent, non-custodial, auto-settlement football prediction platform",
+    "parlay": {
+      "title": "Parlay | PitchOne",
+      "description": "Create and manage your parlay bets"
+    }
+  },
+  "loading": {
+    "chart": "Loading chart...",
+    "activity": "Loading activity...",
+    "market": "Loading market data...",
+    "marketDetail": "Loading market details...",
+    "position": "Loading positions..."
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -213,6 +228,8 @@
   "parlay": {
     "title": "Parlay",
     "pageTitle": "Parlay Betting",
+    "loadError": "Failed to load parlay list",
+    "loadParlayError": "Failed to load parlay",
     "pageSubtitle": "Combine multiple matches, multiply odds, win bigger with all correct!",
     "cart": "Parlay Slip",
     "empty": "Add matches to parlay",

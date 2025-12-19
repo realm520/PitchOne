@@ -10,6 +10,7 @@ import {
 import { Card, Button, LoadingSpinner, ErrorState } from '@pitchone/ui';
 import { formatUnits } from 'viem';
 import { cn } from '@pitchone/utils';
+import { useTranslation } from '@pitchone/i18n';
 
 export interface ParlayCardProps {
   parlayId: number;
@@ -17,10 +18,11 @@ export interface ParlayCardProps {
 }
 
 /**
- * 串关卡片组件
- * 展示单个串关的详细信息和状态
+ * Parlay card component
+ * Displays single parlay details and status
  */
 export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
+  const { t } = useTranslation();
   const { parlay, isLoading, isError, error } = useParlayDetails(parlayId);
   const { canSettle, status: expectedStatus } = useCanSettle(parlayId);
   const { settle, isPending: isSettling, isSuccess: isSettled } = useSettleParlay();
@@ -73,7 +75,10 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
   if (isError || !parlay) {
     return (
       <Card className="w-full">
-        <ErrorState message={error?.message || '加载串关失败'} />
+        <ErrorState
+          title={t('common.error')}
+          message={error?.message || t('parlay.loadParlayError')}
+        />
       </Card>
     );
   }

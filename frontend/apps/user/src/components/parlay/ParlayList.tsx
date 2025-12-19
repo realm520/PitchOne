@@ -3,6 +3,7 @@
 import { useUserParlays, useAccount } from '@pitchone/web3';
 import { Card, LoadingSpinner, ErrorState, EmptyState } from '@pitchone/ui';
 import { ParlayCard } from './ParlayCard';
+import { useTranslation } from '@pitchone/i18n';
 
 export interface ParlayListProps {
   userAddress?: `0x${string}`;
@@ -10,16 +11,17 @@ export interface ParlayListProps {
 }
 
 /**
- * 串关列表组件
- * 展示用户的所有串关
+ * Parlay list component
+ * Displays all user parlays
  */
 export function ParlayList({ userAddress, limit }: ParlayListProps) {
+  const { t } = useTranslation();
   const { address } = useAccount();
   const targetAddress = userAddress || address;
 
   const { parlayIds, isLoading, isError, error } = useUserParlays(targetAddress);
 
-  // 应用数量限制
+  // Apply limit
   const displayedParlayIds = limit ? parlayIds.slice(0, limit) : parlayIds;
 
   if (isLoading) {
@@ -27,7 +29,7 @@ export function ParlayList({ userAddress, limit }: ParlayListProps) {
       <Card className="w-full">
         <div className="flex items-center justify-center py-12">
           <LoadingSpinner />
-          <span className="ml-3 text-gray-400">加载串关列表...</span>
+          <span className="ml-3 text-gray-400">{t('parlay.loadError')}</span>
         </div>
       </Card>
     );
@@ -37,8 +39,10 @@ export function ParlayList({ userAddress, limit }: ParlayListProps) {
     return (
       <Card className="w-full">
         <ErrorState
-          message={error?.message || '加载串关列表失败'}
+          title={t('common.error')}
+          message={error?.message || t('parlay.loadError')}
           onRetry={() => window.location.reload()}
+          retryText={t('common.retry')}
         />
       </Card>
     );
