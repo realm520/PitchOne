@@ -156,7 +156,7 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
         results = new BetResult[](bets.length);
         uint256 totalFee = 0;
 
-        for (uint256 i = 0; i < bets.length; i++) {
+        for (uint256 i = 0; i < bets.length;) {
             BetParams calldata bet = bets[i];
 
             // 获取市场代币
@@ -176,7 +176,7 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
                 continue;
             }
 
-            // 验证代币
+            // 验证代币和下注金额限制
             if (!_supportedTokens.contains(token)) {
                 results[i] = BetResult({
                     market: bet.market,
@@ -189,59 +189,75 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
                 continue;
             }
 
+            // 验证 min/max 下注限制
+            {
+                TokenInfo storage info = _tokenInfo[token];
+                uint256 minBet = info.minBetAmount;
+                if (minBet == 0 && address(paramController) != address(0)) {
+                    minBet = paramController.tryGetParam(ParamKeys.MIN_BET_AMOUNT, 0);
+                }
+                uint256 maxBet = info.maxBetAmount;
+                if (maxBet == 0 && address(paramController) != address(0)) {
+                    maxBet = paramController.tryGetParam(ParamKeys.MAX_BET_AMOUNT, 0);
+                }
+                if ((minBet > 0 && bet.amount < minBet) || (maxBet > 0 && bet.amount > maxBet)) {
+                    results[i] = BetResult({
+                        market: bet.market,
+                        outcomeId: bet.outcomeId,
+                        amount: 0,
+                        shares: 0,
+                        fee: 0,
+                        token: token
+                    });
+                    continue;
+                }
+            }
+
             // 计算费用
             FeeResult memory feeResult = _calculateFee(token, msg.sender, bet.amount);
 
-            // 转账
+            // 转账：从用户转入全额到 Router
             IERC20(token).safeTransferFrom(msg.sender, address(this), bet.amount);
 
-            // 路由费用
+            // 转账净金额到市场
+            IERC20(token).safeTransfer(bet.market, feeResult.netAmount);
+
+            // 下注 - 不使用 try/catch，如果失败则整个交易 revert
+            // 这样可以保证资金安全（转账也会回滚）
+            uint256 shares = IMarket_V3(bet.market).placeBetFor(
+                msg.sender,
+                bet.outcomeId,
+                feeResult.netAmount,
+                bet.minShares
+            );
+
+            // 下注成功后再路由费用
             if (feeResult.feeAmount > 0) {
                 address recipient = _getFeeRecipient(token);
                 IERC20(token).safeTransfer(recipient, feeResult.feeAmount);
                 totalFee += feeResult.feeAmount;
             }
 
-            // 转账到市场
-            IERC20(token).safeTransfer(bet.market, feeResult.netAmount);
+            results[i] = BetResult({
+                market: bet.market,
+                outcomeId: bet.outcomeId,
+                amount: feeResult.netAmount,
+                shares: shares,
+                fee: feeResult.feeAmount,
+                token: token
+            });
 
-            // 下注
-            try IMarket_V3(bet.market).placeBetFor(
+            emit BetPlaced(
                 msg.sender,
+                bet.market,
+                token,
                 bet.outcomeId,
-                feeResult.netAmount,
-                bet.minShares
-            ) returns (uint256 shares) {
-                results[i] = BetResult({
-                    market: bet.market,
-                    outcomeId: bet.outcomeId,
-                    amount: feeResult.netAmount,
-                    shares: shares,
-                    fee: feeResult.feeAmount,
-                    token: token
-                });
+                bet.amount,
+                shares,
+                feeResult.feeAmount
+            );
 
-                emit BetPlaced(
-                    msg.sender,
-                    bet.market,
-                    token,
-                    bet.outcomeId,
-                    bet.amount,
-                    shares,
-                    feeResult.feeAmount
-                );
-            } catch {
-                // 下注失败，退还资金
-                IERC20(token).safeTransfer(msg.sender, feeResult.netAmount);
-                results[i] = BetResult({
-                    market: bet.market,
-                    outcomeId: bet.outcomeId,
-                    amount: 0,
-                    shares: 0,
-                    fee: 0,
-                    token: token
-                });
-            }
+            unchecked { ++i; }
         }
 
         emit BatchBetPlaced(msg.sender, bets.length, totalFee);
@@ -260,22 +276,28 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
 
         // 获取市场代币
         address token = _getMarketToken(market);
+
+        // 验证代币和市场
+        _validateToken(token, 0); // 先检查代币白名单，金额检查在循环中进行
         _validateMarket(market);
 
         sharesList = new uint256[](outcomeIds.length);
         uint256 totalAmount = 0;
         uint256 totalFee = 0;
 
-        // 计算总金额
-        for (uint256 i = 0; i < amounts.length; i++) {
+        // 计算总金额并验证每笔金额
+        for (uint256 i = 0; i < amounts.length;) {
+            if (amounts[i] == 0) revert ZeroAmount();
+            _validateToken(token, amounts[i]); // 验证 min/max 限制
             totalAmount += amounts[i];
+            unchecked { ++i; }
         }
 
         // 一次性转账
         IERC20(token).safeTransferFrom(msg.sender, address(this), totalAmount);
 
         // 处理每笔下注
-        for (uint256 i = 0; i < outcomeIds.length; i++) {
+        for (uint256 i = 0; i < outcomeIds.length;) {
             FeeResult memory feeResult = _calculateFee(token, msg.sender, amounts[i]);
             totalFee += feeResult.feeAmount;
 
@@ -299,6 +321,8 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
                 sharesList[i],
                 feeResult.feeAmount
             );
+
+            unchecked { ++i; }
         }
 
         // 路由费用
@@ -382,8 +406,9 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
     function getSupportedTokens() external view override returns (address[] memory tokens) {
         uint256 length = _supportedTokens.length();
         tokens = new address[](length);
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length;) {
             tokens[i] = _supportedTokens.at(i);
+            unchecked { ++i; }
         }
     }
 
@@ -505,6 +530,7 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
      * @param _factory 工厂地址
      */
     function setFactory(address _factory) external onlyOwner {
+        if (_factory == address(0)) revert ZeroAddress();
         factory = _factory;
     }
 
@@ -546,6 +572,9 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
     /// @notice ParamController 更新事件
     event ParamControllerUpdated(address indexed paramController);
 
+    /// @notice 紧急提取事件
+    event EmergencyWithdraw(address indexed token, uint256 amount, address indexed to);
+
     /**
      * @notice 紧急提取代币
      * @param token 代币地址
@@ -553,6 +582,7 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
      */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).safeTransfer(msg.sender, amount);
+        emit EmergencyWithdraw(token, amount, msg.sender);
     }
 
     // ============ 内部函数 ============
@@ -586,6 +616,9 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
     function _validateToken(address token, uint256 amount) internal view {
         if (!_supportedTokens.contains(token)) revert UnsupportedToken(token);
 
+        // 如果 amount == 0，只检查白名单（用于批量下注前的预检查）
+        if (amount == 0) return;
+
         TokenInfo storage info = _tokenInfo[token];
 
         // 获取最小投注限制：优先代币配置 -> ParamController -> 0
@@ -610,7 +643,7 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
 
     function _getFeeRate(address token) internal view returns (uint256) {
         TokenInfo storage info = _tokenInfo[token];
-        // 优先使用代币特定配置
+        // 优先使用代币特定配置（feeRateBps > 0 表示已配置）
         if (info.supported && info.feeRateBps > 0) {
             return info.feeRateBps;
         }
