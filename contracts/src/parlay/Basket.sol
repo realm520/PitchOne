@@ -86,6 +86,18 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
     /// @notice 风险储备金 (owner 注入,用于覆盖赔付缺口)
     uint256 public reserveFund;
 
+    /// @notice 用户串关敞口追踪（潜在最大赔付）
+    mapping(address => uint256) public userParlayExposure;
+
+    /// @notice 单用户最大串关敞口限制（默认 10,000 USDC）
+    uint256 public maxUserParlayExposure = 10_000 * 1e6;
+
+    /// @notice 平台最大串关敞口限制（默认 1,000,000 USDC）
+    uint256 public maxPlatformParlayExposure = 1_000_000 * 1e6;
+
+    /// @notice 最小储备金覆盖比例（基点，默认 50%）
+    uint256 public minReserveFundRatio = 5000;
+
     // ============================================================================
     // 构造函数
     // ============================================================================
@@ -275,6 +287,9 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
             revert SlippageExceeded(potentialPayout, minPayout);
         }
 
+        // 风险敞口验证
+        _validateRiskExposure(msg.sender, potentialPayout);
+
         // 转入资金到 Basket (池化模式：资金留在 Basket)
         settlementToken.safeTransferFrom(msg.sender, address(this), stake);
 
@@ -300,6 +315,9 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
         // 更新全局风险追踪
         totalLockedStake += stake;
         totalPotentialPayout += potentialPayout;
+
+        // 更新用户敞口
+        userParlayExposure[msg.sender] += potentialPayout;
 
         // 记录用户串关
         userParlays[msg.sender].push(parlayId);
@@ -348,6 +366,13 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
         // 更新全局风险追踪
         totalLockedStake -= parlay.stake;
         totalPotentialPayout -= parlay.potentialPayout;
+
+        // 减少用户敞口
+        if (userParlayExposure[parlay.user] >= parlay.potentialPayout) {
+            userParlayExposure[parlay.user] -= parlay.potentialPayout;
+        } else {
+            userParlayExposure[parlay.user] = 0;
+        }
 
         // 计算赔付 (池化模式：直接从 Basket 支付)
         if (finalStatus == ParlayStatus.Won) {
@@ -449,9 +474,57 @@ contract Basket is IBasket, Ownable, ReentrancyGuard, IERC1155Receiver, ERC165 {
         emit OddsLimitsUpdated(_minOdds, _maxOdds);
     }
 
+    /**
+     * @notice 设置敞口限制参数
+     * @param _maxUser 单用户最大敞口
+     * @param _maxPlatform 平台最大敞口
+     * @param _minRatio 最小储备金覆盖比例（基点）
+     */
+    function setExposureLimits(
+        uint256 _maxUser,
+        uint256 _maxPlatform,
+        uint256 _minRatio
+    ) external onlyOwner {
+        require(_maxUser > 0, "Invalid user limit");
+        require(_maxPlatform > _maxUser, "Platform limit must exceed user limit");
+        require(_minRatio <= ODDS_BASE, "Ratio cannot exceed 100%");
+
+        maxUserParlayExposure = _maxUser;
+        maxPlatformParlayExposure = _maxPlatform;
+        minReserveFundRatio = _minRatio;
+    }
+
     // ============================================================================
     // 内部辅助函数
     // ============================================================================
+
+    /**
+     * @notice 验证风险敞口
+     * @param user 用户地址
+     * @param potentialPayout 本次串关的潜在赔付
+     * @dev 检查用户敞口、平台敞口和储备金覆盖率
+     */
+    function _validateRiskExposure(address user, uint256 potentialPayout) internal view {
+        // 1. 用户敞口检查
+        uint256 newUserExposure = userParlayExposure[user] + potentialPayout;
+        if (newUserExposure > maxUserParlayExposure) {
+            revert UserExposureExceeded(user, newUserExposure, maxUserParlayExposure);
+        }
+
+        // 2. 平台敞口检查
+        uint256 newPlatformExposure = totalPotentialPayout + potentialPayout;
+        if (newPlatformExposure > maxPlatformParlayExposure) {
+            revert PlatformExposureExceeded(newPlatformExposure, maxPlatformParlayExposure);
+        }
+
+        // 3. 储备金覆盖率检查
+        // 确保可用资金能覆盖一定比例的潜在赔付
+        uint256 availableFunds = settlementToken.balanceOf(address(this));
+        uint256 requiredReserve = (newPlatformExposure * minReserveFundRatio) / ODDS_BASE;
+        if (availableFunds < requiredReserve) {
+            revert InsufficientReserveCapacity(availableFunds, requiredReserve);
+        }
+    }
 
     /**
      * @notice 获取市场的赔率

@@ -373,6 +373,21 @@ contract LiquidityVault_V3 is ILiquidityVault_V3, ERC4626, AccessControl, Pausab
     // ============ ERC-4626 覆盖 ============
 
     /**
+     * @notice ERC-4626 通胀攻击防护
+     * @dev 添加虚拟 shares offset = 10^6
+     *      这确保攻击者无法通过微小的初始存款+大额捐赠来稀释后续存款者
+     *      参考：https://docs.openzeppelin.com/contracts/4.x/erc4626#inflation-attack
+     *
+     *      工作原理：
+     *      - 虚拟 shares = 10^6（与 USDC 6 位小数对齐）
+     *      - 虚拟 assets = 10^6
+     *      - 攻击成本从 ~$1 提高到 ~$1,000,000
+     */
+    function _decimalsOffset() internal view virtual override returns (uint8) {
+        return 6;
+    }
+
+    /**
      * @notice 总资产 = 合约余额 + 借出金额 - 储备金
      * @dev 储备金不计入 LP 可分配资产
      */

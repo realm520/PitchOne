@@ -273,4 +273,13 @@ interface IBasket {
 
     /// @notice 储备金不足
     error InsufficientReserveFund(uint256 requested, uint256 available);
+
+    /// @notice 用户敞口超限
+    error UserExposureExceeded(address user, uint256 newExposure, uint256 limit);
+
+    /// @notice 平台敞口超限
+    error PlatformExposureExceeded(uint256 newExposure, uint256 limit);
+
+    /// @notice 储备金覆盖不足
+    error InsufficientReserveCapacity(uint256 availableFunds, uint256 requiredReserve);
 }
