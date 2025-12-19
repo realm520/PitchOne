@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 import "../interfaces/IMarket_V3.sol";
 import "../interfaces/IPricingStrategy.sol";
@@ -32,7 +33,7 @@ import "../governance/ParamKeys.sol";
  *      - ORACLE_ROLE：预言机上报（resolve）
  *      - OPERATOR_ROLE：运营操作（cancel、参数调整）
  */
-contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, ReentrancyGuard {
+contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // ============ 角色定义 ============
@@ -41,6 +42,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     // ============ 不可变变量 ============
 
@@ -202,6 +204,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 设置角色
         _grantRole(DEFAULT_ADMIN_ROLE, config.admin);
         _grantRole(OPERATOR_ROLE, config.admin);
+        _grantRole(PAUSER_ROLE, config.admin);
         // 给工厂授予管理员权限，以便设置 Router/Keeper/Oracle 角色
         _grantRole(DEFAULT_ADMIN_ROLE, factory);
 
@@ -231,7 +234,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         uint256 outcomeId,
         uint256 amount,
         uint256 minShares
-    ) external onlyRole(ROUTER_ROLE) nonReentrant returns (uint256 shares) {
+    ) external onlyRole(ROUTER_ROLE) nonReentrant whenNotPaused returns (uint256 shares) {
         if (status != MarketStatus.Open) {
             revert InvalidStatus(MarketStatus.Open, status);
         }
@@ -350,6 +353,18 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 通过 Mapper 映射结果
         (uint256[] memory outcomeIds, uint256[] memory weights) = resultMapper.mapResult(rawResult);
 
+        // 验证结果有效性
+        require(outcomeIds.length > 0, "Market: Empty outcome IDs");
+        require(outcomeIds.length == weights.length, "Market: Length mismatch");
+
+        uint256 totalWeight = 0;
+        for (uint256 i = 0; i < weights.length; i++) {
+            require(weights[i] > 0, "Market: Zero weight");
+            require(outcomeIds[i] < _outcomeRules.length, "Market: Invalid outcome ID");
+            totalWeight += weights[i];
+        }
+        require(totalWeight <= 10000, "Market: Total weight exceeds 100%");
+
         // 存储结算结果
         settlementResult.outcomeIds = outcomeIds;
         settlementResult.weights = weights;
@@ -428,6 +443,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     function redeem(uint256 outcomeId, uint256 shares)
         external
         nonReentrant
+        whenNotPaused
         returns (uint256 payout)
     {
         if (status != MarketStatus.Finalized) {
@@ -470,6 +486,13 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         // 销毁头寸
         _burn(msg.sender, outcomeId, shares);
 
+        // 减少用户敞口（释放额度）
+        if (userExposure[msg.sender] >= shares) {
+            userExposure[msg.sender] -= shares;
+        } else {
+            userExposure[msg.sender] = 0;
+        }
+
         // 追踪已赔付金额
         totalPayoutClaimed += payout;
 
@@ -488,6 +511,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     function redeemBatch(uint256[] calldata outcomeIds, uint256[] calldata sharesArray)
         external
         nonReentrant
+        whenNotPaused
         returns (uint256 totalPayout)
     {
         require(outcomeIds.length == sharesArray.length, "Market: Length mismatch");
@@ -508,6 +532,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     function refund(uint256 outcomeId, uint256 shares)
         external
         nonReentrant
+        whenNotPaused
         returns (uint256 amount)
     {
         if (status != MarketStatus.Cancelled) {
@@ -530,6 +555,13 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         // 销毁头寸
         _burn(msg.sender, outcomeId, shares);
+
+        // 减少用户敞口（释放额度）
+        if (userExposure[msg.sender] >= shares) {
+            userExposure[msg.sender] -= shares;
+        } else {
+            userExposure[msg.sender] = 0;
+        }
 
         // 转账
         settlementToken.safeTransfer(msg.sender, amount);
@@ -681,6 +713,13 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         _burn(msg.sender, outcomeId, shares);
 
+        // 减少用户敞口（释放额度）
+        if (userExposure[msg.sender] >= shares) {
+            userExposure[msg.sender] -= shares;
+        } else {
+            userExposure[msg.sender] = 0;
+        }
+
         // 追踪已赔付金额
         totalPayoutClaimed += payout;
 
@@ -776,6 +815,23 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
             return 0;
         }
         return _calculatePnL();
+    }
+
+    // ============ 暂停管理 ============
+
+    /**
+     * @notice 暂停市场（紧急情况下使用）
+     * @dev 暂停后 placeBetFor、redeem、redeemBatch、refund 将无法调用
+     */
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @notice 恢复市场
+     */
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     // ============ ERC1155 元数据 ============

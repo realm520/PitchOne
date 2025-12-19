@@ -290,4 +290,18 @@ interface IMarket_V3 {
         external
         view
         returns (uint256 shares, uint256 newPrice);
+
+    // ============ 暂停管理 ============
+
+    /**
+     * @notice 暂停市场（紧急情况下使用）
+     * @dev 仅 PAUSER_ROLE 可调用
+     */
+    function pause() external;
+
+    /**
+     * @notice 恢复市场
+     * @dev 仅 PAUSER_ROLE 可调用
+     */
+    function unpause() external;
 }
