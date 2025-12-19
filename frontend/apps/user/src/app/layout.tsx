@@ -6,6 +6,7 @@ import { I18nProvider } from "@pitchone/i18n";
 import { Header } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
 import { ParlayProvider } from "../lib/parlay-store";
+import { SidebarProvider } from "../lib/sidebar-store";
 import { ParlayCart } from "../components/parlay";
 import { ReferralBinder } from "../components/referral";
 import { Navigation, HeaderActions } from "../components/Navigation";
@@ -29,29 +30,31 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <I18nProvider>
-            <ParlayProvider>
-              {/* 推荐系统 - URL 参数检测和自动绑定 */}
-              <ReferralBinder />
+            <SidebarProvider>
+              <ParlayProvider>
+                {/* 推荐系统 - URL 参数检测和自动绑定 */}
+                <ReferralBinder />
 
-              <div className="flex flex-col min-h-screen">
-                <Header
-                  logo={
-                    <Link href="/" className="flex items-center gap-2">
-                      <span className="text-2xl font-bold">
-                        <span className="text-neon">Pitch</span>
-                        <span className="text-neon-purple">One</span>
-                      </span>
-                      <span className="text-xl">⚽</span>
-                    </Link>
-                  }
-                  navigation={<Navigation />}
-                  actions={<HeaderActions />}
-                />
-                <main className="flex-1 overflow-auto">{children}</main>
-                <AppFooter />
-                <ParlayCart />
-              </div>
-            </ParlayProvider>
+                <div className="flex flex-col min-h-screen">
+                  <Header
+                    logo={
+                      <Link href="/" className="flex items-center gap-2">
+                        <span className="text-2xl font-bold">
+                          <span className="text-neon">Pitch</span>
+                          <span className="text-neon-purple">One</span>
+                        </span>
+                        <span className="text-xl">⚽</span>
+                      </Link>
+                    }
+                    navigation={<Navigation />}
+                    actions={<HeaderActions />}
+                  />
+                  <main className="flex-1 overflow-auto">{children}</main>
+                  <AppFooter />
+                  <ParlayCart />
+                </div>
+              </ParlayProvider>
+            </SidebarProvider>
           </I18nProvider>
           <Toaster
             position="top-right"
