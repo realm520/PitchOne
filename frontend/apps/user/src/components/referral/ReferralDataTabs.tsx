@@ -110,7 +110,7 @@ export function ReferralDataTabs() {
             onClick={() => setActiveTab('list')}
             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
               activeTab === 'list'
-                ? 'text-neon-blue'
+                ? 'text-accent'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -131,7 +131,7 @@ export function ReferralDataTabs() {
               )}
             </div>
             {activeTab === 'list' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-blue" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
           </button>
 
@@ -139,7 +139,7 @@ export function ReferralDataTabs() {
             onClick={() => setActiveTab('rewards')}
             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
               activeTab === 'rewards'
-                ? 'text-neon-green'
+                ? 'text-accent'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -160,7 +160,7 @@ export function ReferralDataTabs() {
               )}
             </div>
             {activeTab === 'rewards' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-green" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
           </button>
         </div>
@@ -256,7 +256,7 @@ export function ReferralDataTabs() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-sm font-bold">
+                            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white text-sm font-bold">
                               {refereeAddress.slice(2, 4).toUpperCase()}
                             </div>
                             <div>
@@ -313,7 +313,7 @@ export function ReferralDataTabs() {
                               onClick={() => setPage(pageNum)}
                               className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                                 pageNum === page
-                                  ? 'bg-neon-blue text-white'
+                                  ? 'bg-accent text-white'
                                   : 'text-gray-400 hover:bg-dark-card hover:text-white'
                               }`}
                             >
@@ -350,7 +350,7 @@ export function ReferralDataTabs() {
                 </p>
                 <div className="text-right">
                   <p className="text-xs text-gray-400">{t('referral.rewards.totalRewards')}</p>
-                  <p className="text-xl font-bold text-neon-green">
+                  <p className="text-xl font-bold text-accent">
                     {totalRewards.toFixed(4)} USDC
                   </p>
                 </div>
@@ -424,7 +424,7 @@ export function ReferralDataTabs() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-green to-green-400 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
                             <svg
                               className="w-4 h-4 text-white"
                               fill="none"
@@ -460,7 +460,7 @@ export function ReferralDataTabs() {
                           href={`https://etherscan.io/tx/${reward.transactionHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-neon-blue hover:text-neon-purple transition-colors"
+                          className="text-accent hover:text-accent transition-colors"
                         >
                           {t('referral.rewards.viewTx')} ↗
                         </a>

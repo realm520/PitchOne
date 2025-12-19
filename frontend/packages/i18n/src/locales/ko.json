@@ -13,7 +13,9 @@
     "previous": "이전",
     "search": "검색",
     "noData": "데이터 없음",
-    "connectWallet": "지갑 연결"
+    "connectWallet": "지갑 연결",
+    "wrongNetwork": "네트워크 오류",
+    "connected": "연결됨"
   },
   "nav": {
     "markets": "마켓",

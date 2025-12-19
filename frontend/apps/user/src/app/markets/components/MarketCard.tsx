@@ -67,7 +67,7 @@ export function MarketCard({ market }: MarketCardProps) {
   };
 
   return (
-    <div className="group flex items-center gap-4 p-4 bg-dark-card rounded-lg border border-dark-border hover:border-neon/50 hover:bg-dark-card/80 transition-all">
+    <div className="group flex items-center gap-4 p-4 bg-dark-card rounded-lg border border-dark-border hover:border-white/30 hover:bg-dark-card/80 transition-all">
       {/* Left side: Time column */}
       <div className="w-16 flex-shrink-0 text-center">
         <span className="text-lg font-mono text-gray-300">
@@ -84,7 +84,7 @@ export function MarketCard({ market }: MarketCardProps) {
 
       {/* Match info - clickable to navigate */}
       <Link href={`/markets/${market.id}`} className="flex-1 min-w-0">
-        <h3 className="text-base font-semibold text-white truncate group-hover:text-neon transition-colors cursor-pointer">
+        <h3 className="text-base font-semibold text-white truncate group-hover:text-zinc-300 transition-colors cursor-pointer">
           {translateTeam(homeTeam)} vs {translateTeam(awayTeam)}
         </h3>
         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
@@ -124,7 +124,7 @@ export function MarketCard({ market }: MarketCardProps) {
 
       {/* Type badge */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <Badge variant="neon" size="sm">
+        <Badge variant="primary" size="sm">
           {market._displayInfo?.templateTypeDisplay || t('markets.unknown')}
         </Badge>
         {market._displayInfo?.lineDisplay && (
@@ -138,7 +138,7 @@ export function MarketCard({ market }: MarketCardProps) {
       </div>
 
       {/* Arrow - navigate to detail */}
-      <Link href={`/markets/${market.id}`} className="flex-shrink-0 text-gray-600 group-hover:text-neon transition-colors">
+      <Link href={`/markets/${market.id}`} className="flex-shrink-0 text-gray-600 group-hover:text-white transition-colors">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>

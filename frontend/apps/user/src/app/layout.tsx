@@ -42,8 +42,8 @@ export default function RootLayout({
                     logo={
                       <Link href="/" className="flex items-center gap-2">
                         <span className="text-2xl font-bold">
-                          <span className="text-neon">Pitch</span>
-                          <span className="text-neon-purple">One</span>
+                          <span className="text-accent">Pitch</span>
+                          <span className="text-white">One</span>
                         </span>
                         <span className="text-xl">⚽</span>
                       </Link>

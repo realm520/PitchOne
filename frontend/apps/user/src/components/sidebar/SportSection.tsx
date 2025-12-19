@@ -49,7 +49,7 @@ export function SportSection({ sport, leagues, isLoading }: SportSectionProps) {
         `}
       >
         <div className="flex items-center gap-3">
-          <SportIcon type={sport.icon} className="w-5 h-5 text-neon-blue" />
+          <SportIcon type={sport.icon} className="w-5 h-5 text-accent" />
           <span className="font-medium text-white">{t(sport.name)}</span>
           {totalMarkets > 0 && (
             <span className="text-xs text-gray-500">({totalMarkets})</span>
@@ -83,14 +83,14 @@ export function SportSection({ sport, leagues, isLoading }: SportSectionProps) {
                   w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm
                   transition-colors duration-200
                   ${selectedLeague === null
-                    ? 'bg-neon-blue/20 text-neon-blue'
+                    ? 'bg-accent/20 text-accent'
                     : 'text-gray-400 hover:bg-dark-border/50 hover:text-gray-200'
                   }
                 `}
               >
                 <span>{t('sidebar.allLeagues')}</span>
                 {totalMarkets > 0 && (
-                  <span className={`text-xs ${selectedLeague === null ? 'text-neon-blue' : 'text-gray-500'}`}>
+                  <span className={`text-xs ${selectedLeague === null ? 'text-accent' : 'text-gray-500'}`}>
                     {totalMarkets}
                   </span>
                 )}

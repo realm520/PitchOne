@@ -21,6 +21,9 @@ export {
 // Re-export RainbowKit
 export { ConnectButton } from '@rainbow-me/rainbowkit';
 
+// Custom Components
+export { CustomConnectButton } from './components/CustomConnectButton';
+
 // GraphQL Client and Queries
 export { graphqlClient } from './graphql';
 export * from './graphql';

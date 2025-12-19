@@ -31,7 +31,7 @@ export function ReferralPageFooter() {
     <div className="mt-8 p-6 bg-dark-card border border-dark-border rounded-lg">
       <div className="flex items-start gap-4">
         <svg
-          className="w-6 h-6 text-neon-blue flex-shrink-0 mt-1"
+          className="w-6 h-6 text-accent flex-shrink-0 mt-1"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -47,22 +47,22 @@ export function ReferralPageFooter() {
           <h3 className="text-lg font-bold text-white mb-2">{t('referral.footer.title')}</h3>
           <ol className="space-y-2 text-sm text-gray-400">
             <li className="flex gap-2">
-              <span className="text-neon-blue">1.</span>
+              <span className="text-accent">1.</span>
               <span>{t('referral.footer.step1')}</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-neon-blue">2.</span>
+              <span className="text-accent">2.</span>
               <span>{t('referral.footer.step2')}</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-neon-blue">3.</span>
+              <span className="text-accent">3.</span>
               <span>
                 {t('referral.footer.step3')}{' '}
-                <span className="text-neon-green font-semibold">{feePercentage}%</span> {t('referral.footer.step3Suffix')}
+                <span className="text-accent font-semibold">{feePercentage}%</span> {t('referral.footer.step3Suffix')}
               </span>
             </li>
             <li className="flex gap-2">
-              <span className="text-neon-blue">4.</span>
+              <span className="text-accent">4.</span>
               <span>{t('referral.footer.step4')}</span>
             </li>
           </ol>

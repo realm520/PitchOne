@@ -228,12 +228,12 @@ export function BetSlip({ className }: BetSlipProps) {
   }
 
   return (
-    <Card className={`bg-white shadow-lg border border-gray-200 ${className || ''}`} padding="lg">
+    <Card className={`bg-dark-card border border-dark-border ${className || ''}`} padding="lg">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900">Bet Slip</h3>
+        <h3 className="text-lg font-bold text-white">Bet Slip</h3>
         <button
           onClick={handleClear}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-zinc-500 hover:text-white"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -242,13 +242,13 @@ export function BetSlip({ className }: BetSlipProps) {
       </div>
 
       {/* Selected Outcome */}
-      <div className="p-3 bg-gray-50 rounded-lg mb-4">
-        <p className="text-xs text-gray-500 mb-1">
+      <div className="p-3 bg-zinc-800 rounded-lg mb-4">
+        <p className="text-xs text-zinc-500 mb-1">
           {selectedBet.homeTeam} vs {selectedBet.awayTeam}
         </p>
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-900">{selectedBet.outcomeName}</p>
-          <span className="text-sm font-bold text-blue-600">{selectedBet.odds}x</span>
+          <p className="text-sm font-semibold text-white">{selectedBet.outcomeName}</p>
+          <span className="text-sm font-bold text-white">{selectedBet.odds}x</span>
         </div>
       </div>
 
@@ -261,7 +261,7 @@ export function BetSlip({ className }: BetSlipProps) {
 
       {/* Amount Input */}
       <div className="mb-4">
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <label className="block text-xs font-medium text-zinc-500 mb-1">
           Amount (USDC)
         </label>
         <div className="relative">
@@ -272,7 +272,7 @@ export function BetSlip({ className }: BetSlipProps) {
             onChange={(e) => setBetAmount(e.target.value)}
             min="1"
             max="10000"
-            className="w-full px-3 py-2 pr-14 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full px-3 py-2 pr-14 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20"
           />
           <button
             type="button"
@@ -282,7 +282,7 @@ export function BetSlip({ className }: BetSlipProps) {
               }
             }}
             disabled={!usdcBalance || usdcBalance === 0n}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-700 rounded disabled:opacity-50"
           >
             MAX
           </button>
@@ -291,10 +291,10 @@ export function BetSlip({ className }: BetSlipProps) {
 
       {/* Expected Payout */}
       {betAmount && parseFloat(betAmount) > 0 && (
-        <div className="p-3 bg-blue-50 rounded-lg mb-4">
-          <p className="text-xs text-gray-500 mb-1">Potential Payout</p>
-          <p className="text-xl font-bold text-blue-600">${calculatePayout()}</p>
-          <p className="text-xs text-gray-500">
+        <div className="p-3 bg-zinc-800 rounded-lg mb-4 border border-zinc-700">
+          <p className="text-xs text-zinc-500 mb-1">Potential Payout</p>
+          <p className="text-xl font-bold text-white">${calculatePayout()}</p>
+          <p className="text-xs text-zinc-500">
             Profit: ${(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)}
           </p>
         </div>
@@ -304,7 +304,7 @@ export function BetSlip({ className }: BetSlipProps) {
       <div className="space-y-2">
         {needsApproval ? (
           <Button
-            variant="neon"
+            variant="primary"
             fullWidth
             onClick={handleApprove}
             disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
@@ -314,7 +314,7 @@ export function BetSlip({ className }: BetSlipProps) {
           </Button>
         ) : (
           <Button
-            variant="neon"
+            variant="primary"
             fullWidth
             onClick={handlePlaceBet}
             disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || !isConnected}
@@ -326,13 +326,13 @@ export function BetSlip({ className }: BetSlipProps) {
       </div>
 
       {!isConnected && (
-        <p className="text-xs text-amber-600 text-center mt-3">
+        <p className="text-xs text-zinc-400 text-center mt-3">
           Connect wallet to place bet
         </p>
       )}
 
       {needsApproval && (
-        <p className="text-xs text-blue-500 text-center mt-3">
+        <p className="text-xs text-zinc-400 text-center mt-3">
           First time? Approve USDC spending
         </p>
       )}

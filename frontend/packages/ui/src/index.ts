@@ -7,8 +7,10 @@ export { Modal, type ModalProps } from './Modal';
 
 // 布局组件
 export { Header, type HeaderProps } from './Header';
-export { Footer, type FooterProps } from './Footer';
 export { Container, type ContainerProps } from './Container';
+
+// 图标
+export { TwitterIcon, DiscordIcon } from './icons/SocialIcons';
 
 // 数据展示组件
 export { LoadingSpinner, type LoadingSpinnerProps } from './LoadingSpinner';

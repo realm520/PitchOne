@@ -199,7 +199,7 @@ export function ReferralList() {
               <div className="flex items-center justify-between">
                 {/* 用户信息 */}
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-sm font-bold">
+                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white text-sm font-bold">
                     {refereeAddress.slice(2, 4).toUpperCase()}
                   </div>
                   <div>
@@ -272,7 +272,7 @@ export function ReferralList() {
                     onClick={() => setPage(pageNum)}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       pageNum === page
-                        ? 'bg-neon-blue text-white'
+                        ? 'bg-accent text-white'
                         : 'text-gray-400 hover:bg-dark-card hover:text-white'
                     }`}
                   >
@@ -312,7 +312,7 @@ export function ReferralList() {
                     }
                   }
                 }}
-                className="w-16 px-2 py-1 bg-dark-card border border-dark-border rounded text-white text-center focus:outline-none focus:border-neon-blue"
+                className="w-16 px-2 py-1 bg-dark-card border border-dark-border rounded text-white text-center focus:outline-none focus:border-accent"
               />
               <span className="text-gray-500">{t('referral.listComp.page')}</span>
             </div>

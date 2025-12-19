@@ -135,10 +135,10 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
   return (
     <Card padding="none">
       {/* 标题 */}
-      <div className="px-6 py-4 border-b border-dark-border bg-gradient-to-r from-neon-purple/10 to-neon-blue/10">
+      <div className="px-6 py-4 border-b border-dark-border bg-zinc-800">
         <div className="flex items-center gap-3">
           <svg
-            className="w-6 h-6 text-neon-purple"
+            className="w-6 h-6 text-zinc-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -186,7 +186,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
                 </div>
 
                 {/* 用户头像 */}
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white text-sm font-bold">
                   {entry.id.slice(2, 4).toUpperCase()}
                 </div>
 

@@ -738,7 +738,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               <div className="space-y-2">
                 {needsApproval ? (
                   <Button
-                    variant="neon"
+                    variant="primary"
                     fullWidth
                     onClick={handleApprove}
                     disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
@@ -748,7 +748,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                   </Button>
                 ) : (
                   <Button
-                    variant="neon"
+                    variant="primary"
                     fullWidth
                     onClick={handlePlaceBet}
                     disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || !isConnected}

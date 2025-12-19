@@ -81,7 +81,7 @@ export function ParlayList({ userAddress, limit }: ParlayListProps) {
         <div className="text-center">
           <a
             href="/portfolio?tab=parlays"
-            className="text-neon-blue hover:text-neon-blue/80 text-sm font-semibold"
+            className="text-zinc-400 hover:text-white text-sm font-semibold"
           >
             查看全部 {parlayIds.length} 个串关 →
           </a>

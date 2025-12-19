@@ -13,7 +13,6 @@ import {
 } from '@pitchone/ui';
 import { useSidebarStore } from '../../lib/sidebar-store';
 import { parseLeagueFromMatchId } from '../../types/sports';
-import { BetSlip } from '../../components/betslip';
 import { MarketCard } from './components/MarketCard';
 
 // Market type grouped by day
@@ -130,14 +129,11 @@ export function MarketsContent() {
   const currentLeagueName = selectedLeague ? t(`leagues.${selectedLeague}`) : null;
 
   return (
-    <div className="min-h-screen bg-dark-bg">
-      <div className="flex">
-        {/* Left: Markets List */}
-        <div className="flex-1 min-w-0 py-8">
-          <Container size="lg">
+    <div className="min-h-full bg-dark-bg py-8">
+      <Container size="lg">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-4xl font-bold text-neon mb-2">
+              <h1 className="text-4xl font-bold text-accent mb-2">
                 {currentLeagueName ? currentLeagueName : t('markets.listTitle')}
               </h1>
               <p className="text-gray-400">
@@ -159,7 +155,7 @@ export function MarketsContent() {
                     variant={
                       (filter.value === undefined && statusFilter === undefined) ||
                       (statusFilter && statusFilter[0] === filter.value)
-                        ? 'neon'
+                        ? 'primary'
                         : 'ghost'
                     }
                     size="sm"
@@ -180,7 +176,7 @@ export function MarketsContent() {
                 {typeFilters.map((filter) => (
                   <Button
                     key={filter.label}
-                    variant={typeFilter === filter.value ? 'neon' : 'ghost'}
+                    variant={typeFilter === filter.value ? 'primary' : 'ghost'}
                     size="sm"
                     onClick={() => setTypeFilter(filter.value)}
                   >
@@ -249,7 +245,7 @@ export function MarketsContent() {
                     {/* Date section header */}
                     <div className="sticky top-0 z-10 py-3 px-4 bg-dark-bg/95 backdrop-blur-sm border-b border-dark-border mb-4">
                       <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <svg className="w-5 h-5 text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         {dayGroup.dateLabel}
@@ -284,16 +280,7 @@ export function MarketsContent() {
                 </div>
               </div>
             )}
-          </Container>
-        </div>
-
-        {/* Right: Sticky Bet Slip */}
-        <div className="w-80 shrink-0 hidden lg:block p-4 pt-8">
-          <div className="sticky top-20">
-            <BetSlip />
-          </div>
-        </div>
-      </div>
+      </Container>
     </div>
   );
 }

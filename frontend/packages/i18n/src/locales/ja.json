@@ -13,7 +13,9 @@
     "previous": "前へ",
     "search": "検索",
     "noData": "データなし",
-    "connectWallet": "ウォレット接続"
+    "connectWallet": "ウォレット接続",
+    "wrongNetwork": "ネットワークエラー",
+    "connected": "接続済み"
   },
   "nav": {
     "markets": "マーケット",

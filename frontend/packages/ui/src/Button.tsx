@@ -31,13 +31,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary:
-        'bg-neon-blue text-white hover:bg-neon-blue/90 hover:shadow-neon-sm',
+        'bg-white text-zinc-900 hover:bg-zinc-200',
       secondary:
-        'bg-dark-card text-gray-200 border border-dark-border hover:border-neon-blue hover:shadow-neon-sm',
+        'bg-dark-card text-gray-200 border border-dark-border hover:border-zinc-500 hover:bg-dark-hover',
       ghost:
-        'bg-transparent text-gray-300 hover:bg-dark-hover hover:text-neon-blue',
-      neon: 'bg-gradient-to-r from-neon-blue to-neon-purple text-white hover:shadow-neon hover:scale-105',
-      danger: 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg',
+        'bg-transparent text-gray-300 hover:bg-dark-hover hover:text-white',
+      neon: 'bg-white text-zinc-900 hover:bg-zinc-200',
+      danger: 'bg-zinc-800 text-zinc-400 border border-dashed border-zinc-600 hover:bg-zinc-700 hover:text-zinc-300',
     };
 
     const sizes = {

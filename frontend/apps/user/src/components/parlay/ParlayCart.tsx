@@ -36,7 +36,7 @@ export function ParlayCart() {
       >
         <Button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="relative bg-neon-blue hover:bg-neon-blue/90 text-white shadow-neon-lg rounded-full w-16 h-16 flex items-center justify-center"
+          className="relative bg-white hover:bg-zinc-200 text-zinc-900 shadow-lg rounded-full w-16 h-16 flex items-center justify-center"
         >
           {/* 串关图标 */}
           <svg
@@ -54,7 +54,7 @@ export function ParlayCart() {
           </svg>
 
           {/* 数量徽章 */}
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+          <span className="absolute -top-2 -right-2 bg-zinc-700 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border border-zinc-500">
             {selectedOutcomes.length}
           </span>
         </Button>
@@ -67,17 +67,17 @@ export function ParlayCart() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-28 right-6 w-96 bg-dark-card border border-neon-blue/50 rounded-xl shadow-neon-lg z-50 overflow-hidden"
+            className="fixed bottom-28 right-6 w-96 bg-dark-card border border-white/20 rounded-xl shadow-lg z-50 overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-neon-blue/10 border-b border-neon-blue/30 px-4 py-3 flex items-center justify-between">
+            <div className="bg-zinc-800 border-b border-zinc-700 px-4 py-3 flex items-center justify-between">
               <h3 className="text-white font-bold">
                 串关购物车 ({selectedOutcomes.length})
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={clearAll}
-                  className="text-gray-400 hover:text-red-400 text-sm"
+                  className="text-zinc-500 hover:text-white text-sm"
                 >
                   清空
                 </button>
@@ -107,19 +107,19 @@ export function ParlayCart() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-neon-blue font-mono text-sm">#{index + 1}</span>
+                        <span className="text-white font-mono text-sm">#{index + 1}</span>
                         <span className="text-white text-sm font-semibold line-clamp-1">
                           {outcome.marketName}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-gray-400 text-xs">{outcome.outcomeName}</span>
-                        <span className="text-neon-green text-xs font-mono">@ {outcome.odds}</span>
+                        <span className="text-zinc-300 text-xs font-mono">@ {outcome.odds}</span>
                       </div>
                     </div>
                     <button
                       onClick={() => removeOutcome(outcome.marketAddress)}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
+                      className="text-zinc-500 hover:text-white transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
@@ -136,10 +136,10 @@ export function ParlayCart() {
             </div>
 
             {/* Footer - 创建串关按钮 */}
-            <div className="px-4 py-3 bg-dark-bg border-t border-neon-blue/30">
+            <div className="px-4 py-3 bg-dark-bg border-t border-zinc-700">
               <Button
                 onClick={handleGoToParlay}
-                className="w-full bg-neon-blue hover:bg-neon-blue/90 text-white font-semibold"
+                className="w-full bg-white hover:bg-zinc-200 text-zinc-900 font-semibold"
                 disabled={selectedOutcomes.length < 2}
               >
                 {selectedOutcomes.length < 2

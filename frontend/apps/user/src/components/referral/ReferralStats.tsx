@@ -110,8 +110,8 @@ export function ReferralStats() {
               <h3 className="text-3xl font-bold text-white">{referralCount}</h3>
             )}
           </div>
-          <div className="w-12 h-12 rounded-full bg-neon-blue/20 flex items-center justify-center">
-            <svg className="w-6 h-6 text-neon-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -136,12 +136,12 @@ export function ReferralStats() {
             {isLoading ? (
               <div className="h-8 w-32 bg-gray-700 animate-pulse rounded" />
             ) : (
-              <h3 className="text-3xl font-bold text-neon-green">{totalRewards}</h3>
+              <h3 className="text-3xl font-bold text-accent">{totalRewards}</h3>
             )}
             <p className="text-xs text-gray-500 mt-1">USDC</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-neon-green/20 flex items-center justify-center">
-            <svg className="w-6 h-6 text-neon-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -166,12 +166,12 @@ export function ReferralStats() {
             {paramsLoading ? (
               <div className="h-8 w-20 bg-gray-700 animate-pulse rounded" />
             ) : (
-              <h3 className="text-3xl font-bold text-neon-purple">{validityDays}</h3>
+              <h3 className="text-3xl font-bold text-zinc-400">{validityDays}</h3>
             )}
             <p className="text-xs text-gray-500 mt-1">{t('referral.stats.daysValidity')}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-neon-purple/20 flex items-center justify-center">
-            <svg className="w-6 h-6 text-neon-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center">
+            <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

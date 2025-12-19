@@ -149,23 +149,23 @@ export function ParlayBuilder({
             {selectedOutcomes.map((outcome, index) => (
               <div
                 key={outcome.marketAddress}
-                className="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-neon-blue/50 transition-colors"
+                className="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-white/30 transition-colors"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-neon-blue font-mono text-sm">#{index + 1}</span>
+                    <span className="text-white font-mono text-sm">#{index + 1}</span>
                     <span className="text-white font-semibold">{outcome.marketName}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-gray-400 text-sm">{outcome.outcomeName}</span>
-                    <span className="text-neon-green text-sm font-mono">@ {outcome.odds}</span>
+                    <span className="text-zinc-300 text-sm font-mono">@ {outcome.odds}</span>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onRemoveOutcome(outcome.marketAddress)}
-                  className="text-red-400 hover:text-red-300"
+                  className="text-zinc-400 hover:text-white"
                 >
                   移除
                 </Button>
@@ -196,43 +196,43 @@ export function ParlayBuilder({
             )}
 
             {quote && stakeAmount && (
-              <div className="bg-dark-bg rounded-lg p-4 space-y-2 border border-neon-blue/30">
+              <div className="bg-dark-bg rounded-lg p-4 space-y-2 border border-white/20">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">组合赔率</span>
-                  <span className="text-neon-green font-bold text-lg">{formattedOdds}</span>
+                  <span className="text-white font-bold text-lg">{formattedOdds}</span>
                 </div>
                 {Number(penaltyPercentage?.replace('%', '')) > 0 && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">相关性惩罚</span>
-                    <span className="text-orange-400 font-mono text-sm">-{penaltyPercentage}</span>
+                    <span className="text-zinc-400 font-mono text-sm">-{penaltyPercentage}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-dark-border">
                   <span className="text-white font-semibold">潜在赔付</span>
-                  <span className="text-neon-blue font-bold text-xl">{formattedPayout} USDC</span>
+                  <span className="text-white font-bold text-xl">{formattedPayout} USDC</span>
                 </div>
               </div>
             )}
 
             {isQuoteError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                <p className="text-red-400 text-sm">
+              <div className="bg-zinc-800 border border-dashed border-zinc-600 rounded-lg p-4">
+                <p className="text-zinc-400 text-sm">
                   {quoteError?.message || '无法获取报价，请检查选择的市场'}
                 </p>
               </div>
             )}
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                <p className="text-red-400 text-sm">
+              <div className="bg-zinc-800 border border-dashed border-zinc-600 rounded-lg p-4">
+                <p className="text-zinc-400 text-sm">
                   {error.message || '创建串关失败'}
                 </p>
               </div>
             )}
 
             {isSuccess && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                <p className="text-green-400 text-sm font-semibold">
+              <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-4">
+                <p className="text-white text-sm font-semibold">
                   ✓ 串关创建成功！
                 </p>
               </div>

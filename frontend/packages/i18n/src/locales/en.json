@@ -13,7 +13,9 @@
     "previous": "Previous",
     "search": "Search",
     "noData": "No data",
-    "connectWallet": "Connect Wallet"
+    "connectWallet": "Connect Wallet",
+    "wrongNetwork": "Wrong Network",
+    "connected": "Connected"
   },
   "nav": {
     "markets": "Markets",

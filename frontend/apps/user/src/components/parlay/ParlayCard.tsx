@@ -32,19 +32,19 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
     const badges = {
       [ParlayStatus.Pending]: {
         label: '待结算',
-        className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+        className: 'bg-zinc-700 text-zinc-300 border-zinc-500',
       },
       [ParlayStatus.Won]: {
         label: '赢',
-        className: 'bg-green-500/20 text-green-400 border-green-500/30',
+        className: 'bg-zinc-800 text-white border-zinc-500',
       },
       [ParlayStatus.Lost]: {
         label: '输',
-        className: 'bg-red-500/20 text-red-400 border-red-500/30',
+        className: 'bg-zinc-800 text-zinc-400 border-dashed border-zinc-600',
       },
       [ParlayStatus.Cancelled]: {
         label: '已取消',
-        className: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+        className: 'bg-zinc-800 text-zinc-500 border-zinc-600',
       },
     };
 
@@ -88,8 +88,8 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
       variant="neon"
       className={cn(
         'w-full',
-        parlay.status === ParlayStatus.Won && 'border-green-500/50',
-        parlay.status === ParlayStatus.Lost && 'border-red-500/50'
+        parlay.status === ParlayStatus.Won && 'border-white/30',
+        parlay.status === ParlayStatus.Lost && 'border-zinc-600 border-dashed'
       )}
     >
       <div className="space-y-4">
@@ -128,7 +128,7 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
                 className="flex items-center justify-between p-3 bg-dark-bg rounded-lg border border-dark-border"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-neon-blue font-mono text-sm">#{index + 1}</span>
+                  <span className="text-white font-mono text-sm">#{index + 1}</span>
                   <span className="text-white text-sm font-mono">
                     {leg.marketAddress.slice(0, 6)}...{leg.marketAddress.slice(-4)}
                   </span>
@@ -147,9 +147,9 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
             <div className="text-sm text-gray-400 mb-1">下注金额</div>
             <div className="text-xl font-bold text-white">{formattedStake} USDC</div>
           </div>
-          <div className="bg-dark-bg rounded-lg p-4 border border-neon-blue/30">
+          <div className="bg-dark-bg rounded-lg p-4 border border-white/20">
             <div className="text-sm text-gray-400 mb-1">潜在赔付</div>
-            <div className="text-xl font-bold text-neon-blue">{formattedPayout} USDC</div>
+            <div className="text-xl font-bold text-white">{formattedPayout} USDC</div>
           </div>
         </div>
 
@@ -157,12 +157,12 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
         <div className="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border">
           <div>
             <div className="text-sm text-gray-400">组合赔率</div>
-            <div className="text-2xl font-bold text-neon-green">{formattedOdds}</div>
+            <div className="text-2xl font-bold text-white">{formattedOdds}</div>
           </div>
           {penalty > 0 && (
             <div className="text-right">
               <div className="text-sm text-gray-400">相关性惩罚</div>
-              <div className="text-lg font-semibold text-orange-400">-{penalty.toFixed(2)}%</div>
+              <div className="text-lg font-semibold text-zinc-400">-{penalty.toFixed(2)}%</div>
             </div>
           )}
         </div>
@@ -180,8 +180,8 @@ export function ParlayCard({ parlayId, compact = false }: ParlayCardProps) {
         )}
 
         {isSettled && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-            <p className="text-green-400 text-sm font-semibold text-center">
+          <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-3">
+            <p className="text-white text-sm font-semibold text-center">
               ✓ 结算成功！
             </p>
           </div>

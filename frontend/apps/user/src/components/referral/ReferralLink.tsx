@@ -161,13 +161,13 @@ export function ReferralLink() {
               type="text"
               value={referralLink}
               readOnly
-              className="w-full px-4 py-3 bg-dark-card border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:border-neon-blue transition-colors"
+              className="w-full px-4 py-3 bg-dark-card border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:border-accent transition-colors"
             />
           </div>
 
           <Button
             onClick={handleCopy}
-            variant={copied ? 'neon' : 'primary'}
+            variant={copied ? 'primary' : 'primary'}
             size="md"
             className="px-6"
           >
@@ -222,9 +222,9 @@ export function ReferralLink() {
       </div>
 
       {/* 提示信息 */}
-      <div className="mt-4 p-3 bg-neon-blue/10 border border-neon-blue/30 rounded-lg">
+      <div className="mt-4 p-3 bg-accent/10 border border-accent/30 rounded-lg">
         <div className="flex gap-2">
-          <svg className="w-5 h-5 text-neon-blue flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-sm text-gray-300">

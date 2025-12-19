@@ -59,7 +59,7 @@ export function ParlayPageClient() {
             onClick={() => setActiveTab('create')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'create'
-                ? 'bg-neon-blue text-white shadow-neon-sm'
+                ? 'bg-accent text-white shadow-sm'
                 : 'bg-dark-card text-gray-400 hover:text-white border border-dark-border'
             }`}
           >
@@ -69,7 +69,7 @@ export function ParlayPageClient() {
             onClick={() => setActiveTab('my-parlays')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'my-parlays'
-                ? 'bg-neon-blue text-white shadow-neon-sm'
+                ? 'bg-accent text-white shadow-sm'
                 : 'bg-dark-card text-gray-400 hover:text-white border border-dark-border'
             }`}
           >
@@ -89,19 +89,19 @@ export function ParlayPageClient() {
                   </h2>
                   <ol className="space-y-3 text-gray-400">
                     <li className="flex items-start gap-3">
-                      <span className="text-neon-blue font-bold">1.</span>
+                      <span className="text-accent font-bold">1.</span>
                       <span>{t('parlay.howTo.step1')}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-neon-blue font-bold">2.</span>
+                      <span className="text-accent font-bold">2.</span>
                       <span>{t('parlay.howTo.step2')}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-neon-blue font-bold">3.</span>
+                      <span className="text-accent font-bold">3.</span>
                       <span>{t('parlay.howTo.step3')}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-neon-blue font-bold">4.</span>
+                      <span className="text-accent font-bold">4.</span>
                       <span>{t('parlay.howTo.step4')}</span>
                     </li>
                   </ol>
@@ -109,7 +109,7 @@ export function ParlayPageClient() {
                   <div className="mt-6 pt-6 border-t border-dark-border">
                     <a
                       href="/markets"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-neon-blue text-white rounded-lg font-semibold hover:bg-neon-blue/90 transition-colors"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent-hover transition-colors"
                     >
                       {t('parlay.goToMarkets')}
                       <svg

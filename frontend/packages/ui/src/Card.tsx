@@ -28,7 +28,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     const variants = {
       default:
         'bg-dark-card border border-dark-border',
-      neon: 'bg-dark-card border border-dark-border hover:border-neon-blue hover:shadow-neon-sm',
+      neon: 'bg-dark-card border border-dark-border hover:border-white/30',
       glass:
         'bg-glass backdrop-blur-lg border border-dark-border/50',
     };

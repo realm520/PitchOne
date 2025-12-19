@@ -214,7 +214,7 @@ export function PortfolioClient() {
             <Card padding="md">
               <div className="text-center">
                 <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalProfit')}</p>
-                <p className={`text-2xl font-bold ${stats.totalProfit >= 0 ? 'text-neon' : 'text-red-500'}`}>
+                <p className={`text-2xl font-bold ${stats.totalProfit >= 0 ? 'text-white' : 'text-zinc-400'}`}>
                   {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)} <span className="text-sm text-gray-400">USDC</span>
                 </p>
               </div>
@@ -231,7 +231,7 @@ export function PortfolioClient() {
           ].map((tab) => (
             <Button
               key={tab.key}
-              variant={activeTab === tab.key ? 'neon' : 'secondary'}
+              variant={activeTab === tab.key ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => setActiveTab(tab.key)}
             >
@@ -265,7 +265,7 @@ export function PortfolioClient() {
               description={t('portfolio.emptyDesc')}
               action={
                 <Link href="/markets">
-                  <Button variant="neon">{t('portfolio.goToMarkets')}</Button>
+                  <Button variant="primary">{t('portfolio.goToMarkets')}</Button>
                 </Link>
               }
             />
@@ -317,7 +317,7 @@ export function PortfolioClient() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 mb-1">{t('portfolio.expectedPayout')}</p>
-                        <p className="text-lg font-bold text-neon">
+                        <p className="text-lg font-bold text-white">
                           {(() => {
                             const payout = calculateExpectedPayout(position);
                             return payout > 0
@@ -328,7 +328,7 @@ export function PortfolioClient() {
                       </div>
                       {position.market.state === MarketStatus.Resolved &&
                         position.market.winnerOutcome === position.outcome && (
-                          <Button variant="neon" size="sm" className="mt-2">
+                          <Button variant="primary" size="sm" className="mt-2">
                             {t('portfolio.redeem')}
                           </Button>
                         )}

@@ -24,7 +24,7 @@ export function LoadingSpinner({
 
   const variants = {
     primary: 'border-gray-600 border-t-gray-300',
-    neon: 'border-gray-800 border-t-neon-blue',
+    neon: 'border-zinc-700 border-t-white',
   };
 
   return (
