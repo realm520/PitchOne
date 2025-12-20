@@ -8,13 +8,13 @@
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from 'wagmi';
 import { parseUnits, type Address, type Hex } from 'viem';
 import {
-  MarketBaseABI,
-  MarketTemplateRegistryABI,
+  Market_V3_ABI,
+  MarketFactory_V3_ABI,
+  LiquidityVault_V3_ABI,
   ParamControllerABI,
   CampaignABI,
   QuestABI,
   RewardsDistributorABI,
-  LiquidityVaultABI,
   getContractAddresses
 } from '@pitchone/contracts';
 import { TOKEN_DECIMALS } from './constants';
@@ -50,7 +50,7 @@ export function useLockMarket(marketAddress?: Address) {
 
     return writeContract({
       address: marketAddress,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'lock',
       args: [],
     });
@@ -94,15 +94,18 @@ export function useCreateMarket() {
   const createMarket = async (templateId: Hex, initData: Hex) => {
     if (!addresses) throw new Error('Chain not supported');
 
+    // V3: 使用 factory 地址（marketTemplateRegistry 为兼容别名）
+    const factoryAddress = addresses.factory;
+
     console.log('[useCreateMarket] 创建市场:', {
-      factory: addresses.marketTemplateRegistry,
+      factory: factoryAddress,
       templateId,
       initData
     });
 
     return writeContract({
-      address: addresses.marketTemplateRegistry,
-      abi: MarketTemplateRegistryABI,
+      address: factoryAddress,
+      abi: MarketFactory_V3_ABI,
       functionName: 'createMarket',
       args: [templateId, initData],
     });
@@ -153,7 +156,7 @@ export function useAuthorizeMarket() {
 
     return writeContract({
       address: addresses.vault,
-      abi: LiquidityVaultABI,
+      abi: LiquidityVault_V3_ABI,
       functionName: 'authorizeMarket',
       args: [marketAddress],
     });
@@ -198,11 +201,13 @@ export function useResolveMarket(marketAddress?: Address) {
 
     console.log('[useResolveMarket] 结算市场:', { marketAddress, winningOutcomeId });
 
+    // V3: resolve 接受 winningOutcomes 数组和 weights 数组
+    // 单结果市场简化为 [outcomeId], [10000] (100% 权重)
     return writeContract({
       address: marketAddress,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'resolve',
-      args: [winningOutcomeId],
+      args: [[winningOutcomeId], [10000n]],
     });
   };
 
@@ -241,9 +246,11 @@ export function useFinalizeMarket(marketAddress?: Address) {
 
     console.log('[useFinalizeMarket] 终结市场:', { marketAddress });
 
+    // V3: finalize 功能已合并到 resolve 中，市场在 resolve 后自动进入 Resolved 状态
+    // 保留此 hook 用于兼容性，实际调用 resolve 的最终确认（如果需要）
     return writeContract({
       address: marketAddress,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'finalize',
       args: [],
     });
@@ -286,7 +293,7 @@ export function usePauseMarket(marketAddress?: Address) {
 
     return writeContract({
       address: marketAddress,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'pause',
       args: [],
     });

@@ -2,38 +2,38 @@
 
 import { useEffect, useState } from 'react';
 import { useWatchContractEvent } from 'wagmi';
-import { MarketBaseABI } from '@pitchone/contracts';
+import { Market_V3_ABI } from '@pitchone/contracts';
 import type { Address } from 'viem';
 
 /**
- * 市场事件类型
+ * 市场事件类型 (V3)
  */
 export interface BetPlacedEvent {
   user: Address;
   outcomeId: bigint;
   amount: bigint;
   shares: bigint;
-  fee: bigint;
   blockNumber: bigint | null;
   transactionHash: string | null;
   timestamp: number;
 }
 
 export interface MarketLockedEvent {
-  timestamp: number;
+  kickoffTime: bigint;
   blockNumber: bigint | null;
   transactionHash: string | null;
+  timestamp: number;
 }
 
-export interface ResultProposedEvent {
-  proposer: Address;
-  winnerOutcome: bigint;
-  timestamp: number;
+export interface MarketResolvedEvent {
+  winningOutcomes: bigint[];
+  weights: bigint[];
   blockNumber: bigint | null;
   transactionHash: string | null;
+  timestamp: number;
 }
 
-export interface PositionRedeemedEvent {
+export interface PayoutClaimedEvent {
   user: Address;
   outcomeId: bigint;
   shares: bigint;
@@ -44,7 +44,7 @@ export interface PositionRedeemedEvent {
 }
 
 /**
- * 监听 BetPlaced 事件
+ * 监听 BetPlaced 事件 (V3)
  * @param marketAddress 市场合约地址
  */
 export function useWatchBetPlaced(marketAddress?: Address) {
@@ -52,33 +52,30 @@ export function useWatchBetPlaced(marketAddress?: Address) {
 
   useWatchContractEvent({
     address: marketAddress,
-    abi: MarketBaseABI,
+    abi: Market_V3_ABI,
     eventName: 'BetPlaced',
     chainId: 31337, // Anvil 本地链
     onLogs: (logs) => {
       console.log('[useWatchBetPlaced] 收到新事件:', logs.length, '条');
       const newEvents = logs.map((log) => {
-        // wagmi 返回解析后的日志，args 包含事件参数
         const args = (log as any).args as {
           user?: Address;
           outcomeId?: bigint;
           amount?: bigint;
           shares?: bigint;
-          fee?: bigint;
         };
         return {
           user: args?.user ?? ('0x' as Address),
           outcomeId: args?.outcomeId ?? 0n,
           amount: args?.amount ?? 0n,
           shares: args?.shares ?? 0n,
-          fee: args?.fee ?? 0n,
           blockNumber: log.blockNumber,
           transactionHash: log.transactionHash,
           timestamp: Date.now(),
         };
       });
 
-      setEvents((prev) => [...newEvents, ...prev].slice(0, 100)); // 保留最近 100 条
+      setEvents((prev) => [...newEvents, ...prev].slice(0, 100));
       console.log('[useWatchBetPlaced] 更新后事件总数:', newEvents.length + Math.min(100, events.length));
     },
     enabled: !!marketAddress,
@@ -88,7 +85,7 @@ export function useWatchBetPlaced(marketAddress?: Address) {
 }
 
 /**
- * 监听 MarketLocked 事件
+ * 监听 MarketLocked 事件 (V3)
  * @param marketAddress 市场合约地址
  */
 export function useWatchMarketLocked(marketAddress?: Address) {
@@ -96,15 +93,17 @@ export function useWatchMarketLocked(marketAddress?: Address) {
 
   useWatchContractEvent({
     address: marketAddress,
-    abi: MarketBaseABI,
+    abi: Market_V3_ABI,
     eventName: 'MarketLocked',
     onLogs: (logs) => {
       if (logs.length > 0) {
-        const log = logs[logs.length - 1]; // 取最新的事件
+        const log = logs[logs.length - 1];
+        const args = (log as any).args as { kickoffTime?: bigint };
         setEvent({
-          timestamp: Date.now(),
+          kickoffTime: args?.kickoffTime ?? 0n,
           blockNumber: log.blockNumber,
           transactionHash: log.transactionHash,
+          timestamp: Date.now(),
         });
       }
     },
@@ -115,30 +114,30 @@ export function useWatchMarketLocked(marketAddress?: Address) {
 }
 
 /**
- * 监听 ResultProposed 事件
+ * 监听 MarketResolved 事件 (V3)
+ * 替代旧的 ResultProposed 事件
  * @param marketAddress 市场合约地址
  */
-export function useWatchResultProposed(marketAddress?: Address) {
-  const [event, setEvent] = useState<ResultProposedEvent | null>(null);
+export function useWatchMarketResolved(marketAddress?: Address) {
+  const [event, setEvent] = useState<MarketResolvedEvent | null>(null);
 
   useWatchContractEvent({
     address: marketAddress,
-    abi: MarketBaseABI,
-    eventName: 'ResultProposed',
+    abi: Market_V3_ABI,
+    eventName: 'MarketResolved',
     onLogs: (logs) => {
       if (logs.length > 0) {
         const log = logs[logs.length - 1];
-        // wagmi 返回解析后的日志，args 包含事件参数
         const args = (log as any).args as {
-          proposer?: Address;
-          winnerOutcome?: bigint;
+          winningOutcomes?: bigint[];
+          weights?: bigint[];
         };
         setEvent({
-          proposer: args?.proposer ?? ('0x' as Address),
-          winnerOutcome: args?.winnerOutcome ?? 0n,
-          timestamp: Date.now(),
+          winningOutcomes: args?.winningOutcomes ?? [],
+          weights: args?.weights ?? [],
           blockNumber: log.blockNumber,
           transactionHash: log.transactionHash,
+          timestamp: Date.now(),
         });
       }
     },
@@ -149,28 +148,27 @@ export function useWatchResultProposed(marketAddress?: Address) {
 }
 
 /**
- * 监听 PositionRedeemed 事件
+ * 监听 PayoutClaimed 事件 (V3)
+ * 替代旧的 PositionRedeemed 事件
  * @param marketAddress 市场合约地址
  * @param userAddress 用户地址（可选，用于过滤）
  */
-export function useWatchPositionRedeemed(marketAddress?: Address, userAddress?: Address) {
-  const [events, setEvents] = useState<PositionRedeemedEvent[]>([]);
+export function useWatchPayoutClaimed(marketAddress?: Address, userAddress?: Address) {
+  const [events, setEvents] = useState<PayoutClaimedEvent[]>([]);
 
   useWatchContractEvent({
     address: marketAddress,
-    abi: MarketBaseABI,
-    eventName: 'PositionRedeemed',
+    abi: Market_V3_ABI,
+    eventName: 'PayoutClaimed',
     onLogs: (logs) => {
       const filteredLogs = userAddress
         ? logs.filter((log) => {
-            // wagmi 返回解析后的日志，args 包含事件参数
             const args = (log as any).args as { user?: Address };
-            return args?.user === userAddress;
+            return args?.user?.toLowerCase() === userAddress.toLowerCase();
           })
         : logs;
 
       const newEvents = filteredLogs.map((log) => {
-        // wagmi 返回解析后的日志，args 包含事件参数
         const args = (log as any).args as {
           user?: Address;
           outcomeId?: bigint;
@@ -196,22 +194,31 @@ export function useWatchPositionRedeemed(marketAddress?: Address, userAddress?: 
   return events;
 }
 
+// 兼容旧代码的别名
+/** @deprecated 使用 useWatchMarketResolved */
+export const useWatchResultProposed = useWatchMarketResolved;
+/** @deprecated 使用 useWatchPayoutClaimed */
+export const useWatchPositionRedeemed = useWatchPayoutClaimed;
+
 /**
- * 组合 hook：监听市场所有重要事件
+ * 组合 hook：监听市场所有重要事件 (V3)
  * @param marketAddress 市场合约地址
  * @param userAddress 用户地址（可选）
  */
 export function useMarketEvents(marketAddress?: Address, userAddress?: Address) {
   const betPlacedEvents = useWatchBetPlaced(marketAddress);
   const marketLockedEvent = useWatchMarketLocked(marketAddress);
-  const resultProposedEvent = useWatchResultProposed(marketAddress);
-  const positionRedeemedEvents = useWatchPositionRedeemed(marketAddress, userAddress);
+  const marketResolvedEvent = useWatchMarketResolved(marketAddress);
+  const payoutClaimedEvents = useWatchPayoutClaimed(marketAddress, userAddress);
 
   return {
     betPlaced: betPlacedEvents,
     marketLocked: marketLockedEvent,
-    resultProposed: resultProposedEvent,
-    positionRedeemed: positionRedeemedEvents,
+    marketResolved: marketResolvedEvent,
+    payoutClaimed: payoutClaimedEvents,
+    // 兼容旧代码
+    resultProposed: marketResolvedEvent,
+    positionRedeemed: payoutClaimedEvents,
   };
 }
 
@@ -248,10 +255,10 @@ export function useAutoRefresh(
   }, [events.marketLocked, enabled]);
 
   useEffect(() => {
-    if (enabled && events.resultProposed) {
+    if (enabled && events.marketResolved) {
       onRefresh();
     }
-  }, [events.resultProposed, enabled]);
+  }, [events.marketResolved, enabled]);
 
   // 定时轮询（备选方案）
   useEffect(() => {

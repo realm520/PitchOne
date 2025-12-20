@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContracts, useAccount as useWagmiAccount } from 'wagmi';
-import { MarketBaseABI, getContractAddresses } from '@pitchone/contracts';
+import { Market_V3_ABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
 import { useOutcomeCount } from './contract-hooks';
 
@@ -57,17 +57,17 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
     contracts.push(
       {
         address: marketAddress,
-        abi: MarketBaseABI,
+        abi: Market_V3_ABI,
         functionName: 'status',
       },
       {
         address: marketAddress,
-        abi: MarketBaseABI,
+        abi: Market_V3_ABI,
         functionName: 'totalLiquidity',
       },
       {
         address: marketAddress,
-        abi: MarketBaseABI,
+        abi: Market_V3_ABI,
         functionName: 'feeRate',
       },
       {
@@ -105,7 +105,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
       for (let i = 0; i < outcomeCountNumber; i++) {
         contracts.push({
           address: marketAddress,
-          abi: MarketBaseABI,
+          abi: Market_V3_ABI,
           functionName: 'virtualReserves',
           args: [BigInt(i)],
         });
@@ -116,7 +116,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
         for (let i = 0; i < outcomeCountNumber; i++) {
           contracts.push({
             address: marketAddress,
-            abi: MarketBaseABI,
+            abi: Market_V3_ABI,
             functionName: 'balanceOf',
             args: [userAddress, BigInt(i)],
           });
@@ -181,7 +181,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   // 判断是否为 Parimutuel 模式
   // 通过对比定价引擎地址来判断（最可靠的方法）
   // 从配置中读取 Parimutuel 引擎地址（支持多链）
-  const parimutuelAddress = getContractAddresses(chainId).parimutuel.toLowerCase();
+  const parimutuelAddress = getContractAddresses(chainId).strategies.parimutuel.toLowerCase();
   const isParimutel = pricingEngine === parimutuelAddress;
 
   const fullData: MarketFullData = {
@@ -217,17 +217,17 @@ export function useMultipleMarketsData(marketAddresses: Address[]) {
   const contracts = marketAddresses.flatMap((address) => [
     {
       address,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'status',
     },
     {
       address,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'outcomeCount',
     },
     {
       address,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'totalLiquidity',
     },
   ]);

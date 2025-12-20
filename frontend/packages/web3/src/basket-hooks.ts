@@ -288,6 +288,7 @@ export function useCreateParlay() {
    */
   const createParlay = async (legs: ParlayLeg[], stake: string) => {
     if (!addresses) throw new Error('Chain not supported');
+    if (!addresses.basket) throw new Error('Basket contract not deployed');
     if (legs.length < 2) throw new Error('At least 2 legs required for parlay');
     if (legs.length > 10) throw new Error('Maximum 10 legs allowed');
 
@@ -346,6 +347,7 @@ export function useSettleParlay() {
    */
   const settle = async (parlayId: number) => {
     if (!addresses) throw new Error('Chain not supported');
+    if (!addresses.basket) throw new Error('Basket contract not deployed');
 
     console.log('[useSettleParlay] 发起结算:', {
       basketAddress: addresses.basket,
@@ -397,6 +399,7 @@ export function useBatchSettleParlays() {
    */
   const batchSettle = async (parlayIds: number[]) => {
     if (!addresses) throw new Error('Chain not supported');
+    if (!addresses.basket) throw new Error('Basket contract not deployed');
 
     const parlayIdsBigInt = parlayIds.map(id => BigInt(id));
 

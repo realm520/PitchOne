@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Providers } from "@pitchone/web3";
 import { I18nProvider } from "@pitchone/i18n";
 import { Header } from "@pitchone/ui";
@@ -31,7 +32,9 @@ export default function RootLayout({
           <I18nProvider>
             <ParlayProvider>
               {/* 推荐系统 - URL 参数检测和自动绑定 */}
-              <ReferralBinder />
+              <Suspense fallback={null}>
+                <ReferralBinder />
+              </Suspense>
 
               <div className="flex flex-col min-h-screen">
                 <Header

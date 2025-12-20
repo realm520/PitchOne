@@ -75,7 +75,8 @@ export {
   usePositionBalance,
   useMarketStatus,
   useOutcomeCount,
-  useOutcomeLiquidity,
+  useMarketStats,      // V3: 替代 useOutcomeLiquidity
+  useAllPrices,        // V3: 获取所有结果价格
   useQuote,
   useIsMarketLocked,
 } from './contract-hooks';
@@ -101,14 +102,16 @@ export {
 export {
   useWatchBetPlaced,
   useWatchMarketLocked,
-  useWatchResultProposed,
-  useWatchPositionRedeemed,
+  useWatchMarketResolved,     // V3: 新名称
+  useWatchPayoutClaimed,      // V3: 新名称
+  useWatchResultProposed,     // V3: 兼容别名
+  useWatchPositionRedeemed,   // V3: 兼容别名
   useMarketEvents,
   useAutoRefresh,
   type BetPlacedEvent,
   type MarketLockedEvent,
-  type ResultProposedEvent,
-  type PositionRedeemedEvent,
+  type MarketResolvedEvent,   // V3: 新类型
+  type PayoutClaimedEvent,    // V3: 新类型
 } from './event-hooks';
 
 // Multicall Optimization Hooks

@@ -2,7 +2,7 @@
 
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
-import { MarketBaseABI, ERC20ABI, getContractAddresses } from '@pitchone/contracts';
+import { Market_V3_ABI, BettingRouter_V3_ABI, ERC20ABI, getContractAddresses } from '@pitchone/contracts';
 import { TOKEN_DECIMALS } from './constants';
 
 /**
@@ -117,11 +117,12 @@ export function useUSDCBalance(address?: Address) {
 }
 
 /**
- * 下注 hook
+ * 下注 hook (V3 架构通过 BettingRouter)
  * @param marketAddress 市场合约地址
  */
 export function usePlaceBet(marketAddress?: Address) {
   const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
   const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
   const {
     isLoading: isConfirming,
@@ -148,23 +149,29 @@ export function usePlaceBet(marketAddress?: Address) {
     receiptError: receiptError?.message
   });
 
-  const placeBet = async (outcomeId: number, amount: string) => {
+  const placeBet = async (outcomeId: number, amount: string, minShares?: bigint) => {
     if (!marketAddress) throw new Error('Market address required');
+    if (!addresses) throw new Error('Chain not supported');
 
     const amountInWei = parseUnits(amount, TOKEN_DECIMALS.USDC);
+    // 默认最小份额为 0（无滑点保护），或使用传入的值
+    const minSharesValue = minShares ?? 0n;
 
     console.log('[usePlaceBet] 发起下注:', {
+      router: addresses.bettingRouter,
       marketAddress,
       outcomeId,
       amount,
-      amountInWei: amountInWei.toString()
+      amountInWei: amountInWei.toString(),
+      minShares: minSharesValue.toString()
     });
 
+    // V3: 通过 BettingRouter 下注
     return writeContract({
-      address: marketAddress,
-      abi: MarketBaseABI,
+      address: addresses.bettingRouter,
+      abi: BettingRouter_V3_ABI,
       functionName: 'placeBet',
-      args: [BigInt(outcomeId), amountInWei],
+      args: [marketAddress, BigInt(outcomeId), amountInWei, minSharesValue],
     });
   };
 
@@ -179,7 +186,7 @@ export function usePlaceBet(marketAddress?: Address) {
 }
 
 /**
- * 赎回赢得的份额 hook
+ * 赎回赢得的份额 hook (V3)
  * @param marketAddress 市场合约地址
  */
 export function useRedeem(marketAddress?: Address) {
@@ -202,9 +209,10 @@ export function useRedeem(marketAddress?: Address) {
 
     const sharesInWei = parseUnits(shares, TOKEN_DECIMALS.SHARES);
 
+    // V3: 直接调用 Market_V3.redeem
     return writeContract({
       address: marketAddress,
-      abi: MarketBaseABI,
+      abi: Market_V3_ABI,
       functionName: 'redeem',
       args: [BigInt(outcomeId), sharesInWei],
     });
@@ -221,7 +229,7 @@ export function useRedeem(marketAddress?: Address) {
 }
 
 /**
- * 查询用户在特定市场的头寸余额
+ * 查询用户在特定市场的头寸余额 (V3)
  * @param marketAddress 市场合约地址
  * @param userAddress 用户地址
  * @param outcomeId 结果 ID
@@ -233,7 +241,7 @@ export function usePositionBalance(
 ) {
   return useReadContract({
     address: marketAddress,
-    abi: MarketBaseABI,
+    abi: Market_V3_ABI,
     functionName: 'balanceOf',
     args: userAddress && outcomeId !== undefined ? [userAddress, BigInt(outcomeId)] : undefined,
     chainId: 31337, // Anvil 本地链
@@ -244,13 +252,13 @@ export function usePositionBalance(
 }
 
 /**
- * 查询市场状态
+ * 查询市场状态 (V3)
  * @param marketAddress 市场合约地址
  */
 export function useMarketStatus(marketAddress?: Address) {
   return useReadContract({
     address: marketAddress,
-    abi: MarketBaseABI,
+    abi: Market_V3_ABI,
     functionName: 'status',
     chainId: 31337, // Anvil 本地链
     query: {
@@ -260,13 +268,13 @@ export function useMarketStatus(marketAddress?: Address) {
 }
 
 /**
- * 查询市场结果数量
+ * 查询市场结果数量 (V3)
  * @param marketAddress 市场合约地址
  */
 export function useOutcomeCount(marketAddress?: Address) {
   return useReadContract({
     address: marketAddress,
-    abi: MarketBaseABI,
+    abi: Market_V3_ABI,
     functionName: 'outcomeCount',
     chainId: 31337, // Anvil 本地链
     query: {
@@ -276,40 +284,43 @@ export function useOutcomeCount(marketAddress?: Address) {
 }
 
 /**
- * 查询市场流动性
+ * 查询市场统计信息 (V3)
+ * 替代旧的 outcomeLiquidity，返回完整的市场统计
  * @param marketAddress 市场合约地址
- * @param outcomeId 结果 ID
  */
-export function useOutcomeLiquidity(marketAddress?: Address, outcomeId?: number) {
+export function useMarketStats(marketAddress?: Address) {
   return useReadContract({
     address: marketAddress,
-    abi: MarketBaseABI,
-    functionName: 'outcomeLiquidity',
-    args: outcomeId !== undefined ? [BigInt(outcomeId)] : undefined,
+    abi: Market_V3_ABI,
+    functionName: 'getStats',
     chainId: 31337, // Anvil 本地链
     query: {
-      enabled: !!marketAddress && outcomeId !== undefined,
+      enabled: !!marketAddress,
     },
   });
 }
 
 /**
- * 获取下注报价（shares）
+ * 获取下注报价 (V3 通过 BettingRouter.previewBet)
  * @param marketAddress 市场合约地址
  * @param outcomeId 结果 ID
  * @param amount 下注金额（USDC，6 位小数）
  */
 export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: string) {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
   const amountInWei = amount ? parseUnits(amount, TOKEN_DECIMALS.USDC) : BigInt(0);
 
   return useReadContract({
-    address: marketAddress,
-    abi: MarketBaseABI,
-    functionName: 'getQuote',
-    args: outcomeId !== undefined && amount ? [BigInt(outcomeId), amountInWei] : undefined,
+    address: addresses?.bettingRouter,
+    abi: BettingRouter_V3_ABI,
+    functionName: 'previewBet',
+    args: marketAddress && outcomeId !== undefined && amount
+      ? [marketAddress, BigInt(outcomeId), amountInWei]
+      : undefined,
     chainId: 31337, // Anvil 本地链
     query: {
-      enabled: !!marketAddress && outcomeId !== undefined && !!amount && parseFloat(amount) > 0,
+      enabled: !!addresses && !!marketAddress && outcomeId !== undefined && !!amount && parseFloat(amount) > 0,
       // 报价数据实时性要求高，缓存时间短
       staleTime: 5000, // 5 秒
     },
@@ -317,24 +328,56 @@ export function useQuote(marketAddress?: Address, outcomeId?: number, amount?: s
 }
 
 /**
- * 检查市场是否基于开赛时间锁定
+ * 获取市场所有结果的价格 (V3)
  * @param marketAddress 市场合约地址
- * @returns Boolean 指示当前时间是否 >= kickoff time
- *
- * 注意：这是基于时间的验证检查，不会改变合约状态。
- * 市场状态仍然是 Open，但 isLocked() 返回 true 时不允许下注。
  */
-export function useIsMarketLocked(marketAddress?: Address) {
+export function useAllPrices(marketAddress?: Address) {
   return useReadContract({
     address: marketAddress,
-    abi: MarketBaseABI,
-    functionName: 'isLocked',
+    abi: Market_V3_ABI,
+    functionName: 'getAllPrices',
     chainId: 31337, // Anvil 本地链
     query: {
       enabled: !!marketAddress,
-      // 实时性要求高，短缓存时间
       staleTime: 5000, // 5 秒
-      refetchInterval: 10000, // 每 10 秒自动刷新
     },
   });
+}
+
+/**
+ * 检查市场是否已锁定 (V3)
+ * V3 通过比较 kickoffTime 和当前时间判断
+ * @param marketAddress 市场合约地址
+ */
+export function useIsMarketLocked(marketAddress?: Address) {
+  const { data: kickoffTime } = useReadContract({
+    address: marketAddress,
+    abi: Market_V3_ABI,
+    functionName: 'kickoffTime',
+    chainId: 31337,
+    query: {
+      enabled: !!marketAddress,
+    },
+  });
+
+  const { data: status } = useReadContract({
+    address: marketAddress,
+    abi: Market_V3_ABI,
+    functionName: 'status',
+    chainId: 31337,
+    query: {
+      enabled: !!marketAddress,
+      staleTime: 5000,
+      refetchInterval: 10000,
+    },
+  });
+
+  // 市场锁定条件：状态不是 Open(0) 或 当前时间 >= kickoffTime
+  const isLocked = status !== undefined && status !== 0 ||
+    (kickoffTime !== undefined && BigInt(Math.floor(Date.now() / 1000)) >= kickoffTime);
+
+  return {
+    data: isLocked,
+    isLoading: status === undefined,
+  };
 }
