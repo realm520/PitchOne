@@ -81,7 +81,7 @@ export function handleMarketInitialized(event: MarketInitializedEvent): void {
 // event BetPlaced(address indexed user, uint256 indexed outcomeId, uint256 amount, uint256 shares)
 // ============================================================================
 
-export function handleBetPlacedV3(event: BetPlacedEvent): void {
+export function handleBetPlaced(event: BetPlacedEvent): void {
   const marketAddress = event.address;
   const userAddress = event.params.user;
   const outcome = event.params.outcomeId.toI32();

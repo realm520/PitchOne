@@ -16,10 +16,10 @@
 npm install
 
 # 2. 一键部署（需本地 Anvil 和 Docker）
-./deploy-local.sh
+./deploy.sh
 
 # 3. 访问 GraphQL Playground
-open http://localhost:8010/subgraphs/name/pitchone-local/graphql
+open http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 ```
 
 详细步骤请参阅 [USAGE.md](./USAGE.md)。

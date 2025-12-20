@@ -7,11 +7,14 @@
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "create-local": "graph create --node http://localhost:8020/ pitchone-local",
-    "remove-local": "graph remove --node http://localhost:8020/ pitchone-local",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-local",
+    "create-local": "graph create --node http://localhost:8020/ pitchone-sportsbook",
+    "remove-local": "graph remove --node http://localhost:8020/ pitchone-sportsbook",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook",
+    "deploy": "./deploy.sh",
+    "deploy:clean": "./deploy.sh -c -u -y",
+    "deploy:update": "./deploy.sh -u",
     "test": "graph test",
-    "query": "curl -X POST -H 'Content-Type: application/json' http://localhost:8010/subgraphs/name/pitchone-local"
+    "query": "curl -X POST -H 'Content-Type: application/json' http://localhost:8010/subgraphs/name/pitchone-sportsbook"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "^0.56.0",

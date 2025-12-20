@@ -14,7 +14,9 @@ import {
 import {
   Deposit as VaultDepositEvent,
   Withdraw as VaultWithdrawEvent,
-} from "../generated/LiquidityVault_V3/LiquidityVault_V3";
+  MarketAuthorized as MarketAuthorizedEvent,
+  MarketRevoked as MarketRevokedEvent,
+} from "../generated/LiquidityVault/LiquidityVault_V3";
 import {
   PoolContribution as PoolContributionEvent,
   RevenueDistributed as RevenueDistributedEvent,
@@ -34,7 +36,7 @@ import {
   ProviderTypeRegistration,
 } from "../generated/schema";
 import { toDecimal, generateEventId } from "./helpers";
-import { ERC4626LiquidityProvider } from "../generated/ERC4626LiquidityProvider/ERC4626LiquidityProvider";
+import { LiquidityVault_V3 } from "../generated/LiquidityVault_V3/LiquidityVault_V3";
 
 // ============================================================================
 // LiquidityVault_V3 - Vault 存取款事件
@@ -43,7 +45,7 @@ import { ERC4626LiquidityProvider } from "../generated/ERC4626LiquidityProvider/
 /**
  * 处理 V3 Vault 存款事件
  */
-export function handleVaultDeposit(event: VaultDepositEvent): void {
+export function handleDeposit(event: VaultDepositEvent): void {
   const vaultAddress = event.address;
   const sender = event.params.sender;
   const owner = event.params.owner;
@@ -71,7 +73,7 @@ export function handleVaultDeposit(event: VaultDepositEvent): void {
 /**
  * 处理 V3 Vault 取款事件
  */
-export function handleVaultWithdraw(event: VaultWithdrawEvent): void {
+export function handleWithdraw(event: VaultWithdrawEvent): void {
   const vaultAddress = event.address;
   const sender = event.params.sender;
   const receiver = event.params.receiver;
@@ -96,6 +98,92 @@ export function handleVaultWithdraw(event: VaultWithdrawEvent): void {
   provider.lastUpdatedAt = event.block.timestamp;
   provider.lastUpdatedAtBlock = event.block.number;
   provider.save();
+}
+
+/**
+ * 处理 V3 Vault 市场授权事件
+ */
+export function handleMarketAuthorized(event: MarketAuthorizedEvent): void {
+  const vaultAddress = event.address;
+  const market = event.params.market;
+
+  log.info("Vault V3: Market authorized - vault: {}, market: {}", [
+    vaultAddress.toHexString(),
+    market.toHexString(),
+  ]);
+
+  // 加载或创建 Provider 实体
+  let provider = loadOrCreateProvider(vaultAddress);
+
+  // 添加到授权市场列表
+  let authorizedMarkets = provider.authorizedMarkets;
+  let found = false;
+  for (let i = 0; i < authorizedMarkets.length; i++) {
+    if (authorizedMarkets[i].equals(market)) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    authorizedMarkets.push(market);
+    provider.authorizedMarkets = authorizedMarkets;
+  }
+
+  provider.lastUpdatedAt = event.block.timestamp;
+  provider.lastUpdatedAtBlock = event.block.number;
+  provider.save();
+
+  // 创建授权事件记录
+  const eventId = generateEventId(event.transaction.hash, event.logIndex);
+  let authEvent = new MarketAuthorization(eventId);
+  authEvent.provider = provider.id;
+  authEvent.market = market;
+  authEvent.authorized = true;
+  authEvent.timestamp = event.block.timestamp;
+  authEvent.blockNumber = event.block.number;
+  authEvent.transactionHash = event.transaction.hash;
+  authEvent.save();
+}
+
+/**
+ * 处理 V3 Vault 市场撤销授权事件
+ */
+export function handleMarketRevoked(event: MarketRevokedEvent): void {
+  const vaultAddress = event.address;
+  const market = event.params.market;
+
+  log.info("Vault V3: Market revoked - vault: {}, market: {}", [
+    vaultAddress.toHexString(),
+    market.toHexString(),
+  ]);
+
+  // 加载或创建 Provider 实体
+  let provider = loadOrCreateProvider(vaultAddress);
+
+  // 从授权市场列表移除
+  let authorizedMarkets = provider.authorizedMarkets;
+  let newAuthorizedMarkets: Bytes[] = [];
+  for (let i = 0; i < authorizedMarkets.length; i++) {
+    if (!authorizedMarkets[i].equals(market)) {
+      newAuthorizedMarkets.push(authorizedMarkets[i]);
+    }
+  }
+  provider.authorizedMarkets = newAuthorizedMarkets;
+
+  provider.lastUpdatedAt = event.block.timestamp;
+  provider.lastUpdatedAtBlock = event.block.number;
+  provider.save();
+
+  // 创建撤销授权事件记录
+  const eventId = generateEventId(event.transaction.hash, event.logIndex);
+  let authEvent = new MarketAuthorization(eventId);
+  authEvent.provider = provider.id;
+  authEvent.market = market;
+  authEvent.authorized = false;
+  authEvent.timestamp = event.block.timestamp;
+  authEvent.blockNumber = event.block.number;
+  authEvent.transactionHash = event.transaction.hash;
+  authEvent.save();
 }
 
 // ============================================================================
@@ -540,12 +628,12 @@ function loadOrCreateFactory(address: Bytes): LiquidityProviderFactory {
  * 从链上读取并更新 Provider 状态
  */
 function updateProviderStateFromChain(provider: LiquidityProvider, address: Bytes): void {
-  let contract = ERC4626LiquidityProvider.bind(address as Address);
+  let contract = LiquidityVault_V3.bind(Address.fromBytes(address));
 
-  // 尝试读取 totalLiquidity
-  let totalLiquidityResult = contract.try_totalLiquidity();
-  if (!totalLiquidityResult.reverted) {
-    provider.totalLiquidity = toDecimal(totalLiquidityResult.value);
+  // 尝试读取 totalAssets (映射到 totalLiquidity)
+  let totalAssetsResult = contract.try_totalAssets();
+  if (!totalAssetsResult.reverted) {
+    provider.totalLiquidity = toDecimal(totalAssetsResult.value);
   }
 
   // 尝试读取 availableLiquidity
@@ -566,9 +654,6 @@ function updateProviderStateFromChain(provider: LiquidityProvider, address: Byte
     provider.asset = assetResult.value;
   }
 
-  // 尝试读取 providerType
-  let providerTypeResult = contract.try_providerType();
-  if (!providerTypeResult.reverted) {
-    provider.providerType = providerTypeResult.value;
-  }
+  // V3 Vault 使用固定类型
+  provider.providerType = "LiquidityVault_V3";
 }

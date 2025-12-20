@@ -123,16 +123,16 @@ cd /home/harry/code/PitchOne
 curl -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets(first: 5) { id homeTeam awayTeam totalVolume } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq .
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq .
 
 # 查询全局统计
 curl -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ globalStats(id: \"global\") { totalMarkets totalUsers totalVolume totalFees } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq .
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq .
 
 # 访问 GraphQL Playground
-open http://localhost:8010/subgraphs/name/pitchone-local/graphql
+open http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 ```
 
 ## 📝 更新记录

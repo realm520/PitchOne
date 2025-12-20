@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  *
  * 用途：避免浏览器 CORS 限制，将前端的 GraphQL 请求转发到 Graph Node
  *
- * 端点：POST /api/subgraph/subgraphs/name/pitchone-local
+ * 端点：POST /api/subgraph/subgraphs/name/pitchone-sportsbook
  */
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // 转发到本地 Graph Node（使用 127.0.0.1 而不是 localhost，避免 DNS 解析问题）
-    const graphNodeUrl = process.env.GRAPH_NODE_URL || 'http://127.0.0.1:8010/subgraphs/name/pitchone-local';
+    const graphNodeUrl = process.env.GRAPH_NODE_URL || 'http://127.0.0.1:8010/subgraphs/name/pitchone-sportsbook';
 
     const response = await fetch(graphNodeUrl, {
       method: 'POST',
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     message: 'GraphQL Proxy API',
-    endpoint: 'POST /api/subgraph/subgraphs/name/pitchone-local',
-    graphNodeUrl: 'http://localhost:8010/subgraphs/name/pitchone-local',
+    endpoint: 'POST /api/subgraph/subgraphs/name/pitchone-sportsbook',
+    graphNodeUrl: 'http://localhost:8010/subgraphs/name/pitchone-sportsbook',
     status: 'OK',
   });
 }

@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 /**
- * Subgraph 配置更新脚本
- * 从 deployments/localhost.json 读取合约地址并更新 subgraph.yaml
+ * Subgraph 配置更新脚本 (V3 架构)
+ * 从 deployments/localhost_v3.json 读取合约地址并更新 subgraph.yaml
  *
- * 支持的合约地址（6 个）:
- *   - Factory (MarketFactory_v2)
+ * 支持的合约地址（4 个）:
+ *   - Factory (MarketFactory_V3)
  *   - FeeRouter
- *   - LiquidityProviderFactory (providerFactory)
- *   - ERC4626LiquidityProvider (erc4626Provider)
- *   - ParimutuelLiquidityProvider (parimutuelProvider)
+ *   - LiquidityVault (LiquidityVault_V3)
  *   - ReferralRegistry
  *
  * 使用方法:
- *   node config/update-config.js ../contracts/deployments/localhost.json
+ *   node config/update-config.js ../contracts/deployments/localhost_v3.json
  */
 
 const fs = require('fs');
@@ -22,7 +20,7 @@ const path = require('path');
 const deploymentFile = process.argv[2];
 if (!deploymentFile) {
   console.error('❌ Usage: node update-config.js <deployment-file>');
-  console.error('   Example: node config/update-config.js ../contracts/deployments/localhost.json');
+  console.error('   Example: node config/update-config.js ../contracts/deployments/localhost_v3.json');
   process.exit(1);
 }
 
@@ -38,7 +36,7 @@ const deployment = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
 // 处理 deployedAt 字段（可能未定义，使用默认值 0）
 const startBlock = deployment.deployedAt || 0;
 
-console.log('\n📝 Updating Subgraph configuration...');
+console.log('\n📝 Updating Subgraph configuration (V3)...');
 console.log(`  Network: ${deployment.network}`);
 console.log(`  ChainId: ${deployment.chainId}`);
 console.log(`  Deployed at block: ${startBlock}`);
@@ -68,20 +66,17 @@ const getAddress = (key, fallback = '0x0000000000000000000000000000000000000000'
   return addr;
 };
 
+// V3 架构的合约地址
 const factory = getAddress('factory');
 const feeRouter = getAddress('feeRouter');
-const providerFactory = getAddress('providerFactory');
-const erc4626Provider = getAddress('erc4626Provider');
-const parimutuelProvider = getAddress('parimutuelProvider');
+const liquidityVault = getAddress('liquidityVault');
 const referralRegistry = getAddress('referralRegistry');
 
-// 替换变量（6 个地址 + 1 个区块号）
+// 替换变量（4 个地址 + 1 个区块号）
 const config = template
   .replace(/{{FACTORY_ADDRESS}}/g, factory)
   .replace(/{{FEE_ROUTER_ADDRESS}}/g, feeRouter)
-  .replace(/{{PROVIDER_FACTORY_ADDRESS}}/g, providerFactory)
-  .replace(/{{ERC4626_PROVIDER_ADDRESS}}/g, erc4626Provider)
-  .replace(/{{PARIMUTUEL_PROVIDER_ADDRESS}}/g, parimutuelProvider)
+  .replace(/{{LIQUIDITY_VAULT_ADDRESS}}/g, liquidityVault)
   .replace(/{{REFERRAL_REGISTRY_ADDRESS}}/g, referralRegistry)
   .replace(/{{START_BLOCK}}/g, startBlock.toString());
 
@@ -91,11 +86,9 @@ fs.writeFileSync(outputPath, config);
 
 console.log('\n✅ Subgraph config updated successfully!');
 console.log('  Addresses:');
-console.log(`    Factory:              ${factory}`);
-console.log(`    FeeRouter:            ${feeRouter}`);
-console.log(`    ProviderFactory:      ${providerFactory}`);
-console.log(`    ERC4626Provider:      ${erc4626Provider}`);
-console.log(`    ParimutuelProvider:   ${parimutuelProvider}`);
-console.log(`    ReferralRegistry:     ${referralRegistry}`);
+console.log(`    Factory:          ${factory}`);
+console.log(`    FeeRouter:        ${feeRouter}`);
+console.log(`    LiquidityVault:   ${liquidityVault}`);
+console.log(`    ReferralRegistry: ${referralRegistry}`);
 console.log(`  StartBlock: ${startBlock}`);
 console.log(`  Output: ${outputPath}\n`);

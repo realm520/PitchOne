@@ -4,7 +4,7 @@ import { GraphQLClient } from 'graphql-request';
 const SUBGRAPH_HASH = 'QmYiU79Y3CaW7hNada1KGYcq4c1Hk8J6AUUesLYFhZ1Myu';
 
 // Subgraph Name（使用名称更稳定，不依赖 IPFS hash）
-const SUBGRAPH_NAME = 'pitchone-local';
+const SUBGRAPH_NAME = 'pitchone-sportsbook';
 
 // 获取 Subgraph URL（支持环境检测）
 function getSubgraphURL(): string {

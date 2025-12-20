@@ -227,9 +227,9 @@ else
         graph build || warn "build 失败"
 
         info "部署 Subgraph..."
-        graph create --node http://localhost:8020/ pitchone-local &>/dev/null || true
+        graph create --node http://localhost:8020/ pitchone-sportsbook &>/dev/null || true
         VERSION_LABEL="v$(date +%Y%m%d-%H%M%S)"
-        graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label "$VERSION_LABEL" pitchone-local || warn "部署失败"
+        graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label "$VERSION_LABEL" pitchone-sportsbook || warn "部署失败"
 
         success "Subgraph 部署完成 ($VERSION_LABEL)"
     else
@@ -335,7 +335,7 @@ echo ""
 
 if [ -n "$DOCKER_COMPOSE" ]; then
     echo "访问 GraphQL Playground："
-    echo "  http://localhost:8010/subgraphs/name/pitchone-local/graphql"
+    echo "  http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql"
     echo ""
 fi
 

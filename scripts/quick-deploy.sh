@@ -122,9 +122,9 @@ if ! docker ps > /dev/null 2>&1; then
     exit 1
 fi
 
-# 使用 reset-subgraph.sh 部署
-if [ -f "$SUBGRAPH_DIR/reset-subgraph.sh" ]; then
-    bash "$SUBGRAPH_DIR/reset-subgraph.sh" > /tmp/subgraph-deploy.log 2>&1 &
+# 使用 deploy.sh -c -u -y 部署
+if [ -f "$SUBGRAPH_DIR/deploy.sh -c -u -y" ]; then
+    bash "$SUBGRAPH_DIR/deploy.sh -c -u -y" > /tmp/subgraph-deploy.log 2>&1 &
     DEPLOY_PID=$!
 
     # 等待部署完成（最多 60 秒）
@@ -145,13 +145,13 @@ if [ -f "$SUBGRAPH_DIR/reset-subgraph.sh" ]; then
     if curl -s -X POST \
         -H "Content-Type: application/json" \
         --data '{"query": "{ _meta { block { number } } }"}' \
-        http://localhost:8010/subgraphs/name/pitchone-local > /dev/null 2>&1; then
+        http://localhost:8010/subgraphs/name/pitchone-sportsbook > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Subgraph 部署成功${NC}"
     else
         echo -e "${YELLOW}⚠️  Subgraph 部署可能需要更多时间，请稍后检查${NC}"
     fi
 else
-    echo -e "${RED}❌ 未找到 reset-subgraph.sh 脚本${NC}"
+    echo -e "${RED}❌ 未找到 deploy.sh -c -u -y 脚本${NC}"
     exit 1
 fi
 
@@ -167,7 +167,7 @@ echo "📊 数据统计："
 STATS=$(curl -s -X POST \
     -H "Content-Type: application/json" \
     --data '{"query": "{ globalStats(id: \"global\") { totalMarkets totalUsers totalVolume totalFees } }"}' \
-    http://localhost:8010/subgraphs/name/pitchone-local 2>/dev/null)
+    http://localhost:8010/subgraphs/name/pitchone-sportsbook 2>/dev/null)
 
 if [ $? -eq 0 ] && echo "$STATS" | jq -e '.data.globalStats' > /dev/null 2>&1; then
     TOTAL_MARKETS=$(echo "$STATS" | jq -r '.data.globalStats.totalMarkets')
@@ -186,7 +186,7 @@ fi
 echo ""
 echo "🔗 访问链接："
 echo "  - GraphQL Playground:"
-echo "    http://localhost:8010/subgraphs/name/pitchone-local/graphql"
+echo "    http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql"
 echo ""
 echo "  - Graph Node Admin:"
 echo "    http://localhost:8020"
@@ -194,7 +194,7 @@ echo ""
 echo "📝 验证命令："
 echo "  curl -X POST -H 'Content-Type: application/json' \\"
 echo "    --data '{\"query\": \"{ markets(first: 5) { id homeTeam awayTeam totalVolume } }\"}' \\"
-echo "    http://localhost:8010/subgraphs/name/pitchone-local | jq ."
+echo "    http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq ."
 echo ""
 echo "📚 完整 SOP 文档："
 echo "  $SUBGRAPH_DIR/SOP_LOCAL_DEPLOYMENT.md"

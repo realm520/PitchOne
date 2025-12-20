@@ -556,7 +556,7 @@ test("BetPlaced event creates Order entity", () => {
 docker compose up -d
 
 # 2. 部署 Subgraph
-./deploy-local.sh
+./deploy.sh
 
 # 3. 运行合约集成测试生成事件
 cd ../contracts && forge test
@@ -580,7 +580,7 @@ npm run codegen
 npm run build
 
 # 4. 部署（需 Graph Node 运行）
-./deploy-local.sh
+./deploy.sh
 ```
 
 ### 测试网/主网

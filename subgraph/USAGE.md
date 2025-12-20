@@ -27,7 +27,7 @@
 cd subgraph
 
 # 方式 1: 使用自动化脚本（推荐）
-./deploy-local.sh
+./deploy.sh
 
 # 方式 2: 手动步骤
 npm install
@@ -37,8 +37,8 @@ npm run deploy-local
 ```
 
 部署成功后，GraphQL Playground 可在以下地址访问：
-- **查询端点**: http://localhost:8010/subgraphs/name/pitchone-local
-- **Playground**: http://localhost:8010/subgraphs/name/pitchone-local/graphql
+- **查询端点**: http://localhost:8010/subgraphs/name/pitchone-sportsbook
+- **Playground**: http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 
 ---
 
@@ -153,17 +153,17 @@ npm run deploy-local
 
 ```bash
 # 查询元数据
-curl -X POST http://localhost:8010/subgraphs/name/pitchone-local \
+curl -X POST http://localhost:8010/subgraphs/name/pitchone-sportsbook \
   -H "Content-Type: application/json" \
   -d '{"query": "{ _meta { block { number } hasIndexingErrors } }"}'
 
 # 查询全局统计
-curl -X POST http://localhost:8010/subgraphs/name/pitchone-local \
+curl -X POST http://localhost:8010/subgraphs/name/pitchone-sportsbook \
   -H "Content-Type: application/json" \
   -d '{"query": "{ globalStats(id: \"global\") { totalMarkets totalUsers totalVolume } }"}'
 ```
 
-### 部署脚本说明（deploy-local.sh）
+### 部署脚本说明（deploy.sh）
 
 自动化脚本执行以下步骤：
 
@@ -180,10 +180,10 @@ curl -X POST http://localhost:8010/subgraphs/name/pitchone-local \
 **选项**：
 ```bash
 # 清理模式（删除旧数据）
-./deploy-local.sh --clean
+./deploy.sh --clean
 
 # 跳过合约地址检查
-SKIP_ADDRESS_CHECK=1 ./deploy-local.sh
+SKIP_ADDRESS_CHECK=1 ./deploy.sh
 ```
 
 ---
