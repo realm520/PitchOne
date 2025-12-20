@@ -61,7 +61,7 @@ export function ErrorState({
 
       {onRetry && (
         <Button variant="primary" onClick={onRetry}>
-          {retryText}
+          {retryText || '重试'}
         </Button>
       )}
     </motion.div>

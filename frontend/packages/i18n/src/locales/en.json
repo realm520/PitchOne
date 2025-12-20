@@ -113,7 +113,8 @@
       "participants": "participants",
       "marketType": "Market Type",
       "placeBet": "Place Bet",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "participated": "Participated"
     },
     "pagination": {
       "prev": "Previous",
@@ -518,5 +519,22 @@
     "comingSoon": "Coming Soon",
     "showAll": "Show All Markets",
     "marketCount": "{{count}} matches"
+  },
+  "betslip": {
+    "title": "TICKET SLIP",
+    "empty": {
+      "title": "No ticket now.",
+      "desc": "Choose an outcome and make your selection."
+    },
+    "enterAmount": "Enter amount...",
+    "totalPayment": "Total Payment",
+    "totalPotentialWin": "Total Potential Win",
+    "trade": "Trade",
+    "trading": "Trading...",
+    "approving": "Approving...",
+    "checking": "Checking...",
+    "approveUSDC": "Approve USDC",
+    "termsText": "By trading, you agree to the",
+    "termsLink": "Terms of Use"
   }
 }

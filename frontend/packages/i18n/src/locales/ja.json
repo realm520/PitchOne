@@ -113,7 +113,8 @@
       "participants": "人参加",
       "marketType": "マーケットタイプ",
       "placeBet": "ベットする",
-      "viewDetails": "詳細を見る"
+      "viewDetails": "詳細を見る",
+      "participated": "参加済み"
     },
     "pagination": {
       "prev": "前へ",
@@ -518,5 +519,22 @@
     "comingSoon": "近日公開",
     "showAll": "全てのマーケットを表示",
     "marketCount": "{{count}} 試合"
+  },
+  "betslip": {
+    "title": "ベットスリップ",
+    "empty": {
+      "title": "ベットなし",
+      "desc": "結果を選んでベットしてください"
+    },
+    "enterAmount": "金額を入力...",
+    "totalPayment": "支払い合計",
+    "totalPotentialWin": "予想獲得額",
+    "trade": "ベット",
+    "trading": "ベット中...",
+    "approving": "承認中...",
+    "checking": "確認中...",
+    "approveUSDC": "USDCを承認",
+    "termsText": "ベットすることで、以下に同意したことになります：",
+    "termsLink": "利用規約"
   }
 }

@@ -113,7 +113,8 @@
       "participants": "명 참여",
       "marketType": "마켓 유형",
       "placeBet": "예측하기",
-      "viewDetails": "상세 보기"
+      "viewDetails": "상세 보기",
+      "participated": "참여함"
     },
     "pagination": {
       "prev": "이전",
@@ -518,5 +519,22 @@
     "comingSoon": "출시 예정",
     "showAll": "모든 마켓 보기",
     "marketCount": "{{count}} 경기"
+  },
+  "betslip": {
+    "title": "베팅 슬립",
+    "empty": {
+      "title": "베팅 없음",
+      "desc": "결과를 선택하여 베팅하세요"
+    },
+    "enterAmount": "금액 입력...",
+    "totalPayment": "총 지불 금액",
+    "totalPotentialWin": "예상 당첨금",
+    "trade": "베팅",
+    "trading": "베팅 중...",
+    "approving": "승인 중...",
+    "checking": "확인 중...",
+    "approveUSDC": "USDC 승인",
+    "termsText": "베팅하면 다음에 동의하는 것입니다:",
+    "termsLink": "이용약관"
   }
 }

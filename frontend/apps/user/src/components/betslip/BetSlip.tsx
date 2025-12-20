@@ -1,7 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { formatUnits } from 'viem';
+import { useState, useEffect } from "react";
+import { formatUnits } from "viem";
+import { X } from "lucide-react";
 import {
   useAccount,
   usePlaceBet,
@@ -9,21 +10,23 @@ import {
   useUSDCAllowance,
   useUSDCBalance,
   useMarketFullData,
-} from '@pitchone/web3';
-import { Card, Button } from '@pitchone/ui';
-import { useBetSlipStore, SelectedBet } from '../../lib/betslip-store';
-import { BetSlipEmpty } from './BetSlipEmpty';
-import { betNotifications } from '@/lib/notifications';
+} from "@pitchone/web3";
+import { Card, Button } from "@pitchone/ui";
+import { useTranslation } from "@pitchone/i18n";
+import { useBetSlipStore } from "../../lib/betslip-store";
+import { BetSlipEmpty } from "./BetSlipEmpty";
+import { betNotifications } from "@/lib/notifications";
 
 interface BetSlipProps {
   className?: string;
 }
 
 export function BetSlip({ className }: BetSlipProps) {
+  const { t } = useTranslation();
   const { selectedBet, clearBet } = useBetSlipStore();
   const { address, isConnected } = useAccount();
 
-  const [betAmount, setBetAmount] = useState('');
+  const [betAmount, setBetAmount] = useState("");
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approveToastId, setApproveToastId] = useState<string | null>(null);
   const [betToastId, setBetToastId] = useState<string | null>(null);
@@ -59,9 +62,17 @@ export function BetSlip({ className }: BetSlipProps) {
     error: betError,
   } = usePlaceBet(selectedBet?.marketAddress);
 
+  // 格式化余额
+  const formattedBalance =
+    usdcBalance !== undefined &&
+    usdcBalance !== null &&
+    typeof usdcBalance === "bigint"
+      ? parseFloat(formatUnits(usdcBalance, 6)).toFixed(2)
+      : "--";
+
   // Reset amount when bet changes
   useEffect(() => {
-    setBetAmount('');
+    setBetAmount("");
   }, [selectedBet?.marketAddress, selectedBet?.outcomeId]);
 
   // Check if needs approval
@@ -76,7 +87,11 @@ export function BetSlip({ className }: BetSlipProps) {
       return;
     }
 
-    if (allowance !== undefined && allowance !== null && typeof allowance === 'bigint') {
+    if (
+      allowance !== undefined &&
+      allowance !== null &&
+      typeof allowance === "bigint"
+    ) {
       const amountInWei = BigInt(parseFloat(betAmount) * 1e6);
       setNeedsApproval(allowance < amountInWei);
     }
@@ -92,7 +107,10 @@ export function BetSlip({ className }: BetSlipProps) {
 
   useEffect(() => {
     if (approveError && approveToastId) {
-      betNotifications.approveFailed(approveToastId, approveError.message || 'Approval failed');
+      betNotifications.approveFailed(
+        approveToastId,
+        approveError.message || "Approval failed"
+      );
       setApproveToastId(null);
     }
   }, [approveError, approveToastId]);
@@ -115,12 +133,16 @@ export function BetSlip({ className }: BetSlipProps) {
 
   useEffect(() => {
     if (betError && betToastId) {
-      let errorMessage = 'Transaction failed';
-      if (betError.message?.includes('nonce')) {
-        errorMessage = 'Transaction nonce conflict, please clear wallet history and retry';
+      let errorMessage = "Transaction failed";
+      if (betError.message?.includes("nonce")) {
+        errorMessage =
+          "Transaction nonce conflict, please clear wallet history and retry";
       } else if (betError.message) {
-        const shortMessage = betError.message.split('\n')[0];
-        errorMessage = shortMessage.length > 100 ? shortMessage.substring(0, 100) + '...' : shortMessage;
+        const shortMessage = betError.message.split("\n")[0];
+        errorMessage =
+          shortMessage.length > 100
+            ? shortMessage.substring(0, 100) + "..."
+            : shortMessage;
       }
       betNotifications.betFailed(betToastId, errorMessage);
       setBetToastId(null);
@@ -129,16 +151,20 @@ export function BetSlip({ className }: BetSlipProps) {
 
   useEffect(() => {
     if (isBetSuccess && betToastId && selectedBet) {
-      betNotifications.betPlaced(betToastId, betAmount, selectedBet.outcomeName);
+      betNotifications.betPlaced(
+        betToastId,
+        betAmount,
+        selectedBet.outcomeName
+      );
       setBetToastId(null);
-      setBetAmount('');
+      setBetAmount("");
       clearBet();
     }
   }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet]);
 
   // Calculate expected payout
   const calculatePayout = () => {
-    if (!betAmount || !selectedBet || !marketFullData) return '0.00';
+    if (!betAmount || !selectedBet || !marketFullData) return "0.00";
 
     const amount = parseFloat(betAmount);
     const feeRate = Number(marketFullData.feeRate) / 10000;
@@ -146,7 +172,9 @@ export function BetSlip({ className }: BetSlipProps) {
 
     if (marketFullData.isParimutel) {
       const newTotalPool = Number(marketFullData.totalLiquidity) + amount * 1e6;
-      const currentOutcomeBets = Number(marketFullData.outcomeLiquidity[selectedBet.outcomeId]);
+      const currentOutcomeBets = Number(
+        marketFullData.outcomeLiquidity[selectedBet.outcomeId]
+      );
       const newOutcomeBets = currentOutcomeBets + amount * 1e6;
       const netPool = newTotalPool * (1 - feeRate);
 
@@ -154,10 +182,12 @@ export function BetSlip({ className }: BetSlipProps) {
         const payout = (netPool * (amount * 1e6)) / newOutcomeBets;
         return (payout / 1e6).toFixed(2);
       }
-      return '0.00';
+      return "0.00";
     } else {
       const outcomeCount = Number(marketFullData.outcomeCount);
-      const reserves = marketFullData.outcomeLiquidity.map((r: bigint) => Number(r));
+      const reserves = marketFullData.outcomeLiquidity.map((r: bigint) =>
+        Number(r)
+      );
       let shares = 0;
 
       if (outcomeCount === 2) {
@@ -192,11 +222,12 @@ export function BetSlip({ className }: BetSlipProps) {
   const handleApprove = async () => {
     if (!selectedBet?.marketAddress) return;
     try {
-      await approve(selectedBet.marketAddress, 'max');
+      await approve(selectedBet.marketAddress, "max");
     } catch (error: unknown) {
-      console.error('Approve error:', error);
+      console.error("Approve error:", error);
       if (approveToastId) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         betNotifications.approveFailed(approveToastId, errorMessage);
         setApproveToastId(null);
       }
@@ -208,9 +239,10 @@ export function BetSlip({ className }: BetSlipProps) {
     try {
       await placeBet(selectedBet.outcomeId, betAmount);
     } catch (error: unknown) {
-      console.error('Place bet error:', error);
+      console.error("Place bet error:", error);
       if (betToastId) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         betNotifications.betFailed(betToastId, errorMessage);
         setBetToastId(null);
       }
@@ -219,123 +251,180 @@ export function BetSlip({ className }: BetSlipProps) {
 
   const handleClear = () => {
     clearBet();
-    setBetAmount('');
+    setBetAmount("");
   };
 
-  // Show empty state when no bet selected
-  if (!selectedBet) {
-    return <BetSlipEmpty />;
-  }
-
   return (
-    <Card className={`bg-dark-card border border-dark-border ${className || ''}`} padding="lg">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-white">Bet Slip</h3>
-        <button
-          onClick={handleClear}
-          className="text-zinc-500 hover:text-white"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Selected Outcome */}
-      <div className="p-3 bg-zinc-800 rounded-lg mb-4">
-        <p className="text-xs text-zinc-500 mb-1">
-          {selectedBet.homeTeam} vs {selectedBet.awayTeam}
-        </p>
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-white">{selectedBet.outcomeName}</p>
-          <span className="text-sm font-bold text-white">{selectedBet.odds}x</span>
-        </div>
-      </div>
-
-      {/* Balance Display */}
-      {usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint' && (
-        <p className="text-xs text-gray-500 mb-2">
-          Balance: {formatUnits(usdcBalance, 6)} USDC
-        </p>
-      )}
-
-      {/* Amount Input */}
-      <div className="mb-4">
-        <label className="block text-xs font-medium text-zinc-500 mb-1">
-          Amount (USDC)
-        </label>
-        <div className="relative">
-          <input
-            type="number"
-            placeholder="0.00"
-            value={betAmount}
-            onChange={(e) => setBetAmount(e.target.value)}
-            min="1"
-            max="10000"
-            className="w-full px-3 py-2 pr-14 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20"
+    <Card
+      className={`p-0 bg-dark-card border border-dark-border ${
+        className || ""
+      }`}
+    >
+      {/* 头部 - 始终显示 */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">
+        <h3 className="text-base font-bold text-white tracking-wide">
+          {t("betslip.title")}
+        </h3>
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnected ? "bg-green-500" : "bg-zinc-500"
+            }`}
           />
-          <button
-            type="button"
-            onClick={() => {
-              if (usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint') {
-                setBetAmount(formatUnits(usdcBalance, 6));
-              }
-            }}
-            disabled={!usdcBalance || usdcBalance === 0n}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-700 rounded disabled:opacity-50"
-          >
-            MAX
-          </button>
+          <span className="text-sm text-zinc-400">{formattedBalance} USDC</span>
         </div>
       </div>
 
-      {/* Expected Payout */}
-      {betAmount && parseFloat(betAmount) > 0 && (
-        <div className="p-3 bg-zinc-800 rounded-lg mb-4 border border-zinc-700">
-          <p className="text-xs text-zinc-500 mb-1">Potential Payout</p>
-          <p className="text-xl font-bold text-white">${calculatePayout()}</p>
-          <p className="text-xs text-zinc-500">
-            Profit: ${(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)}
-          </p>
-        </div>
-      )}
+      <div className="">
+        {/* 内容 - 根据状态切换 */}
+        {selectedBet ? (
+          <>
+            {/* 选中投注卡片 */}
+            <div className="border border-zinc-700 rounded-lg p-3 m-4">
+              {/* 卡片第1行：比赛信息 + 关闭按钮 */}
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-zinc-400">
+                  {selectedBet.homeTeam} vs {selectedBet.awayTeam}
+                </p>
+                <button
+                  onClick={handleClear}
+                  className="text-zinc-500 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" strokeWidth={2} />
+                </button>
+              </div>
 
-      {/* Action Buttons */}
-      <div className="space-y-2">
-        {needsApproval ? (
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={handleApprove}
-            disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
-            isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
-          >
-            {isApproving || isApprovingConfirming ? 'Approving...' : isAllowanceLoading ? 'Checking...' : 'Approve USDC'}
-          </Button>
+              {/* 卡片第2行：选中结果徽章 + 金额输入（并排） */}
+              <div className="flex items-center gap-2 mb-3">
+                {/* 结果徽章 */}
+                <div className="flex-shrink-0 px-3 py-1.5 bg-zinc-700 rounded">
+                  <span className="text-sm font-semibold text-white whitespace-nowrap">
+                    {selectedBet.outcomeName} {selectedBet.odds}
+                  </span>
+                </div>
+                {/* 金额输入 */}
+                <div className="flex-1 min-w-0 flex items-center border border-zinc-700 rounded bg-zinc-900 focus-within:border-white/40 overflow-hidden">
+                  <input
+                    type="number"
+                    placeholder={t("betslip.enterAmount")}
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(e.target.value)}
+                    min="1"
+                    max="10000"
+                    className="flex-1 min-w-0 px-2 py-1.5 bg-transparent text-white placeholder-zinc-500 focus:outline-none text-sm"
+                  />
+                  <span className="flex-shrink-0 px-2 py-1.5 text-xs text-zinc-400">
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              {/* 卡片第3行：流动性 + 潜在收益 */}
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <span>
+                  Liq.:{" "}
+                  <span className="text-zinc-300">
+                    {marketFullData
+                      ? (Number(marketFullData.totalLiquidity) / 1e6).toFixed(2)
+                      : "--"}
+                  </span>{" "}
+                  USDC
+                </span>
+                <span>
+                  Poten.Win:{" "}
+                  <span className="text-zinc-300">
+                    {betAmount && parseFloat(betAmount) > 0
+                      ? calculatePayout()
+                      : "--"}
+                  </span>{" "}
+                  USDC
+                </span>
+              </div>
+            </div>
+
+            {/* 分割线 */}
+            <div className="border-t border-zinc-700" />
+
+            <div className="p-4">
+              {/* 汇总信息 */}
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-400">
+                    {t("betslip.totalPayment")}
+                  </span>
+                  <span className="text-white font-semibold">
+                    {betAmount && parseFloat(betAmount) > 0
+                      ? parseFloat(betAmount).toFixed(2)
+                      : "--"}{" "}
+                    USDC
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-400">
+                    {t("betslip.totalPotentialWin")}
+                  </span>
+                  <span className="text-white font-semibold">
+                    {betAmount && parseFloat(betAmount) > 0
+                      ? calculatePayout()
+                      : "--"}{" "}
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              {needsApproval ? (
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleApprove}
+                  disabled={
+                    !betAmount ||
+                    parseFloat(betAmount) < 1 ||
+                    isApproving ||
+                    isApprovingConfirming ||
+                    isAllowanceLoading
+                  }
+                  isLoading={
+                    isApproving || isApprovingConfirming || isAllowanceLoading
+                  }
+                >
+                  {isApproving || isApprovingConfirming
+                    ? t("betslip.approving")
+                    : isAllowanceLoading
+                    ? t("betslip.checking")
+                    : t("betslip.approveUSDC")}
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handlePlaceBet}
+                  disabled={
+                    !betAmount ||
+                    parseFloat(betAmount) < 1 ||
+                    isBetting ||
+                    isBettingConfirming ||
+                    !isConnected
+                  }
+                  isLoading={isBetting || isBettingConfirming}
+                >
+                  {isBetting || isBettingConfirming
+                    ? t("betslip.trading")
+                    : t("betslip.trade")}
+                </Button>
+              )}
+
+              {/* 条款文字 */}
+              <p className="text-xs text-zinc-500 text-center mt-3">
+                {t("betslip.termsText")} {t("betslip.termsLink")}.
+              </p>
+            </div>
+          </>
         ) : (
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={handlePlaceBet}
-            disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || !isConnected}
-            isLoading={isBetting || isBettingConfirming}
-          >
-            {isBetting || isBettingConfirming ? 'Placing Bet...' : 'Place Bet'}
-          </Button>
+          <BetSlipEmpty />
         )}
       </div>
-
-      {!isConnected && (
-        <p className="text-xs text-zinc-400 text-center mt-3">
-          Connect wallet to place bet
-        </p>
-      )}
-
-      {needsApproval && (
-        <p className="text-xs text-zinc-400 text-center mt-3">
-          First time? Approve USDC spending
-        </p>
-      )}
     </Card>
   );
 }

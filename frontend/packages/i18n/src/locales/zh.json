@@ -113,7 +113,8 @@
       "participants": "人参与",
       "marketType": "玩法类型",
       "placeBet": "立即预测",
-      "viewDetails": "查看详情"
+      "viewDetails": "查看详情",
+      "participated": "已参与"
     },
     "pagination": {
       "prev": "上一页",
@@ -518,5 +519,22 @@
     "comingSoon": "即将推出",
     "showAll": "显示全部市场",
     "marketCount": "{{count}} 场比赛"
+  },
+  "betslip": {
+    "title": "投注单",
+    "empty": {
+      "title": "暂无投注",
+      "desc": "请选择一个结果进行投注"
+    },
+    "enterAmount": "输入金额...",
+    "totalPayment": "支付金额",
+    "totalPotentialWin": "预期收益",
+    "trade": "下注",
+    "trading": "下注中...",
+    "approving": "授权中...",
+    "checking": "检查中...",
+    "approveUSDC": "授权 USDC",
+    "termsText": "下注即表示您同意",
+    "termsLink": "使用条款"
   }
 }

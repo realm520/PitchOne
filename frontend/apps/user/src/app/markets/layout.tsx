@@ -36,7 +36,7 @@ export default function MarketsLayout({
         </main>
 
         {/* 右栏: BetSlip */}
-        <aside className="hidden lg:flex flex-col w-80 shrink-0 border-l border-dark-border bg-dark-bg">
+        <aside className="hidden lg:flex flex-col w-[360px] shrink-0 border-l border-dark-border bg-dark-bg">
           <div className="flex-1 overflow-y-auto p-4">
             <BetSlip />
           </div>
