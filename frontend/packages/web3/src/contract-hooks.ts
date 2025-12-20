@@ -372,8 +372,9 @@ export function useIsMarketLocked(marketAddress?: Address) {
     },
   });
 
-  // 市场锁定条件：状态不是 Open(0) 或 当前时间 >= kickoffTime
-  const isLocked = status !== undefined && status !== 0 ||
+  // V3 状态枚举：0=Created, 1=Open, 2=Locked, 3=Resolved, 4=Finalized
+  // 市场锁定条件：状态不是 Open(1) 或 当前时间 >= kickoffTime
+  const isLocked = (status !== undefined && status !== 1) ||
     (kickoffTime !== undefined && BigInt(Math.floor(Date.now() / 1000)) >= kickoffTime);
 
   return {
