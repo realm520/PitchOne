@@ -13,6 +13,7 @@ import { ReferralBinder } from "../components/referral";
 import { Navigation, HeaderActions } from "../components/Navigation";
 import { AppFooter } from "../components/AppFooter";
 import { DynamicHead } from "../components/DynamicHead";
+import { RouteProgressBar } from "../components/RouteProgressBar";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -30,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <RouteProgressBar />
         <Providers>
           <I18nProvider>
             <DynamicHead />
