@@ -263,7 +263,7 @@ export const ANVIL_ADDRESSES: ContractAddresses = {
 cd subgraph
 graph codegen
 graph build
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 ```
 
 ---

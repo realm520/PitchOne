@@ -118,7 +118,7 @@ pnpm dev
 cd subgraph
 graph codegen
 graph build
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 ```
 
 ## 核心模块

@@ -142,7 +142,7 @@ cast call $USDC "balanceOf(address)" $REFERRER --rpc-url http://localhost:8545
 
 脚本执行后，可以访问 GraphQL Playground 查询推荐数据：
 
-**URL**: http://localhost:8000/subgraphs/name/sportsbook-local/graphql
+**URL**: http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 
 **查询示例**：
 ```graphql

@@ -232,7 +232,7 @@ pnpm dev
 **测试步骤**:
 1. 完成账户 B 绑定账户 A
 2. 账户 B 下注触发返佣
-3. 访问 GraphQL Playground: `http://localhost:8000/subgraphs/name/pitchone-sportsbook/graphql`
+3. 访问 GraphQL Playground: `http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql`
 4. 执行查询
 
 **GraphQL 查询**:

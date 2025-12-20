@@ -98,7 +98,7 @@ graph codegen
 graph build
 
 # 部署到本地 Graph Node
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 
 # 部署到 The Graph Studio
 graph deploy --studio sportsbook
@@ -196,7 +196,7 @@ cd subgraph/
 cd subgraph/
 graph codegen
 graph build
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 ```
 
 #### 6. 验证数据流
@@ -205,10 +205,10 @@ graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbo
 curl -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets { id status } users { id totalBets } globalStats { totalMarkets totalVolume } }"}' \
-  http://localhost:8000/subgraphs/name/sportsbook-local
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook
 
 # 或访问 GraphQL Playground
-# http://localhost:8000/subgraphs/name/sportsbook-local/graphql
+# http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 ```
 
 ### 📋 一键式完整流程
@@ -252,7 +252,7 @@ cd ../subgraph/
 # 或使用: ./deploy.sh
 
 echo "环境启动完成！"
-echo "GraphQL Playground: http://localhost:8000/subgraphs/name/sportsbook-local/graphql"
+echo "GraphQL Playground: http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql"
 ```
 
 **现有脚本说明**：
@@ -294,12 +294,12 @@ graph codegen
 graph build
 
 # 4. 重新部署
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 
 # 5. 验证
 curl -X POST -H "Content-Type: application/json" \
   --data '{"query": "{ _meta { block { number } } }"}' \
-  http://localhost:8000/subgraphs/name/sportsbook-local
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook
 ```
 
 #### 场景 3：添加新的市场类型
@@ -326,7 +326,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 cd ../subgraph/
 # 修改 schema.graphql 和 src/mappings/*.ts
 graph codegen && graph build
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sportsbook-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 ```
 
 ### 🛠️ 常用调试命令
@@ -351,7 +351,7 @@ cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 "totalAssets()" --rpc-url h
 # 查看索引进度
 curl -X POST \
   -H "Content-Type: application/json" \
-  --data '{"query": "{ indexingStatusForCurrentVersion(subgraphName: \"sportsbook-local\") { synced health chains { latestBlock { number } } } }"}' \
+  --data '{"query": "{ indexingStatusForCurrentVersion(subgraphName: \"pitchone-sportsbook\") { synced health chains { latestBlock { number } } } }"}' \
   http://localhost:8030/graphql
 
 # 查看 Graph Node 日志
