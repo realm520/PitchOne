@@ -116,7 +116,7 @@ node config/update-config.js ../contracts/deployments/localhost.json
 # → 从 localhost.json 提取地址，生成 subgraph.yaml ✅
 
 # 步骤 5: 部署 Subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ## 🔍 验证自动化

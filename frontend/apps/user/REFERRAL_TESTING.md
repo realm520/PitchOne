@@ -30,7 +30,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 ### 3. 启动 Graph Node 和 Subgraph
 ```bash
 cd ../subgraph/
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ### 4. 启动前端开发服务器
@@ -232,7 +232,7 @@ pnpm dev
 **测试步骤**:
 1. 完成账户 B 绑定账户 A
 2. 账户 B 下注触发返佣
-3. 访问 GraphQL Playground: `http://localhost:8000/subgraphs/name/pitchone-local/graphql`
+3. 访问 GraphQL Playground: `http://localhost:8000/subgraphs/name/pitchone-sportsbook/graphql`
 4. 执行查询
 
 **GraphQL 查询**:

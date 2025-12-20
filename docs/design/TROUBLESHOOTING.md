@@ -7,7 +7,7 @@
 | 症状 | 可能原因 | 解决方案 |
 |------|----------|----------|
 | 脚本在步骤 2.5 停止 | 调用了错误的合约函数 | 检查函数名是否正确（`status()` vs `state()`） |
-| Subgraph 显示旧市场 | 未重新部署 Subgraph | 运行 `cd subgraph && ./reset-subgraph.sh` |
+| Subgraph 显示旧市场 | 未重新部署 Subgraph | 运行 `cd subgraph && ./deploy.sh -c -u -y` |
 | 前端数据未更新 | Subgraph 未索引新数据 | 检查 Factory 地址是否正确配置 |
 | 市场创建失败 | localhost.json 不存在或格式错误 | 重新运行 `Deploy.s.sol` |
 | Graph Node 未启动 | Docker 服务问题 | 运行 `docker compose up -d` |
@@ -116,7 +116,7 @@ fi
 # 更新 Subgraph 配置并重新部署
 cd subgraph
 sed -i "0,/address: \"0x[a-fA-F0-9]\{40\}\"/s//address: \"$ACTUAL_FACTORY\"/" subgraph.yaml
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ---
@@ -131,7 +131,7 @@ docker compose ps
 # 查询 Subgraph 索引状态
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  --data '{"query": "{ indexingStatusForCurrentVersion(subgraphName: \"pitchone-local\") { synced health fatalError { message } chains { latestBlock { number } } } }"}' \
+  --data '{"query": "{ indexingStatusForCurrentVersion(subgraphName: \"pitchone-sportsbook\") { synced health fatalError { message } chains { latestBlock { number } } } }"}' \
   http://localhost:8030/graphql | jq '.'
 ```
 
@@ -161,7 +161,7 @@ cd subgraph
 docker compose down -v
 docker compose up -d
 sleep 10
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 **如果有 fatalError**:
@@ -179,7 +179,7 @@ docker compose logs graph-node --tail 100 | grep -i error
 curl -s -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets(first: 5, orderBy: createdAtBlockNumber, orderDirection: desc) { id marketType createdAtBlockNumber } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq '.data.markets'
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq '.data.markets'
 ```
 
 **预期输出**: 返回最近创建的市场列表
@@ -195,7 +195,7 @@ cast logs --address $FACTORY --from-block 0 --rpc-url http://localhost:8545 | gr
 
 # 3. 重新部署 Subgraph
 cd subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ---
@@ -247,7 +247,7 @@ sed -i "0,/address: \"0x[a-fA-F0-9]\{40\}\"/s//address: \"$FACTORY\"/" subgraph.
 # 3. 重新部署 Subgraph
 graph codegen
 graph build
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label "v$(date +%s)" pitchone-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label "v$(date +%s)" pitchone-sportsbook
 
 # 4. 等待索引完成
 sleep 10
@@ -256,7 +256,7 @@ sleep 10
 curl -s -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets(first: 5) { id } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq '.data.markets'
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq '.data.markets'
 ```
 
 ---
@@ -365,10 +365,10 @@ echo "重建 Subgraph..."
 cd /home/harry/code/PitchOne/subgraph
 docker compose up -d
 sleep 10
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 
 echo "=== 完整重置完成 ==="
-echo "GraphQL Playground: http://localhost:8010/subgraphs/name/pitchone-local/graphql"
+echo "GraphQL Playground: http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql"
 ```
 
 ---
@@ -410,7 +410,7 @@ echo "GraphQL Playground: http://localhost:8010/subgraphs/name/pitchone-local/gr
 
 - **主文档**: `docs/design/AUTOMATED_DATA_FLOW.md`
 - **脚本源码**: `scripts/deploy-parimutuel-full.sh`
-- **Subgraph 重置脚本**: `subgraph/reset-subgraph.sh`
+- **Subgraph 重置脚本**: `subgraph/deploy.sh -c -u -y`
 - **合约部署脚本**: `contracts/script/Deploy.s.sol`
 
 ---

@@ -210,7 +210,7 @@ forge script script/SetupReferrals.s.sol:SetupReferrals --rpc-url http://localho
 forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
 
 # 3. 重新索引 Subgraph（如需要）
-cd ../subgraph && ./reset-subgraph.sh
+cd ../subgraph && ./deploy.sh -c -u -y
 ```
 
 ### 场景 2：仅创建更多测试数据
@@ -236,7 +236,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 forge script script/SimulateBets.s.sol:SimulateBets --rpc-url http://localhost:8545 --broadcast
 
 # 3. 重新部署 Subgraph
-cd ../subgraph && ./reset-subgraph.sh
+cd ../subgraph && ./deploy.sh -c -u -y
 ```
 
 ---

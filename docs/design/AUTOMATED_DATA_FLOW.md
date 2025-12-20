@@ -15,7 +15,7 @@ deployments/localhost.json (✅ 自动生成)
   ↓
   ├── CreateAllMarketTypes.s.sol (✅ 自动读取 - 支持全部 7 种市场类型)
   ├── SimulateBets.s.sol (✅ 自动读取)
-  └── reset-subgraph.sh (✅ 自动读取并部署)
+  └── deploy.sh -c -u -y (✅ 自动读取并部署)
        ↓
      subgraph.yaml (✅ 自动生成)
        ↓
@@ -121,9 +121,9 @@ function _loadConfig() internal {
 
 ### 步骤 4: localhost.json → subgraph.yaml → Graph Node
 
-**实现方式**: `reset-subgraph.sh` 一键完成配置更新和部署
+**实现方式**: `deploy.sh -c -u -y` 一键完成配置更新和部署
 
-**脚本**: `subgraph/reset-subgraph.sh`
+**脚本**: `subgraph/deploy.sh -c -u -y`
 
 **功能**:
 1. 清理旧的 Graph Node 数据
@@ -136,8 +136,8 @@ function _loadConfig() internal {
 如果是首次部署 Subgraph，需要先创建 Subgraph 名称：
 ```bash
 cd subgraph
-graph create --node http://localhost:8020/ pitchone-local
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label v0.1.0 pitchone-local
+graph create --node http://localhost:8020/ pitchone-sportsbook
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label v0.1.0 pitchone-sportsbook
 ```
 
 **支持的数据源**:
@@ -148,7 +148,7 @@ graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 --versio
 **使用方法**:
 ```bash
 cd subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 
 # 输出:
 # ========================================
@@ -159,7 +159,7 @@ cd subgraph
 # 3. 生成 Subgraph 代码... ✅
 # 4. 部署 Subgraph... ✅
 #
-# GraphQL: http://localhost:8010/subgraphs/name/pitchone-local
+# GraphQL: http://localhost:8010/subgraphs/name/pitchone-sportsbook
 ```
 
 ---
@@ -193,7 +193,7 @@ NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
 
 # 5. 重建 Subgraph（一键完成配置和部署）
 cd ../subgraph/
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 **预期结果**:
@@ -202,7 +202,7 @@ cd ../subgraph/
 - ✅ 创建 21 个测试市场（7 种类型 × 3 个）
 - ✅ 生成约 45 笔测试投注（5 个用户，90% 成功率）
 - ✅ Subgraph 索引所有市场和投注数据
-- ✅ GraphQL 查询端点：http://localhost:8010/subgraphs/name/pitchone-local
+- ✅ GraphQL 查询端点：http://localhost:8010/subgraphs/name/pitchone-sportsbook
 
 ---
 
@@ -248,7 +248,7 @@ PRIVATE_KEY=0xac0... \
 
 ```bash
 cd subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 
 # 输出应包含:
 # ========================================
@@ -259,7 +259,7 @@ cd subgraph
 # 3. 生成 Subgraph 代码... ✅
 # 4. 部署 Subgraph... ✅
 #
-# GraphQL: http://localhost:8010/subgraphs/name/pitchone-local
+# GraphQL: http://localhost:8010/subgraphs/name/pitchone-sportsbook
 ```
 
 ### 4. 验证 Subgraph 索引
@@ -269,7 +269,7 @@ cd subgraph
 curl -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets(first: 5) { id state } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq .
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq .
 
 # 应返回 21 个市场（7 种类型 × 3 个）
 # 示例输出:
@@ -325,7 +325,7 @@ NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
   --broadcast
 
 # 6. 重建 Subgraph
-cd ../subgraph && ./reset-subgraph.sh
+cd ../subgraph && ./deploy.sh -c -u -y
 ```
 
 ### 策略 2: 增量部署（推荐用于集成测试）
@@ -369,7 +369,7 @@ NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
   --broadcast
 
 # 5. 重建 Subgraph（会索引所有历史 + 新数据）
-cd ../subgraph && ./reset-subgraph.sh
+cd ../subgraph && ./deploy.sh -c -u -y
 ```
 
 **注意事项**：
@@ -384,7 +384,7 @@ cd ../subgraph && ./reset-subgraph.sh
 Deploy.s.sol → localhost.json ✅
 localhost.json → CreateAllMarketTypes.s.sol ✅
 localhost.json → SimulateBets.s.sol ✅
-reset-subgraph.sh → Graph Node ✅
+deploy.sh -c -u -y → Graph Node ✅
 ```
 
 ---
@@ -404,7 +404,7 @@ node config/update-config.js ../contracts/deployments/localhost.json
 
 ```bash
 cd subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ---
@@ -423,7 +423,7 @@ cd subgraph
 - ✅ `contracts/script/CreateAllMarketTypes.s.sol` - 市场创建逻辑（创建全部 7 种类型的市场）
 - ✅ `contracts/script/SimulateBets.s.sol` - 投注模拟逻辑（支持所有市场类型）
 - ✅ `subgraph/subgraph.yaml` - Subgraph 配置（监听 Factory 和 7 种模板）
-- ✅ `subgraph/reset-subgraph.sh` - Subgraph 重建脚本（一键清理、配置、部署）
+- ✅ `subgraph/deploy.sh -c -u -y` - Subgraph 重建脚本（一键清理、配置、部署）
 - ✅ `subgraph/src/mappings/*.ts` - Event handlers（处理 7 种市场类型的事件）
 
 ---
@@ -661,7 +661,7 @@ cast call $MARKET "pricingEngine()" --rpc-url http://localhost:8545
 curl -X POST \
   -H "Content-Type: application/json" \
   --data '{"query": "{ markets(where: { pricingEngine: \"<PARIMUTUEL_ADDRESS>\" }) { id totalVolume outcomeReserves } }"}' \
-  http://localhost:8010/subgraphs/name/pitchone-local | jq .
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook | jq .
 ```
 
 ### 关键差异和注意事项
@@ -762,7 +762,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   --broadcast
 
 # 6. 部署 Subgraph（索引所有市场包括 Parimutuel）
-cd ../subgraph && ./reset-subgraph.sh
+cd ../subgraph && ./deploy.sh -c -u -y
 ```
 
 ### 相关文档

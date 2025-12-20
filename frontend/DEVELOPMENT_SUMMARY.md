@@ -514,7 +514,7 @@ docker-compose up -d
 ### 4. 部署 Subgraph
 ```bash
 cd subgraph
-graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-local
+graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pitchone-sportsbook
 ```
 
 ### 5. 启动前端

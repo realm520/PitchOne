@@ -186,11 +186,11 @@ NUM_BETTORS=5 \
 ```bash
 # 方式 1: 完整重建（清理旧数据）
 cd subgraph/
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 
 # 方式 2: 初次部署（自动启动 Graph Node）
 cd subgraph/
-./deploy-local.sh
+./deploy.sh
 
 # 方式 3: 仅重新部署（Graph Node 已运行）
 cd subgraph/
@@ -248,16 +248,16 @@ NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
 
 # 4. 部署 Subgraph（使用现有脚本）
 cd ../subgraph/
-./reset-subgraph.sh
-# 或使用: ./deploy-local.sh
+./deploy.sh -c -u -y
+# 或使用: ./deploy.sh
 
 echo "环境启动完成！"
 echo "GraphQL Playground: http://localhost:8000/subgraphs/name/sportsbook-local/graphql"
 ```
 
 **现有脚本说明**：
-- `subgraph/reset-subgraph.sh` - 清理并重建 Subgraph（推荐用于完全重置）
-- `subgraph/deploy-local.sh` - 首次部署 Subgraph（包含完整检查和启动流程）
+- `subgraph/deploy.sh -c -u -y` - 清理并重建 Subgraph（推荐用于完全重置）
+- `subgraph/deploy.sh` - 首次部署 Subgraph（包含完整检查和启动流程）
 - `contracts/test_e2e.sh` - 端到端测试脚本（查询链上状态）
 
 ### 🔄 日常开发流程
@@ -279,7 +279,7 @@ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
 
 # 4. 重建 Subgraph
 cd ../subgraph/
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 #### 场景 2：仅修改 Subgraph Schema

@@ -127,7 +127,7 @@ contracts/deployments/localhost.json
 
 ### 步骤 4: 重建 Subgraph
 
-执行 `reset-subgraph.sh`，自动：
+执行 `deploy.sh -c -u -y`，自动：
 1. 停止并清理旧的 Graph Node 数据
 2. 重启 Graph Node Docker 容器
 3. 生成 Subgraph 代码（`graph codegen`）
@@ -136,8 +136,8 @@ contracts/deployments/localhost.json
 
 **输出**：
 ```
-GraphQL Endpoint: http://localhost:8010/subgraphs/name/pitchone-local
-GraphiQL UI: http://localhost:8010/subgraphs/name/pitchone-local/graphql
+GraphQL Endpoint: http://localhost:8010/subgraphs/name/pitchone-sportsbook
+GraphiQL UI: http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 ```
 
 ### 步骤 5: 验证数据流
@@ -264,7 +264,7 @@ NUM_BETTORS=5 MIN_BET_AMOUNT=10 MAX_BET_AMOUNT=100 BETS_PER_USER=2 \
 
 # 步骤 4: 重建 Subgraph
 cd ../subgraph
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ### 环境变量配置
@@ -332,7 +332,7 @@ docker-compose up -d
 sleep 15
 
 # 重新部署
-./reset-subgraph.sh
+./deploy.sh -c -u -y
 ```
 
 ## 🎓 相关文档
@@ -366,7 +366,7 @@ sleep 15
   - 市场总数: 7
 
 访问 GraphQL Playground：
-  http://localhost:8010/subgraphs/name/pitchone-local/graphql
+  http://localhost:8010/subgraphs/name/pitchone-sportsbook/graphql
 
 测试查询：
   { markets { id state marketType pricingEngine } }
