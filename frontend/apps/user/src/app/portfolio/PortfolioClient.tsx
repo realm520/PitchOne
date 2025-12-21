@@ -21,6 +21,9 @@ import {
   ErrorState,
 } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
+import PortfoliaHeader from './PortfolioHeader';
+import UnLogin from './un-login';
+import MyTickets from './MyTickets';
 
 type TabType = 'active' | 'settled' | 'all';
 
@@ -163,180 +166,16 @@ export function PortfolioClient() {
     return true;
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text={t('portfolio.loading')} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <ErrorState message={t('portfolio.loadError')} />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-dark-bg py-8">
       <Container size="lg">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">{t('portfolio.title')}</h1>
-          <p className="text-gray-400">{t('portfolio.subtitle')}</p>
-        </div>
-
-        {/* Stats Cards */}
-        {mounted && isConnected && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <Card padding="md">
-              <div className="text-center">
-                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalBetAmount')}</p>
-                <p className="text-2xl font-bold text-white">
-                  {stats.totalBetAmount.toFixed(2)} <span className="text-sm text-gray-400">USDC</span>
-                </p>
-              </div>
-            </Card>
-            <Card padding="md">
-              <div className="text-center">
-                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalMarkets')}</p>
-                <p className="text-2xl font-bold text-white">{stats.totalMarkets}</p>
-              </div>
-            </Card>
-            <Card padding="md">
-              <div className="text-center">
-                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalBets')}</p>
-                <p className="text-2xl font-bold text-white">{stats.totalBets}</p>
-              </div>
-            </Card>
-            <Card padding="md">
-              <div className="text-center">
-                <p className="text-sm text-gray-400 mb-1">{t('portfolio.stats.totalProfit')}</p>
-                <p className={`text-2xl font-bold ${stats.totalProfit >= 0 ? 'text-white' : 'text-zinc-400'}`}>
-                  {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)} <span className="text-sm text-gray-400">USDC</span>
-                </p>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {[
-            { key: 'active' as TabType, label: t('portfolio.tabs.active') },
-            { key: 'settled' as TabType, label: t('portfolio.tabs.settled') },
-            { key: 'all' as TabType, label: t('portfolio.tabs.all') },
-          ].map((tab) => (
-            <Button
-              key={tab.key}
-              variant={activeTab === tab.key ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Content */}
-        {mounted && !isConnected ? (
-          <Card padding="lg">
-            <EmptyState
-              icon={
-                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              }
-              title={t('portfolio.connectWallet')}
-              description={t('portfolio.connectDesc')}
-            />
-          </Card>
-        ) : !filteredPositions || filteredPositions.length === 0 ? (
-          <Card padding="lg">
-            <EmptyState
-              title={activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
-              description={t('portfolio.emptyDesc')}
-              action={
-                <Link href="/markets">
-                  <Button variant="primary">{t('portfolio.goToMarkets')}</Button>
-                </Link>
-              }
-            />
-          </Card>
+        {!isConnected || !mounted ? (
+          <UnLogin />
         ) : (
-          <div className="grid gap-4">
-            {filteredPositions.map((position) => (
-              <Link key={position.id} href={`/markets/${position.market.id}`}>
-                <Card hoverable padding="lg">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-white">
-                          {position.market.homeTeam ? translateTeam(position.market.homeTeam) : t('markets.unknown')} vs{' '}
-                          {position.market.awayTeam ? translateTeam(position.market.awayTeam) : t('markets.unknown')}
-                        </h3>
-                        {getStatusBadge(position.market.state)}
-                        {position.market.winnerOutcome !== undefined &&
-                          position.market.winnerOutcome === position.outcome && (
-                            <Badge variant="success">{t('portfolio.win')}</Badge>
-                          )}
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-400">
-                          <span className="font-medium">{t('portfolio.betDirection')}:</span>{' '}
-                          {getOutcomeNameFromConstants(position.market.templateId, position.outcome)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {t('portfolio.createdAt')}: {formatDate(position.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right space-y-2">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">{t('portfolio.betAmount')}</p>
-                        <p className="text-lg font-bold text-white">
-                          {position.totalInvested
-                            ? parseFloat(position.totalInvested).toFixed(2)
-                            : position.averageCost && position.balance
-                            ? (
-                                parseFloat(position.averageCost) *
-                                parseFloat(formatUnits(BigInt(position.balance), TOKEN_DECIMALS.USDC))
-                              ).toFixed(2)
-                            : t('portfolio.dataLoading')}{' '}
-                          {position.totalInvested || (position.averageCost && position.balance)
-                            ? 'USDC'
-                            : ''}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">{t('portfolio.expectedPayout')}</p>
-                        <p className="text-lg font-bold text-white">
-                          {(() => {
-                            const payout = calculateExpectedPayout(position);
-                            return payout > 0
-                              ? `${payout.toFixed(2)} USDC`
-                              : t('portfolio.dataLoading');
-                          })()}
-                        </p>
-                      </div>
-                      {position.market.state === MarketStatus.Resolved &&
-                        position.market.winnerOutcome === position.outcome && (
-                          <Button variant="primary" size="sm" className="mt-2">
-                            {t('portfolio.redeem')}
-                          </Button>
-                        )}
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+          <div className='flex flex-col gap-6'>
+            <PortfoliaHeader />
+            <MyTickets />
           </div>
         )}
       </Container>

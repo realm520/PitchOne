@@ -182,6 +182,27 @@
   "portfolio": {
     "title": "我的预测",
     "subtitle": "管理您的所有市场预测",
+    "balance": "账户余额",
+    "totalBet": "总投注",
+    "totalProfit": "总盈利",
+    "myTickets": "我的票据",
+    "batchClaim": "批量领取",
+    "ticketTabs": {
+      "all": "全部",
+      "claimable": "可领取"
+    },
+    "ticket": {
+      "match": "比赛",
+      "selection": "选择",
+      "payment": "投注额",
+      "odds": "赔率",
+      "payout": "预期收益",
+      "result": "结果",
+      "placed": "下注时间",
+      "bettingTx": "下注交易",
+      "claimingTx": "领取",
+      "claim": "领取"
+    },
     "loading": "加载预测数据...",
     "loadError": "无法加载预测数据",
     "tabs": {

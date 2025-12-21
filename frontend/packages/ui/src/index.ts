@@ -16,3 +16,18 @@ export { TwitterIcon, DiscordIcon } from './icons/SocialIcons';
 export { LoadingSpinner, type LoadingSpinnerProps } from './LoadingSpinner';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
+export {
+  Table,
+  Head,
+  Body,
+  Row,
+  Th,
+  Td,
+  type TableProps,
+  type HeadProps,
+  type BodyProps,
+  type RowProps,
+  type ThProps,
+  type TdProps,
+} from './Table';
+export { Pagination, type PaginationProps } from './Pagination';

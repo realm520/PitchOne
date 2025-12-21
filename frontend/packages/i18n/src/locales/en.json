@@ -182,6 +182,27 @@
   "portfolio": {
     "title": "My Predictions",
     "subtitle": "Manage all your market predictions",
+    "balance": "Balance",
+    "totalBet": "Total Bet",
+    "totalProfit": "Total Profit",
+    "myTickets": "My Tickets",
+    "batchClaim": "Batch Claim",
+    "ticketTabs": {
+      "all": "All",
+      "claimable": "Claimable"
+    },
+    "ticket": {
+      "match": "Match",
+      "selection": "Selection",
+      "payment": "Payment",
+      "odds": "Odds",
+      "payout": "Payout",
+      "result": "Result",
+      "placed": "Placed",
+      "bettingTx": "Betting Tx",
+      "claimingTx": "Claiming",
+      "claim": "Claim"
+    },
     "loading": "Loading predictions...",
     "loadError": "Failed to load predictions",
     "tabs": {

@@ -182,6 +182,27 @@
   "portfolio": {
     "title": "マイ予想",
     "subtitle": "すべてのマーケット予想を管理",
+    "balance": "アカウント残高",
+    "totalBet": "総ベット額",
+    "totalProfit": "総利益",
+    "myTickets": "マイチケット",
+    "batchClaim": "一括請求",
+    "ticketTabs": {
+      "all": "すべて",
+      "claimable": "請求可能"
+    },
+    "ticket": {
+      "match": "試合",
+      "selection": "選択",
+      "payment": "支払額",
+      "odds": "オッズ",
+      "payout": "払戻",
+      "result": "結果",
+      "placed": "ベット日時",
+      "bettingTx": "ベットTx",
+      "claimingTx": "請求",
+      "claim": "請求"
+    },
     "loading": "予想を読み込み中...",
     "loadError": "予想の読み込みに失敗しました",
     "tabs": {

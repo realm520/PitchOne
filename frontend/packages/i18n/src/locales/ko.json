@@ -182,6 +182,27 @@
   "portfolio": {
     "title": "내 예측",
     "subtitle": "모든 마켓 예측 관리",
+    "balance": "계정 잔액",
+    "totalBet": "총 베팅",
+    "totalProfit": "총 수익",
+    "myTickets": "내 티켓",
+    "batchClaim": "일괄 청구",
+    "ticketTabs": {
+      "all": "전체",
+      "claimable": "청구 가능"
+    },
+    "ticket": {
+      "match": "경기",
+      "selection": "선택",
+      "payment": "베팅액",
+      "odds": "배당률",
+      "payout": "예상 수익",
+      "result": "결과",
+      "placed": "베팅 시간",
+      "bettingTx": "베팅 Tx",
+      "claimingTx": "청구",
+      "claim": "청구"
+    },
     "loading": "예측 데이터 로딩 중...",
     "loadError": "예측 데이터를 불러올 수 없습니다",
     "tabs": {
