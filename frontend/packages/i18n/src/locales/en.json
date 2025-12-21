@@ -238,7 +238,9 @@
     "betAmount": "Bet Amount",
     "expectedPayout": "Expected Payout",
     "dataLoading": "Loading...",
-    "win": "Win",
+    "pending": "Pending",
+    "win": "Won",
+    "lose": "Lost",
     "redeem": "Redeem",
     "stats": {
       "totalBetAmount": "Total Bet Amount",

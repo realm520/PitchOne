@@ -28,7 +28,7 @@ const Table = forwardRef<HTMLDivElement, TableProps>(
           className={cn(
             'w-full min-w-[600px] text-sm text-left',
             bordered && 'border border-dark-border',
-            '[&_tbody_tr]:border-b [&_tbody_tr]:border-dark-border',
+            '[&_tbody_tr]:border-b [&_tbody_tr]:border-dark-border [&_tbody_tr:last-child]:border-b-0',
             striped && '[&_tbody_tr:nth-child(even)]:bg-dark-card/50',
             hoverable && '[&_tbody_tr:hover_td]:bg-white/10 [&_tbody_tr:hover_td:first-child]:rounded-l-lg [&_tbody_tr:hover_td:last-child]:rounded-r-lg'
           )}

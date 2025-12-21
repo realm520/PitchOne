@@ -3,7 +3,17 @@ import { useTranslation } from "@pitchone/i18n";
 import { Card, LoadingSpinner } from "@pitchone/ui";
 import { useAccount, useUSDCBalance, formatUSDCFromWei } from "@pitchone/web3";
 
-export default function PortfoliaHeader() {
+export default function Stats({
+    totalBetAmount,
+    totalMarkets,
+    totalBets,
+    totalProfit,
+}: {
+    totalBetAmount: number;
+    totalMarkets: number;
+    totalBets: number;
+    totalProfit: number;
+}) {
     const { t } = useTranslation();
     const { address, isConnected } = useAccount();
     const { data: balance, isLoading } = useUSDCBalance(address);
@@ -29,7 +39,7 @@ export default function PortfoliaHeader() {
                         <div className="flex flex-col items-center">
                             <h6>{t("portfolio.totalBet")}</h6>
                             <div className="flex items-baseline gap-1">
-                                <span className="font-bold text-3xl">245.00</span>
+                                <span className="font-bold text-3xl">{totalBetAmount.toFixed(2)}</span>
                                 <span>USDC</span>
                             </div>
                         </div>
@@ -38,7 +48,7 @@ export default function PortfoliaHeader() {
                         <div className="flex flex-col items-center">
                             <h6>{t("portfolio.totalProfit")}</h6>
                             <div className="flex items-baseline gap-1 text-[#17AD70]">
-                                <span className="font-bold text-3xl">245.00</span>
+                                <span className="font-bold text-3xl">{totalProfit.toFixed(2)}</span>
                                 <span>USDC</span>
                             </div>
                         </div>

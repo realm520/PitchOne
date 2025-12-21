@@ -1,11 +1,20 @@
 import { useTranslation } from "@pitchone/i18n";
 import { Button, Table, Head, Body, Row, Th, Td } from "@pitchone/ui";
+import { Position } from "@pitchone/web3";
+import {
+    calculateExpectedPayout,
+    getResultKey,
+    getSelection,
+    formatDate,
+    getLeagueCode,
+    formatUSDC,
+    formatAmount,
+} from "./utils";
 
-export default function TicketList() {
-    const { t } = useTranslation();
-
+export default function TicketList({ positions }: { positions?: Position[] }) {
+    const { t, translateTeam } = useTranslation();
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 text-xs">
             <Table striped hoverable>
                 <Head>
                     <Row>
@@ -21,17 +30,28 @@ export default function TicketList() {
                     </Row>
                 </Head>
                 <Body>
-                    <Row>
-                        <Td>曼联 vs 曼城</Td>
-                        <Td>主胜</Td>
-                        <Td>100 USDC</Td>
-                        <Td>2.45</Td>
-                        <Td>245 USDC</Td>
-                        <Td>胜利</Td>
-                        <Td>2024-10-01 12:30</Td>
-                        <Td>0x222</Td>
-                        <Td><Button size="sm">{t("portfolio.ticket.claim")}</Button></Td>
-                    </Row>
+                    {positions?.map((position) =>
+                        <Row key={position.id}>
+                            <Td>
+                                <div className="flex flex-col">
+                                    <div className="text-[10px]">{getLeagueCode(position)}</div>
+                                    <div className="font-bold">
+                                        {position.market.homeTeam ? translateTeam(position.market.homeTeam) : t('markets.unknown')} vs{' '}
+                                        {position.market.awayTeam ? translateTeam(position.market.awayTeam) : t('markets.unknown')}
+                                    </div>
+                                    <div>{formatDate(position.createdAt)}</div>
+                                </div>
+                            </Td>
+                            <Td>{getSelection(position, translateTeam)}</Td>
+                            <Td>{formatAmount(position.balance)}</Td>
+                            <Td>-</Td>
+                            <Td>{formatAmount(calculateExpectedPayout(position))}</Td>
+                            <Td>{t(getResultKey(position))}</Td>
+                            <Td>{formatDate(position.createdAt)}</Td>
+                            <Td>0x222</Td>
+                            <Td><Button size="sm">{t("portfolio.ticket.claim")}</Button></Td>
+                        </Row>
+                    )}
                 </Body>
             </Table>
         </div>

@@ -21,7 +21,7 @@ import {
   ErrorState,
 } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
-import Header from './PortfolioHeader';
+import Header from './Stats';
 import UnLogin from './un-login';
 
 type TabType = 'active' | 'settled' | 'all';
@@ -185,7 +185,6 @@ export function PortfolioClient() {
     <div className="min-h-screen bg-dark-bg py-8">
       <Container size="lg">
         {/* Header */}
-        <Header />
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">{t('portfolio.title')}</h1>
           <p className="text-gray-400">{t('portfolio.subtitle')}</p>
