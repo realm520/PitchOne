@@ -1,7 +1,7 @@
 import { useTranslation } from "@pitchone/i18n";
 import { Card, EmptyState } from "@pitchone/ui";
 
-export default function UnLogin() {
+export default function UnConnected({ isConnecting }: { isConnecting?: boolean }) {
     const { t } = useTranslation()
     return (
         <Card padding="lg">
@@ -16,7 +16,7 @@ export default function UnLogin() {
                         />
                     </svg>
                 }
-                title={t('portfolio.connectWallet')}
+                title={isConnecting ? t('portfolio.connecting') : t('portfolio.connectWallet')}
                 description={t('portfolio.connectDesc')}
             />
         </Card>

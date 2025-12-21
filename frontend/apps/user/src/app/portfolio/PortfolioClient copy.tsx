@@ -22,7 +22,7 @@ import {
 } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
 import Header from './Stats';
-import UnLogin from './un-login';
+import UnConnected from './UnConnected';
 
 type TabType = 'active' | 'settled' | 'all';
 
@@ -244,7 +244,7 @@ export function PortfolioClient() {
 
         {/* Content */}
         {mounted && !isConnected ? (
-          <UnLogin />
+          <UnConnected />
         ) : !filteredPositions || filteredPositions.length === 0 ? (
           <Card padding="lg">
             <EmptyState

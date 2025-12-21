@@ -227,6 +227,7 @@
     },
     "connectWallet": "Please connect wallet",
     "connectDesc": "Connect wallet to view your predictions",
+    "connecting": "Connecting wallet...",
     "empty": "No positions",
     "emptyActive": "No active predictions",
     "emptySettled": "No settled predictions",

@@ -71,7 +71,7 @@ export default function MyTickets() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+            <div className="min-h-screen bg-dark-bg flex items-center justify-center h-100vh">
                 <LoadingSpinner size="lg" />
             </div>
         )
