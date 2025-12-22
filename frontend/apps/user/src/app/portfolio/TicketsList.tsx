@@ -1,20 +1,26 @@
 import { useTranslation } from "@pitchone/i18n";
-import { Button, Table, Head, Body, Row, Th, Td } from "@pitchone/ui";
+import { Table, Head, Body, Row, Th, Td } from "@pitchone/ui";
 import { Position } from "@pitchone/web3";
+import { motion } from "framer-motion";
 import {
     calculateExpectedPayout,
     getResultKey,
     getSelection,
     formatDate,
     getLeagueCode,
-    formatUSDC,
     formatAmount,
 } from "./utils";
+import ClaimButton from "./components/ClaimButton";
 
 export default function TicketList({ positions }: { positions?: Position[] }) {
     const { t, translateTeam } = useTranslation();
     return (
-        <div className="flex flex-col gap-4 text-xs">
+        <motion.div
+            className="flex flex-col gap-4 text-xs"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+        >
             <Table striped hoverable>
                 <Head>
                     <Row>
@@ -26,7 +32,7 @@ export default function TicketList({ positions }: { positions?: Position[] }) {
                         <Th>{t("portfolio.ticket.result")}</Th>
                         <Th>{t("portfolio.ticket.placed")}</Th>
                         <Th>{t("portfolio.ticket.bettingTx")}</Th>
-                        <Th>{t("portfolio.ticket.claimingTx")}</Th>
+                        <Th className="text-right">{t("portfolio.ticket.claimingTx")}</Th>
                     </Row>
                 </Head>
                 <Body>
@@ -49,11 +55,13 @@ export default function TicketList({ positions }: { positions?: Position[] }) {
                             <Td>{t(getResultKey(position))}</Td>
                             <Td>{formatDate(position.createdAt)}</Td>
                             <Td>0x222</Td>
-                            <Td><Button size="sm">{t("portfolio.ticket.claim")}</Button></Td>
+                            <Td className="text-right">
+                                <ClaimButton position={position} />
+                            </Td>
                         </Row>
                     )}
                 </Body>
             </Table>
-        </div>
+        </motion.div>
     );
 }

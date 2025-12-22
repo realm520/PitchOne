@@ -216,7 +216,11 @@
       "placed": "Placed",
       "bettingTx": "Betting Tx",
       "claimingTx": "Claiming",
-      "claim": "Claim"
+      "claim": "Claim",
+      "claiming": "Claiming...",
+      "claimed": "Claimed",
+      "pending": "Pending",
+      "lost": "Lost"
     },
     "loading": "Loading predictions...",
     "loadError": "Failed to load predictions",
