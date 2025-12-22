@@ -24,6 +24,7 @@
     "delete": "删除",
     "edit": "编辑",
     "back": "返回",
+    "copied": "已复制",
     "next": "下一步",
     "previous": "上一步",
     "search": "搜索",
@@ -176,7 +177,21 @@
       "confirmBetBtn": "确认预测",
       "connectWalletWarning": "请先连接钱包",
       "firstBetApproval": "首次预测需要授权 USDC",
-      "result": "结果"
+      "result": "结果",
+      "sport": "运动",
+      "soccer": "足球",
+      "matchTime": "比赛时间",
+      "contract": "合约",
+      "vs": "vs",
+      "winner": "获胜方",
+      "activity": "活动记录",
+      "time": "时间",
+      "owner": "用户",
+      "selected": "选择",
+      "paid": "支付(U)",
+      "payout": "回报(U)",
+      "status": "状态",
+      "noActivity": "暂无活动记录"
     }
   },
   "portfolio": {
@@ -548,6 +563,42 @@
     "showAll": "显示全部市场",
     "marketCount": "{{count}} 场比赛"
   },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "主胜",
+      "draw": "平局",
+      "awayWin": "客胜"
+    },
+    "ou": {
+      "over": "大球",
+      "under": "小球",
+      "overLine": "大 {{line}}",
+      "underLine": "小 {{line}}"
+    },
+    "ah": {
+      "homeCover": "主队赢盘",
+      "awayCover": "客队赢盘",
+      "push": "走盘",
+      "homeHandicap": "主队 {{line}}",
+      "awayHandicap": "客队 {{line}}",
+      "pushRefund": "走盘（退款）"
+    },
+    "oddEven": {
+      "odd": "单数",
+      "even": "双数"
+    },
+    "score": {
+      "other": "其他比分"
+    },
+    "playerProps": {
+      "over": "大于",
+      "under": "小于",
+      "yes": "是",
+      "no": "否",
+      "player": "球员 {{id}}"
+    },
+    "fallback": "结果 {{id}}"
+  },
   "betslip": {
     "title": "投注单",
     "empty": {
@@ -563,6 +614,9 @@
     "checking": "检查中...",
     "approveUSDC": "授权 USDC",
     "termsText": "下注即表示您同意",
-    "termsLink": "使用条款"
+    "termsLink": "使用条款",
+    "liquidity": "流动性",
+    "potentialWin": "预期收益",
+    "connectWallet": "连接钱包"
   }
 }

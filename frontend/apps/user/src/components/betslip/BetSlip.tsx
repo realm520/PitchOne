@@ -167,13 +167,22 @@ export function BetSlip({ className }: BetSlipProps) {
     if (!betAmount || !selectedBet || !marketFullData) return "0.00";
 
     const amount = parseFloat(betAmount);
-    const feeRate = Number(marketFullData.feeRate) / 10000;
+    if (isNaN(amount) || amount <= 0) return "0.00";
+
+    // 防御性检查：feeRate 可能未定义
+    const feeRate = marketFullData.feeRate ? Number(marketFullData.feeRate) / 10000 : 0;
     const netAmount = amount * (1 - feeRate);
 
+    // 检查 outcomeId 是否有效
+    const outcomeId = selectedBet.outcomeId;
+    if (outcomeId < 0 || outcomeId >= marketFullData.outcomeLiquidity.length) {
+      return "0.00";
+    }
+
     if (marketFullData.isParimutel) {
-      const newTotalPool = Number(marketFullData.totalLiquidity) + amount * 1e6;
+      const newTotalPool = Number(marketFullData.totalLiquidity || 0n) + amount * 1e6;
       const currentOutcomeBets = Number(
-        marketFullData.outcomeLiquidity[selectedBet.outcomeId]
+        marketFullData.outcomeLiquidity[outcomeId] || 0n
       );
       const newOutcomeBets = currentOutcomeBets + amount * 1e6;
       const netPool = newTotalPool * (1 - feeRate);
@@ -186,24 +195,34 @@ export function BetSlip({ className }: BetSlipProps) {
     } else {
       const outcomeCount = Number(marketFullData.outcomeCount);
       const reserves = marketFullData.outcomeLiquidity.map((r: bigint) =>
-        Number(r)
+        Number(r || 0n)
       );
       let shares = 0;
 
       if (outcomeCount === 2) {
-        const r_target = reserves[selectedBet.outcomeId];
-        const r_other = reserves[1 - selectedBet.outcomeId];
+        const r_target = reserves[outcomeId] || 0;
+        const r_other = reserves[1 - outcomeId] || 0;
+        if (r_target === 0 || r_other === 0) {
+          // 使用赔率作为后备
+          const odds = parseFloat(selectedBet.odds);
+          return isNaN(odds) ? "0.00" : (netAmount * odds).toFixed(2);
+        }
         const k = r_target * r_other;
         const r_other_new = r_other + netAmount * 1e6;
         const r_target_new = k / r_other_new;
         shares = r_target - r_target_new;
       } else if (outcomeCount === 3) {
-        const r_target = reserves[selectedBet.outcomeId];
+        const r_target = reserves[outcomeId] || 0;
         let opponent_total = 0;
         for (let i = 0; i < 3; i++) {
-          if (i !== selectedBet.outcomeId) {
-            opponent_total += reserves[i];
+          if (i !== outcomeId) {
+            opponent_total += reserves[i] || 0;
           }
+        }
+        if (r_target === 0 || opponent_total === 0) {
+          // 使用赔率作为后备
+          const odds = parseFloat(selectedBet.odds);
+          return isNaN(odds) ? "0.00" : (netAmount * odds).toFixed(2);
         }
         const k_approx = r_target * opponent_total;
         const opponent_total_new = opponent_total + netAmount * 1e6;
@@ -212,7 +231,13 @@ export function BetSlip({ className }: BetSlipProps) {
       } else {
         // Multi-outcome markets: use current odds as approximation
         const odds = parseFloat(selectedBet.odds);
-        return (amount * odds).toFixed(2);
+        return isNaN(odds) ? "0.00" : (netAmount * odds).toFixed(2);
+      }
+
+      // 最终检查
+      if (isNaN(shares) || shares < 0) {
+        const odds = parseFloat(selectedBet.odds);
+        return isNaN(odds) ? "0.00" : (netAmount * odds).toFixed(2);
       }
 
       return (shares / 1e6).toFixed(2);
@@ -299,7 +324,9 @@ export function BetSlip({ className }: BetSlipProps) {
                 {/* 结果徽章 */}
                 <div className="flex-shrink-0 px-3 py-1.5 bg-zinc-700 rounded">
                   <span className="text-sm font-semibold text-white whitespace-nowrap">
-                    {selectedBet.outcomeName} {selectedBet.odds}
+                    {selectedBet.outcomeName.startsWith('outcomes.')
+                      ? t(selectedBet.outcomeName, { id: selectedBet.outcomeId })
+                      : selectedBet.outcomeName} {selectedBet.odds}
                   </span>
                 </div>
                 {/* 金额输入 */}
@@ -322,7 +349,7 @@ export function BetSlip({ className }: BetSlipProps) {
               {/* 卡片第3行：流动性 + 潜在收益 */}
               <div className="flex items-center justify-between text-xs text-zinc-500">
                 <span>
-                  Liq.:{" "}
+                  {t("betslip.liquidity")}:{" "}
                   <span className="text-zinc-300">
                     {marketFullData
                       ? (Number(marketFullData.totalLiquidity) / 1e6).toFixed(2)
@@ -331,7 +358,7 @@ export function BetSlip({ className }: BetSlipProps) {
                   USDC
                 </span>
                 <span>
-                  Poten.Win:{" "}
+                  {t("betslip.potentialWin")}:{" "}
                   <span className="text-zinc-300">
                     {betAmount && parseFloat(betAmount) > 0
                       ? calculatePayout()
@@ -401,15 +428,17 @@ export function BetSlip({ className }: BetSlipProps) {
                   fullWidth
                   onClick={handlePlaceBet}
                   disabled={
+                    !isConnected ||
                     !betAmount ||
                     parseFloat(betAmount) < 1 ||
                     isBetting ||
-                    isBettingConfirming ||
-                    !isConnected
+                    isBettingConfirming
                   }
                   isLoading={isBetting || isBettingConfirming}
                 >
-                  {isBetting || isBettingConfirming
+                  {!isConnected
+                    ? t("betslip.connectWallet")
+                    : isBetting || isBettingConfirming
                     ? t("betslip.trading")
                     : t("betslip.trade")}
                 </Button>

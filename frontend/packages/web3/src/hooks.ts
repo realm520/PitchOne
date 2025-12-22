@@ -158,19 +158,19 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
     OddEven: 'OddEven',
   };
 
-  // 类型代码 -> 中文显示名称
-  const typeDisplayMap: Record<string, string> = {
-    WDL: '胜平负',
-    OU: '大小球',
-    OU_MULTI: '大小球（多线）',
-    AH: '让球',
-    Score: '精确比分',
-    OddEven: '单双号',
+  // 类型代码 -> i18n key
+  const typeDisplayKeyMap: Record<string, string> = {
+    WDL: 'markets.type.wdl',
+    OU: 'markets.type.ou',
+    OU_MULTI: 'markets.type.ou',
+    AH: 'markets.type.ah',
+    Score: 'markets.type.score',
+    OddEven: 'markets.type.oddEven',
   };
 
   // 从 templateId 提取类型代码
   const templateType = templateIdToTypeMap[market.templateId] || 'WDL';
-  const templateTypeDisplay = typeDisplayMap[templateType] || '未知玩法';
+  const templateTypeDisplay = typeDisplayKeyMap[templateType] || 'markets.unknown';
 
   // 格式化球数显示
   let lineDisplay: string | undefined = undefined;
@@ -193,10 +193,14 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
     lineDisplay = formattedLines.join('、') + ' 球';
   }
 
+  // 从 matchId 解析联赛 ID（如 "EPL_2024_MUN_vs_MCI" -> "EPL"）
+  const matchIdParts = market.matchId.split('_');
+  const league = matchIdParts[0] || 'UNKNOWN';
+
   return {
     homeTeam: market.homeTeam,
     awayTeam: market.awayTeam,
-    league: 'EPL', // TODO: 从 matchId 或其他字段解析
+    league, // 从 matchId 解析的联赛 ID
     templateType, // 英文类型代码，用于内部逻辑
     templateTypeDisplay, // 中文显示名称，用于 UI 展示
     lineDisplay, // 格式化的球数显示

@@ -4,41 +4,55 @@ import toast from 'react-hot-toast';
  * 通知工具库
  */
 
-// Toast 通知配置
+// Toast 通知配置 - 极简深色主题
+const baseStyle = {
+  background: '#18181b',
+  color: '#ffffff',
+  border: '1px solid #27272a',
+  borderRadius: '8px',
+  fontSize: '14px',
+  padding: '12px 16px',
+};
+
 const toastConfig = {
   success: {
-    duration: 4000,
-    icon: '✅',
+    duration: 3000,
+    icon: '✓',
     style: {
-      background: '#10b981',
-      color: '#fff',
-      border: '1px solid #059669',
+      ...baseStyle,
+      borderColor: '#3f3f46',
+    },
+    iconTheme: {
+      primary: '#ffffff',
+      secondary: '#18181b',
     },
   },
   error: {
     duration: 5000,
-    icon: '❌',
+    icon: '✕',
     style: {
-      background: '#ef4444',
-      color: '#fff',
-      border: '1px solid #dc2626',
+      ...baseStyle,
+      borderColor: '#52525b',
+    },
+    iconTheme: {
+      primary: '#a1a1aa',
+      secondary: '#18181b',
     },
   },
   loading: {
-    icon: '⏳',
-    style: {
-      background: '#3b82f6',
-      color: '#fff',
-      border: '1px solid #2563eb',
+    style: baseStyle,
+    iconTheme: {
+      primary: '#a1a1aa',
+      secondary: '#18181b',
     },
   },
   info: {
-    duration: 4000,
-    icon: '💡',
-    style: {
-      background: '#06b6d4',
-      color: '#fff',
-      border: '1px solid #0891b2',
+    duration: 3000,
+    icon: '○',
+    style: baseStyle,
+    iconTheme: {
+      primary: '#a1a1aa',
+      secondary: '#18181b',
     },
   },
 };

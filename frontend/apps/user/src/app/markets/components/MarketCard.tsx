@@ -17,9 +17,10 @@ import { OutcomeButton } from '../../../components/betslip';
 
 interface MarketCardProps {
   market: Market;
+  totalLiquidity?: bigint; // 来自合约的链上流动性（包含初始流动性）
 }
 
-export function MarketCard({ market }: MarketCardProps) {
+export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
   const { t, translateTeam, translateLeague } = useTranslation();
   const { selectBet, isSelected } = useBetSlipStore();
   const { address } = useAccount();
@@ -111,7 +112,9 @@ export function MarketCard({ market }: MarketCardProps) {
           {/* Right: Market type and Status */}
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-400">
-              {market._displayInfo?.templateTypeDisplay || t('markets.unknown')}
+              {market._displayInfo?.templateTypeDisplay
+                ? t(market._displayInfo.templateTypeDisplay)
+                : t('markets.unknown')}
             </span>
             {market._displayInfo?.lineDisplay && (
               <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
@@ -177,9 +180,14 @@ export function MarketCard({ market }: MarketCardProps) {
 
         {/* Bottom row: Volume/Players | Participated */}
         <div className="flex items-center justify-between text-xs">
-          {/* Left: Volume and participants */}
+          {/* Left: Liquidity and participants */}
           <div className="flex items-center gap-2 text-gray-500">
-            <span>{Number(market.totalVolume).toFixed(2)} USDC</span>
+            <span>
+              {totalLiquidity
+                ? (Number(totalLiquidity) / 1e6).toFixed(2)
+                : Number(market.totalVolume).toFixed(2)}{' '}
+              USDC
+            </span>
             <span>|</span>
             <span>{market.uniqueBettors} {t('markets.card.participants')}</span>
           </div>

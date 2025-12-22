@@ -63,14 +63,16 @@ export default function RootLayout({
             </SidebarProvider>
           </I18nProvider>
           <Toaster
-            position="top-right"
+            position="top-center"
             reverseOrder={false}
             toastOptions={{
               style: {
-                background: '#1a1a2e',
+                background: '#18181b',
                 color: '#fff',
-                border: '1px solid #2a2a3e',
+                border: '1px solid #27272a',
                 borderRadius: '8px',
+                fontSize: '14px',
+                padding: '12px 16px',
               },
             }}
           />

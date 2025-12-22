@@ -355,6 +355,26 @@ export interface OutcomeData {
 }
 
 /**
+ * 根据市场类型获取预期的 outcome 数量
+ * 用于限制显示的结果数量，防止合约返回异常数据时显示过多按钮
+ *
+ * @param templateType 市场模板类型
+ * @returns 预期的 outcome 数量，null 表示不限制
+ */
+function getExpectedOutcomeCount(templateType: string): number | null {
+  switch (templateType) {
+    case 'WDL': return 3;      // 胜平负：主胜、平局、客胜
+    case 'OU': return 2;       // 大小球：大、小
+    case 'OU_MULTI': return null; // 多线大小球：由线数决定
+    case 'AH': return 3;       // 让球：主队赢盘、客队赢盘、走盘（整球盘）
+    case 'OddEven': return 2;  // 单双：单、双
+    case 'Score': return null; // 精确比分：不限制
+    case 'PlayerProps': return null; // 球员道具：不限制
+    default: return 3;         // 默认返回 3（WDL 最常见）
+  }
+}
+
+/**
  * 获取格式化的 Outcome 数据（包括名称和实时赔率）
  *
  * @param marketAddress 市场合约地址
@@ -380,9 +400,16 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
     return { data: null, isLoading, error, refetch };
   }
 
-  const outcomeCount = Number(marketData.outcomeCount);
+  const rawOutcomeCount = Number(marketData.outcomeCount);
   const outcomeLiquidity = marketData.outcomeLiquidity;
   const totalLiquidity = marketData.totalLiquidity;
+
+  // 根据市场类型限制显示的 outcome 数量
+  // 防止合约返回异常数据时显示过多按钮
+  const expectedCount = getExpectedOutcomeCount(templateType || 'WDL');
+  const outcomeCount = expectedCount !== null
+    ? Math.min(rawOutcomeCount, expectedCount)
+    : rawOutcomeCount;
 
   // 计算每个 outcome 的数据
   const outcomes: OutcomeData[] = [];
@@ -536,69 +563,57 @@ function parseLineValue(lineStr?: string): number | null {
 }
 
 /**
- * 根据模板类型和 outcome ID 获取名称
+ * 根据模板类型和 outcome ID 获取 i18n key
  * @param outcomeId 结果 ID
  * @param templateType 模板类型
  * @param line 盘口线（千分位表示，如 "2500" = 2.5 球）
+ * @returns i18n key（如 "outcomes.wdl.homeWin"）
  */
 function getOutcomeName(outcomeId: number, templateType: string, line?: string): string {
   // OU_MULTI 特殊处理：outcomeId = lineIndex * 2 + direction（仅半球盘）
   if (templateType === 'OU_MULTI') {
-    const lineIndex = Math.floor(outcomeId / 2);
     const direction = outcomeId % 2; // 0=OVER, 1=UNDER
-
-    // 常见的线配置（2.5, 3.5, 4.5）
-    const lines = [2.5, 3.5, 4.5];
-    const lineValue = lines[lineIndex] || lineIndex;
-
-    if (direction === 0) {
-      return `大于 ${lineValue} 球`;
-    } else {
-      return `小于 ${lineValue} 球`;
-    }
+    return direction === 0 ? 'outcomes.ou.over' : 'outcomes.ou.under';
   }
 
-  // OU（单线大小球）：显示完整的盘口线信息
+  // OU（单线大小球）
   if (templateType === 'OU') {
-    const lineValue = parseLineValue(line);
-    if (lineValue !== null) {
-      const lineDisplay = lineValue % 1 === 0 ? lineValue.toFixed(1) : lineValue.toString();
-      if (outcomeId === 0) {
-        return `大于 ${lineDisplay} 球`;
-      } else {
-        return `小于 ${lineDisplay} 球`;
-      }
-    }
-    // 如果没有盘口线信息，使用默认名称
-    return outcomeId === 0 ? '大球' : '小球';
+    return outcomeId === 0 ? 'outcomes.ou.over' : 'outcomes.ou.under';
   }
 
-  // AH（让球）：显示让球数
+  // AH（让球）
   if (templateType === 'AH') {
-    const lineValue = parseLineValue(line);
-    if (lineValue !== null) {
-      const absValue = Math.abs(lineValue);
-      const lineDisplay = absValue % 1 === 0 ? absValue.toFixed(1) : absValue.toString();
-      // 让球市场：outcomeId 0 = 主队赢盘, 1 = 客队赢盘, 2 = 走盘（整球盘）
-      if (outcomeId === 0) {
-        return `主队让 ${lineDisplay} 球赢盘`;
-      } else if (outcomeId === 1) {
-        return `客队受让 ${lineDisplay} 球赢盘`;
-      } else {
-        return '走盘（退款）';
-      }
+    if (outcomeId === 0) {
+      return 'outcomes.ah.homeCover';
+    } else if (outcomeId === 1) {
+      return 'outcomes.ah.awayCover';
+    } else {
+      return 'outcomes.ah.push';
     }
-    // 没有盘口线信息时的默认名称
-    const ahNames = ['主队赢盘', '客队赢盘', '走盘'];
-    return ahNames[outcomeId] || `结果 ${outcomeId}`;
   }
 
-  const nameMap: Record<string, string[]> = {
-    WDL: ['主胜', '平局', '客胜'],
-    OddEven: ['单数', '双数'],
-    Score: [], // 精确比分需要特殊处理
-  };
+  // OddEven（单双）
+  if (templateType === 'OddEven') {
+    return outcomeId === 0 ? 'outcomes.oddEven.odd' : 'outcomes.oddEven.even';
+  }
 
-  const names = nameMap[templateType] || [];
-  return names[outcomeId] || `结果 ${outcomeId}`;
+  // WDL（胜平负）
+  if (templateType === 'WDL') {
+    const keys = ['outcomes.wdl.homeWin', 'outcomes.wdl.draw', 'outcomes.wdl.awayWin'];
+    return keys[outcomeId] || 'outcomes.fallback';
+  }
+
+  // Score（精确比分）
+  if (templateType === 'Score') {
+    if (outcomeId === 999) {
+      return 'outcomes.score.other';
+    }
+    // 比分格式不需要翻译，直接返回
+    const homeGoals = Math.floor(outcomeId / 10);
+    const awayGoals = outcomeId % 10;
+    return `${homeGoals}-${awayGoals}`;
+  }
+
+  // 默认返回 fallback key
+  return 'outcomes.fallback';
 }

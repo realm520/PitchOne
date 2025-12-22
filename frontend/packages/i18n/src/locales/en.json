@@ -24,6 +24,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "back": "Back",
+    "copied": "Copied!",
     "next": "Next",
     "previous": "Previous",
     "search": "Search",
@@ -176,7 +177,21 @@
       "confirmBetBtn": "Confirm Prediction",
       "connectWalletWarning": "Please connect your wallet first",
       "firstBetApproval": "First bet requires USDC approval",
-      "result": "Result"
+      "result": "Result",
+      "sport": "Sport",
+      "soccer": "Soccer",
+      "matchTime": "Match Time",
+      "contract": "Contract",
+      "vs": "vs",
+      "winner": "Winner",
+      "activity": "Activity",
+      "time": "Time",
+      "owner": "Owner",
+      "selected": "Selected",
+      "paid": "Paid(U)",
+      "payout": "Payout(U)",
+      "status": "Status",
+      "noActivity": "No activity yet"
     }
   },
   "portfolio": {
@@ -548,6 +563,42 @@
     "showAll": "Show All Markets",
     "marketCount": "{{count}} matches"
   },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "Home",
+      "draw": "Draw",
+      "awayWin": "Away"
+    },
+    "ou": {
+      "over": "Over",
+      "under": "Under",
+      "overLine": "Over {{line}}",
+      "underLine": "Under {{line}}"
+    },
+    "ah": {
+      "homeCover": "Home Cover",
+      "awayCover": "Away Cover",
+      "push": "Push",
+      "homeHandicap": "Home {{line}}",
+      "awayHandicap": "Away {{line}}",
+      "pushRefund": "Push (Refund)"
+    },
+    "oddEven": {
+      "odd": "Odd",
+      "even": "Even"
+    },
+    "score": {
+      "other": "Other"
+    },
+    "playerProps": {
+      "over": "Over",
+      "under": "Under",
+      "yes": "Yes",
+      "no": "No",
+      "player": "Player {{id}}"
+    },
+    "fallback": "Outcome {{id}}"
+  },
   "betslip": {
     "title": "TICKET SLIP",
     "empty": {
@@ -563,6 +614,9 @@
     "checking": "Checking...",
     "approveUSDC": "Approve USDC",
     "termsText": "By trading, you agree to the",
-    "termsLink": "Terms of Use"
+    "termsLink": "Terms of Use",
+    "liquidity": "Liq.",
+    "potentialWin": "Poten.Win",
+    "connectWallet": "Connect Wallet"
   }
 }

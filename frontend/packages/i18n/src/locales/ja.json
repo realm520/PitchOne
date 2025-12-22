@@ -24,6 +24,7 @@
     "delete": "削除",
     "edit": "編集",
     "back": "戻る",
+    "copied": "コピーしました",
     "next": "次へ",
     "previous": "前へ",
     "search": "検索",
@@ -176,7 +177,21 @@
       "confirmBetBtn": "予想確認",
       "connectWalletWarning": "先にウォレットを接続してください",
       "firstBetApproval": "初回ベットにはUSDC承認が必要です",
-      "result": "結果"
+      "result": "結果",
+      "sport": "スポーツ",
+      "soccer": "サッカー",
+      "matchTime": "試合時間",
+      "contract": "コントラクト",
+      "vs": "vs",
+      "winner": "勝者",
+      "activity": "アクティビティ",
+      "time": "時間",
+      "owner": "ユーザー",
+      "selected": "選択",
+      "paid": "支払(U)",
+      "payout": "配当(U)",
+      "status": "ステータス",
+      "noActivity": "アクティビティはありません"
     }
   },
   "portfolio": {
@@ -548,6 +563,42 @@
     "showAll": "全てのマーケットを表示",
     "marketCount": "{{count}} 試合"
   },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "ホーム勝利",
+      "draw": "引き分け",
+      "awayWin": "アウェイ勝利"
+    },
+    "ou": {
+      "over": "オーバー",
+      "under": "アンダー",
+      "overLine": "オーバー {{line}}",
+      "underLine": "アンダー {{line}}"
+    },
+    "ah": {
+      "homeCover": "ホームカバー",
+      "awayCover": "アウェイカバー",
+      "push": "プッシュ",
+      "homeHandicap": "ホーム {{line}}",
+      "awayHandicap": "アウェイ {{line}}",
+      "pushRefund": "プッシュ（払戻）"
+    },
+    "oddEven": {
+      "odd": "奇数",
+      "even": "偶数"
+    },
+    "score": {
+      "other": "その他"
+    },
+    "playerProps": {
+      "over": "オーバー",
+      "under": "アンダー",
+      "yes": "はい",
+      "no": "いいえ",
+      "player": "選手 {{id}}"
+    },
+    "fallback": "結果 {{id}}"
+  },
   "betslip": {
     "title": "ベットスリップ",
     "empty": {
@@ -563,6 +614,9 @@
     "checking": "確認中...",
     "approveUSDC": "USDCを承認",
     "termsText": "ベットすることで、以下に同意したことになります：",
-    "termsLink": "利用規約"
+    "termsLink": "利用規約",
+    "liquidity": "流動性",
+    "potentialWin": "予想獲得",
+    "connectWallet": "ウォレットを接続"
   }
 }

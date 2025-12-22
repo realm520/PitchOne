@@ -24,6 +24,7 @@
     "delete": "삭제",
     "edit": "편집",
     "back": "뒤로",
+    "copied": "복사됨",
     "next": "다음",
     "previous": "이전",
     "search": "검색",
@@ -176,7 +177,21 @@
       "confirmBetBtn": "예측 확인",
       "connectWalletWarning": "지갑을 먼저 연결해 주세요",
       "firstBetApproval": "첫 베팅에는 USDC 승인이 필요합니다",
-      "result": "결과"
+      "result": "결과",
+      "sport": "스포츠",
+      "soccer": "축구",
+      "matchTime": "경기 시간",
+      "contract": "컨트랙트",
+      "vs": "vs",
+      "winner": "승자",
+      "activity": "활동",
+      "time": "시간",
+      "owner": "사용자",
+      "selected": "선택",
+      "paid": "지불(U)",
+      "payout": "배당(U)",
+      "status": "상태",
+      "noActivity": "아직 활동이 없습니다"
     }
   },
   "portfolio": {
@@ -548,6 +563,42 @@
     "showAll": "모든 마켓 보기",
     "marketCount": "{{count}} 경기"
   },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "홈 승",
+      "draw": "무승부",
+      "awayWin": "원정 승"
+    },
+    "ou": {
+      "over": "오버",
+      "under": "언더",
+      "overLine": "오버 {{line}}",
+      "underLine": "언더 {{line}}"
+    },
+    "ah": {
+      "homeCover": "홈 커버",
+      "awayCover": "원정 커버",
+      "push": "푸시",
+      "homeHandicap": "홈 {{line}}",
+      "awayHandicap": "원정 {{line}}",
+      "pushRefund": "푸시 (환불)"
+    },
+    "oddEven": {
+      "odd": "홀수",
+      "even": "짝수"
+    },
+    "score": {
+      "other": "기타"
+    },
+    "playerProps": {
+      "over": "오버",
+      "under": "언더",
+      "yes": "예",
+      "no": "아니오",
+      "player": "선수 {{id}}"
+    },
+    "fallback": "결과 {{id}}"
+  },
   "betslip": {
     "title": "베팅 슬립",
     "empty": {
@@ -563,6 +614,9 @@
     "checking": "확인 중...",
     "approveUSDC": "USDC 승인",
     "termsText": "베팅하면 다음에 동의하는 것입니다:",
-    "termsLink": "이용약관"
+    "termsLink": "이용약관",
+    "liquidity": "유동성",
+    "potentialWin": "예상 수익",
+    "connectWallet": "지갑 연결"
   }
 }

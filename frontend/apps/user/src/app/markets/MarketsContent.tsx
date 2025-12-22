@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMarkets, MarketStatus } from "@pitchone/web3";
+import { useMarkets, MarketStatus, useMultipleMarketsData } from "@pitchone/web3";
+import type { Address } from "viem";
 import { useTranslation } from "@pitchone/i18n";
 import {
   Container,
@@ -82,6 +83,25 @@ export function MarketsContent() {
     );
   }, [markets, typeFilter, selectedLeague]);
 
+  // 获取所有市场地址，用于批量查询链上流动性
+  const marketAddresses = useMemo(() => {
+    return filteredMarkets.map((m) => m.id as Address);
+  }, [filteredMarkets]);
+
+  // 批量获取链上流动性数据
+  const { data: marketsChainData } = useMultipleMarketsData(marketAddresses);
+
+  // 创建 address -> totalLiquidity 映射
+  const liquidityMap = useMemo(() => {
+    const map = new Map<string, bigint>();
+    if (marketsChainData) {
+      marketsChainData.forEach((item) => {
+        map.set(item.address.toLowerCase(), item.totalLiquidity);
+      });
+    }
+    return map;
+  }, [marketsChainData]);
+
   // Group markets by day
   const marketsByDay = useMemo((): MarketsByDay[] => {
     if (!filteredMarkets || filteredMarkets.length === 0) return [];
@@ -141,6 +161,9 @@ export function MarketsContent() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-accent mb-2">
             {currentLeagueName ? currentLeagueName : t("markets.listTitle")}
+            <span className="text-2xl text-gray-500 font-normal ml-2">
+              ({filteredMarkets.length})
+            </span>
           </h1>
           <p className="text-gray-400">
             {currentLeagueName
@@ -286,7 +309,11 @@ export function MarketsContent() {
                 {/* Market list */}
                 <div className="space-y-2">
                   {dayGroup.markets?.map((market) => (
-                    <MarketCard key={market.id} market={market} />
+                    <MarketCard
+                      key={market.id}
+                      market={market}
+                      totalLiquidity={liquidityMap.get(market.id.toLowerCase())}
+                    />
                   ))}
                 </div>
               </div>

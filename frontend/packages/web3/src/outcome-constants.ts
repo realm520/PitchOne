@@ -20,10 +20,10 @@ export const WDL_OUTCOMES = {
   AWAY_WIN: 2,
 } as const;
 
-export const WDL_OUTCOME_NAMES: Record<number, string> = {
-  [WDL_OUTCOMES.HOME_WIN]: '主胜',
-  [WDL_OUTCOMES.DRAW]: '平局',
-  [WDL_OUTCOMES.AWAY_WIN]: '客胜',
+export const WDL_OUTCOME_KEYS: Record<number, string> = {
+  [WDL_OUTCOMES.HOME_WIN]: 'outcomes.wdl.homeWin',
+  [WDL_OUTCOMES.DRAW]: 'outcomes.wdl.draw',
+  [WDL_OUTCOMES.AWAY_WIN]: 'outcomes.wdl.awayWin',
 };
 
 /**
@@ -39,9 +39,9 @@ export const OU_OUTCOMES = {
   UNDER: 1,
 } as const;
 
-export const OU_OUTCOME_NAMES: Record<number, string> = {
-  [OU_OUTCOMES.OVER]: '大球',
-  [OU_OUTCOMES.UNDER]: '小球',
+export const OU_OUTCOME_KEYS: Record<number, string> = {
+  [OU_OUTCOMES.OVER]: 'outcomes.ou.over',
+  [OU_OUTCOMES.UNDER]: 'outcomes.ou.under',
 };
 
 /**
@@ -63,10 +63,10 @@ export const AH_OUTCOMES = {
   PUSH: 2,
 } as const;
 
-export const AH_OUTCOME_NAMES: Record<number, string> = {
-  [AH_OUTCOMES.HOME_COVER]: '主队赢盘',
-  [AH_OUTCOMES.AWAY_COVER]: '客队赢盘',
-  [AH_OUTCOMES.PUSH]: '走盘',
+export const AH_OUTCOME_KEYS: Record<number, string> = {
+  [AH_OUTCOMES.HOME_COVER]: 'outcomes.ah.homeCover',
+  [AH_OUTCOMES.AWAY_COVER]: 'outcomes.ah.awayCover',
+  [AH_OUTCOMES.PUSH]: 'outcomes.ah.push',
 };
 
 /**
@@ -82,9 +82,9 @@ export const ODDEVEN_OUTCOMES = {
   EVEN: 1,
 } as const;
 
-export const ODDEVEN_OUTCOME_NAMES: Record<number, string> = {
-  [ODDEVEN_OUTCOMES.ODD]: '单数',
-  [ODDEVEN_OUTCOMES.EVEN]: '双数',
+export const ODDEVEN_OUTCOME_KEYS: Record<number, string> = {
+  [ODDEVEN_OUTCOMES.ODD]: 'outcomes.oddEven.odd',
+  [ODDEVEN_OUTCOMES.EVEN]: 'outcomes.oddEven.even',
 };
 
 /**
@@ -102,15 +102,22 @@ export const SCORE_OUTCOMES = {
 /**
  * 格式化比分 outcome
  * @param outcomeId - Outcome ID
- * @returns 格式化的比分字符串（如 "2-1"）
+ * @returns 格式化的比分字符串（如 "2-1"）或 i18n key
  */
 export function formatScoreOutcome(outcomeId: number): string {
   if (outcomeId === SCORE_OUTCOMES.OTHER) {
-    return '其他比分';
+    return 'outcomes.score.other';
   }
   const homeGoals = Math.floor(outcomeId / 10);
   const awayGoals = outcomeId % 10;
   return `${homeGoals}-${awayGoals}`;
+}
+
+/**
+ * 检查是否是需要翻译的 i18n key
+ */
+export function isI18nKey(value: string): boolean {
+  return value.startsWith('outcomes.');
 }
 
 /**
@@ -132,48 +139,50 @@ export const PLAYER_PROPS_OUTCOMES = {
   NO: 1,
 } as const;
 
-export const PLAYER_PROPS_OU_NAMES: Record<number, string> = {
-  [PLAYER_PROPS_OUTCOMES.OVER]: '大于',
-  [PLAYER_PROPS_OUTCOMES.UNDER]: '小于',
+export const PLAYER_PROPS_OU_KEYS: Record<number, string> = {
+  [PLAYER_PROPS_OUTCOMES.OVER]: 'outcomes.playerProps.over',
+  [PLAYER_PROPS_OUTCOMES.UNDER]: 'outcomes.playerProps.under',
 };
 
-export const PLAYER_PROPS_YN_NAMES: Record<number, string> = {
-  [PLAYER_PROPS_OUTCOMES.YES]: '是',
-  [PLAYER_PROPS_OUTCOMES.NO]: '否',
+export const PLAYER_PROPS_YN_KEYS: Record<number, string> = {
+  [PLAYER_PROPS_OUTCOMES.YES]: 'outcomes.playerProps.yes',
+  [PLAYER_PROPS_OUTCOMES.NO]: 'outcomes.playerProps.no',
 };
 
 /**
- * 通用工具函数：根据市场类型和 outcome ID 获取名称
+ * 通用工具函数：根据市场类型和 outcome ID 获取 i18n key
  *
  * @param templateId - 市场模板 ID
  * @param outcomeId - Outcome ID
  * @param propType - 球员道具类型（可选）
- * @returns Outcome 名称
+ * @returns i18n key 或直接显示的字符串（如比分 "2-1"）
  */
-export function getOutcomeName(
+export function getOutcomeKey(
   templateId: string | undefined,
   outcomeId: number,
   propType?: string
 ): string {
+  const fallbackKey = 'outcomes.fallback';
+
   if (!templateId) {
-    return `结果 ${outcomeId}`;
+    return fallbackKey;
   }
 
-  // 根据模板类型返回对应名称
+  // 根据模板类型返回对应 i18n key
   if (templateId === 'WDL' || templateId === '0x00000000') {
-    return WDL_OUTCOME_NAMES[outcomeId] || `结果 ${outcomeId}`;
+    return WDL_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
   if (templateId === 'OU' || templateId?.includes('OU')) {
-    return OU_OUTCOME_NAMES[outcomeId] || `结果 ${outcomeId}`;
+    return OU_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
   if (templateId === 'AH') {
-    return AH_OUTCOME_NAMES[outcomeId] || `结果 ${outcomeId}`;
+    return AH_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
   if (templateId === 'OddEven') {
-    return ODDEVEN_OUTCOME_NAMES[outcomeId] || `结果 ${outcomeId}`;
+    return ODDEVEN_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
   if (templateId === 'Score') {
@@ -181,17 +190,22 @@ export function getOutcomeName(
   }
 
   if (templateId === 'PlayerProps') {
-    // 根据道具类型返回不同名称
+    // 根据道具类型返回不同 i18n key
     if (propType?.includes('OU')) {
-      return PLAYER_PROPS_OU_NAMES[outcomeId] || `结果 ${outcomeId}`;
+      return PLAYER_PROPS_OU_KEYS[outcomeId] || fallbackKey;
     }
     if (propType?.includes('YN')) {
-      return PLAYER_PROPS_YN_NAMES[outcomeId] || `结果 ${outcomeId}`;
+      return PLAYER_PROPS_YN_KEYS[outcomeId] || fallbackKey;
     }
     // 首位进球者类型
-    return `球员 ${outcomeId}`;
+    return 'outcomes.playerProps.player';
   }
 
   // 默认返回
-  return `结果 ${outcomeId}`;
+  return fallbackKey;
 }
+
+/**
+ * @deprecated 使用 getOutcomeKey 替代，并在组件中使用 t() 翻译
+ */
+export const getOutcomeName = getOutcomeKey;
