@@ -201,7 +201,11 @@
       "placed": "下注时间",
       "bettingTx": "下注交易",
       "claimingTx": "领取",
-      "claim": "领取"
+      "claim": "领取",
+      "claiming": "领取中...",
+      "claimed": "已领取",
+      "pending": "进行中",
+      "lost": "未中奖"
     },
     "loading": "加载预测数据...",
     "loadError": "无法加载预测数据",

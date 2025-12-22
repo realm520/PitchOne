@@ -1,36 +1,48 @@
 import { useTranslation } from "@pitchone/i18n";
-import { Button, Card, EmptyState, ErrorState, Input, LoadingSpinner, Pagination } from "@pitchone/ui";
+import { Button, Card, EmptyState, ErrorState, Input } from "@pitchone/ui";
 import { useState } from "react";
 import TicketList from "./TicketsList";
 import { MarketStatus, Position, useAccount, useUserPositions } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
 import { MOCK_POSITIONS } from "./data";
-import { calculateExpectedPayout } from "./utils";
+import { calculateExpectedPayout, getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 type TabType = 'all' | 'claimable';
 
 /**
- * 根据关键字过滤 positions
+ * 根据 Tab 和关键字过滤 positions
  */
-const filterPositions = (positions: Position[], keyword: string): Position[] => {
-    if (!keyword.trim()) return positions;
+const filterPositions = (
+    positions: Position[],
+    tab: TabType,
+    keyword: string
+): Position[] => {
+    let filtered = positions;
 
-    const lowerKeyword = keyword.toLowerCase().trim();
+    // 按 Tab 筛选
+    if (tab === 'claimable') {
+        filtered = filtered.filter((pos) => getClaimStatus(pos) === 'claimable');
+    }
 
-    return positions.filter((pos) => {
-        // 搜索主队名
-        if (pos.market.homeTeam?.toLowerCase().includes(lowerKeyword)) return true;
-        // 搜索客队名
-        if (pos.market.awayTeam?.toLowerCase().includes(lowerKeyword)) return true;
-        // 搜索 matchId（包含联赛代码）
-        if (pos.market.matchId?.toLowerCase().includes(lowerKeyword)) return true;
-        // 搜索市场 ID
-        if (pos.market.id?.toLowerCase().includes(lowerKeyword)) return true;
+    // 按关键字筛选
+    if (keyword.trim()) {
+        const lowerKeyword = keyword.toLowerCase().trim();
+        filtered = filtered.filter((pos) => {
+            // 搜索主队名
+            if (pos.market.homeTeam?.toLowerCase().includes(lowerKeyword)) return true;
+            // 搜索客队名
+            if (pos.market.awayTeam?.toLowerCase().includes(lowerKeyword)) return true;
+            // 搜索 matchId（包含联赛代码）
+            if (pos.market.matchId?.toLowerCase().includes(lowerKeyword)) return true;
+            // 搜索市场 ID
+            if (pos.market.id?.toLowerCase().includes(lowerKeyword)) return true;
+            return false;
+        });
+    }
 
-        return false;
-    });
+    return filtered;
 };
 
 export default function MyTickets() {
@@ -105,7 +117,7 @@ export default function MyTickets() {
                     <h2>{t('portfolio.myTickets')}</h2>
                     <div className="flex flex-col gap-6">
                         <div className="flex justify-between">
-                            <div>
+                            <div className="flex gap-4">
                                 {[
                                     { key: 'all' as TabType, label: t('portfolio.ticketTabs.all') },
                                     { key: 'claimable' as TabType, label: t('portfolio.ticketTabs.claimable') },
@@ -122,7 +134,7 @@ export default function MyTickets() {
                             </div>
                             <div className="flex gap-2">
                                 <Input
-                                    className="p-1"
+                                    className="p-1 w-64"
                                     placeholder={t('portfolio.searchPlaceholder')}
                                     value={keyword}
                                     onChange={(e) => setKeyword(e.target.value)}
@@ -142,7 +154,7 @@ export default function MyTickets() {
                                 <ErrorState message={t('portfolio.loadError')} />
                             </div>
                         ) : (() => {
-                            const filteredPositions = filterPositions(MOCK_POSITIONS, keyword);
+                            const filteredPositions = filterPositions(MOCK_POSITIONS, activeTab as TabType, keyword);
                             return filteredPositions.length === 0 ? (
                                 <EmptyState
                                     title={keyword ? t('portfolio.noSearchResults') : activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}

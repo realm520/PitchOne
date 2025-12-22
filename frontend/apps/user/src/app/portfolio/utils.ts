@@ -1,5 +1,38 @@
-import { Position, TOKEN_DECIMALS, getOutcomeName } from "@pitchone/web3";
+import { Position, MarketStatus, TOKEN_DECIMALS, getOutcomeName } from "@pitchone/web3";
 import { formatUnits } from "viem/utils";
+
+/**
+ * Claim 状态类型
+ */
+export type ClaimStatus = 'claimable' | 'claimed' | 'lost' | 'pending';
+
+/**
+ * 获取头寸的 claim 状态
+ */
+export const getClaimStatus = (position: Position): ClaimStatus => {
+    const { state, winnerOutcome } = position.market;
+
+    // 市场未结算，还在进行中
+    if (state === MarketStatus.Open || state === MarketStatus.Locked) {
+        return 'pending';
+    }
+
+    // 市场已结算（Resolved 或 Finalized）
+    if (state === MarketStatus.Resolved || state === MarketStatus.Finalized) {
+        // 用户的 outcome 与赢家 outcome 匹配
+        if (winnerOutcome !== undefined && winnerOutcome === position.outcome) {
+            // 检查是否还有余额可领取
+            const balance = parseFloat(position.balance);
+            if (balance > 0) {
+                return 'claimable';
+            }
+            return 'claimed';
+        }
+        return 'lost';
+    }
+
+    return 'pending';
+};
 
 /**
  * 计算预期收益

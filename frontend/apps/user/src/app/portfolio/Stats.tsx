@@ -27,9 +27,7 @@ export default function Stats({
                 <div className="flex flex-col">
                     <p className="text-sm text-gray-400 mb-1">{t('portfolio.balance')}</p>
                     <div className="flex items-baseline gap-1">
-                        {isLoading ? (
-                            <LoadingSpinner size="sm" />
-                        ) : <span className="font-bold text-4xl">{formattedBalance}</span>}
+                        <span className="font-bold text-4xl">{formattedBalance}</span>
                         <span className="text-gray-400">USDC</span>
                     </div>
                 </div>
