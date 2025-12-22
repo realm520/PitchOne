@@ -424,10 +424,10 @@ contract Deploy_V3 is Script {
         // - CPMM 需要足够流动性避免单笔下注耗尽储备
         // - LMSR 的 b 参数 = liquidity / (outcomeCount² * 10000)，需要足够大以支持小额下注
         // - Score 市场有 36 个 outcomes
-        // - 每个市场 5k 初始流动性（足够支持小额下注测试）
-        // - 24 个市场（15 AMM + 9 Parimutuel）× 5k = 75k（Parimutuel 不需要流动性）
-        uint256 cpmmLiquidity = 5_000 * tokenUnit;  // 5k 代币
-        uint256 lmsrLiquidity = 5_000 * tokenUnit;  // 5k 代币
+        // - 每个市场 3k 初始流动性（足够支持小额下注测试）
+        // - 24 个市场（15 AMM + 9 Parimutuel）× 3k = 45k（Parimutuel 不需要流动性）
+        uint256 cpmmLiquidity = 3_000 * tokenUnit;  // 3k 代币
+        uint256 lmsrLiquidity = 3_000 * tokenUnit;  // 3k 代币
         // WDL 模板（使用 CPMM，3 个结果）
         IMarket_V3.OutcomeRule[] memory wdlOutcomes = new IMarket_V3.OutcomeRule[](3);
         wdlOutcomes[0] = IMarket_V3.OutcomeRule({
