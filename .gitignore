@@ -33,6 +33,9 @@ contracts/foundry.lock
 contracts/deployments/
 contracts/deployments/*/run-*.json
 
+# API 数据缓存
+contracts/data/
+
 # ============================================
 # Subgraph
 # ============================================
