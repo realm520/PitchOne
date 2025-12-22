@@ -30,7 +30,7 @@ const Table = forwardRef<HTMLDivElement, TableProps>(
             bordered && 'border border-dark-border',
             '[&_tbody_tr]:border-b [&_tbody_tr]:border-dark-border [&_tbody_tr:last-child]:border-b-0',
             striped && '[&_tbody_tr:nth-child(even)]:bg-dark-card/50',
-            hoverable && '[&_tbody_tr:hover_td]:bg-white/10 [&_tbody_tr:hover_td:first-child]:rounded-l-lg [&_tbody_tr:hover_td:last-child]:rounded-r-lg'
+            hoverable && '[&_tbody_tr_td]:transition-colors [&_tbody_tr_td]:duration-200 [&_tbody_tr:hover_td]:bg-white/10 [&_tbody_tr:hover_td:first-child]:rounded-l-lg [&_tbody_tr:hover_td:last-child]:rounded-r-lg'
           )}
         >
           {children}
@@ -46,7 +46,7 @@ Table.displayName = 'Table';
 // Table Head
 // ============================================================================
 
-export interface HeadProps extends HTMLAttributes<HTMLTableSectionElement> {}
+export interface HeadProps extends HTMLAttributes<HTMLTableSectionElement> { }
 
 const Head = forwardRef<HTMLTableSectionElement, HeadProps>(
   ({ className, children, ...props }, ref) => {
@@ -68,7 +68,7 @@ Head.displayName = 'Head';
 // Table Body
 // ============================================================================
 
-export interface BodyProps extends HTMLAttributes<HTMLTableSectionElement> {}
+export interface BodyProps extends HTMLAttributes<HTMLTableSectionElement> { }
 
 const Body = forwardRef<HTMLTableSectionElement, BodyProps>(
   ({ className, children, ...props }, ref) => {
@@ -86,7 +86,7 @@ Body.displayName = 'Body';
 // Table Row
 // ============================================================================
 
-export interface RowProps extends HTMLAttributes<HTMLTableRowElement> {}
+export interface RowProps extends HTMLAttributes<HTMLTableRowElement> { }
 
 const Row = forwardRef<HTMLTableRowElement, RowProps>(
   ({ className, children, ...props }, ref) => {

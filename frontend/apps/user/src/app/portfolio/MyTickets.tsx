@@ -2,17 +2,40 @@ import { useTranslation } from "@pitchone/i18n";
 import { Button, Card, EmptyState, ErrorState, Input, LoadingSpinner, Pagination } from "@pitchone/ui";
 import { useState } from "react";
 import TicketList from "./TicketsList";
-import { MarketStatus, useAccount, useUserPositions } from "@pitchone/web3";
+import { MarketStatus, Position, useAccount, useUserPositions } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
 import { MOCK_POSITIONS } from "./data";
 import { calculateExpectedPayout } from "./utils";
+import { LoadingFallback } from "@/components/LoadingFallback";
 
 type TabType = 'all' | 'claimable';
 
+/**
+ * 根据关键字过滤 positions
+ */
+const filterPositions = (positions: Position[], keyword: string): Position[] => {
+    if (!keyword.trim()) return positions;
+
+    const lowerKeyword = keyword.toLowerCase().trim();
+
+    return positions.filter((pos) => {
+        // 搜索主队名
+        if (pos.market.homeTeam?.toLowerCase().includes(lowerKeyword)) return true;
+        // 搜索客队名
+        if (pos.market.awayTeam?.toLowerCase().includes(lowerKeyword)) return true;
+        // 搜索 matchId（包含联赛代码）
+        if (pos.market.matchId?.toLowerCase().includes(lowerKeyword)) return true;
+        // 搜索市场 ID
+        if (pos.market.id?.toLowerCase().includes(lowerKeyword)) return true;
+
+        return false;
+    });
+};
+
 export default function MyTickets() {
     const [activeTab, setActiveTab] = useState('all')
-    const [keyword, setKeyword] = useState()
+    const [keyword, setKeyword] = useState('')
     const { address } = useAccount();
     const { data: positions, isLoading, error } = useUserPositions(address);
     const [currentPage, setCurrentPage] = useState(1);
@@ -69,22 +92,6 @@ export default function MyTickets() {
         };
     })();
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-dark-bg flex items-center justify-center h-100vh">
-                <LoadingSpinner size="lg" />
-            </div>
-        )
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-                <ErrorState message={t('portfolio.loadError')} />
-            </div>
-        )
-    }
-
     return (
         <div className="flex flex-col gap-6">
             <Stats
@@ -114,37 +121,50 @@ export default function MyTickets() {
                                 ))}
                             </div>
                             <div className="flex gap-2">
-                                <Input className=" p-1" />
+                                <Input
+                                    className="p-1"
+                                    placeholder={t('portfolio.searchPlaceholder')}
+                                    value={keyword}
+                                    onChange={(e) => setKeyword(e.target.value)}
+                                />
                                 <Button variant="neon" size="sm" >
                                     {t('portfolio.batchClaim')}
                                 </Button>
                             </div>
                         </div>
 
-
-
-                        {positions && positions.length === 0 ? (
-                            <EmptyState
-                                title={activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
-                                description={t('portfolio.emptyDesc')}
-                                action={
-                                    <Link href="/markets">
-                                        <Button variant="primary">{t('portfolio.goToMarkets')}</Button>
-                                    </Link>
-                                }
-                            />
-                        ) : (
-                            <div className="flex flex-col gap-6">
-                                <TicketList positions={MOCK_POSITIONS} />
-                                {/* <div className="flex justify-end">
-                                    <Pagination
-                                        currentPage={currentPage}
-                                        totalPages={totalPages}
-                                        onPageChange={setCurrentPage}
-                                    />
-                                </div> */}
+                        {isLoading ? (
+                            <div className="flex items-center justify-center">
+                                <LoadingFallback type="position" height="224px" />
                             </div>
-                        )}
+                        ) : error ? (
+                            <div className="flex items-center justify-center">
+                                <ErrorState message={t('portfolio.loadError')} />
+                            </div>
+                        ) : (() => {
+                            const filteredPositions = filterPositions(MOCK_POSITIONS, keyword);
+                            return filteredPositions.length === 0 ? (
+                                <EmptyState
+                                    title={keyword ? t('portfolio.noSearchResults') : activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
+                                    description={keyword ? t('portfolio.tryDifferentKeyword') : t('portfolio.emptyDesc')}
+                                    action={
+                                        keyword ? (
+                                            <Button variant="secondary" onClick={() => setKeyword('')}>
+                                                {t('portfolio.clearSearch')}
+                                            </Button>
+                                        ) : (
+                                            <Link href="/markets">
+                                                <Button variant="primary">{t('portfolio.goToMarkets')}</Button>
+                                            </Link>
+                                        )
+                                    }
+                                />
+                            ) : (
+                                <div className="flex flex-col gap-6">
+                                    <TicketList positions={filteredPositions} />
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </Card>

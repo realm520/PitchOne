@@ -15,7 +15,7 @@ export default function Stats({
     totalProfit: number;
 }) {
     const { t } = useTranslation();
-    const { address, isConnected } = useAccount();
+    const { address } = useAccount();
     const { data: balance, isLoading } = useUSDCBalance(address);
 
     // 格式化余额显示
@@ -47,7 +47,7 @@ export default function Stats({
                     <Card className="py-2 px-4">
                         <div className="flex flex-col items-center">
                             <h6>{t("portfolio.totalProfit")}</h6>
-                            <div className="flex items-baseline gap-1 text-[#17AD70]">
+                            <div className={`flex items-baseline gap-1 ${totalProfit < 0 ? 'text-red-500' : 'text-[#17AD70]'}`}>
                                 <span className="font-bold text-3xl">{totalProfit.toFixed(2)}</span>
                                 <span>USDC</span>
                             </div>
