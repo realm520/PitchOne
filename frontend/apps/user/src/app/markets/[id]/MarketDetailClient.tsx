@@ -125,7 +125,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   useEffect(() => {
     if (betPlacedEvents.length > 0 && market && outcomes) {
       const latestBet = betPlacedEvents[0];
-      const outcomeName = outcomes[Number(latestBet.outcomeId)]?.name || `结果 ${latestBet.outcomeId}`;
+      const outcomeName = outcomes[Number(latestBet.outcomeId)]?.name || `${t('markets.detail.outcomeLabel')} ${latestBet.outcomeId}`;
       const amount = formatUnits(latestBet.amount, 6);
 
       // 排除自己的下注（已经有专门的通知）
@@ -290,8 +290,8 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     if (isBetSuccess && betToastId) {
       console.log('[BET] 交易成功，更新 toast 并刷新数据');
       const outcomeName = outcomes && selectedOutcome !== null
-        ? outcomes[selectedOutcome]?.name || `结果 ${selectedOutcome}`
-        : '未知结果';
+        ? outcomes[selectedOutcome]?.name || `${t('markets.detail.outcomeLabel')} ${selectedOutcome}`
+        : t('markets.unknown');
 
       betNotifications.betPlaced(betToastId, betAmount, outcomeName);
       setBetToastId(null);
@@ -497,10 +497,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
   // 获取市场状态文本
   const getMarketStatusText = () => {
-    if (market.state === MarketStatus.Finalized) return 'SETTLED';
-    if (market.state === MarketStatus.Resolved) return 'RESOLVED';
-    if (market.state === MarketStatus.Locked || isMarketLocked) return 'LOCKED';
-    return 'OPEN';
+    if (market.state === MarketStatus.Finalized) return t('markets.detail.statusSettled');
+    if (market.state === MarketStatus.Resolved) return t('markets.detail.statusResolved');
+    if (market.state === MarketStatus.Locked || isMarketLocked) return t('markets.detail.statusLocked');
+    return t('markets.detail.statusOpen');
   };
 
   const homeTeam = market._displayInfo?.homeTeam || 'Home';
@@ -515,7 +515,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back
+          {t('common.back')}
         </Link>
       </div>
 
@@ -531,7 +531,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             <div className="grid grid-cols-3 items-center mb-4">
               {/* Left: Sport & League */}
               <div>
-                <p className="text-gray-500 text-sm">Soccer</p>
+                <p className="text-gray-500 text-sm">{t('markets.detail.soccer')}</p>
                 <p className="text-gray-900 font-medium">{translateLeague(league)}</p>
               </div>
 
@@ -556,9 +556,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
               {/* Right: Match Time */}
               <div className="text-right">
-                <p className="text-gray-500 text-sm">Matchtime:</p>
+                <p className="text-gray-500 text-sm">{t('markets.detail.matchtime')}:</p>
                 <p className="text-gray-900 font-bold">{formatShortDate(market.kickoffTime)}</p>
-                <p className="text-gray-500 text-sm">Regular Season</p>
+                <p className="text-gray-500 text-sm">{t('markets.detail.regularSeason')}</p>
               </div>
             </div>
 
@@ -571,7 +571,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           {/* Winner Section */}
           <Card className="mb-6 bg-white shadow-sm" padding="lg">
             <h3 className="text-center text-gray-500 text-sm font-medium uppercase tracking-wider mb-4">
-              WINNER
+              {t('markets.detail.winner')}
             </h3>
             <div className="grid grid-cols-3 gap-0 rounded-lg overflow-hidden border border-gray-200">
               {outcomes.map((outcome, index) => (
@@ -599,32 +599,32 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           {/* Activity Section */}
           <Card className="bg-white shadow-sm" padding="none">
             <h3 className="text-center text-gray-500 text-sm font-medium uppercase tracking-wider py-4 border-b border-gray-200">
-              ACTIVITY
+              {t('markets.detail.activity')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">TIME ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">OWNER</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SELECTED</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PAID(U) ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PAYOUT(U) ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">STATUS ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tableTime')} ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tableOwner')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tableSelected')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tablePaid')} ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tablePayout')} ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('markets.detail.tableStatus')} ▼</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {allBetEvents.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                        No activity yet
+                        {t('markets.detail.noActivity')}
                       </td>
                     </tr>
                   ) : (
                     allBetEvents.slice(0, 20).map((event, idx) => {
                       const amountUSDC = Number(event.amount) / 1e6;
                       const payoutUSDC = Number(event.shares) / 1e6;
-                      const outcomeName = outcomes[Number(event.outcomeId)]?.name || `Outcome ${event.outcomeId}`;
+                      const outcomeName = outcomes[Number(event.outcomeId)]?.name || `${t('markets.detail.outcomeLabel')} ${event.outcomeId}`;
 
                       return (
                         <tr key={event.transactionHash || idx} className="hover:bg-gray-50">
@@ -661,7 +661,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
           <div className="w-80 shrink-0 p-4">
             <Card className="sticky top-4 bg-white shadow-lg border border-gray-200" padding="lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Bet Slip</h3>
+                <h3 className="text-lg font-bold text-gray-900">{t('markets.detail.betSlip')}</h3>
                 <button
                   onClick={() => {
                     setSelectedOutcome(null);
@@ -689,14 +689,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               {/* Balance Display */}
               {usdcBalance !== undefined && usdcBalance !== null && typeof usdcBalance === 'bigint' && (
                 <p className="text-xs text-gray-500 mb-2">
-                  Balance: {formatUnits(usdcBalance, 6)} USDC
+                  {t('markets.detail.balance')}: {formatUnits(usdcBalance, 6)} USDC
                 </p>
               )}
 
               {/* Amount Input */}
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Amount (USDC)
+                  {t('markets.detail.amountUsdc')}
                 </label>
                 <div className="relative">
                   <input
@@ -718,7 +718,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     disabled={!usdcBalance || usdcBalance === 0n}
                     className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
                   >
-                    MAX
+                    {t('markets.detail.max')}
                   </button>
                 </div>
               </div>
@@ -726,10 +726,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               {/* Expected Payout */}
               {betAmount && parseFloat(betAmount) > 0 && (
                 <div className="p-3 bg-blue-50 rounded-lg mb-4">
-                  <p className="text-xs text-gray-500 mb-1">Potential Payout</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('markets.detail.potentialPayoutLabel')}</p>
                   <p className="text-xl font-bold text-blue-600">${calculatePayout()}</p>
                   <p className="text-xs text-gray-500">
-                    Profit: ${(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)}
+                    {t('markets.detail.profitLabel')}: ${(parseFloat(calculatePayout()) - parseFloat(betAmount)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -744,7 +744,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     disabled={!betAmount || parseFloat(betAmount) < 1 || isApproving || isApprovingConfirming || isAllowanceLoading}
                     isLoading={isApproving || isApprovingConfirming || isAllowanceLoading}
                   >
-                    {isApproving || isApprovingConfirming ? 'Approving...' : isAllowanceLoading ? 'Checking...' : 'Approve USDC'}
+                    {isApproving || isApprovingConfirming ? t('markets.detail.approvingBtn') : isAllowanceLoading ? t('markets.detail.checkingBtn') : t('markets.detail.approveUsdcBtn')}
                   </Button>
                 ) : (
                   <Button
@@ -754,20 +754,20 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     disabled={!betAmount || parseFloat(betAmount) < 1 || isBetting || isBettingConfirming || !isConnected}
                     isLoading={isBetting || isBettingConfirming}
                   >
-                    {isBetting || isBettingConfirming ? 'Placing Bet...' : 'Place Bet'}
+                    {isBetting || isBettingConfirming ? t('markets.detail.placingBetBtn') : t('markets.detail.placeBetBtn')}
                   </Button>
                 )}
               </div>
 
               {!isConnected && (
                 <p className="text-xs text-amber-600 text-center mt-3">
-                  Connect wallet to place bet
+                  {t('markets.detail.connectWalletToBet')}
                 </p>
               )}
 
               {needsApproval && (
                 <p className="text-xs text-blue-500 text-center mt-3">
-                  First time? Approve USDC spending
+                  {t('markets.detail.firstTimeApproval')}
                 </p>
               )}
             </Card>
