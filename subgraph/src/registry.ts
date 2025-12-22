@@ -12,7 +12,7 @@ import {
 import { Market_V3 as Market_V3Template } from '../generated/templates';
 import { Market_V3 } from '../generated/templates/Market_V3/Market_V3';
 import { Template, GlobalStats, Market } from '../generated/schema';
-import { loadOrCreateGlobalStats, ZERO_BD } from './helpers';
+import { loadOrCreateGlobalStats, ZERO_BD, parseTeamsFromMatchId } from './helpers';
 
 /**
  * 处理 MarketFactory_V3 的 MarketCreated 事件
@@ -38,8 +38,11 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
   market.templateId = templateId.toHexString();
   market.matchId = matchId;
   market.kickoffTime = kickoffTime;
-  market.homeTeam = "";  // 将在 MarketInitialized 事件中更新
-  market.awayTeam = "";
+
+  // 从 matchId 解析球队信息
+  let teams = parseTeamsFromMatchId(matchId);
+  market.homeTeam = teams[0];
+  market.awayTeam = teams[1];
   market.ruleVer = Bytes.empty();
   market.state = "Open";
   market.createdAt = event.block.timestamp;

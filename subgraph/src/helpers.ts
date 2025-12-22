@@ -204,3 +204,87 @@ export function generateEventId(txHash: Bytes, logIndex: BigInt): string {
     .concat(logIndex.toString());
 }
 
+/**
+ * 球队代码到全称的映射
+ */
+function getTeamFullName(code: string): string {
+  // 意甲球队
+  if (code == "MIL") return "AC Milan";
+  if (code == "INT") return "Inter";
+  if (code == "JUV") return "Juventus";
+  if (code == "NAP") return "Napoli";
+  if (code == "ROM") return "AS Roma";
+  if (code == "LAZ") return "Lazio";
+  if (code == "ATA") return "Atalanta";
+  if (code == "FIO") return "Fiorentina";
+  if (code == "BOL") return "Bologna";
+  if (code == "TOR") return "Torino";
+  if (code == "UDI") return "Udinese";
+  if (code == "SAS") return "Sassuolo";
+  if (code == "EMP") return "Empoli";
+  if (code == "SAL") return "Salernitana";
+  if (code == "LEC") return "Lecce";
+  if (code == "VER") return "Verona";
+  if (code == "MON") return "Monza";
+  if (code == "CAG") return "Cagliari";
+  if (code == "GEN") return "Genoa";
+  if (code == "FRO") return "Frosinone";
+  if (code == "PAR") return "Parma";
+  if (code == "VEN") return "Venezia";
+  if (code == "COM") return "Como";
+  if (code == "CRE") return "Cremonese";
+  if (code == "SPE") return "Spezia";
+  if (code == "SAM") return "Sampdoria";
+  if (code == "PIS") return "Pisa";
+  // 英超球队
+  if (code == "MUN") return "Manchester United";
+  if (code == "MCI") return "Manchester City";
+  if (code == "LIV") return "Liverpool";
+  if (code == "CHE") return "Chelsea";
+  if (code == "ARS") return "Arsenal";
+  if (code == "TOT") return "Tottenham";
+  // 其他联赛
+  if (code == "BAR") return "Barcelona";
+  if (code == "RMA") return "Real Madrid";
+  if (code == "BAY") return "Bayern Munich";
+  if (code == "DOR") return "Borussia Dortmund";
+  if (code == "PSG") return "Paris Saint-Germain";
+  if (code == "LYO") return "Lyon";
+  // 未知代码返回原值
+  return code;
+}
+
+/**
+ * 从 matchId 解析球队信息
+ * matchId 格式: "SerieA_2025_R17_PAR_vs_FIO_WDL" 或 "EPL_2024_MUN_vs_MCI_WDL"
+ * @param matchId - 比赛标识符
+ * @returns [homeTeam, awayTeam] 元组，解析失败返回 ["", ""]
+ */
+export function parseTeamsFromMatchId(matchId: string): string[] {
+  let vsIndex = matchId.indexOf("_vs_");
+  if (vsIndex == -1) {
+    return ["", ""];
+  }
+
+  // 获取 vs 之前的部分，找到最后一个 _，取球队代码
+  let beforeVs = matchId.slice(0, vsIndex);
+  let lastUnderscoreBefore = beforeVs.lastIndexOf("_");
+  if (lastUnderscoreBefore == -1) {
+    return ["", ""];
+  }
+  let homeCode = beforeVs.slice(lastUnderscoreBefore + 1);
+
+  // 获取 vs 之后的部分
+  let afterVs = matchId.slice(vsIndex + 4);  // +4 跳过 "_vs_"
+  let firstUnderscoreAfter = afterVs.indexOf("_");
+  let awayCode: string;
+  if (firstUnderscoreAfter == -1) {
+    awayCode = afterVs;
+  } else {
+    awayCode = afterVs.slice(0, firstUnderscoreAfter);
+  }
+
+  // 转换为全称
+  return [getTeamFullName(homeCode), getTeamFullName(awayCode)];
+}
+
