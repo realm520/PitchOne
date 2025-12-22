@@ -5,7 +5,6 @@ import TicketList from "./TicketsList";
 import { MarketStatus, Position, useAccount, useUserPositions } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
-import { MOCK_POSITIONS } from "./data";
 import { calculateExpectedPayout, getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
@@ -127,6 +126,7 @@ export default function MyTickets() {
                                         variant={activeTab === tab.key ? 'primary' : 'secondary'}
                                         size="sm"
                                         onClick={() => setActiveTab(tab.key)}
+                                        disabled={isLoading}
                                     >
                                         {tab.label}
                                     </Button>
@@ -138,8 +138,9 @@ export default function MyTickets() {
                                     placeholder={t('portfolio.searchPlaceholder')}
                                     value={keyword}
                                     onChange={(e) => setKeyword(e.target.value)}
+                                    disabled={isLoading}
                                 />
-                                <Button variant="neon" size="sm" >
+                                <Button variant="neon" size="sm" disabled={isLoading}>
                                     {t('portfolio.batchClaim')}
                                 </Button>
                             </div>
@@ -154,7 +155,7 @@ export default function MyTickets() {
                                 <ErrorState message={t('portfolio.loadError')} />
                             </div>
                         ) : (() => {
-                            const filteredPositions = filterPositions(MOCK_POSITIONS, activeTab as TabType, keyword);
+                            const filteredPositions = filterPositions(positions || [], activeTab as TabType, keyword);
                             return filteredPositions.length === 0 ? (
                                 <EmptyState
                                     title={keyword ? t('portfolio.noSearchResults') : activeTab === 'active' ? t('portfolio.emptyActive') : activeTab === 'settled' ? t('portfolio.emptySettled') : t('portfolio.emptyAll')}
