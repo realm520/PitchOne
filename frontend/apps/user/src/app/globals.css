@@ -2,13 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Web3 科技感主题 */
+/* 极简黑白主题 - 白色为强调色 */
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --neon-blue: #00D4FF;
-  --neon-purple: #A855F7;
-  --neon-green: #10B981;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --accent: #ffffff;
+  --accent-hover: #e4e4e7;
+  --accent-muted: rgba(255, 255, 255, 0.15);
+  --muted: #a1a1aa;
+  --muted-foreground: #71717a;
 }
 
 body {
@@ -27,44 +29,28 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: #18181b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #27272a;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: #3f3f46;
 }
 
-/* 霓虹文字效果 */
+/* 工具类 */
 @layer utilities {
-  .text-neon {
-    color: var(--neon-blue);
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-  }
-
-  .text-neon-purple {
-    color: var(--neon-purple);
-    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
-  }
-
-  .text-neon-green {
-    color: var(--neon-green);
-    text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-  }
-
-  .border-neon {
-    border-color: var(--neon-blue);
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+  .text-accent {
+    color: var(--accent);
   }
 
   .bg-glass {
-    background: rgba(26, 26, 26, 0.7);
+    background: rgba(24, 24, 27, 0.8);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(42, 42, 42, 0.5);
+    border: 1px solid rgba(39, 39, 42, 0.5);
   }
 
   .text-balance {
@@ -72,15 +58,20 @@ body {
   }
 }
 
-/* 按钮悬停效果 */
+/* 组件样式 */
 @layer components {
-  .btn-neon {
-    @apply px-6 py-3 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white font-semibold;
-    @apply transition-all duration-300 hover:shadow-neon hover:scale-105;
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg bg-white text-zinc-900 font-semibold;
+    @apply transition-all duration-200 hover:bg-zinc-200;
   }
 
-  .card-neon {
+  .btn-secondary {
+    @apply px-6 py-3 rounded-lg bg-dark-card border border-dark-border text-white font-semibold;
+    @apply transition-all duration-200 hover:bg-dark-hover hover:border-zinc-600;
+  }
+
+  .card {
     @apply bg-dark-card border border-dark-border rounded-xl p-6;
-    @apply transition-all duration-300 hover:border-neon-blue hover:shadow-neon-sm;
+    @apply transition-all duration-200 hover:border-zinc-600;
   }
 }

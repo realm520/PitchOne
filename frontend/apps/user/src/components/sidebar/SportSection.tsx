@@ -1,6 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'nextjs-toploader/app'; // 使用包装的 router，自动触发进度条
+import { usePathname } from 'next/navigation';
 import { useTranslation } from '@pitchone/i18n';
 import { useSidebarStore } from '../../lib/sidebar-store';
 import { SportIcon } from './SportIcon';
@@ -15,8 +17,20 @@ interface SportSectionProps {
 
 export function SportSection({ sport, leagues, isLoading }: SportSectionProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
   const { expandedSports, toggleSport, selectedLeague, selectLeague } = useSidebarStore();
   const isExpanded = expandedSports.includes(sport.id);
+
+  // 处理联赛选择，如果在详情页则导航回列表页
+  const handleSelectLeague = (sportId: string, leagueId: string | null) => {
+    selectLeague(sportId, leagueId);
+    // 如果在详情页（路径格式为 /markets/0x...），导航回列表
+    // 使用 nextjs-toploader/app 的 router.push 会自动触发进度条
+    if (pathname && pathname.startsWith('/markets/') && pathname !== '/markets') {
+      router.push('/markets');
+    }
+  };
 
   // 计算该运动类型下的市场总数
   const totalMarkets = leagues.reduce((sum, league) => sum + league.marketCount, 0);
@@ -49,7 +63,7 @@ export function SportSection({ sport, leagues, isLoading }: SportSectionProps) {
         `}
       >
         <div className="flex items-center gap-3">
-          <SportIcon type={sport.icon} className="w-5 h-5 text-neon-blue" />
+          <SportIcon type={sport.icon} className="w-5 h-5 text-accent" />
           <span className="font-medium text-white">{t(sport.name)}</span>
           {totalMarkets > 0 && (
             <span className="text-xs text-gray-500">({totalMarkets})</span>
@@ -78,19 +92,19 @@ export function SportSection({ sport, leagues, isLoading }: SportSectionProps) {
             <div className="pl-3 py-1 space-y-0.5">
               {/* All Leagues Option */}
               <button
-                onClick={() => selectLeague(sport.id, null)}
+                onClick={() => handleSelectLeague(sport.id, null)}
                 className={`
                   w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm
                   transition-colors duration-200
                   ${selectedLeague === null
-                    ? 'bg-neon-blue/20 text-neon-blue'
+                    ? 'bg-accent/20 text-accent'
                     : 'text-gray-400 hover:bg-dark-border/50 hover:text-gray-200'
                   }
                 `}
               >
                 <span>{t('sidebar.allLeagues')}</span>
                 {totalMarkets > 0 && (
-                  <span className={`text-xs ${selectedLeague === null ? 'text-neon-blue' : 'text-gray-500'}`}>
+                  <span className={`text-xs ${selectedLeague === null ? 'text-accent' : 'text-gray-500'}`}>
                     {totalMarkets}
                   </span>
                 )}

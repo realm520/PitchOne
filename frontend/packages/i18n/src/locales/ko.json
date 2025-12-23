@@ -1,4 +1,19 @@
 {
+  "meta": {
+    "title": "PitchOne - 탈중앙화 축구 예측 플랫폼",
+    "description": "온체인 투명성, 비수탁형, 자동 정산 축구 예측 플랫폼",
+    "parlay": {
+      "title": "파레이 | PitchOne",
+      "description": "파레이 베팅 생성 및 관리"
+    }
+  },
+  "loading": {
+    "chart": "차트 로딩 중...",
+    "activity": "활동 로딩 중...",
+    "market": "마켓 데이터 로딩 중...",
+    "marketDetail": "마켓 상세 로딩 중...",
+    "position": "포지션 로딩 중..."
+  },
   "common": {
     "loading": "로딩 중...",
     "error": "오류",
@@ -9,11 +24,14 @@
     "delete": "삭제",
     "edit": "편집",
     "back": "뒤로",
+    "copied": "복사됨",
     "next": "다음",
     "previous": "이전",
     "search": "검색",
     "noData": "데이터 없음",
-    "connectWallet": "지갑 연결"
+    "connectWallet": "지갑 연결",
+    "wrongNetwork": "네트워크 오류",
+    "connected": "연결됨"
   },
   "nav": {
     "markets": "마켓",
@@ -96,7 +114,8 @@
       "participants": "명 참여",
       "marketType": "마켓 유형",
       "placeBet": "예측하기",
-      "viewDetails": "상세 보기"
+      "viewDetails": "상세 보기",
+      "participated": "참여함"
     },
     "pagination": {
       "prev": "이전",
@@ -158,12 +177,51 @@
       "confirmBetBtn": "예측 확인",
       "connectWalletWarning": "지갑을 먼저 연결해 주세요",
       "firstBetApproval": "첫 베팅에는 USDC 승인이 필요합니다",
-      "result": "결과"
+      "result": "결과",
+      "sport": "스포츠",
+      "soccer": "축구",
+      "matchTime": "경기 시간",
+      "contract": "컨트랙트",
+      "vs": "vs",
+      "winner": "승자",
+      "activity": "활동",
+      "time": "시간",
+      "owner": "사용자",
+      "selected": "선택",
+      "paid": "지불(U)",
+      "payout": "배당(U)",
+      "status": "상태",
+      "noActivity": "아직 활동이 없습니다"
     }
   },
   "portfolio": {
     "title": "내 예측",
     "subtitle": "모든 마켓 예측 관리",
+    "balance": "계정 잔액",
+    "totalBet": "총 베팅",
+    "totalProfit": "총 수익",
+    "myTickets": "내 티켓",
+    "batchClaim": "일괄 청구",
+    "ticketTabs": {
+      "all": "전체",
+      "claimable": "청구 가능"
+    },
+    "ticket": {
+      "match": "경기",
+      "selection": "선택",
+      "payment": "베팅액",
+      "odds": "배당률",
+      "payout": "예상 수익",
+      "result": "결과",
+      "placed": "베팅 시간",
+      "bettingTx": "베팅 Tx",
+      "claimingTx": "청구",
+      "claim": "청구",
+      "claiming": "청구 중...",
+      "claimed": "청구 완료",
+      "pending": "진행 중",
+      "lost": "낙첨"
+    },
     "loading": "예측 데이터 로딩 중...",
     "loadError": "예측 데이터를 불러올 수 없습니다",
     "tabs": {
@@ -194,6 +252,13 @@
     "emptyAll": "예측 없음",
     "emptyDesc": "아직 예측이 없습니다. 마켓 페이지에서 베팅하세요.",
     "goToMarkets": "마켓 보기",
+    "searchPlaceholder": "팀 또는 경기 검색...",
+    "noSearchResults": "일치하는 티켓이 없습니다",
+    "tryDifferentKeyword": "다른 키워드로 검색해 보세요",
+    "clearSearch": "검색 지우기",
+    "connecting": "지갑 연결 중...",
+    "pending": "진행 중",
+    "lose": "패배",
     "betDirection": "예측 결과",
     "createdAt": "생성 시간",
     "betAmount": "베팅 금액",
@@ -211,6 +276,8 @@
   "parlay": {
     "title": "파레이",
     "pageTitle": "파레이 베팅",
+    "loadError": "파레이 목록 로드 실패",
+    "loadParlayError": "파레이 로드 실패",
     "pageSubtitle": "여러 경기를 조합하여 배당률을 곱하고, 모두 맞추면 더 높은 수익!",
     "cart": "베팅 슬립",
     "empty": "경기를 추가하세요",
@@ -499,5 +566,61 @@
     "comingSoon": "출시 예정",
     "showAll": "모든 마켓 보기",
     "marketCount": "{{count}} 경기"
+  },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "홈 승",
+      "draw": "무승부",
+      "awayWin": "원정 승"
+    },
+    "ou": {
+      "over": "오버",
+      "under": "언더",
+      "overLine": "오버 {{line}}",
+      "underLine": "언더 {{line}}"
+    },
+    "ah": {
+      "homeCover": "홈 커버",
+      "awayCover": "원정 커버",
+      "push": "푸시",
+      "homeHandicap": "홈 {{line}}",
+      "awayHandicap": "원정 {{line}}",
+      "pushRefund": "푸시 (환불)"
+    },
+    "oddEven": {
+      "odd": "홀수",
+      "even": "짝수"
+    },
+    "score": {
+      "other": "기타"
+    },
+    "playerProps": {
+      "over": "오버",
+      "under": "언더",
+      "yes": "예",
+      "no": "아니오",
+      "player": "선수 {{id}}"
+    },
+    "fallback": "결과 {{id}}"
+  },
+  "betslip": {
+    "title": "베팅 슬립",
+    "empty": {
+      "title": "베팅 없음",
+      "desc": "결과를 선택하여 베팅하세요"
+    },
+    "enterAmount": "금액 입력...",
+    "totalPayment": "총 지불 금액",
+    "totalPotentialWin": "예상 당첨금",
+    "trade": "베팅",
+    "trading": "베팅 중...",
+    "approving": "승인 중...",
+    "checking": "확인 중...",
+    "approveUSDC": "USDC 승인",
+    "termsText": "베팅하면 다음에 동의하는 것입니다:",
+    "termsLink": "이용약관",
+    "liquidity": "유동성",
+    "potentialWin": "예상 수익",
+    "connectWallet": "지갑 연결"
   }
 }

@@ -2,7 +2,7 @@ import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from '@pitchone/utils';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'neon';
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'neon' | 'primary';
   size?: 'sm' | 'md' | 'lg';
   dot?: boolean;
 }
@@ -23,12 +23,13 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       'inline-flex items-center gap-1.5 font-medium rounded-full';
 
     const variants = {
-      default: 'bg-gray-800 text-gray-300',
-      success: 'bg-neon-green/20 text-neon-green border border-neon-green/30',
-      warning: 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30',
-      error: 'bg-red-500/20 text-red-500 border border-red-500/30',
-      info: 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30',
-      neon: 'bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 text-neon-blue border border-neon-blue/30',
+      default: 'bg-zinc-800 text-zinc-300',
+      success: 'bg-zinc-800 text-white border border-zinc-600',
+      warning: 'bg-zinc-700 text-zinc-300 border border-zinc-500',
+      error: 'bg-zinc-800 text-zinc-400 border border-dashed border-zinc-600',
+      info: 'bg-zinc-700 text-zinc-300 border border-zinc-600',
+      neon: 'bg-zinc-800 text-white border border-zinc-500',
+      primary: 'bg-white/10 text-white border border-white/20',
     };
 
     const sizes = {
@@ -47,12 +48,13 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
           <span
             className={cn(
               'w-1.5 h-1.5 rounded-full',
-              variant === 'success' && 'bg-neon-green',
-              variant === 'warning' && 'bg-yellow-500',
-              variant === 'error' && 'bg-red-500',
-              variant === 'info' && 'bg-neon-blue',
-              variant === 'neon' && 'bg-neon-purple',
-              variant === 'default' && 'bg-gray-400'
+              variant === 'success' && 'bg-white',
+              variant === 'warning' && 'bg-zinc-400',
+              variant === 'error' && 'bg-zinc-500',
+              variant === 'info' && 'bg-zinc-400',
+              variant === 'neon' && 'bg-white',
+              variant === 'primary' && 'bg-white',
+              variant === 'default' && 'bg-zinc-400'
             )}
           />
         )}

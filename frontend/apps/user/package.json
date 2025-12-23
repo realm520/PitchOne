@@ -10,12 +10,15 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@lucide/lab": "^0.1.2",
     "@pitchone/i18n": "workspace:*",
     "@pitchone/ui": "workspace:*",
     "@pitchone/web3": "workspace:*",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.11",
+    "lucide-react": "^0.562.0",
     "next": "^15.0.3",
+    "nextjs-toploader": "^3.9.17",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.6.0",

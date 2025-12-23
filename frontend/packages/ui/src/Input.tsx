@@ -25,10 +25,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const baseStyles =
-      'bg-dark-card border border-dark-border rounded-lg px-4 py-3 text-gray-200 placeholder:text-gray-500 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-neon-blue/50 focus:border-neon-blue disabled:opacity-50 disabled:cursor-not-allowed';
+      'bg-dark-card border border-dark-border rounded-lg px-4 py-3 text-gray-200 placeholder:text-gray-500 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const errorStyles = error
-      ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+      ? 'border-dashed border-zinc-500 focus:ring-zinc-500/30 focus:border-zinc-400'
       : '';
 
     const widthClass = fullWidth ? 'w-full' : '';
@@ -66,7 +66,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-zinc-400">{error}</p>}
       </div>
     );
   }

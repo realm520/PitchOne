@@ -9,11 +9,14 @@
     "delete": "Delete",
     "edit": "Edit",
     "back": "Back",
+    "copied": "Copied!",
     "next": "Next",
     "previous": "Previous",
     "search": "Search",
     "noData": "No data",
-    "connectWallet": "Connect Wallet"
+    "connectWallet": "Connect Wallet",
+    "wrongNetwork": "Wrong Network",
+    "connected": "Connected"
   },
   "nav": {
     "markets": "Markets",
@@ -96,7 +99,8 @@
       "participants": "participants",
       "marketType": "Market Type",
       "placeBet": "Place Bet",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "participated": "Participated"
     },
     "pagination": {
       "prev": "Previous",
@@ -160,7 +164,7 @@
       "firstBetApproval": "First bet requires USDC approval",
       "result": "Result",
       "soccer": "Soccer",
-      "matchtime": "Matchtime",
+      "matchTime": "Match Time",
       "regularSeason": "Regular Season",
       "winner": "WINNER",
       "activity": "ACTIVITY",
@@ -193,6 +197,31 @@
   "portfolio": {
     "title": "My Predictions",
     "subtitle": "Manage all your market predictions",
+    "balance": "Balance",
+    "totalBet": "Total Bet",
+    "totalProfit": "Total Profit",
+    "myTickets": "My Tickets",
+    "batchClaim": "Batch Claim",
+    "ticketTabs": {
+      "all": "All",
+      "claimable": "Claimable"
+    },
+    "ticket": {
+      "match": "Match",
+      "selection": "Selection",
+      "payment": "Payment",
+      "odds": "Odds",
+      "payout": "Payout",
+      "result": "Result",
+      "placed": "Placed",
+      "bettingTx": "Betting Tx",
+      "claimingTx": "Claiming",
+      "claim": "Claim",
+      "claiming": "Claiming...",
+      "claimed": "Claimed",
+      "pending": "Pending",
+      "lost": "Lost"
+    },
     "loading": "Loading predictions...",
     "loadError": "Failed to load predictions",
     "tabs": {
@@ -217,18 +246,25 @@
     },
     "connectWallet": "Please connect wallet",
     "connectDesc": "Connect wallet to view your predictions",
+    "connecting": "Connecting wallet...",
     "empty": "No positions",
     "emptyActive": "No active predictions",
     "emptySettled": "No settled predictions",
     "emptyAll": "No predictions",
     "emptyDesc": "You have no predictions yet. Go to markets to place bets.",
     "goToMarkets": "Browse Markets",
+    "searchPlaceholder": "Search team or match...",
+    "noSearchResults": "No matching tickets",
+    "tryDifferentKeyword": "Try a different search keyword",
+    "clearSearch": "Clear Search",
     "betDirection": "Prediction",
     "createdAt": "Created",
     "betAmount": "Bet Amount",
     "expectedPayout": "Expected Payout",
     "dataLoading": "Loading...",
-    "win": "Win",
+    "pending": "Pending",
+    "win": "Won",
+    "lose": "Lost",
     "redeem": "Redeem",
     "stats": {
       "totalBetAmount": "Total Bet Amount",
@@ -240,6 +276,8 @@
   "parlay": {
     "title": "Parlay",
     "pageTitle": "Parlay Betting",
+    "loadError": "Failed to load parlay list",
+    "loadParlayError": "Failed to load parlay",
     "pageSubtitle": "Combine multiple matches, multiply odds, win bigger with all correct!",
     "cart": "Parlay Slip",
     "empty": "Add matches to parlay",
@@ -549,5 +587,61 @@
     "comingSoon": "Coming Soon",
     "showAll": "Show All Markets",
     "marketCount": "{{count}} matches"
+  },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "Home",
+      "draw": "Draw",
+      "awayWin": "Away"
+    },
+    "ou": {
+      "over": "Over",
+      "under": "Under",
+      "overLine": "Over {{line}}",
+      "underLine": "Under {{line}}"
+    },
+    "ah": {
+      "homeCover": "Home Cover",
+      "awayCover": "Away Cover",
+      "push": "Push",
+      "homeHandicap": "Home {{line}}",
+      "awayHandicap": "Away {{line}}",
+      "pushRefund": "Push (Refund)"
+    },
+    "oddEven": {
+      "odd": "Odd",
+      "even": "Even"
+    },
+    "score": {
+      "other": "Other"
+    },
+    "playerProps": {
+      "over": "Over",
+      "under": "Under",
+      "yes": "Yes",
+      "no": "No",
+      "player": "Player {{id}}"
+    },
+    "fallback": "Outcome {{id}}"
+  },
+  "betslip": {
+    "title": "TICKET SLIP",
+    "empty": {
+      "title": "No ticket now.",
+      "desc": "Choose an outcome and make your selection."
+    },
+    "enterAmount": "Enter amount...",
+    "totalPayment": "Total Payment",
+    "totalPotentialWin": "Total Potential Win",
+    "trade": "Trade",
+    "trading": "Trading...",
+    "approving": "Approving...",
+    "checking": "Checking...",
+    "approveUSDC": "Approve USDC",
+    "termsText": "By trading, you agree to the",
+    "termsLink": "Terms of Use",
+    "liquidity": "Liq.",
+    "potentialWin": "Poten.Win",
+    "connectWallet": "Connect Wallet"
   }
 }

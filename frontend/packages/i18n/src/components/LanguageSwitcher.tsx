@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Globe } from 'lucide-react';
 import { useI18n } from '../provider';
 import { locales, localeNames, type Locale } from '../config';
 
@@ -20,19 +21,6 @@ interface LanguageSwitcherProps {
 export function LanguageSwitcher({ className = '', variant = 'dropdown' }: LanguageSwitcherProps) {
   const { locale, setLocale } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // 点击外部关闭下拉菜单
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // 内联模式：直接显示所有语言选项
   if (variant === 'inline') {
@@ -44,7 +32,7 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
             onClick={() => setLocale(loc)}
             className={`px-2 py-1 rounded text-sm transition-colors ${
               locale === loc
-                ? 'bg-neon-blue/20 text-neon-blue'
+                ? 'bg-accent/20 text-accent'
                 : 'text-gray-400 hover:text-white hover:bg-white/10'
             }`}
           >
@@ -56,56 +44,43 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
     );
   }
 
-  // 下拉菜单模式
+  // 下拉菜单模式（hover 触发）
   return (
-    <div ref={dropdownRef} className={`relative ${className}`}>
+    <div
+      className={`relative ${className}`}
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors shrink-0"
+        className={`flex items-center justify-center p-2 transition-colors duration-200 ${
+          isOpen ? 'text-white' : 'text-gray-400 hover:text-white'
+        }`}
         aria-label="Select language"
       >
-        <span className="shrink-0">{localeFlags[locale]}</span>
-        <span className="text-sm text-gray-300 shrink-0 break-keep">{localeNames[locale]}</span>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <Globe className="w-6 h-6" />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 py-2 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl z-50">
-          {locales.map((loc) => (
-            <button
-              key={loc}
-              onClick={() => {
-                setLocale(loc);
-                setIsOpen(false);
-              }}
-              className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                locale === loc
-                  ? 'bg-neon-blue/20 text-neon-blue'
-                  : 'text-gray-300 hover:bg-white/10'
-              }`}
-            >
-              <span>{localeFlags[loc]}</span>
-              <span className="min-w-[4rem]">{localeNames[loc]}</span>
-              <span className="w-4 h-4">
-                {locale === loc && (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </span>
-            </button>
-          ))}
+        <div className="absolute right-0 top-full pt-2">
+          <div className="py-1 min-w-[130px] bg-dark-card border border-dark-border rounded-lg shadow-card overflow-hidden">
+            {locales.map((loc) => (
+              <button
+                key={loc}
+                onClick={() => {
+                  setLocale(loc);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+                  locale === loc
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-gray-300 hover:bg-dark-hover hover:text-white'
+                }`}
+              >
+                <span>{localeFlags[loc]}</span>
+                <span>{localeNames[loc]}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

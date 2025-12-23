@@ -1,7 +1,6 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@pitchone/utils';
 
 export interface HeaderProps {
@@ -20,40 +19,37 @@ export function Header({
   sticky = true,
 }: HeaderProps) {
   return (
-    <motion.header
+    <header
       className={cn(
-        'w-full border-b border-dark-border bg-dark-bg/80 backdrop-blur-lg z-40',
+        'w-full border-b border-dark-border bg-dark-bg/80 backdrop-blur-lg z-50',
         sticky && 'sticky top-0',
         className
       )}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.3 }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          {logo && (
-            <div className="flex-shrink-0">
-              {logo}
-            </div>
-          )}
+          {/* Left: Logo + Navigation */}
+          <div className="flex items-center gap-10">
+            {logo && (
+              <div className="flex-shrink-0">
+                {logo}
+              </div>
+            )}
+            {navigation && (
+              <nav className="hidden md:flex items-center">
+                {navigation}
+              </nav>
+            )}
+          </div>
 
-          {/* Navigation */}
-          {navigation && (
-            <nav className="hidden md:flex items-center space-x-8">
-              {navigation}
-            </nav>
-          )}
-
-          {/* Actions (Wallet Connect, etc) */}
+          {/* Right: Actions */}
           {actions && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {actions}
             </div>
           )}
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

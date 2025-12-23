@@ -146,7 +146,7 @@ export function ReferralBinder() {
       <Card padding="md" className="shadow-lg max-w-md">
         {bindingStatus === 'binding' && (
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-neon-blue border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             <div>
               <p className="text-sm font-medium text-white">绑定推荐人中...</p>
               <p className="text-xs text-gray-500">请确认钱包交易</p>

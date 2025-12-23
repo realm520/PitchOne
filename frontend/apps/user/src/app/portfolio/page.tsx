@@ -1,29 +1,65 @@
 'use client';
 
-import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
-import { LoadingSpinner } from '@pitchone/ui';
+import { useState, useEffect } from 'react';
+import {
+  useAccount,
+} from '@pitchone/web3';
+import {
+  Container,
+} from '@pitchone/ui';
+import { AnimatePresence, motion } from 'framer-motion';
+import UnConnected from './UnConnected';
+import MyPositions from './MyPositions';
 
-const PortfolioClient = dynamic(
-  () => import('./PortfolioClient').then((mod) => ({ default: mod.PortfolioClient })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载头寸数据..." />
-      </div>
-    ),
-  }
-);
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+};
+
+const pageTransition = {
+  duration: 0.3,
+  ease: 'easeInOut',
+};
 
 export default function PortfolioPage() {
+  const { isConnected, isConnecting } = useAccount();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const showMyTickets = isConnected && mounted;
+
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="加载头寸数据..." />
-      </div>
-    }>
-      <PortfolioClient />
-    </Suspense>
+    <div className="min-h-screen bg-dark-bg py-8">
+      <Container size="lg">
+        <AnimatePresence mode="wait">
+          {!showMyTickets ? (
+            <motion.div
+              key="unconnected"
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={pageTransition}
+            >
+              <UnConnected isConnecting={isConnecting} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="mytickets"
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={pageTransition}
+            >
+              <MyPositions />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Container>
+    </div>
   );
 }

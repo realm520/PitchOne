@@ -21,6 +21,9 @@ export {
 // Re-export RainbowKit
 export { ConnectButton } from '@rainbow-me/rainbowkit';
 
+// Custom Components
+export { CustomConnectButton } from './components/CustomConnectButton';
+
 // GraphQL Client and Queries
 export { graphqlClient } from './graphql';
 export * from './graphql';
@@ -33,22 +36,24 @@ export {
   formatUSDCFromWei,
 } from './constants';
 
-// Outcome Constants
+// Outcome Constants (i18n keys)
 export {
   WDL_OUTCOMES,
-  WDL_OUTCOME_NAMES,
+  WDL_OUTCOME_KEYS,
   OU_OUTCOMES,
-  OU_OUTCOME_NAMES,
+  OU_OUTCOME_KEYS,
   AH_OUTCOMES,
-  AH_OUTCOME_NAMES,
+  AH_OUTCOME_KEYS,
   ODDEVEN_OUTCOMES,
-  ODDEVEN_OUTCOME_NAMES,
+  ODDEVEN_OUTCOME_KEYS,
   SCORE_OUTCOMES,
   formatScoreOutcome,
+  isI18nKey,
   PLAYER_PROPS_OUTCOMES,
-  PLAYER_PROPS_OU_NAMES,
-  PLAYER_PROPS_YN_NAMES,
-  getOutcomeName,
+  PLAYER_PROPS_OU_KEYS,
+  PLAYER_PROPS_YN_KEYS,
+  getOutcomeKey,
+  getOutcomeName, // deprecated, use getOutcomeKey
 } from './outcome-constants';
 
 // Custom Hooks
@@ -56,6 +61,7 @@ export {
   useMarkets,
   useMarket,
   useUserPositions,
+  useUserPositionsPaginated,
   useUserOrders,
   useMarketOrders,
   useMarketAllOrders,

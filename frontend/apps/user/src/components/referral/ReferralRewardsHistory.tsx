@@ -157,7 +157,7 @@ export function ReferralRewardsHistory() {
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-400">{t('referral.historyComp.totalRewards')}</p>
-            <p className="text-2xl font-bold text-neon-green">
+            <p className="text-2xl font-bold text-accent">
               {totalRewards.toFixed(4)}
             </p>
             <p className="text-xs text-gray-500">USDC</p>
@@ -185,7 +185,7 @@ export function ReferralRewardsHistory() {
               <div className="flex items-center justify-between mb-2">
                 {/* 被推荐人信息 */}
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-green to-green-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
                     <svg
                       className="w-4 h-4 text-white"
                       fill="none"
@@ -229,7 +229,7 @@ export function ReferralRewardsHistory() {
                   href={`https://etherscan.io/tx/${reward.transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-neon-blue hover:text-neon-purple transition-colors"
+                  className="text-accent hover:text-accent transition-colors"
                 >
                   {t('referral.historyComp.viewTx')} ↗
                 </a>

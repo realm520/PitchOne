@@ -5,14 +5,17 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@pitchone/i18n": "workspace:*",
     "@rainbow-me/rainbowkit": "^2.2.0",
     "@tanstack/react-query": "^5.90.6",
     "graphql": "^16.9.0",
     "graphql-request": "^7.1.2",
+    "lodash.merge": "^4.6.2",
     "viem": "^2.21.19",
     "wagmi": "^2.12.17"
   },
   "devDependencies": {
+    "@types/lodash.merge": "^4.6.9",
     "@types/react": "^18.3.12",
     "typescript": "^5.6.3"
   },

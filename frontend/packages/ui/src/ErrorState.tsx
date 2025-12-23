@@ -13,10 +13,10 @@ export interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = '出错了',
+  title,
   message,
   onRetry,
-  retryText = '重试',
+  retryText,
   icon,
   className,
 }: ErrorStateProps) {
@@ -61,7 +61,7 @@ export function ErrorState({
 
       {onRetry && (
         <Button variant="primary" onClick={onRetry}>
-          {retryText}
+          {retryText || '重试'}
         </Button>
       )}
     </motion.div>

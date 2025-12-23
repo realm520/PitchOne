@@ -1,4 +1,19 @@
 {
+  "meta": {
+    "title": "PitchOne - 分散型サッカー予想プラットフォーム",
+    "description": "オンチェーン透明、ノンカストディアル、自動決済のサッカー予想プラットフォーム",
+    "parlay": {
+      "title": "マルチベット | PitchOne",
+      "description": "マルチベットを作成・管理"
+    }
+  },
+  "loading": {
+    "chart": "チャートを読み込み中...",
+    "activity": "アクティビティを読み込み中...",
+    "market": "マーケットデータを読み込み中...",
+    "marketDetail": "マーケット詳細を読み込み中...",
+    "position": "ポジションを読み込み中..."
+  },
   "common": {
     "loading": "読み込み中...",
     "error": "エラー",
@@ -9,11 +24,14 @@
     "delete": "削除",
     "edit": "編集",
     "back": "戻る",
+    "copied": "コピーしました",
     "next": "次へ",
     "previous": "前へ",
     "search": "検索",
     "noData": "データなし",
-    "connectWallet": "ウォレット接続"
+    "connectWallet": "ウォレット接続",
+    "wrongNetwork": "ネットワークエラー",
+    "connected": "接続済み"
   },
   "nav": {
     "markets": "マーケット",
@@ -96,7 +114,8 @@
       "participants": "人参加",
       "marketType": "マーケットタイプ",
       "placeBet": "ベットする",
-      "viewDetails": "詳細を見る"
+      "viewDetails": "詳細を見る",
+      "participated": "参加済み"
     },
     "pagination": {
       "prev": "前へ",
@@ -158,12 +177,51 @@
       "confirmBetBtn": "予想確認",
       "connectWalletWarning": "先にウォレットを接続してください",
       "firstBetApproval": "初回ベットにはUSDC承認が必要です",
-      "result": "結果"
+      "result": "結果",
+      "sport": "スポーツ",
+      "soccer": "サッカー",
+      "matchTime": "試合時間",
+      "contract": "コントラクト",
+      "vs": "vs",
+      "winner": "勝者",
+      "activity": "アクティビティ",
+      "time": "時間",
+      "owner": "ユーザー",
+      "selected": "選択",
+      "paid": "支払(U)",
+      "payout": "配当(U)",
+      "status": "ステータス",
+      "noActivity": "アクティビティはありません"
     }
   },
   "portfolio": {
     "title": "マイ予想",
     "subtitle": "すべてのマーケット予想を管理",
+    "balance": "アカウント残高",
+    "totalBet": "総ベット額",
+    "totalProfit": "総利益",
+    "myTickets": "マイチケット",
+    "batchClaim": "一括請求",
+    "ticketTabs": {
+      "all": "すべて",
+      "claimable": "請求可能"
+    },
+    "ticket": {
+      "match": "試合",
+      "selection": "選択",
+      "payment": "支払額",
+      "odds": "オッズ",
+      "payout": "払戻",
+      "result": "結果",
+      "placed": "ベット日時",
+      "bettingTx": "ベットTx",
+      "claimingTx": "請求",
+      "claim": "請求",
+      "claiming": "請求中...",
+      "claimed": "請求済み",
+      "pending": "進行中",
+      "lost": "落選"
+    },
     "loading": "予想を読み込み中...",
     "loadError": "予想の読み込みに失敗しました",
     "tabs": {
@@ -194,6 +252,13 @@
     "emptyAll": "予想なし",
     "emptyDesc": "まだ予想がありません。マーケットページでベットしましょう。",
     "goToMarkets": "マーケットを見る",
+    "searchPlaceholder": "チームまたは試合を検索...",
+    "noSearchResults": "一致するチケットがありません",
+    "tryDifferentKeyword": "別のキーワードで検索してください",
+    "clearSearch": "検索をクリア",
+    "connecting": "ウォレットに接続中...",
+    "pending": "進行中",
+    "lose": "負け",
     "betDirection": "予測結果",
     "createdAt": "作成日時",
     "betAmount": "ベット額",
@@ -211,6 +276,8 @@
   "parlay": {
     "title": "マルチベット",
     "pageTitle": "マルチベット",
+    "loadError": "マルチベットリストの読み込みに失敗しました",
+    "loadParlayError": "マルチベットの読み込みに失敗しました",
     "pageSubtitle": "複数の試合を組み合わせ、オッズを掛け合わせ、全的中で高リターン！",
     "cart": "ベットスリップ",
     "empty": "試合を追加してください",
@@ -499,5 +566,61 @@
     "comingSoon": "近日公開",
     "showAll": "全てのマーケットを表示",
     "marketCount": "{{count}} 試合"
+  },
+  "outcomes": {
+    "wdl": {
+      "homeWin": "ホーム勝利",
+      "draw": "引き分け",
+      "awayWin": "アウェイ勝利"
+    },
+    "ou": {
+      "over": "オーバー",
+      "under": "アンダー",
+      "overLine": "オーバー {{line}}",
+      "underLine": "アンダー {{line}}"
+    },
+    "ah": {
+      "homeCover": "ホームカバー",
+      "awayCover": "アウェイカバー",
+      "push": "プッシュ",
+      "homeHandicap": "ホーム {{line}}",
+      "awayHandicap": "アウェイ {{line}}",
+      "pushRefund": "プッシュ（払戻）"
+    },
+    "oddEven": {
+      "odd": "奇数",
+      "even": "偶数"
+    },
+    "score": {
+      "other": "その他"
+    },
+    "playerProps": {
+      "over": "オーバー",
+      "under": "アンダー",
+      "yes": "はい",
+      "no": "いいえ",
+      "player": "選手 {{id}}"
+    },
+    "fallback": "結果 {{id}}"
+  },
+  "betslip": {
+    "title": "ベットスリップ",
+    "empty": {
+      "title": "ベットなし",
+      "desc": "結果を選んでベットしてください"
+    },
+    "enterAmount": "金額を入力...",
+    "totalPayment": "支払い合計",
+    "totalPotentialWin": "予想獲得額",
+    "trade": "ベット",
+    "trading": "ベット中...",
+    "approving": "承認中...",
+    "checking": "確認中...",
+    "approveUSDC": "USDCを承認",
+    "termsText": "ベットすることで、以下に同意したことになります：",
+    "termsLink": "利用規約",
+    "liquidity": "流動性",
+    "potentialWin": "予想獲得",
+    "connectWallet": "ウォレットを接続"
   }
 }

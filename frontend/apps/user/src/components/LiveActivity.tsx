@@ -40,8 +40,8 @@ export function LiveActivity({ events, outcomeNames = [] }: LiveActivityProps) {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
             </span>
             实时活动
           </h3>
@@ -59,7 +59,7 @@ export function LiveActivity({ events, outcomeNames = [] }: LiveActivityProps) {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-zinc-900 text-xs font-bold">
                   {event.user.slice(2, 4).toUpperCase()}
                 </div>
                 <div>
@@ -73,7 +73,7 @@ export function LiveActivity({ events, outcomeNames = [] }: LiveActivityProps) {
               </div>
 
               <div className="text-right">
-                <p className="text-sm font-bold text-neon-green">
+                <p className="text-sm font-bold text-white">
                   {formatUnits(event.amount, TOKEN_DECIMALS.USDC)} USDC
                 </p>
                 <p className="text-xs text-gray-500">
@@ -90,7 +90,7 @@ export function LiveActivity({ events, outcomeNames = [] }: LiveActivityProps) {
                 href={`https://etherscan.io/tx/${event.transactionHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-neon-blue hover:text-neon-purple transition-colors"
+                className="text-xs text-zinc-400 hover:text-white transition-colors"
               >
                 查看交易 ↗
               </a>
