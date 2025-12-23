@@ -174,17 +174,34 @@ interface IMarket_V3 {
     function resolve(bytes calldata rawResult) external;
 
     /**
+     * @notice 检查是否会超出亏损限额
+     * @return exceedsLimit 是否超限
+     * @return excessLoss 超出的亏损金额
+     */
+    function checkLiabilityLimit() external view returns (bool exceedsLimit, uint256 excessLoss);
+
+    /**
      * @notice 终结市场（争议期结束后）
+     * @param scaleBps 赔付缩放比例（基点）
+     *        - 0: 正常结算，超限时 revert
+     *        - 1-10000: 按比例缩减赔付 + 储备金兜底
      * @dev 仅 KEEPER_ROLE 可调用
      */
-    function finalize() external;
+    function finalize(uint256 scaleBps) external;
 
     /**
      * @notice 取消市场（全额退款）
      * @param reason 取消原因
-     * @dev 仅 OPERATOR_ROLE 可调用
+     * @dev 仅 OPERATOR_ROLE 可调用，仅限 Open/Locked 状态
      */
     function cancel(string calldata reason) external;
+
+    /**
+     * @notice 取消已结算的市场并退款
+     * @param reason 取消原因
+     * @dev 仅 OPERATOR_ROLE 可调用，仅限 Resolved 状态
+     */
+    function cancelResolved(string calldata reason) external;
 
     // ============ 赎回 ============
 

@@ -133,6 +133,24 @@ contract LiquidityVault_V3 is ILiquidityVault_V3, ERC4626, AccessControl, Pausab
     }
 
     /**
+     * @notice 更新市场的最大亏损比例
+     * @param market 市场地址
+     * @param newMaxLiabilityBps 新的最大亏损比例（基点）
+     * @dev 用于紧急情况下调整亏损限额
+     */
+    function updateMaxLiabilityBps(address market, uint256 newMaxLiabilityBps)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (!_borrowInfo[market].active) revert UnauthorizedMarket();
+        require(newMaxLiabilityBps <= BASIS_POINTS, "Max 100%");
+
+        _borrowInfo[market].maxLiabilityBps = newMaxLiabilityBps;
+
+        emit MaxLiabilityUpdated(market, newMaxLiabilityBps);
+    }
+
+    /**
      * @notice 批量授权市场
      * @param markets 市场地址数组
      * @param maxLiabilityBps 最大亏损比例
@@ -274,6 +292,64 @@ contract LiquidityVault_V3 is ILiquidityVault_V3, ERC4626, AccessControl, Pausab
                 IERC20(asset()).safeTransferFrom(msg.sender, address(this), transferAmount);
             }
             // 如果 principal <= loss，市场不需要转账（已经在赔付中用完）
+
+            // 处理亏损
+            _handleLoss(loss);
+        }
+
+        // 更新借款记录
+        info.principal -= principal;
+        _totalBorrowed -= principal;
+
+        emit LiquiditySettled(msg.sender, principal, pnl, _totalBorrowed);
+    }
+
+    /**
+     * @notice 使用储备金兜底的强制结算
+     * @param principal 本金
+     * @param pnl 盈亏
+     * @dev 当亏损超过限额时，超出部分从储备金扣除
+     */
+    function settleWithReserve(uint256 principal, int256 pnl)
+        external
+        onlyRole(MARKET_ROLE)
+        whenNotPaused
+        nonReentrant
+    {
+        BorrowInfo storage info = _borrowInfo[msg.sender];
+        if (info.principal < principal) revert InsufficientBorrowBalance();
+
+        // 计算实际转账金额
+        uint256 transferAmount;
+        if (pnl >= 0) {
+            // LP 盈利：市场转入 本金 + 利润
+            transferAmount = principal + uint256(pnl);
+            IERC20(asset()).safeTransferFrom(msg.sender, address(this), transferAmount);
+            _distributeProfits(uint256(pnl));
+        } else {
+            // LP 亏损：使用储备金兜底超限部分
+            uint256 loss = uint256(-pnl);
+            uint256 maxLiability = info.principal * info.maxLiabilityBps / BASIS_POINTS;
+
+            // 超限部分从储备金扣除
+            if (loss > maxLiability) {
+                uint256 excessLoss = loss - maxLiability;
+                if (_reserveFund >= excessLoss) {
+                    _reserveFund -= excessLoss;
+                    emit ReserveFundUsed(msg.sender, excessLoss, _reserveFund);
+                } else {
+                    // 储备金不足，记录剩余缺口
+                    uint256 shortfall = excessLoss - _reserveFund;
+                    _reserveFund = 0;
+                    emit LiabilityShortfall(msg.sender, shortfall);
+                }
+            }
+
+            if (principal > loss) {
+                transferAmount = principal - loss;
+                IERC20(asset()).safeTransferFrom(msg.sender, address(this), transferAmount);
+            }
+            // 如果 principal <= loss，市场不需要转账
 
             // 处理亏损
             _handleLoss(loss);

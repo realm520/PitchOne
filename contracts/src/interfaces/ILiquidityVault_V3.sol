@@ -33,6 +33,9 @@ interface ILiquidityVault_V3 {
     /// @notice 市场撤销授权
     event MarketRevoked(address indexed market);
 
+    /// @notice 最大亏损比例更新
+    event MaxLiabilityUpdated(address indexed market, uint256 newMaxLiabilityBps);
+
     /// @notice 流动性借出
     event LiquidityBorrowed(address indexed market, uint256 amount, uint256 totalBorrowed);
 
@@ -49,6 +52,12 @@ interface ILiquidityVault_V3 {
 
     /// @notice 储备金更新
     event ReserveFundUpdated(uint256 newBalance, bool isDeposit);
+
+    /// @notice 储备金用于兜底
+    event ReserveFundUsed(address indexed market, uint256 amount, uint256 remainingReserve);
+
+    /// @notice 亏损超限且储备金不足（记录缺口）
+    event LiabilityShortfall(address indexed market, uint256 shortfall);
 
     // ============ 错误 ============
 
@@ -96,6 +105,14 @@ interface ILiquidityVault_V3 {
      *   负数 = 用户整体赢钱，LP 亏
      */
     function settle(uint256 principal, int256 pnl) external;
+
+    /**
+     * @notice 使用储备金兜底的强制结算
+     * @param principal 本金
+     * @param pnl 盈亏
+     * @dev 当亏损超过限额时，超出部分从储备金扣除
+     */
+    function settleWithReserve(uint256 principal, int256 pnl) external;
 
     /**
      * @notice 市场取消时归还本金

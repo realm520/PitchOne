@@ -353,7 +353,7 @@ contract Market_V3_Test is Test {
         market.resolve(rawResult);
 
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         assertEq(uint256(market.status()), uint256(IMarket_V3.MarketStatus.Finalized));
     }
@@ -374,7 +374,7 @@ contract Market_V3_Test is Test {
         market.resolve(rawResult);
 
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         vm.prank(admin);
         vm.expectRevert("Market: Cannot cancel");
@@ -399,7 +399,7 @@ contract Market_V3_Test is Test {
         market.resolve(rawResult);
 
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         // 用户赎回
         uint256 balanceBefore = usdc.balanceOf(user1);
@@ -431,7 +431,7 @@ contract Market_V3_Test is Test {
         market.resolve(rawResult);
 
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         // 用户尝试赎回失败的下注
         vm.prank(user1);
@@ -455,7 +455,7 @@ contract Market_V3_Test is Test {
         market.resolve(rawResult);
 
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         // 尝试赎回过多份额
         vm.prank(user1);
@@ -582,7 +582,7 @@ contract Market_V3_Test is Test {
 
         // 终结
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         // user1 赎回（赢家）
         vm.prank(user1);
@@ -618,7 +618,7 @@ contract Market_V3_Test is Test {
 
         // 终结
         vm.prank(keeper);
-        market.finalize();
+        market.finalize(0);
 
         // 验证结算结果
         IMarket_V3.SettlementResult memory result = market.getSettlementResult();

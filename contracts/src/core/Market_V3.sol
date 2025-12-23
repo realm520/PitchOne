@@ -81,6 +81,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     // 已赔付金额追踪（用于计算 PnL）
     uint256 public totalPayoutClaimed;
 
+    // 赔付缩放比例（基点，默认 10000 = 100%）
+    uint256 public payoutScaleBps = 10000;
+
     // 每个 outcome 的统计
     mapping(uint256 => uint256) public totalSharesPerOutcome;
     mapping(uint256 => uint256) public totalBetAmountPerOutcome;
@@ -121,6 +124,8 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     );
     event VaultFunded(address indexed vault, uint256 amount);
     event VaultSettled(uint256 principal, int256 pnl);
+    event VaultLossOnCancel(uint256 lossAmount);
+    event PayoutScaled(uint256 scaleBps);
 
     // ============ 错误定义 ============
 
@@ -189,6 +194,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         // 设置初始流动性
         totalLiquidity = config.initialLiquidity;
+
+        // 初始化赔付缩放比例（Clone 模式下需要显式设置）
+        payoutScaleBps = 10000;
 
         // Vault 集成：设置 Vault 地址（不在 initialize 中自动借款）
         // 注意：需要先在 Vault 中授权市场，然后调用 fundFromVault()
@@ -375,10 +383,39 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     }
 
     /**
+     * @notice 检查是否会超出亏损限额
+     * @return exceedsLimit 是否超限
+     * @return excessLoss 超出的亏损金额
+     */
+    function checkLiabilityLimit() public view returns (bool exceedsLimit, uint256 excessLoss) {
+        if (address(vault) == address(0) || borrowedAmount == 0) {
+            return (false, 0);
+        }
+
+        int256 pnl = _calculatePnL();
+        if (pnl >= 0) {
+            return (false, 0);
+        }
+
+        uint256 loss = uint256(-pnl);
+        ILiquidityVault_V3.BorrowInfo memory info = vault.getBorrowInfo(address(this));
+        uint256 maxLiability = borrowedAmount * info.maxLiabilityBps / 10000;
+
+        if (loss > maxLiability) {
+            return (true, loss - maxLiability);
+        }
+        return (false, 0);
+    }
+
+    /**
      * @notice 终结市场（可领取奖金）
+     * @param scaleBps 赔付缩放比例（基点）
+     *        - 0: 正常结算，超限时 revert
+     *        - 1-10000: 按比例缩减赔付 + 储备金兜底
      * @dev 如果配置了 Vault，会计算 PnL 并结算
      */
-    function finalize() external onlyRole(KEEPER_ROLE) {
+    function finalize(uint256 scaleBps) external onlyRole(KEEPER_ROLE) {
+        require(scaleBps <= 10000, "Market: Invalid scale");
         if (status != MarketStatus.Resolved) {
             revert InvalidStatus(MarketStatus.Resolved, status);
         }
@@ -387,28 +424,89 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         if (address(vault) != address(0) && borrowedAmount > 0) {
             int256 pnl = _calculatePnL();
 
-            // 计算需要转给 Vault 的金额
-            uint256 transferAmount;
-            if (pnl >= 0) {
-                // LP 盈利：归还本金 + 利润
-                transferAmount = borrowedAmount + uint256(pnl);
+            if (scaleBps == 0) {
+                // 正常结算模式：超限时 revert
+                uint256 transferAmount;
+                if (pnl >= 0) {
+                    transferAmount = borrowedAmount + uint256(pnl);
+                } else {
+                    uint256 loss = uint256(-pnl);
+                    transferAmount = borrowedAmount > loss ? borrowedAmount - loss : 0;
+                }
+
+                if (transferAmount > 0) {
+                    settlementToken.approve(address(vault), transferAmount);
+                }
+                vault.settle(borrowedAmount, pnl);
+
+                emit VaultSettled(borrowedAmount, pnl);
             } else {
-                // LP 亏损：归还本金 - 亏损（如果够的话）
-                uint256 loss = uint256(-pnl);
-                transferAmount = borrowedAmount > loss ? borrowedAmount - loss : 0;
-            }
+                // 缩放 + 储备金模式
+                payoutScaleBps = scaleBps;
+                int256 scaledPnl;
 
-            // 授权并结算
-            if (transferAmount > 0) {
-                settlementToken.approve(address(vault), transferAmount);
-            }
-            vault.settle(borrowedAmount, pnl);
+                if (pnl < 0) {
+                    uint256 originalLoss = uint256(-pnl);
+                    uint256 scaledLoss = originalLoss * scaleBps / 10000;
+                    scaledPnl = -int256(scaledLoss);
+                } else {
+                    scaledPnl = pnl;
+                }
 
-            emit VaultSettled(borrowedAmount, pnl);
+                uint256 transferAmount;
+                if (scaledPnl >= 0) {
+                    transferAmount = borrowedAmount + uint256(scaledPnl);
+                } else {
+                    uint256 loss = uint256(-scaledPnl);
+                    transferAmount = borrowedAmount > loss ? borrowedAmount - loss : 0;
+                }
+
+                if (transferAmount > 0) {
+                    settlementToken.approve(address(vault), transferAmount);
+                }
+
+                vault.settleWithReserve(borrowedAmount, scaledPnl);
+
+                emit VaultSettled(borrowedAmount, scaledPnl);
+                if (scaleBps < 10000) {
+                    emit PayoutScaled(scaleBps);
+                }
+            }
         }
 
         status = MarketStatus.Finalized;
         emit MarketFinalized(block.timestamp);
+    }
+
+    /**
+     * @notice 取消已结算的市场并退款
+     * @param reason 取消原因
+     * @dev 当亏损超限且不愿使用储备金时使用
+     */
+    function cancelResolved(string calldata reason) external onlyRole(OPERATOR_ROLE) {
+        require(
+            status == MarketStatus.Resolved,
+            "Market: Must be Resolved"
+        );
+
+        // Vault 集成：取消时归还本金（市场余额可能不足，按实际余额退还）
+        if (address(vault) != address(0) && borrowedAmount > 0) {
+            uint256 balance = settlementToken.balanceOf(address(this));
+            uint256 returnAmount = balance < borrowedAmount ? balance : borrowedAmount;
+
+            if (returnAmount > 0) {
+                settlementToken.approve(address(vault), returnAmount);
+                vault.returnPrincipal(returnAmount);
+            }
+
+            // 如果有差额，记录为亏损
+            if (returnAmount < borrowedAmount) {
+                emit VaultLossOnCancel(borrowedAmount - returnAmount);
+            }
+        }
+
+        status = MarketStatus.Cancelled;
+        emit MarketCancelled(reason);
     }
 
     /**
@@ -482,6 +580,11 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         // 应用权重（半输半赢情况）
         payout = basePayout * weight / 10000;
+
+        // 应用赔付缩放（超限时可能按比例缩减）
+        if (payoutScaleBps < 10000) {
+            payout = payout * payoutScaleBps / 10000;
+        }
 
         // 销毁头寸
         _burn(msg.sender, outcomeId, shares);
