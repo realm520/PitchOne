@@ -120,7 +120,8 @@
     "pagination": {
       "prev": "Previous",
       "next": "Next",
-      "page": "Page {{page}}"
+      "page": "Page {{page}}",
+      "showing": "Showing {{from}}-{{to}} of {{total}} markets"
     },
     "bet": {
       "placeBet": "Place Bet",

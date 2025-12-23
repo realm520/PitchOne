@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMarkets, MarketStatus, useMultipleMarketsData } from "@pitchone/web3";
+import { useMarketsPaginated, MarketStatus, useMultipleMarketsData, type PaginationInfo } from "@pitchone/web3";
 import type { Address } from "viem";
 import { useTranslation } from "@pitchone/i18n";
 import {
@@ -16,11 +16,13 @@ import { useSidebarStore } from "../../lib/sidebar-store";
 import { parseLeagueFromMatchId } from "../../types/sports";
 import { MarketCard } from "./components/MarketCard";
 
+const PAGE_SIZE = 20;
+
 // Market type grouped by day
 interface MarketsByDay {
   dateKey: string;
   dateLabel: string;
-  markets: ReturnType<typeof useMarkets>["data"];
+  markets: ReturnType<typeof useMarketsPaginated>["data"];
 }
 
 export function MarketsContent() {
@@ -29,7 +31,13 @@ export function MarketsContent() {
     MarketStatus[] | undefined
   >();
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
-  const { data: markets, isLoading, error, refetch } = useMarkets(statusFilter);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { data: markets, isLoading, error, refetch, pagination } = useMarketsPaginated(
+    statusFilter,
+    currentPage,
+    PAGE_SIZE
+  );
 
   // Get league filter from sidebar
   const { selectedLeague, resetFilters: resetLeagueFilter } = useSidebarStore();
@@ -189,9 +197,10 @@ export function MarketsContent() {
                     : "ghost"
                 }
                 size="sm"
-                onClick={() =>
-                  setStatusFilter(filter.value ? [filter.value] : undefined)
-                }
+                onClick={() => {
+                  setStatusFilter(filter.value ? [filter.value] : undefined);
+                  setCurrentPage(1); // 重置到第一页
+                }}
               >
                 {filter.label}
               </Button>
@@ -321,18 +330,88 @@ export function MarketsContent() {
           </div>
         )}
 
-        {/* Pagination Placeholder */}
-        {filteredMarkets && filteredMarkets.length > 0 && (
-          <div className="mt-12 flex justify-center">
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-12 flex flex-col items-center gap-4">
+            {/* Page info */}
+            <div className="text-sm text-gray-400">
+              {t("markets.pagination.showing", {
+                from: (currentPage - 1) * PAGE_SIZE + 1,
+                to: Math.min(currentPage * PAGE_SIZE, pagination.totalItems),
+                total: pagination.totalItems,
+              })}
+            </div>
+
+            {/* Pagination controls */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" disabled>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pagination.hasPrevPage}
+                onClick={() => setCurrentPage(1)}
+              >
+                {"<<"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pagination.hasPrevPage}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
                 {t("markets.pagination.prev")}
               </Button>
-              <span className="px-4 py-2 text-sm text-gray-400">
-                {t("markets.pagination.page", { page: 1 })}
-              </span>
-              <Button variant="ghost" size="sm" disabled>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    // Show first, last, current, and adjacent pages
+                    if (page === 1 || page === pagination.totalPages) return true;
+                    if (Math.abs(page - currentPage) <= 1) return true;
+                    return false;
+                  })
+                  .reduce((acc: (number | string)[], page, idx, arr) => {
+                    // Add ellipsis between gaps
+                    if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                      acc.push("...");
+                    }
+                    acc.push(page);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    typeof item === "string" ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">
+                        {item}
+                      </span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={currentPage === item ? "primary" : "ghost"}
+                        size="sm"
+                        onClick={() => setCurrentPage(item)}
+                        className="min-w-[36px]"
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pagination.hasNextPage}
+                onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+              >
                 {t("markets.pagination.next")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pagination.hasNextPage}
+                onClick={() => setCurrentPage(pagination.totalPages)}
+              >
+                {">>"}
               </Button>
             </div>
           </div>

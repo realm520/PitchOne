@@ -59,6 +59,8 @@ export {
 // Custom Hooks
 export {
   useMarkets,
+  useMarketsCount,
+  useMarketsPaginated,
   useMarket,
   useUserPositions,
   useUserPositionsPaginated,
@@ -69,6 +71,8 @@ export {
   type Market,
   type Position,
   type Order,
+  type PaginationInfo,
+  type PaginatedMarketsResult,
 } from './hooks';
 
 // Contract Interaction Hooks (User)

@@ -120,7 +120,8 @@
     "pagination": {
       "prev": "前へ",
       "next": "次へ",
-      "page": "{{page}} ページ"
+      "page": "{{page}} ページ",
+      "showing": "{{from}}-{{to}} / 全 {{total}} マーケット"
     },
     "bet": {
       "placeBet": "ベットする",

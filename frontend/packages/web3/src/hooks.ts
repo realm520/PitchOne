@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY } from './graphql';
 
 // 市场状态枚举
 export enum MarketStatus {
@@ -245,6 +245,95 @@ export function useMarkets(status?: MarketStatus[], first = 20, skip = 0) {
     },
     staleTime: 30 * 1000, // 30 秒
   });
+}
+
+/**
+ * 查询市场总数
+ */
+export function useMarketsCount(status?: MarketStatus[]) {
+  return useQuery({
+    queryKey: ['marketsCount', status],
+    queryFn: async () => {
+      try {
+        if (status && status.length > 0) {
+          // 按状态过滤的数量
+          const data = await graphqlClient.request<{ markets: { id: string }[] }>(
+            MARKETS_COUNT_BY_STATUS_QUERY,
+            { status }
+          );
+          return data.markets.length;
+        } else {
+          // 所有市场数量
+          const data = await graphqlClient.request<{ globalStats: { totalMarkets: number } }>(
+            MARKETS_COUNT_QUERY
+          );
+          return data.globalStats?.totalMarkets ?? 0;
+        }
+      } catch (error) {
+        console.error('[useMarketsCount] 查询失败:', error);
+        throw error;
+      }
+    },
+    staleTime: 60 * 1000, // 1 分钟
+  });
+}
+
+/**
+ * 分页信息接口
+ */
+export interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+/**
+ * 分页市场查询结果
+ */
+export interface PaginatedMarketsResult {
+  markets: Market[];
+  pagination: PaginationInfo;
+}
+
+/**
+ * 查询市场列表（带分页）
+ */
+export function useMarketsPaginated(
+  status?: MarketStatus[],
+  page = 1,
+  pageSize = 20
+) {
+  const skip = (page - 1) * pageSize;
+
+  // 查询当前页数据
+  const marketsQuery = useMarkets(status, pageSize, skip);
+
+  // 查询总数
+  const countQuery = useMarketsCount(status);
+
+  const totalItems = countQuery.data ?? 0;
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  return {
+    data: marketsQuery.data,
+    isLoading: marketsQuery.isLoading || countQuery.isLoading,
+    error: marketsQuery.error || countQuery.error,
+    refetch: () => {
+      marketsQuery.refetch();
+      countQuery.refetch();
+    },
+    pagination: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    } as PaginationInfo,
+  };
 }
 
 /**

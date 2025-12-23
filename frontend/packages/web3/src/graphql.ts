@@ -309,6 +309,24 @@ export const GLOBAL_STATS_QUERY = `
   }
 `;
 
+// 市场数量查询（用于分页）
+export const MARKETS_COUNT_QUERY = `
+  query MarketsCount {
+    globalStats(id: "global") {
+      totalMarkets
+    }
+  }
+`;
+
+// 按状态过滤的市场数量查询
+export const MARKETS_COUNT_BY_STATUS_QUERY = `
+  query MarketsCountByStatus($status: [MarketState!]!) {
+    markets(first: 1000, where: { state_in: $status }) {
+      id
+    }
+  }
+`;
+
 export const RECENT_ORDERS_QUERY = `
   query RecentOrders($first: Int) {
     orders(
