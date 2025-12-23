@@ -26,6 +26,12 @@ export function BetSlip({ className }: BetSlipProps) {
   const { selectedBet, clearBet } = useBetSlipStore();
   const { address, isConnected } = useAccount();
 
+  // 避免水合不匹配：延迟渲染客户端特定 UI
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [betAmount, setBetAmount] = useState("");
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approveToastId, setApproveToastId] = useState<string | null>(null);
@@ -293,7 +299,7 @@ export function BetSlip({ className }: BetSlipProps) {
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${
-              isConnected ? "bg-green-500" : "bg-zinc-500"
+              mounted && isConnected ? "bg-green-500" : "bg-zinc-500"
             }`}
           />
           <span className="text-sm text-zinc-400">{formattedBalance} USDC</span>

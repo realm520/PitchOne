@@ -8,33 +8,58 @@ import { NextRequest, NextResponse } from 'next/server';
  * 端点：POST /api/subgraph/subgraphs/name/pitchone-sportsbook
  */
 export async function POST(request: NextRequest) {
+  // 支持多个备选地址，解决不同环境的连接问题
+  const graphNodeUrls = [
+    process.env.GRAPH_NODE_URL,
+    'http://127.0.0.1:8010/subgraphs/name/pitchone-sportsbook',
+    'http://localhost:8010/subgraphs/name/pitchone-sportsbook',
+    'http://[::1]:8010/subgraphs/name/pitchone-sportsbook',
+  ].filter(Boolean) as string[];
+
   try {
     // 读取请求体（GraphQL 查询）
     const body = await request.json();
 
-    // 转发到本地 Graph Node（使用 127.0.0.1 而不是 localhost，避免 DNS 解析问题）
-    const graphNodeUrl = process.env.GRAPH_NODE_URL || 'http://127.0.0.1:8010/subgraphs/name/pitchone-sportsbook';
+    let lastError: Error | null = null;
 
-    const response = await fetch(graphNodeUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    // 尝试所有备选地址
+    for (const graphNodeUrl of graphNodeUrls) {
+      try {
+        const response = await fetch(graphNodeUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          // 添加超时
+          signal: AbortSignal.timeout(5000),
+        });
 
-    // 检查响应状态
-    if (!response.ok) {
-      console.error('[API Proxy] Graph Node 返回错误:', response.status, response.statusText);
-      return NextResponse.json(
-        { error: 'Graph Node 请求失败', status: response.status },
-        { status: response.status }
-      );
+        // 检查响应状态
+        if (!response.ok) {
+          console.error(`[API Proxy] Graph Node ${graphNodeUrl} 返回错误:`, response.status);
+          continue;
+        }
+
+        // 解析并返回 GraphQL 响应
+        const data = await response.json();
+        return NextResponse.json(data);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[API Proxy] 尝试 ${graphNodeUrl} 失败:`, lastError.message);
+      }
     }
 
-    // 解析并返回 GraphQL 响应
-    const data = await response.json();
-    return NextResponse.json(data);
+    // 所有地址都失败了
+    console.error('[API Proxy] 所有 Graph Node 地址都无法连接');
+    return NextResponse.json(
+      {
+        error: '无法连接到 Graph Node',
+        details: lastError?.message || 'Unknown error',
+        triedUrls: graphNodeUrls
+      },
+      { status: 503 }
+    );
 
   } catch (error) {
     console.error('[API Proxy] 代理请求失败:', error);

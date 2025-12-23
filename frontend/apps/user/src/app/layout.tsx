@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Providers } from "@pitchone/web3";
@@ -38,7 +39,9 @@ export default function RootLayout({
             <SidebarProvider>
               <ParlayProvider>
               <BetSlipProvider>
-                <ReferralBinder />
+                <Suspense fallback={null}>
+                  <ReferralBinder />
+                </Suspense>
 
                 <div className="flex flex-col min-h-screen">
                   <Header
