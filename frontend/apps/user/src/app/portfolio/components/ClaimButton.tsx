@@ -7,7 +7,7 @@ import { useState } from "react";
 import { type Address } from "viem";
 import { getClaimStatus } from "../utils";
 
-export default function ClaimButton({ position }: { position: Position }) {
+export default function ClaimButton({ position, onSuccess }: { position: Position; onSuccess?: () => void }) {
     const { t } = useTranslation();
     const [isClaiming, setIsClaiming] = useState(false);
     const { redeem, isPending, isConfirming, isSuccess } = useRedeem(position.market.id as Address);
@@ -20,6 +20,8 @@ export default function ClaimButton({ position }: { position: Position }) {
         setIsClaiming(true);
         try {
             await redeem(position.outcome, position.balance);
+            // 延迟刷新，等待 Subgraph 索引
+            setTimeout(() => onSuccess?.(), 1500);
         } catch (err) {
             console.error('Claim failed:', err);
         } finally {

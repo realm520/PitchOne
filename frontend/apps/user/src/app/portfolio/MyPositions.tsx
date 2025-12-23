@@ -1,7 +1,7 @@
 import { useTranslation } from "@pitchone/i18n";
 import { Button, Card, EmptyState, ErrorState, Input } from "@pitchone/ui";
 import { useState } from "react";
-import TicketList from "./TicketsList";
+import PositionList from "./PositionList";
 import { MarketStatus, Position, useAccount, useUserPositions } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
@@ -44,11 +44,11 @@ const filterPositions = (
     return filtered;
 };
 
-export default function MyTickets() {
+export default function MyPositions() {
     const [activeTab, setActiveTab] = useState('all')
     const [keyword, setKeyword] = useState('')
     const { address } = useAccount();
-    const { data: positions, isLoading, error } = useUserPositions(address);
+    const { data: positions, isLoading, error, refetch } = useUserPositions(address);
     const [currentPage, setCurrentPage] = useState(1);
     const totalPages = 5; // TODO: 从实际数据获取
     const { t } = useTranslation()
@@ -174,7 +174,7 @@ export default function MyTickets() {
                                 />
                             ) : (
                                 <div className="flex flex-col gap-6">
-                                    <TicketList positions={filteredPositions} />
+                                    <PositionList positions={filteredPositions} onClaimSuccess={refetch} />
                                 </div>
                             );
                         })()}

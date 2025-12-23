@@ -9,7 +9,7 @@ import {
 } from '@pitchone/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import UnConnected from './UnConnected';
-import MyTickets from './MyTickets';
+import MyPositions from './MyPositions';
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -55,7 +55,7 @@ export default function PortfolioPage() {
               exit="exit"
               transition={pageTransition}
             >
-              <MyTickets />
+              <MyPositions />
             </motion.div>
           )}
         </AnimatePresence>

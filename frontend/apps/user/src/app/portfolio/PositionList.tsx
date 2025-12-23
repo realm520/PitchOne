@@ -12,7 +12,7 @@ import {
 } from "./utils";
 import ClaimButton from "./components/ClaimButton";
 
-export default function TicketList({ positions }: { positions?: Position[] }) {
+export default function PositionList({ positions, onClaimSuccess }: { positions?: Position[]; onClaimSuccess?: () => void }) {
     const { t, translateTeam } = useTranslation();
     return (
         <motion.div
@@ -56,7 +56,7 @@ export default function TicketList({ positions }: { positions?: Position[] }) {
                             <Td>{formatDate(position.createdAt)}</Td>
                             <Td>0x222</Td>
                             <Td className="text-right">
-                                <ClaimButton position={position} />
+                                <ClaimButton position={position} onSuccess={onClaimSuccess} />
                             </Td>
                         </Row>
                     )}
