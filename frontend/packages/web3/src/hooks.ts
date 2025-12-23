@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY } from './graphql';
 
 // 市场状态枚举
 export enum MarketStatus {
@@ -330,6 +330,66 @@ export function useUserPositions(userAddress: string | undefined) {
         return positions;
       } catch (error) {
         console.error('[useUserPositions] 查询失败:', error);
+        throw error;
+      }
+    },
+    enabled: !!userAddress,
+    staleTime: 15 * 1000, // 15 秒
+  });
+}
+
+/**
+ * 分页查询用户头寸
+ * @param userAddress 用户地址
+ * @param page 页码（从1开始）
+ * @param pageSize 每页条数
+ */
+export function useUserPositionsPaginated(
+  userAddress: string | undefined,
+  page: number = 1,
+  pageSize: number = 10
+) {
+  const skip = (page - 1) * pageSize;
+
+  return useQuery({
+    queryKey: ['positions', userAddress, 'paginated', page, pageSize],
+    queryFn: async () => {
+      if (!userAddress) {
+        console.log('[useUserPositionsPaginated] 地址为空，返回空数组');
+        return { positions: [], total: 0 };
+      }
+
+      const userId = userAddress.toLowerCase();
+      console.log('[useUserPositionsPaginated] 查询用户头寸:', { userId, page, pageSize, skip });
+
+      try {
+        // 并行查询：头寸数据 + 总数
+        const [positionsData, countData] = await Promise.all([
+          graphqlClient.request<{ positions: PositionRaw[] }>(
+            USER_POSITIONS_PAGINATED_QUERY,
+            { userId, first: pageSize, skip }
+          ),
+          graphqlClient.request<{ user: { totalBets: number } | null }>(
+            USER_POSITIONS_COUNT_QUERY,
+            { userId }
+          ),
+        ]);
+
+        console.log('[useUserPositionsPaginated] 查询成功，返回', positionsData.positions.length, '个头寸');
+
+        // 转换嵌套结构为扁平结构
+        const positions: Position[] = positionsData.positions.map(pos => ({
+          ...pos,
+          owner: pos.owner.id,
+          createdAt: pos.lastUpdatedAt || '0',
+        }));
+
+        // 总数从 user.totalBets 获取，如果用户不存在则为 0
+        const total = countData.user?.totalBets || 0;
+
+        return { positions, total };
+      } catch (error) {
+        console.error('[useUserPositionsPaginated] 查询失败:', error);
         throw error;
       }
     },

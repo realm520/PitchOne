@@ -61,6 +61,7 @@ export {
   useMarkets,
   useMarket,
   useUserPositions,
+  useUserPositionsPaginated,
   useUserOrders,
   useMarketOrders,
   useMarketAllOrders,

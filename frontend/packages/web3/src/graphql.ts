@@ -167,6 +167,49 @@ export const USER_POSITIONS_QUERY = `
   }
 `;
 
+export const USER_POSITIONS_PAGINATED_QUERY = `
+  query UserPositionsPaginated($userId: ID!, $first: Int!, $skip: Int!) {
+    positions(
+      where: { owner: $userId, balance_gt: "0" }
+      first: $first
+      skip: $skip
+      orderBy: lastUpdatedAt
+      orderDirection: desc
+    ) {
+      id
+      owner {
+        id
+      }
+      market {
+        id
+        templateId
+        matchId
+        homeTeam
+        awayTeam
+        kickoffTime
+        state
+        winnerOutcome
+        line
+        lines
+      }
+      outcome
+      balance
+      averageCost
+      totalInvested
+      lastUpdatedAt
+    }
+  }
+`;
+
+export const USER_POSITIONS_COUNT_QUERY = `
+  query UserPositionsCount($userId: ID!) {
+    user(id: $userId) {
+      id
+      totalBets
+    }
+  }
+`;
+
 export const USER_ORDERS_QUERY = `
   query UserOrders($userId: ID!, $first: Int) {
     orders(

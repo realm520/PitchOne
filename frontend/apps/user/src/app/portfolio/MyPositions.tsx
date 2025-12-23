@@ -1,8 +1,8 @@
 import { useTranslation } from "@pitchone/i18n";
-import { Button, Card, EmptyState, ErrorState, Input } from "@pitchone/ui";
+import { Button, Card, EmptyState, ErrorState, Input, Pagination } from "@pitchone/ui";
 import { useState } from "react";
 import PositionList from "./PositionList";
-import { MarketStatus, Position, useAccount, useUserPositions } from "@pitchone/web3";
+import { MarketStatus, Position, useAccount, useUserPositionsPaginated } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
 import { calculateExpectedPayout, getClaimStatus } from "./utils";
@@ -48,9 +48,12 @@ export default function MyPositions() {
     const [activeTab, setActiveTab] = useState('all')
     const [keyword, setKeyword] = useState('')
     const { address } = useAccount();
-    const { data: positions, isLoading, error, refetch } = useUserPositions(address);
     const [currentPage, setCurrentPage] = useState(1);
-    const totalPages = 5; // TODO: 从实际数据获取
+    const pageSize = 10; // 每页显示条数
+    const { data, isLoading, error, refetch } = useUserPositionsPaginated(address, currentPage, pageSize);
+    const positions = data?.positions;
+    const totalCount = data?.total || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
     const { t } = useTranslation()
 
     // 计算统计数据
@@ -175,6 +178,13 @@ export default function MyPositions() {
                             ) : (
                                 <div className="flex flex-col gap-6">
                                     <PositionList positions={filteredPositions} onClaimSuccess={refetch} />
+                                    {totalPages > 1 && (
+                                        <Pagination
+                                            currentPage={currentPage}
+                                            totalPages={totalPages}
+                                            onPageChange={setCurrentPage}
+                                        />
+                                    )}
                                 </div>
                             );
                         })()}
