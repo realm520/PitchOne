@@ -11,7 +11,6 @@ docs/
 ├── security/           # 安全文档（审计报告、安全扫描）
 ├── operation/          # 运营文档（部署、操作手册、变更日志）
 ├── archive/            # 历史文档归档
-├── 模块接口事件参数/     # API/事件接口定义
 ├── README.md           # 本文件
 ├── 任务追踪.md          # 任务和里程碑追踪
 ├── marketing.md        # 市场营销文档
@@ -88,12 +87,10 @@ docs/
 - [ADMIN_DASHBOARD_COMPLETE.md](operation/ADMIN_DASHBOARD_COMPLETE.md) - 管理后台完成报告
 - [FRONTEND_MIGRATION_COMPLETE.md](operation/FRONTEND_MIGRATION_COMPLETE.md) - 前端迁移完成报告
 
-### 接口文档 ([模块接口事件参数/](模块接口事件参数/))
+### 接口文档
 
-- [EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 事件字典（完整事件定义）
-- [PARAMETERS.md](模块接口事件参数/PARAMETERS.md) - 参数说明
-- [ABI_PLACEHOLDERS.md](模块接口事件参数/ABI_PLACEHOLDERS.md) - ABI 占位符
-- [SUBGRAPH_SCHEMA.graphql](模块接口事件参数/SUBGRAPH_SCHEMA.graphql) - Subgraph Schema
+- [合约接口](../contracts/src/interfaces/) - 合约接口定义
+- [Subgraph Schema](../subgraph/schema.graphql) - GraphQL Schema
 
 ### 归档文档 ([archive/](archive/))
 
@@ -104,7 +101,7 @@ docs/
 ### 智能合约开发者
 1. [design/01_MarketBase.md](design/01_MarketBase.md) - 了解市场合约设计
 2. [design/02_AMM_LinkedLines.md](design/02_AMM_LinkedLines.md) - 定价引擎实现
-3. [模块接口事件参数/EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 事件定义
+3. [合约接口](../contracts/src/interfaces/) - 接口定义
 4. [security/audit-report.md](security/audit-report.md) - 安全审计结果
 
 ### 后端开发者
@@ -115,7 +112,7 @@ docs/
 
 ### 前端开发者
 1. [design/FRONTEND_RESTRUCTURE_PLAN.md](design/FRONTEND_RESTRUCTURE_PLAN.md) - 前端架构
-2. [模块接口事件参数/EVENT_DICTIONARY.md](模块接口事件参数/EVENT_DICTIONARY.md) - 合约接口
+2. [合约接口](../contracts/src/interfaces/) - 合约接口定义
 3. [operation/FRONTEND_MIGRATION_COMPLETE.md](operation/FRONTEND_MIGRATION_COMPLETE.md) - 前端迁移完成
 4. [design/MARKET_TYPES_OVERVIEW.md](design/MARKET_TYPES_OVERVIEW.md) - 市场类型说明
 

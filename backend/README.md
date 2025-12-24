@@ -508,4 +508,4 @@ MIT License
 - [Subgraph](../subgraph/)
 - [前端应用](../frontend/)
 - [系统设计文档](../docs/design/)
-- [接口与事件规范](../docs/模块接口事件参数/EVENT_DICTIONARY.md)
+- [接口规范](../contracts/src/interfaces/)

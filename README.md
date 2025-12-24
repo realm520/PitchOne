@@ -268,7 +268,7 @@ graph deploy                # 部署到 Graph Node
 ## 文档
 
 - **技术设计**: `docs/design/` - 10 份模块设计文档
-- **接口规范**: `docs/模块接口事件参数/EVENT_DICTIONARY.md`
+- **接口规范**: `contracts/src/interfaces/` - 合约接口定义
 - **开发指南**: `CLAUDE.md` - Claude Code 使用指南
 - **进度追踪**: `docs/任务追踪.md`
 

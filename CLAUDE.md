@@ -557,7 +557,7 @@ Market_V3 (容器) ─── IPricingStrategy (定价策略)
 
 **关键设计模式**：
 - **模板化扩展**：所有玩法通过 `IMarketTemplate` 接口标准化，支持热插拔
-- **事件驱动**：所有状态变更发出标准化事件（参见 `docs/模块接口事件参数/EVENT_DICTIONARY.md`）
+- **事件驱动**：所有状态变更发出标准化事件（参见各合约接口定义）
 - **不变量保护**：AMM 守恒、LP 金库安全、串关赔率上限等通过 Scribble 断言 + Echidna 模糊测试验证
 - **乐观式结算**：质押 → 争议窗口 → 最终确认，减少链上交互成本
 
@@ -755,7 +755,7 @@ forge script script/CreateMarketsViaFactory.s.sol --broadcast
   - 使用 `uint256` 而非 `uint8`（EVM 字长对齐）
   - 批量操作时使用 `calldata` 而非 `memory`
   - 避免在循环中读写存储（先加载到内存）
-- **事件契约**：所有状态变更必须发出标准化事件（参见 `docs/模块接口事件参数/EVENT_DICTIONARY.md`）
+- **事件契约**：所有状态变更必须发出标准化事件（参见各合约接口定义）
 - **错误处理**：使用自定义 Error（节省 Gas）
   ```solidity
   error MarketAlreadyLocked(uint256 lockTime);
@@ -796,9 +796,8 @@ forge script script/CreateMarketsViaFactory.s.sol --broadcast
 ## 文档资源
 
 - **技术详细设计**：`docs/design/` - 10 份模块设计文档
-- **接口与事件规范**：`docs/模块接口事件参数/EVENT_DICTIONARY.md`
 - **架构思维导图**：`docs/project_mind.md`
-- **Subgraph Schema**：`docs/模块接口事件参数/SUBGRAPH_SCHEMA.graphql`
+- **Subgraph Schema**：`subgraph/schema.graphql`
 
 ## 环境变量
 
