@@ -271,6 +271,8 @@ test/
 
 ## Related Documentation
 
+- [Architecture_V3.md](./Architecture_V3.md) - V3 架构设计
+- [AccessControl.md](./AccessControl.md) - 角色与权限管理
 - [CLAUDE.md](../CLAUDE.md) - Project overview and dev guide
 - [Subgraph](../../subgraph/) - GraphQL indexing
 - [Frontend](../../frontend/) - Web interface
