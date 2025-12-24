@@ -14,10 +14,11 @@ const nextConfig: NextConfig = {
   },
   // 添加 rewrites 来代理 Subgraph 请求，解决 CORS 问题
   async rewrites() {
+    const graphNodeUrl = process.env.GRAPH_NODE_URL || 'http://localhost:8010';
     return [
       {
         source: '/api/subgraph/:path*',
-        destination: 'http://localhost:8010/:path*',
+        destination: `${graphNodeUrl}/:path*`,
       },
     ];
   },
