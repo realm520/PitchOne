@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -371,6 +372,154 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
             discountBps: 0,
             referrer: address(0)
         });
+    }
+
+    // ============ 批量领取 ============
+
+    /// @notice 领取参数（跨市场）
+    struct RedeemParams {
+        address market;      // 市场地址
+        uint256 outcomeId;   // 结果ID
+        uint256 shares;      // 份额数量
+    }
+
+    /// @notice 领取事件
+    event PayoutRedeemed(
+        address indexed user,
+        address indexed market,
+        uint256 indexed outcomeId,
+        uint256 shares,
+        uint256 payout
+    );
+
+    /// @notice 批量领取事件
+    event BatchRedeemed(
+        address indexed user,
+        uint256 marketCount,
+        uint256 totalPayout
+    );
+
+    /// @notice 退款事件
+    event RefundRedeemed(
+        address indexed user,
+        address indexed market,
+        uint256 indexed outcomeId,
+        uint256 shares,
+        uint256 amount
+    );
+
+    /// @notice 批量退款事件
+    event BatchRefunded(
+        address indexed user,
+        uint256 marketCount,
+        uint256 totalRefund
+    );
+
+    /**
+     * @notice 批量领取赔付（跨市场）
+     * @param redeems 领取参数数组
+     * @return totalPayout 总获得金额
+     * @dev 用户需要先对此 Router 调用 setApprovalForAll
+     */
+    function batchRedeem(RedeemParams[] calldata redeems)
+        external
+        nonReentrant
+        notPaused
+        returns (uint256 totalPayout)
+    {
+        uint256 len = redeems.length;
+
+        for (uint256 i = 0; i < len;) {
+            RedeemParams calldata r = redeems[i];
+
+            // 验证市场合法性
+            if (factory != address(0)) {
+                try IMarketFactory_V3(factory).isMarket(r.market) returns (bool registered) {
+                    if (!registered) revert InvalidMarket(r.market);
+                } catch {
+                    revert InvalidMarket(r.market);
+                }
+            }
+
+            // 调用市场的 redeemFor
+            uint256 payout = IMarket_V3(r.market).redeemFor(msg.sender, r.outcomeId, r.shares);
+            totalPayout += payout;
+
+            emit PayoutRedeemed(msg.sender, r.market, r.outcomeId, r.shares, payout);
+
+            unchecked { ++i; }
+        }
+
+        emit BatchRedeemed(msg.sender, len, totalPayout);
+    }
+
+    /**
+     * @notice 批量退款（跨市场，市场取消时使用）
+     * @param refunds 退款参数数组
+     * @return totalRefund 总退款金额
+     */
+    function batchRefund(RedeemParams[] calldata refunds)
+        external
+        nonReentrant
+        notPaused
+        returns (uint256 totalRefund)
+    {
+        uint256 len = refunds.length;
+
+        for (uint256 i = 0; i < len;) {
+            RedeemParams calldata r = refunds[i];
+
+            // 验证市场合法性
+            if (factory != address(0)) {
+                try IMarketFactory_V3(factory).isMarket(r.market) returns (bool registered) {
+                    if (!registered) revert InvalidMarket(r.market);
+                } catch {
+                    revert InvalidMarket(r.market);
+                }
+            }
+
+            // 调用市场的 refundFor
+            uint256 amount = IMarket_V3(r.market).refundFor(msg.sender, r.outcomeId, r.shares);
+            totalRefund += amount;
+
+            emit RefundRedeemed(msg.sender, r.market, r.outcomeId, r.shares, amount);
+
+            unchecked { ++i; }
+        }
+
+        emit BatchRefunded(msg.sender, len, totalRefund);
+    }
+
+    /**
+     * @notice 查询用户在多个市场的可领取状态
+     * @param user 用户地址
+     * @param markets 市场地址数组
+     * @param outcomeIds 结果ID数组
+     * @return balances 用户在各市场的份额余额
+     * @return statuses 各市场状态
+     */
+    function getRedeemablePositions(
+        address user,
+        address[] calldata markets,
+        uint256[] calldata outcomeIds
+    )
+        external
+        view
+        returns (uint256[] memory balances, IMarket_V3.MarketStatus[] memory statuses)
+    {
+        if (markets.length != outcomeIds.length) revert InvalidParams();
+
+        uint256 len = markets.length;
+        balances = new uint256[](len);
+        statuses = new IMarket_V3.MarketStatus[](len);
+
+        for (uint256 i = 0; i < len;) {
+            IMarket_V3 market = IMarket_V3(markets[i]);
+            statuses[i] = market.status();
+            // Market_V3 继承自 ERC1155，使用 IERC1155 接口获取余额
+            balances[i] = IERC1155(markets[i]).balanceOf(user, outcomeIds[i]);
+            unchecked { ++i; }
+        }
     }
 
     // ============ 预览下注 ============

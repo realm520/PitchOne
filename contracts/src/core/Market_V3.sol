@@ -140,6 +140,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     error OddsOutOfRange(uint256 odds, uint256 minOdds, uint256 maxOdds);
     error UserExposureLimitExceeded(address user, uint256 currentExposure, uint256 limit);
     error MarketPayoutCapExceeded(uint256 totalExposure, uint256 cap);
+    error NotAuthorized(address caller);
 
     // ============ 构造函数 ============
 
@@ -530,146 +531,76 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         emit MarketCancelled(reason);
     }
 
-    // ============ 赎回 ============
+    // ============ 赎回（仅通过 Router）============
 
     /**
-     * @notice 赎回赢得的头寸
+     * @notice 代理赎回（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeId 结果 ID
      * @param shares 份额数量
-     * @return payout 获得的金额
+     * @return payout 获得金额
+     * @dev 需要用户授权 Router（通过 setApprovalForAll）
      */
-    function redeem(uint256 outcomeId, uint256 shares)
+    function redeemFor(address user, uint256 outcomeId, uint256 shares)
         external
         nonReentrant
         whenNotPaused
         returns (uint256 payout)
     {
-        if (status != MarketStatus.Finalized) {
-            revert InvalidStatus(MarketStatus.Finalized, status);
+        // 检查授权：msg.sender 必须是用户本人或被授权的操作者
+        if (msg.sender != user && !isApprovedForAll(user, msg.sender)) {
+            revert NotAuthorized(msg.sender);
         }
 
-        // 检查是否为获胜结果
-        (bool isWinner, uint256 weight) = _getOutcomeResult(outcomeId);
-        if (!isWinner) {
-            revert NotWinningOutcome(outcomeId);
-        }
-
-        // 检查用户余额
-        uint256 balance = balanceOf(msg.sender, outcomeId);
-        if (shares > balance) {
-            revert InsufficientShares(shares, balance);
-        }
-
-        // 获取赔付类型
-        IPricingStrategy.PayoutType payoutType = _outcomeRules[outcomeId].payoutType;
-
-        // 构建各 outcome 总份额数组
-        uint256[] memory sharesArray = new uint256[](_outcomeRules.length);
-        for (uint256 i = 0; i < _outcomeRules.length; i++) {
-            sharesArray[i] = totalSharesPerOutcome[i];
-        }
-
-        // 计算赔付
-        uint256 basePayout = pricingStrategy.calculatePayout(
-            outcomeId,
-            shares,
-            sharesArray,
-            totalLiquidity,
-            payoutType
-        );
-
-        // 应用权重（半输半赢情况）
-        payout = basePayout * weight / 10000;
-
-        // 应用赔付缩放（超限时可能按比例缩减）
-        if (payoutScaleBps < 10000) {
-            payout = payout * payoutScaleBps / 10000;
-        }
-
-        // 销毁头寸
-        _burn(msg.sender, outcomeId, shares);
-
-        // 减少用户敞口（释放额度）
-        if (userExposure[msg.sender] >= shares) {
-            userExposure[msg.sender] -= shares;
-        } else {
-            userExposure[msg.sender] = 0;
-        }
-
-        // 追踪已赔付金额
-        totalPayoutClaimed += payout;
-
-        // 转账
-        settlementToken.safeTransfer(msg.sender, payout);
-
-        emit PayoutClaimed(msg.sender, outcomeId, shares, payout);
+        payout = _redeemForInternal(user, outcomeId, shares);
     }
 
     /**
-     * @notice 批量赎回多个结果
+     * @notice 代理批量赎回（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeIds 结果 ID 数组
-     * @param sharesArray 对应的份额数组
+     * @param sharesArray 份额数组
      * @return totalPayout 总获得金额
      */
-    function redeemBatch(uint256[] calldata outcomeIds, uint256[] calldata sharesArray)
+    function redeemBatchFor(address user, uint256[] calldata outcomeIds, uint256[] calldata sharesArray)
         external
         nonReentrant
         whenNotPaused
         returns (uint256 totalPayout)
     {
+        // 检查授权
+        if (msg.sender != user && !isApprovedForAll(user, msg.sender)) {
+            revert NotAuthorized(msg.sender);
+        }
+
         require(outcomeIds.length == sharesArray.length, "Market: Length mismatch");
 
         for (uint256 i = 0; i < outcomeIds.length; i++) {
             if (sharesArray[i] > 0) {
-                totalPayout += _redeemInternal(outcomeIds[i], sharesArray[i]);
+                totalPayout += _redeemForInternal(user, outcomeIds[i], sharesArray[i]);
             }
         }
     }
 
     /**
-     * @notice 退款（市场取消时）
+     * @notice 代理退款（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeId 结果 ID
      * @param shares 份额数量
      * @return amount 退款金额
      */
-    function refund(uint256 outcomeId, uint256 shares)
+    function refundFor(address user, uint256 outcomeId, uint256 shares)
         external
         nonReentrant
         whenNotPaused
         returns (uint256 amount)
     {
-        if (status != MarketStatus.Cancelled) {
-            revert InvalidStatus(MarketStatus.Cancelled, status);
+        // 检查授权
+        if (msg.sender != user && !isApprovedForAll(user, msg.sender)) {
+            revert NotAuthorized(msg.sender);
         }
 
-        // 检查用户余额
-        uint256 balance = balanceOf(msg.sender, outcomeId);
-        if (shares > balance) {
-            revert InsufficientShares(shares, balance);
-        }
-
-        // 计算退款
-        amount = pricingStrategy.calculateRefund(
-            outcomeId,
-            shares,
-            totalSharesPerOutcome[outcomeId],
-            totalBetAmountPerOutcome[outcomeId]
-        );
-
-        // 销毁头寸
-        _burn(msg.sender, outcomeId, shares);
-
-        // 减少用户敞口（释放额度）
-        if (userExposure[msg.sender] >= shares) {
-            userExposure[msg.sender] -= shares;
-        } else {
-            userExposure[msg.sender] = 0;
-        }
-
-        // 转账
-        settlementToken.safeTransfer(msg.sender, amount);
-
-        emit RefundClaimed(msg.sender, outcomeId, shares, amount);
+        amount = _refundForInternal(user, outcomeId, shares);
     }
 
     // ============ 查询函数 ============
@@ -780,9 +711,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     // ============ 内部函数 ============
 
     /**
-     * @notice 内部赎回逻辑
+     * @notice 内部代理赎回逻辑（指定用户）
      */
-    function _redeemInternal(uint256 outcomeId, uint256 shares) internal returns (uint256 payout) {
+    function _redeemForInternal(address user, uint256 outcomeId, uint256 shares) internal returns (uint256 payout) {
         if (status != MarketStatus.Finalized) {
             revert InvalidStatus(MarketStatus.Finalized, status);
         }
@@ -792,7 +723,7 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
             revert NotWinningOutcome(outcomeId);
         }
 
-        uint256 balance = balanceOf(msg.sender, outcomeId);
+        uint256 balance = balanceOf(user, outcomeId);
         if (shares > balance) {
             revert InsufficientShares(shares, balance);
         }
@@ -814,21 +745,59 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
         payout = basePayout * weight / 10000;
 
-        _burn(msg.sender, outcomeId, shares);
-
-        // 减少用户敞口（释放额度）
-        if (userExposure[msg.sender] >= shares) {
-            userExposure[msg.sender] -= shares;
-        } else {
-            userExposure[msg.sender] = 0;
+        // 应用赔付缩放
+        if (payoutScaleBps < 10000) {
+            payout = payout * payoutScaleBps / 10000;
         }
 
-        // 追踪已赔付金额
+        _burn(user, outcomeId, shares);
+
+        // 减少用户敞口
+        if (userExposure[user] >= shares) {
+            userExposure[user] -= shares;
+        } else {
+            userExposure[user] = 0;
+        }
+
         totalPayoutClaimed += payout;
 
-        settlementToken.safeTransfer(msg.sender, payout);
+        // 转账给用户（不是 msg.sender）
+        settlementToken.safeTransfer(user, payout);
 
-        emit PayoutClaimed(msg.sender, outcomeId, shares, payout);
+        emit PayoutClaimed(user, outcomeId, shares, payout);
+    }
+
+    /**
+     * @notice 内部代理退款逻辑（指定用户）
+     */
+    function _refundForInternal(address user, uint256 outcomeId, uint256 shares) internal returns (uint256 amount) {
+        if (status != MarketStatus.Cancelled) {
+            revert InvalidStatus(MarketStatus.Cancelled, status);
+        }
+
+        uint256 balance = balanceOf(user, outcomeId);
+        if (shares > balance) {
+            revert InsufficientShares(shares, balance);
+        }
+
+        amount = pricingStrategy.calculateRefund(
+            outcomeId,
+            shares,
+            totalSharesPerOutcome[outcomeId],
+            totalBetAmountPerOutcome[outcomeId]
+        );
+
+        _burn(user, outcomeId, shares);
+
+        if (userExposure[user] >= shares) {
+            userExposure[user] -= shares;
+        } else {
+            userExposure[user] = 0;
+        }
+
+        settlementToken.safeTransfer(user, amount);
+
+        emit RefundClaimed(user, outcomeId, shares, amount);
     }
 
     /**

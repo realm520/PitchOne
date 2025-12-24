@@ -401,11 +401,11 @@ contract Market_V3_Test is Test {
         vm.prank(keeper);
         market.finalize(0);
 
-        // 用户赎回
+        // 用户赎回（通过 redeemFor，msg.sender == user 时无需授权）
         uint256 balanceBefore = usdc.balanceOf(user1);
 
         vm.prank(user1);
-        uint256 payout = market.redeem(0, shares);
+        uint256 payout = market.redeemFor(user1, 0, shares);
 
         uint256 balanceAfter = usdc.balanceOf(user1);
         assertEq(balanceAfter - balanceBefore, payout);
@@ -436,7 +436,7 @@ contract Market_V3_Test is Test {
         // 用户尝试赎回失败的下注
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Market_V3.NotWinningOutcome.selector, 2));
-        market.redeem(2, shares);
+        market.redeemFor(user1, 2, shares);
     }
 
     function test_redeem_InsufficientShares_Reverts() public {
@@ -460,7 +460,7 @@ contract Market_V3_Test is Test {
         // 尝试赎回过多份额
         vm.prank(user1);
         vm.expectRevert();
-        market.redeem(0, shares + 1);
+        market.redeemFor(user1, 0, shares + 1);
     }
 
     function test_redeem_NotFinalized_Reverts() public {
@@ -476,7 +476,7 @@ contract Market_V3_Test is Test {
 
         vm.prank(user1);
         vm.expectRevert();
-        market.redeem(0, shares);
+        market.redeemFor(user1, 0, shares);
     }
 
     // ============ 退款测试 ============
@@ -492,11 +492,11 @@ contract Market_V3_Test is Test {
         vm.prank(admin);
         market.cancel("Match postponed");
 
-        // 用户退款
+        // 用户退款（通过 refundFor，msg.sender == user 时无需授权）
         uint256 balanceBefore = usdc.balanceOf(user1);
 
         vm.prank(user1);
-        uint256 refundAmount = market.refund(0, shares);
+        uint256 refundAmount = market.refundFor(user1, 0, shares);
 
         uint256 balanceAfter = usdc.balanceOf(user1);
         assertEq(balanceAfter - balanceBefore, refundAmount);
@@ -516,7 +516,7 @@ contract Market_V3_Test is Test {
         // 市场仍然开放
         vm.prank(user1);
         vm.expectRevert();
-        market.refund(0, shares);
+        market.refundFor(user1, 0, shares);
     }
 
     // ============ 查询函数测试 ============
@@ -586,13 +586,13 @@ contract Market_V3_Test is Test {
 
         // user1 赎回（赢家）
         vm.prank(user1);
-        uint256 payout1 = market.redeem(0, shares1);
+        uint256 payout1 = market.redeemFor(user1, 0, shares1);
         assertTrue(payout1 > 5000e6, "Winner should profit");
 
         // user2 无法赎回（输家）
         vm.prank(user2);
         vm.expectRevert(abi.encodeWithSelector(Market_V3.NotWinningOutcome.selector, 2));
-        market.redeem(2, shares2);
+        market.redeemFor(user2, 2, shares2);
     }
 
     function test_fullLifecycle_DrawResult() public {
@@ -626,7 +626,7 @@ contract Market_V3_Test is Test {
 
         // user2 赎回平局（赢家）
         vm.prank(user2);
-        uint256 payout = market.redeem(1, drawShares);
+        uint256 payout = market.redeemFor(user2, 1, drawShares);
         assertTrue(payout > 3000e6, "Draw bettor should profit");
     }
 }

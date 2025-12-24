@@ -145,7 +145,9 @@ interface IBettingRouter_V3 {
      *
      * @dev 特性：
      *      - 每笔下注独立处理代币
-     *      - 失败的单笔不影响其他下注（非原子性）
+     *      - 原子性操作：任一下注失败将导致整个交易回滚（保证资金安全）
+     *      - 验证失败的下注（无效市场、不支持的代币、超出限额）返回空结果而不回滚
+     *      - 执行失败的下注（市场 placeBetFor 失败）会回滚整个交易
      *      - 返回每笔下注的结果
      */
     function placeBetBatch(BetParams[] calldata bets)

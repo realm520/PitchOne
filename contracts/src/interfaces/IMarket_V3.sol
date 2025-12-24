@@ -203,35 +203,36 @@ interface IMarket_V3 {
      */
     function cancelResolved(string calldata reason) external;
 
-    // ============ 赎回 ============
+    // ============ 赎回（仅通过 Router）============
 
     /**
-     * @notice 赎回赢得的份额
+     * @notice 代理赎回（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeId 结果 ID
-     * @param shares 赎回的份额数量
-     * @return payout 获得的赔付
-     * @dev 市场状态必须是 Finalized
+     * @param shares 份额数量
+     * @return payout 获得金额
+     * @dev 需要用户授权 Router（通过 setApprovalForAll）
      */
-    function redeem(uint256 outcomeId, uint256 shares) external returns (uint256 payout);
+    function redeemFor(address user, uint256 outcomeId, uint256 shares) external returns (uint256 payout);
 
     /**
-     * @notice 批量赎回多个 outcome
+     * @notice 代理批量赎回（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeIds 结果 ID 数组
-     * @param shares 对应的份额数组
-     * @return totalPayout 总赔付
+     * @param sharesArray 份额数组
+     * @return totalPayout 总获得金额
      */
-    function redeemBatch(uint256[] calldata outcomeIds, uint256[] calldata shares)
-        external
-        returns (uint256 totalPayout);
+    function redeemBatchFor(address user, uint256[] calldata outcomeIds, uint256[] calldata sharesArray)
+        external returns (uint256 totalPayout);
 
     /**
-     * @notice 退款（市场取消时）
+     * @notice 代理退款（供 Router 调用）
+     * @param user 用户地址
      * @param outcomeId 结果 ID
-     * @param shares 退款的份额数量
-     * @return refundAmount 退款金额
-     * @dev 市场状态必须是 Cancelled
+     * @param shares 份额数量
+     * @return amount 退款金额
      */
-    function refund(uint256 outcomeId, uint256 shares) external returns (uint256 refundAmount);
+    function refundFor(address user, uint256 outcomeId, uint256 shares) external returns (uint256 amount);
 
     // ============ 查询函数 ============
 
