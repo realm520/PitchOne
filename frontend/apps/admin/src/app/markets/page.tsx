@@ -24,75 +24,138 @@ const TEMPLATE_TYPE_MAP: Record<string, string> = {
   Score: '精确比分',
 };
 
+// 从 matchId 解析联赛和赛季信息
+// 假设格式: EPL_2024_MUN_vs_MCI 或类似格式
+function parseMatchInfo(matchId: string) {
+  const parts = matchId.split('_');
+  if (parts.length >= 4) {
+    const league = parts[0]; // 联赛代码
+    const season = parts[1]; // 赛季
+    const vsIndex = parts.findIndex(p => p.toLowerCase() === 'vs');
+    if (vsIndex > 2) {
+      const homeTeam = parts.slice(2, vsIndex).join(' ');
+      const awayTeam = parts.slice(vsIndex + 1).join(' ');
+      return { league, season, homeTeam, awayTeam };
+    }
+  }
+  // 如果无法解析，返回默认值
+  return { league: 'Unknown', season: '-', homeTeam: matchId, awayTeam: '' };
+}
+
+// 联赛代码到名称映射
+const LEAGUE_MAP: Record<string, string> = {
+  EPL: '英超联赛',
+  LALIGA: '西甲联赛',
+  SERIEA: '意甲联赛',
+  BUNDESLIGA: '德甲联赛',
+  LIGUE1: '法甲联赛',
+  UCL: '欧冠联赛',
+  UEL: '欧联杯',
+  WC: '世界杯',
+  NBA: 'NBA',
+  MLB: 'MLB',
+};
+
 // 市场表格行组件
-function MarketRow({ market }: { market: any }) {
+function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
   const status = STATUS_MAP[market.state as keyof typeof STATUS_MAP] || {
     label: market.state,
     color: 'bg-gray-100 text-gray-800'
   };
 
   const createdTime = new Date(Number(market.createdAt) * 1000);
-  const lockedTime = market.lockedAt ? new Date(Number(market.lockedAt) * 1000) : null;
+  const kickoffTime = market.kickoffTime ? new Date(Number(market.kickoffTime) * 1000) : null;
+
+  // 解析赛事信息
+  const matchInfo = parseMatchInfo(market.matchId || '');
+  const leagueName = LEAGUE_MAP[matchInfo.league] || matchInfo.league;
 
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b dark:border-gray-700">
+    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? '' : 'border-b dark:border-gray-700'}`}>
+      {/* 赛事列 - 重新设计为上下结构 */}
       <td className="py-4 px-4">
-        <div className="flex flex-col">
-          <Link
-            href={`/markets/${market.id}`}
-            className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            市场 {market.id.slice(0, 8)}...
-          </Link>
-          <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Match: {market.matchId.slice(0, 10)}... | Template: {market.templateId.slice(0, 10)}...
-          </span>
-        </div>
+        <Link href={`/markets/${market.id}`} className="block hover:opacity-80">
+          <div className="flex flex-col">
+            {/* 上：联赛名称和赛季 */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {leagueName}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {matchInfo.season}
+              </span>
+            </div>
+            {/* 下：主队 vs 客队 */}
+            <div className="font-medium text-gray-900 dark:text-white">
+              {market.homeTeam || matchInfo.homeTeam}
+              <span className="text-gray-400 dark:text-gray-500 mx-2">vs</span>
+              {market.awayTeam || matchInfo.awayTeam}
+            </div>
+          </div>
+        </Link>
       </td>
+      {/* 状态列 */}
       <td className="py-4 px-4">
         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
           {status.label}
         </span>
       </td>
+      {/* 模式列 - 固定：奖金池模式 */}
       <td className="py-4 px-4">
-        <Badge variant="secondary">
-          模板 {market.templateId.slice(0, 8)}...
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+          奖金池模式
+        </span>
+      </td>
+      {/* 类型列 - 固定：Live Market */}
+      <td className="py-4 px-4">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          Live Market
+        </span>
+      </td>
+      {/* 玩法列 */}
+      <td className="py-4 px-4">
+        <Badge variant="default">
+          {TEMPLATE_TYPE_MAP[market.templateId?.slice(0, 3)] || '胜平负'}
         </Badge>
       </td>
+      {/* 开赛时间列 */}
       <td className="py-4 px-4">
         <div className="flex flex-col">
           <span className="text-sm text-gray-900 dark:text-white">
-            {createdTime.toLocaleString('zh-CN', {
+            {kickoffTime ? kickoffTime.toLocaleString('zh-CN', {
               month: 'numeric',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
-            })}
+            }) : '-'}
           </span>
-          {lockedTime && (
+          {kickoffTime && (
             <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              锁盘: {formatDistanceToNow(lockedTime, { addSuffix: true, locale: zhCN })}
+              {formatDistanceToNow(kickoffTime, { addSuffix: true, locale: zhCN })}
             </span>
           )}
         </div>
       </td>
+      {/* 交易量列 */}
       <td className="py-4 px-4">
         <span className="font-semibold text-gray-900 dark:text-white">
           {Number(market.totalVolume || 0).toFixed(2)} USDC
         </span>
       </td>
+      {/* 创建时间列 */}
       <td className="py-4 px-4">
         <span className="text-sm text-gray-600 dark:text-gray-300">
-          {formatDistanceToNow(new Date(Number(market.createdAt) * 1000), {
+          {formatDistanceToNow(createdTime, {
             addSuffix: true,
             locale: zhCN
           })}
         </span>
       </td>
-      <td className="py-4 px-4">
-        <div className="flex items-center gap-2">
+      {/* 操作列 - 右对齐 */}
+      <td className="py-4 px-4 text-right">
+        <div className="flex items-center justify-end gap-2">
           <Link href={`/markets/${market.id}`}>
-            <Button variant="outline" size="sm">
+            <Button variant="neon" size="sm">
               查看详情
             </Button>
           </Link>
@@ -181,7 +244,7 @@ export default function MarketsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'createdAt' | 'totalVolume'>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const itemsPerPage = 20;
+  const itemsPerPage = 10;
 
   // 获取市场列表
   const { data: markets, isLoading, error } = useQuery({
@@ -286,12 +349,12 @@ export default function MarketsPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/">
-                <Button variant="outline">
+                <Button variant="neon">
                   返回看板
                 </Button>
               </Link>
               <Link href="/markets/create">
-                <Button variant="outline">
+                <Button variant="neon">
                   + 创建市场
                 </Button>
               </Link>
@@ -370,6 +433,12 @@ export default function MarketsPage() {
                       状态
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      模式
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      类型
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       玩法
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -381,14 +450,18 @@ export default function MarketsPage() {
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       创建时间
                     </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       操作
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedMarkets.map((market: any) => (
-                    <MarketRow key={market.id} market={market} />
+                  {paginatedMarkets.map((market: any, index: number) => (
+                    <MarketRow
+                      key={market.id}
+                      market={market}
+                      isLast={index === paginatedMarkets.length - 1}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -431,7 +504,7 @@ export default function MarketsPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${
+                        className={`w-10 h-10 flex items-center justify-center border dark:border-gray-600 rounded-lg text-sm font-medium ${
                           currentPage === pageNum
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'

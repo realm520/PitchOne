@@ -370,7 +370,7 @@ export default function CampaignsPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/">
-                <Button variant="outline">
+                <Button variant="neon">
                   返回看板
                 </Button>
               </Link>

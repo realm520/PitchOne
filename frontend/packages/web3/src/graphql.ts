@@ -745,3 +745,123 @@ export const ADMIN_ROLE_CHANGES_QUERY = `
     }
   }
 `;
+
+// ============================================
+// 赛事查询
+// ============================================
+
+/**
+ * 获取赛事列表（未创建市场的）
+ */
+export const MATCHES_QUERY = `
+  query Matches($first: Int, $skip: Int, $sport: String, $league: String, $hasMarket: Boolean) {
+    matches(
+      first: $first
+      skip: $skip
+      where: {
+        sport: $sport
+        league: $league
+        hasMarket: $hasMarket
+        status: scheduled
+      }
+      orderBy: kickoffTime
+      orderDirection: asc
+    ) {
+      id
+      sport
+      league
+      leagueName
+      season
+      round
+      homeTeamCode
+      homeTeamName
+      awayTeamCode
+      awayTeamName
+      kickoffTime
+      status
+      hasMarket
+      marketId
+      importedAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * 获取所有赛事列表（包括已创建市场的）
+ */
+export const ALL_MATCHES_QUERY = `
+  query AllMatches($first: Int, $skip: Int, $sport: String, $league: String) {
+    matches(
+      first: $first
+      skip: $skip
+      where: {
+        sport: $sport
+        league: $league
+        status_in: [scheduled, live]
+      }
+      orderBy: kickoffTime
+      orderDirection: asc
+    ) {
+      id
+      sport
+      league
+      leagueName
+      season
+      round
+      homeTeamCode
+      homeTeamName
+      awayTeamCode
+      awayTeamName
+      kickoffTime
+      status
+      hasMarket
+      marketId
+      importedAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * 获取单个赛事详情
+ */
+export const MATCH_QUERY = `
+  query Match($id: ID!) {
+    match(id: $id) {
+      id
+      sport
+      league
+      leagueName
+      season
+      round
+      homeTeamCode
+      homeTeamName
+      awayTeamCode
+      awayTeamName
+      kickoffTime
+      status
+      hasMarket
+      marketId
+      homeScore
+      awayScore
+      importedAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * 获取联赛列表（从赛事中提取）
+ */
+export const LEAGUES_QUERY = `
+  query Leagues($sport: String) {
+    matches(
+      first: 1000
+      where: { sport: $sport, status: scheduled }
+    ) {
+      league
+      leagueName
+    }
+  }
+`;

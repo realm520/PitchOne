@@ -1872,3 +1872,75 @@ type ReferralReward @entity(immutable: true) {
   "交易哈希"
   transactionHash: Bytes!
 }
+
+# ============================================================================
+# 赛事实体（外部导入）
+# ============================================================================
+
+"""
+Match - 赛事实体
+代表一场体育赛事（由外部数据源导入）
+"""
+type Match @entity(immutable: false) {
+  "赛事 ID（如 EPL_2024_MUN_vs_MCI）"
+  id: ID!
+
+  "运动类型: football, basketball, tennis, etc"
+  sport: String!
+
+  "联赛代码: EPL, LALIGA, UCL, etc"
+  league: String!
+
+  "联赛名称"
+  leagueName: String!
+
+  "赛季: 2024-25"
+  season: String!
+
+  "轮次: 第 18 轮"
+  round: String
+
+  "主队代码"
+  homeTeamCode: String!
+
+  "主队名称"
+  homeTeamName: String!
+
+  "客队代码"
+  awayTeamCode: String!
+
+  "客队名称"
+  awayTeamName: String!
+
+  "开赛时间（Unix 时间戳）"
+  kickoffTime: BigInt!
+
+  "赛事状态: scheduled, live, finished, cancelled"
+  status: MatchStatus!
+
+  "是否已创建市场"
+  hasMarket: Boolean!
+
+  "关联的市场 ID（如果已创建）"
+  marketId: String
+
+  "比分-主队（比赛结束后）"
+  homeScore: Int
+
+  "比分-客队（比赛结束后）"
+  awayScore: Int
+
+  "导入时间"
+  importedAt: BigInt!
+
+  "最后更新时间"
+  updatedAt: BigInt!
+}
+
+enum MatchStatus {
+  scheduled
+  live
+  finished
+  cancelled
+  postponed
+}
