@@ -332,7 +332,7 @@ function ProposalRow({
           {isPending && (
             <Button
               size="sm"
-              variant="outline"
+              variant="neon"
               onClick={() => onCancel(proposalId)}
               disabled={isCancelling}
             >
@@ -477,7 +477,7 @@ export default function ParamsPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/">
-                <Button variant="outline">
+                <Button variant="neon">
                   返回看板
                 </Button>
               </Link>
@@ -536,11 +536,10 @@ export default function ParamsPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === 'all'
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+                  }`}
               >
                 全部 ({PARAM_DEFINITIONS.length})
               </button>
@@ -550,11 +549,10 @@ export default function ParamsPage() {
                   <button
                     key={key}
                     onClick={() => setSelectedCategory(key as ParamCategory)}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategory === key
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedCategory === key
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
+                      }`}
                   >
                     {label} ({count})
                   </button>

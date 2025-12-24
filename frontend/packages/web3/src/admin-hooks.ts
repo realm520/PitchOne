@@ -67,8 +67,21 @@ export function useLockMarket(marketAddress?: Address) {
 }
 
 /**
+ * 创建市场参数类型
+ */
+export interface CreateMarketParams {
+  templateId: Hex;           // 模板 ID (bytes32)
+  matchId: string;           // 比赛 ID
+  kickoffTime: bigint;       // 开球时间戳
+  mapperInitData: Hex;       // Mapper 初始化数据
+  initialLiquidity: bigint;  // 初始流动性
+  outcomeRules: Array<{ name: string; payoutType: number }>; // outcome 规则
+  category: number;          // 市场分类: 0=SPORTS, 1=CRYPTO
+}
+
+/**
  * 创建市场 Hook
- * 通过 MarketTemplateRegistry 创建新市场
+ * 通过 MarketFactory_V3 创建新市场
  */
 export function useCreateMarket() {
   const { chainId } = useAccount();
@@ -88,26 +101,32 @@ export function useCreateMarket() {
 
   /**
    * 创建市场
-   * @param templateId 模板 ID (bytes32)
-   * @param initData 初始化数据 (编码后的参数)
+   * @param params 创建市场参数
    */
-  const createMarket = async (templateId: Hex, initData: Hex) => {
+  const createMarket = async (params: CreateMarketParams) => {
     if (!addresses) throw new Error('Chain not supported');
 
-    // V3: 使用 factory 地址（marketTemplateRegistry 为兼容别名）
+    // V3: 使用 factory 地址
     const factoryAddress = addresses.factory;
 
     console.log('[useCreateMarket] 创建市场:', {
       factory: factoryAddress,
-      templateId,
-      initData
+      params
     });
 
     return writeContract({
       address: factoryAddress,
       abi: MarketFactory_V3_ABI,
       functionName: 'createMarket',
-      args: [templateId, initData],
+      args: [{
+        templateId: params.templateId,
+        matchId: params.matchId,
+        kickoffTime: params.kickoffTime,
+        mapperInitData: params.mapperInitData,
+        initialLiquidity: params.initialLiquidity,
+        outcomeRules: params.outcomeRules,
+        category: params.category,
+      }],
     });
   };
 

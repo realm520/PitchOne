@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAccount, useCreateMarket } from '@pitchone/web3';
+import { useAccount, useCreateMarket, type CreateMarketParams } from '@pitchone/web3';
 import { getContractAddresses } from '@pitchone/contracts';
 import { Card, Button, LoadingSpinner } from '@pitchone/ui';
 import { encodeFunctionData, parseAbiParameters } from 'viem';
@@ -35,11 +35,18 @@ const MARKET_TEMPLATES = [
   },
 ];
 
+// 市场分类
+const MARKET_CATEGORIES = [
+  { id: 0, name: '体育赛事', description: '足球、篮球等体育比赛' },
+  { id: 1, name: '加密货币', description: 'BTC、ETH 等加密货币价格预测' },
+];
+
 interface MarketFormData {
   // 步骤 1：模板选择
   templateType: string;
 
   // 步骤 2：赛事信息
+  category: number; // 市场分类: 0=SPORTS, 1=CRYPTO
   matchId: string;
   homeTeam: string;
   awayTeam: string;
@@ -64,6 +71,7 @@ export default function CreateMarketPage() {
   const [isSubmitting, setIsSubmitting] = useState(false); // 本地提交状态
   const [formData, setFormData] = useState<MarketFormData>({
     templateType: '',
+    category: 0, // 默认体育赛事
     matchId: '',
     homeTeam: '',
     awayTeam: '',
@@ -83,8 +91,12 @@ export default function CreateMarketPage() {
     .slice(0, 16); // datetime-local 格式: YYYY-MM-DDTHH:mm
 
   // 更新表单数据
-  const updateFormData = (field: keyof MarketFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const updateFormData = (field: keyof MarketFormData, value: string | number) => {
+    if (field === 'category') {
+      setFormData(prev => ({ ...prev, [field]: Number(value) }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   // 验证当前步骤
@@ -277,15 +289,25 @@ export default function CreateMarketPage() {
       setIsSubmitting(true);
 
       const templateId = getTemplateId();
-      const initData = generateInitData();
+      const kickoffTimestamp = BigInt(Math.floor(new Date(formData.kickoffTime).getTime() / 1000));
+
+      // 构建 CreateMarketParams
+      const params: CreateMarketParams = {
+        templateId,
+        matchId: formData.matchId,
+        kickoffTime: kickoffTimestamp,
+        mapperInitData: '0x' as `0x${string}`, // 默认空数据
+        initialLiquidity: 0n, // 使用模板默认值
+        outcomeRules: [], // 使用模板默认规则
+        category: formData.category,
+      };
 
       console.log('创建市场:', {
-        templateId,
-        initData,
+        params,
         formData
       });
 
-      await createMarket(templateId, initData);
+      await createMarket(params);
     } catch (err) {
       console.error('创建市场失败:', err);
       alert(`创建失败: ${err instanceof Error ? err.message : '未知错误'}\n\n如果遇到 nonce 错误，请刷新页面重试。`);
@@ -405,6 +427,33 @@ export default function CreateMarketPage() {
                 填写赛事信息
               </h2>
               <div className="space-y-4">
+                {/* 市场分类选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    市场分类 *
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {MARKET_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => updateFormData('category', cat.id.toString())}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.category === cat.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                          {cat.name}
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {cat.description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     比赛 ID *
@@ -575,6 +624,12 @@ export default function CreateMarketPage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">模板类型</p>
                     <p className="font-medium text-gray-900 dark:text-white">
                       {MARKET_TEMPLATES.find(t => t.id === formData.templateType)?.name}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">市场分类</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {MARKET_CATEGORIES.find(c => c.id === formData.category)?.name}
                     </p>
                   </div>
                   <div>

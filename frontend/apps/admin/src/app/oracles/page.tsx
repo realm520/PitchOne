@@ -78,7 +78,7 @@ function ProposalRow({ proposal }: { proposal: any }) {
       </td>
       <td className="py-4 px-4">
         <div className="flex flex-col gap-1">
-          <Badge variant="secondary">
+          <Badge variant="default">
             {RESULT_LABELS[proposal.result] || `结果 ${proposal.result}`}
           </Badge>
           {proposal.finalized && proposal.finalResult !== null && proposal.finalResult !== proposal.result && (
@@ -268,7 +268,7 @@ export default function OraclesPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/">
-                <Button variant="outline">
+                <Button variant="neon">
                   返回看板
                 </Button>
               </Link>
@@ -428,11 +428,10 @@ export default function OraclesPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
+                        className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${currentPage === pageNum
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
+                          }`}
                       >
                         {pageNum}
                       </button>

@@ -53,6 +53,7 @@ contract MarketFactory_V3 is AccessControl {
         bytes mapperInitData;               // Mapper 初始化数据（可选）
         uint256 initialLiquidity;           // 初始流动性（0 表示使用模板默认值）
         IMarket_V3.OutcomeRule[] outcomeRules; // outcome 规则（空表示使用模板默认值）
+        uint8 category;                     // 市场分类: 0=SPORTS, 1=CRYPTO
     }
 
     // ============ 状态变量 ============
@@ -105,7 +106,8 @@ contract MarketFactory_V3 is AccessControl {
         address indexed market,
         bytes32 indexed templateId,
         string matchId,
-        uint256 kickoffTime
+        uint256 kickoffTime,
+        uint8 category
     );
     event RouterUpdated(address indexed newRouter);
     event KeeperUpdated(address indexed newKeeper);
@@ -313,7 +315,7 @@ contract MarketFactory_V3 is AccessControl {
         markets.push(market);
         marketCount++;
 
-        emit MarketCreated(market, params.templateId, params.matchId, params.kickoffTime);
+        emit MarketCreated(market, params.templateId, params.matchId, params.kickoffTime, params.category);
     }
 
     // ============ 配置管理 ============

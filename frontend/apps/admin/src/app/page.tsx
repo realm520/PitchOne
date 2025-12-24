@@ -51,7 +51,7 @@ function MarketStatusChart({ markets }: { markets: any[] }) {
 
   const data = Object.entries(statusCounts).map(([state, count]) => ({
     name: STATUS_CONFIG[state as keyof typeof STATUS_CONFIG]?.label || state,
-    value: count,
+    value: count as number,
     state,
     color: STATUS_CONFIG[state as keyof typeof STATUS_CONFIG]?.color || '#6b7280',
   }));
@@ -250,9 +250,9 @@ function RecentOrdersList({ orders }: { orders: any[] }) {
             {orders.map((order) => {
               const marketStateColor =
                 order.market.state === 'Open' ? 'text-blue-600 dark:text-blue-400' :
-                order.market.state === 'Locked' ? 'text-yellow-600 dark:text-yellow-400' :
-                order.market.state === 'Resolved' ? 'text-green-600 dark:text-green-400' :
-                'text-gray-600 dark:text-gray-400';
+                  order.market.state === 'Locked' ? 'text-yellow-600 dark:text-yellow-400' :
+                    order.market.state === 'Resolved' ? 'text-green-600 dark:text-green-400' :
+                      'text-gray-600 dark:text-gray-400';
 
               return (
                 <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -369,22 +369,27 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/markets">
-                <Button variant="outline">
+                <Button variant="neon">
                   市场管理
                 </Button>
               </Link>
+              <Link href="/users">
+                <Button variant="neon">
+                  用户
+                </Button>
+              </Link>
               <Link href="/oracles">
-                <Button variant="outline">
+                <Button variant="neon">
                   Oracle 提案
                 </Button>
               </Link>
               <Link href="/params">
-                <Button variant="outline">
+                <Button variant="neon">
                   参数配置
                 </Button>
               </Link>
               <Link href="/campaigns">
-                <Button variant="outline">
+                <Button variant="neon">
                   活动任务
                 </Button>
               </Link>

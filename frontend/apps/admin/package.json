@@ -26,7 +26,8 @@
     "@rainbow-me/rainbowkit": "^2.2.0",
     "@pitchone/web3": "workspace:*",
     "@pitchone/contracts": "workspace:*",
-    "@pitchone/ui": "workspace:*"
+    "@pitchone/ui": "workspace:*",
+    "lucide-react": "^0.562.0"
   },
   "devDependencies": {
     "@types/node": "^22.8.6",

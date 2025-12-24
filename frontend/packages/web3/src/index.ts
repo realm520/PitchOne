@@ -106,6 +106,7 @@ export {
   useCreateCampaign,
   useCreateQuest,
   usePublishMerkleRoot,
+  type CreateMarketParams,
 } from './admin-hooks';
 
 // Event Listening Hooks

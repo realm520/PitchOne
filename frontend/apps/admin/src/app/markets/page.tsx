@@ -24,11 +24,22 @@ const TEMPLATE_TYPE_MAP: Record<string, string> = {
   Score: '精确比分',
 };
 
+// 市场分类映射
+const CATEGORY_MAP: Record<string, { label: string; color: string }> = {
+  SPORTS: { label: '体育赛事', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  CRYPTO: { label: '加密货币', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+};
+
 // 市场表格行组件
 function MarketRow({ market }: { market: any }) {
   const status = STATUS_MAP[market.state as keyof typeof STATUS_MAP] || {
     label: market.state,
     color: 'bg-gray-100 text-gray-800'
+  };
+
+  const category = CATEGORY_MAP[market.category as keyof typeof CATEGORY_MAP] || {
+    label: '体育赛事',
+    color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
   };
 
   const createdTime = new Date(Number(market.createdAt) * 1000);
@@ -48,6 +59,11 @@ function MarketRow({ market }: { market: any }) {
             Match: {market.matchId.slice(0, 10)}... | Template: {market.templateId.slice(0, 10)}...
           </span>
         </div>
+      </td>
+      <td className="py-4 px-4">
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${category.color}`}>
+          {category.label}
+        </span>
       </td>
       <td className="py-4 px-4">
         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
@@ -108,6 +124,8 @@ function FilterBar({
   setStatusFilter,
   templateFilter,
   setTemplateFilter,
+  categoryFilter,
+  setCategoryFilter,
   searchQuery,
   setSearchQuery
 }: {
@@ -115,12 +133,14 @@ function FilterBar({
   setStatusFilter: (value: string) => void;
   templateFilter: string;
   setTemplateFilter: (value: string) => void;
+  categoryFilter: string;
+  setCategoryFilter: (value: string) => void;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
 }) {
   return (
     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-700 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* 搜索框 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -133,6 +153,22 @@ function FilterBar({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        {/* 市场分类筛选 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            市场分类
+          </label>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全部</option>
+            <option value="SPORTS">体育赛事</option>
+            <option value="CRYPTO">加密货币</option>
+          </select>
         </div>
 
         {/* 状态筛选 */}
@@ -177,6 +213,7 @@ function FilterBar({
 export default function MarketsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [templateFilter, setTemplateFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'createdAt' | 'totalVolume'>('createdAt');
@@ -197,6 +234,9 @@ export default function MarketsPage() {
 
   // 客户端筛选
   const filteredMarkets = markets?.filter((market: any) => {
+    // 分类筛选
+    if (categoryFilter && market.category !== categoryFilter) return false;
+
     // 状态筛选
     if (statusFilter && market.state !== statusFilter) return false;
 
@@ -314,6 +354,11 @@ export default function MarketsPage() {
             setTemplateFilter(value);
             resetPagination();
           }}
+          categoryFilter={categoryFilter}
+          setCategoryFilter={(value) => {
+            setCategoryFilter(value);
+            resetPagination();
+          }}
           searchQuery={searchQuery}
           setSearchQuery={(value) => {
             setSearchQuery(value);
@@ -365,6 +410,9 @@ export default function MarketsPage() {
                   <tr>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       赛事
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      分类
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       状态
@@ -470,7 +518,7 @@ export default function MarketsPage() {
               暂无市场数据
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {searchQuery || statusFilter || templateFilter
+              {searchQuery || statusFilter || templateFilter || categoryFilter
                 ? '没有符合筛选条件的市场'
                 : '还没有创建任何市场'}
             </p>

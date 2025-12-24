@@ -112,6 +112,9 @@ type Market @entity(immutable: false) {
 
   "首球球员姓名列表（仅 FIRST_SCORER 市场）"
   firstScorerPlayerNames: [String!]
+
+  "市场分类: SPORTS, CRYPTO"
+  category: String!
 }
 
 enum MarketState {
@@ -1702,6 +1705,81 @@ type MarketAuthorization @entity(immutable: true) {
 
   "交易哈希"
   transactionHash: Bytes!
+}
+
+# ============================================================================
+# 管理员角色实体
+# ============================================================================
+
+"""
+Admin - 管理员实体
+记录拥有 Factory 角色的地址
+"""
+type Admin @entity(immutable: false) {
+  "管理员地址"
+  id: ID!
+
+  "是否拥有 DEFAULT_ADMIN_ROLE"
+  hasAdminRole: Boolean!
+
+  "是否拥有 OPERATOR_ROLE"
+  hasOperatorRole: Boolean!
+
+  "是否拥有 ROUTER_ROLE"
+  hasRouterRole: Boolean!
+
+  "是否拥有 KEEPER_ROLE"
+  hasKeeperRole: Boolean!
+
+  "是否拥有 ORACLE_ROLE"
+  hasOracleRole: Boolean!
+
+  "首次授予角色时间"
+  firstGrantedAt: BigInt!
+
+  "最后角色变更时间"
+  lastUpdatedAt: BigInt!
+
+  "角色变更记录"
+  roleChanges: [RoleChange!]! @derivedFrom(field: "admin")
+}
+
+"""
+RoleChange - 角色变更记录
+记录所有 grantRole 和 revokeRole 操作
+"""
+type RoleChange @entity(immutable: true) {
+  "变更 ID（txHash-logIndex）"
+  id: ID!
+
+  "关联的管理员"
+  admin: Admin!
+
+  "角色哈希（bytes32）"
+  role: Bytes!
+
+  "角色名称"
+  roleName: String!
+
+  "变更类型: Grant, Revoke"
+  action: RoleAction!
+
+  "授权/撤销人地址"
+  sender: Bytes!
+
+  "时间戳"
+  timestamp: BigInt!
+
+  "区块号"
+  blockNumber: BigInt!
+
+  "交易哈希"
+  transactionHash: Bytes!
+}
+
+enum RoleAction {
+  Grant
+  Revoke
 }
 
 # ============================================================================

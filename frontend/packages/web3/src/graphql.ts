@@ -77,6 +77,7 @@ export const MARKETS_QUERY_FILTERED = `
       resolvedAt
       line
       lines
+      category
     }
   }
 `;
@@ -106,6 +107,7 @@ export const MARKETS_QUERY = `
       resolvedAt
       line
       lines
+      category
     }
   }
 `;
@@ -131,6 +133,7 @@ export const MARKET_QUERY = `
       finalizedAt
       line
       lines
+      category
     }
   }
 `;
@@ -634,6 +637,114 @@ export const REFERRAL_LEADERBOARD_QUERY = `
       totalRewards
       validReferralCount
       lastUpdatedAt
+    }
+  }
+`;
+
+// ============================================
+// Admin/角色管理查询
+// ============================================
+
+/**
+ * 获取所有管理员列表（拥有任意角色的地址）
+ */
+export const ADMINS_QUERY = `
+  query Admins($first: Int, $skip: Int) {
+    admins(
+      first: $first
+      skip: $skip
+      orderBy: lastUpdatedAt
+      orderDirection: desc
+    ) {
+      id
+      hasAdminRole
+      hasOperatorRole
+      hasRouterRole
+      hasKeeperRole
+      hasOracleRole
+      firstGrantedAt
+      lastUpdatedAt
+    }
+  }
+`;
+
+/**
+ * 获取单个管理员详情
+ */
+export const ADMIN_QUERY = `
+  query Admin($id: ID!) {
+    admin(id: $id) {
+      id
+      hasAdminRole
+      hasOperatorRole
+      hasRouterRole
+      hasKeeperRole
+      hasOracleRole
+      firstGrantedAt
+      lastUpdatedAt
+      roleChanges(
+        orderBy: timestamp
+        orderDirection: desc
+        first: 20
+      ) {
+        id
+        role
+        roleName
+        action
+        sender
+        timestamp
+        blockNumber
+        transactionHash
+      }
+    }
+  }
+`;
+
+/**
+ * 获取角色变更历史
+ */
+export const ROLE_CHANGES_QUERY = `
+  query RoleChanges($first: Int, $skip: Int) {
+    roleChanges(
+      first: $first
+      skip: $skip
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      admin {
+        id
+      }
+      role
+      roleName
+      action
+      sender
+      timestamp
+      blockNumber
+      transactionHash
+    }
+  }
+`;
+
+/**
+ * 获取特定管理员的角色变更历史
+ */
+export const ADMIN_ROLE_CHANGES_QUERY = `
+  query AdminRoleChanges($adminId: ID!, $first: Int) {
+    roleChanges(
+      where: { admin: $adminId }
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      role
+      roleName
+      action
+      sender
+      timestamp
+      blockNumber
+      transactionHash
     }
   }
 `;
