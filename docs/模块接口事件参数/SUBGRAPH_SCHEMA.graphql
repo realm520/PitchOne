@@ -1,1 +1,0 @@
-type Market @entity { id: ID!, templateId: Bytes!, matchId: Bytes!, ruleVer: Bytes!, state: String!, createdAt: BigInt!, lockedAt: BigInt, resolvedAt: BigInt, winnerOutcome: Int, params: Bytes, totalVolume: BigDecimal!, feeAccrued: BigDecimal!, lpLiquidity: BigDecimal! }
