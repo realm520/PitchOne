@@ -529,7 +529,6 @@ pnpm dev:admin # 管理端 (http://localhost:3001)
 - [合约文档](../contracts/docs/)
 - [Subgraph Schema](../docs/模块接口事件参数/SUBGRAPH_SCHEMA.graphql)
 - [事件字典](../docs/模块接口事件参数/EVENT_DICTIONARY.md)
-- [项目介绍](../docs/intro.md)
 
 ## ⚠️ 注意事项
 

@@ -798,7 +798,6 @@ forge script script/CreateMarketsViaFactory.s.sol --broadcast
 - **技术详细设计**：`docs/design/` - 10 份模块设计文档
 - **接口与事件规范**：`docs/模块接口事件参数/EVENT_DICTIONARY.md`
 - **架构思维导图**：`docs/project_mind.md`
-- **项目介绍**：`docs/intro.md`（面向技术受众）
 - **Subgraph Schema**：`docs/模块接口事件参数/SUBGRAPH_SCHEMA.graphql`
 
 ## 环境变量
