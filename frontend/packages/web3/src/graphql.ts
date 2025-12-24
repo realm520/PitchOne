@@ -77,7 +77,6 @@ export const MARKETS_QUERY_FILTERED = `
       resolvedAt
       line
       lines
-      category
     }
   }
 `;
@@ -107,7 +106,6 @@ export const MARKETS_QUERY = `
       resolvedAt
       line
       lines
-      category
     }
   }
 `;
@@ -133,7 +131,6 @@ export const MARKET_QUERY = `
       finalizedAt
       line
       lines
-      category
     }
   }
 `;

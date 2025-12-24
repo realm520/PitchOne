@@ -67,7 +67,6 @@ export function handleMarketInitialized(event: MarketInitializedEvent): void {
     market.lpLiquidity = ZERO_BD;
     market.uniqueBettors = 0;
     market.oracle = null;
-    market.category = "SPORTS"; // 默认分类
   }
 
   // 更新市场信息
@@ -107,7 +106,6 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
     market.uniqueBettors = 0;
     market.oracle = null;
     market.pricingEngine = null;
-    market.category = "SPORTS"; // 默认分类
   }
 
   // 加载或创建用户

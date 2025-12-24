@@ -112,9 +112,6 @@ type Market @entity(immutable: false) {
 
   "首球球员姓名列表（仅 FIRST_SCORER 市场）"
   firstScorerPlayerNames: [String!]
-
-  "市场分类: SPORTS, CRYPTO"
-  category: String!
 }
 
 enum MarketState {

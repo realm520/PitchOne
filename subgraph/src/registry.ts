@@ -62,13 +62,11 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
   const templateId = event.params.templateId;
   const matchId = event.params.matchId;
   const kickoffTime = event.params.kickoffTime;
-  const categoryValue = event.params.category;
 
-  log.info('MarketFactory_V3: Market created at {} with template {} for match {} category {}', [
+  log.info('MarketFactory_V3: Market created at {} with template {} for match {}', [
     marketAddress.toHexString(),
     templateId.toHexString(),
     matchId,
-    categoryValue.toString(),
   ]);
 
   // 创建动态数据源
@@ -93,15 +91,6 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
   market.uniqueBettors = 0;
   market.oracle = null;
   market.pricingEngine = null;
-
-  // 设置市场分类
-  if (categoryValue == 0) {
-    market.category = "SPORTS";
-  } else if (categoryValue == 1) {
-    market.category = "CRYPTO";
-  } else {
-    market.category = "SPORTS"; // 默认为体育赛事
-  }
 
   // 尝试从链上读取更多信息
   let marketContract = Market_V3.bind(marketAddress);

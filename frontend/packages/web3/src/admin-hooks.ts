@@ -76,7 +76,6 @@ export interface CreateMarketParams {
   mapperInitData: Hex;       // Mapper 初始化数据
   initialLiquidity: bigint;  // 初始流动性
   outcomeRules: Array<{ name: string; payoutType: number }>; // outcome 规则
-  category: number;          // 市场分类: 0=SPORTS, 1=CRYPTO
 }
 
 /**
@@ -125,7 +124,6 @@ export function useCreateMarket() {
         mapperInitData: params.mapperInitData,
         initialLiquidity: params.initialLiquidity,
         outcomeRules: params.outcomeRules,
-        category: params.category,
       }],
     });
   };
