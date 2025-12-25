@@ -20,8 +20,23 @@ const getConnectors = (): CreateConnectorFn[] => {
   return connectors;
 };
 
-// Anvil RPC URL - 支持环境变量配置（用于 ngrok 等场景）
-const anvilRpcUrl = process.env.NEXT_PUBLIC_ANVIL_RPC_URL || 'http://192.168.50.251:8545';
+// 获取 Anvil RPC URL（支持运行时配置）
+function getAnvilRpcUrl(): string {
+  // 优先使用环境变量（用于服务端或明确配置）
+  if (process.env.NEXT_PUBLIC_ANVIL_RPC_URL) {
+    return process.env.NEXT_PUBLIC_ANVIL_RPC_URL;
+  }
+
+  // 浏览器环境：使用代理路径（类似 Subgraph）
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/rpc`;
+  }
+
+  // 服务端环境：直接访问
+  return 'http://localhost:8545';
+}
+
+const anvilRpcUrl = getAnvilRpcUrl();
 
 // 创建 wagmi 配置
 export const config = createConfig({
