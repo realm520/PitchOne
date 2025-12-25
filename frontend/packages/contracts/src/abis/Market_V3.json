@@ -178,7 +178,13 @@
   {
     "type": "function",
     "name": "finalize",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "scaleBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
