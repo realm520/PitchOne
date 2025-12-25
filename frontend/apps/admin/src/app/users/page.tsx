@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useChainId } from '@pitchone/web3';
+import { useChainId, useAccount } from '@pitchone/web3';
 import { Button, Card, LoadingSpinner } from '@pitchone/ui';
 import { getContractAddresses } from '@pitchone/contracts';
 import { ROLES } from '@/constants/roles';
@@ -10,11 +10,26 @@ import { AddUserModal } from './components/AddUserModal';
 import { EditUserModal } from './components/EditUserModal';
 import { DeleteUserModal } from './components/DeleteUserModal';
 import { useAdmins, Admin, adminToRoleHashes, hasAnyRole } from '@/hooks/useAdmins';
+import { useHasRole } from '@/hooks/useHasRole';
+
+// DEFAULT_ADMIN_ROLE hash
+const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
 
 export default function UsersPage() {
     const chainId = useChainId();
+    const { address: currentUserAddress, isConnected } = useAccount();
     const addresses = getContractAddresses(chainId);
     const factoryAddress = addresses.factory;
+
+    // 检查当前用户是否有 Admin 权限
+    const { data: hasAdminRole, isLoading: isCheckingRole } = useHasRole(
+        factoryAddress,
+        DEFAULT_ADMIN_ROLE,
+        currentUserAddress || '0x0000000000000000000000000000000000000000'
+    );
+
+    // 是否有权限管理用户
+    const canManageUsers = isConnected && hasAdminRole === true;
 
     // 从 Subgraph 获取管理员列表
     const { data: admins, isLoading, error, refetch } = useAdmins(100, 0);
@@ -75,10 +90,34 @@ export default function UsersPage() {
                     </p>
                 </div>
 
+                {/* 权限提示 */}
+                {!isConnected && (
+                    <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                            请先连接钱包以管理用户权限
+                        </p>
+                    </div>
+                )}
+                {isConnected && !isCheckingRole && !canManageUsers && (
+                    <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                            当前账户没有管理员权限，无法添加或修改用户
+                        </p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                            当前地址: {currentUserAddress?.slice(0, 6)}...{currentUserAddress?.slice(-4)}
+                        </p>
+                    </div>
+                )}
+
                 {/* 添加用户按钮 */}
                 <div className="mb-6 flex gap-3">
-                    <Button onClick={() => setIsAddModalOpen(true)} variant="primary">
-                        添加用户
+                    <Button
+                        onClick={() => setIsAddModalOpen(true)}
+                        variant="primary"
+                        disabled={!canManageUsers || isCheckingRole}
+                        title={!canManageUsers ? '需要管理员权限' : undefined}
+                    >
+                        {isCheckingRole ? '检查权限...' : '添加用户'}
                     </Button>
                     <Button onClick={() => refetch()} variant="ghost">
                         刷新数据
@@ -143,6 +182,7 @@ export default function UsersPage() {
                                         factoryAddress={factoryAddress}
                                         onEdit={handleOpenEditModal}
                                         onDelete={handleOpenDeleteModal}
+                                        canManageUsers={canManageUsers}
                                     />
                                 ))
                             ) : (
@@ -203,11 +243,13 @@ function UserRowFromSubgraph({
     factoryAddress,
     onEdit,
     onDelete,
+    canManageUsers,
 }: {
     admin: Admin;
     factoryAddress: `0x${string}`;
     onEdit: (address: `0x${string}`, currentRoles: `0x${string}`[]) => void;
     onDelete: (address: `0x${string}`, currentRoles: `0x${string}`[]) => void;
+    canManageUsers: boolean;
 }) {
     const address = admin.id as `0x${string}`;
     const userRoleHashes = adminToRoleHashes(admin);
@@ -259,8 +301,9 @@ function UserRowFromSubgraph({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleEdit}
-                        className="flex items-center gap-1 text-sm px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
-                        title="编辑角色"
+                        disabled={!canManageUsers}
+                        className={`flex items-center gap-1 text-sm px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${canManageUsers ? 'hover:bg-gray-50 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'}`}
+                        title={canManageUsers ? '编辑角色' : '需要管理员权限'}
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -269,8 +312,9 @@ function UserRowFromSubgraph({
                     </button>
                     <button
                         onClick={handleDelete}
-                        className="flex items-center gap-1 text-sm px-2 py-1 border border-red-300 dark:border-red-700 rounded bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="删除用户"
+                        disabled={!canManageUsers}
+                        className={`flex items-center gap-1 text-sm px-2 py-1 border border-red-300 dark:border-red-700 rounded bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 ${canManageUsers ? 'hover:bg-red-50 dark:hover:bg-red-900/20' : 'opacity-50 cursor-not-allowed'}`}
+                        title={canManageUsers ? '删除用户' : '需要管理员权限'}
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
