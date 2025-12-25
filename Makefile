@@ -2,7 +2,7 @@
 # 使用: make <command>
 # 查看所有命令: make help
 
-.PHONY: help dev dev-frontend web status \
+.PHONY: help dev dev-frontend web status sync-remote-addresses \
         remote-pull remote-status remote-frontend remote-subgraph remote-contracts remote-full-reset
 
 # 默认目标
@@ -23,8 +23,9 @@ help:
 	@echo "  make remote-full-reset    完整重置所有服务"
 	@echo ""
 	@echo "其他:"
-	@echo "  make install          安装依赖"
-	@echo "  make build            构建前端"
+	@echo "  make install              安装依赖"
+	@echo "  make build                构建前端"
+	@echo "  make sync-remote-addresses  同步远端合约地址到本地"
 	@echo ""
 
 # ===================
@@ -52,6 +53,10 @@ install:
 # 构建前端
 build:
 	cd frontend && pnpm build
+
+# 同步远端合约地址到本地（用于本地连接远端 Anvil 开发）
+sync-remote-addresses:
+	@cd frontend && pnpm sync-remote
 
 # ===================
 # 远程操作
