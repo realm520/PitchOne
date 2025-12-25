@@ -72,94 +72,79 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
 
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? '' : 'border-b dark:border-gray-700'}`}>
-      {/* 赛事列 - 重新设计为上下结构 */}
-      <td className="py-4 px-4">
+      {/* 赛事列 */}
+      <td className="py-3 px-4 min-w-[200px]">
         <Link href={`/markets/${market.id}`} className="block hover:opacity-80">
           <div className="flex flex-col">
-            {/* 上：联赛名称和赛季 */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {leagueName}
-              </span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">
-                {matchInfo.season}
-              </span>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{leagueName}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{matchInfo.season}</span>
             </div>
-            {/* 下：主队 vs 客队 */}
-            <div className="font-medium text-gray-900 dark:text-white">
+            <div className="font-medium text-gray-900 dark:text-white whitespace-nowrap">
               {market.homeTeam || matchInfo.homeTeam}
-              <span className="text-gray-400 dark:text-gray-500 mx-2">vs</span>
+              <span className="text-gray-400 dark:text-gray-500 mx-1">vs</span>
               {market.awayTeam || matchInfo.awayTeam}
             </div>
           </div>
         </Link>
       </td>
       {/* 状态列 */}
-      <td className="py-4 px-4">
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+      <td className="py-3 px-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
           {status.label}
         </span>
       </td>
-      {/* 模式列 - 固定：奖金池模式 */}
-      <td className="py-4 px-4">
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+      {/* 模式列 */}
+      <td className="py-3 px-3 whitespace-nowrap">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
           奖金池模式
         </span>
       </td>
-      {/* 类型列 - 固定：Live Market */}
-      <td className="py-4 px-4">
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+      {/* 类型列 */}
+      <td className="py-3 px-3 whitespace-nowrap">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
           Live Market
         </span>
       </td>
       {/* 玩法列 */}
-      <td className="py-4 px-4">
+      <td className="py-3 px-3 whitespace-nowrap">
         <Badge variant="default">
           {TEMPLATE_TYPE_MAP[market.templateId?.slice(0, 3)] || '胜平负'}
         </Badge>
       </td>
       {/* 开赛时间列 */}
-      <td className="py-4 px-4">
-        <div className="flex flex-col">
-          <span className="text-sm text-gray-900 dark:text-white">
-            {kickoffTime ? kickoffTime.toLocaleString('zh-CN', {
-              month: 'numeric',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }) : '-'}
-          </span>
-          {kickoffTime && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {formatDistanceToNow(kickoffTime, { addSuffix: true, locale: zhCN })}
-            </span>
-          )}
+      <td className="py-3 px-3 whitespace-nowrap">
+        <div className="text-sm text-gray-900 dark:text-white">
+          {kickoffTime ? kickoffTime.toLocaleString('zh-CN', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) : '-'}
         </div>
+        {kickoffTime && (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {formatDistanceToNow(kickoffTime, { addSuffix: true, locale: zhCN })}
+          </div>
+        )}
       </td>
       {/* 交易量列 */}
-      <td className="py-4 px-4">
+      <td className="py-3 px-3 whitespace-nowrap">
         <span className="font-semibold text-gray-900 dark:text-white">
           {Number(market.totalVolume || 0).toFixed(2)} USDC
         </span>
       </td>
       {/* 创建时间列 */}
-      <td className="py-4 px-4">
+      <td className="py-3 px-3 whitespace-nowrap">
         <span className="text-sm text-gray-600 dark:text-gray-300">
-          {formatDistanceToNow(createdTime, {
-            addSuffix: true,
-            locale: zhCN
-          })}
+          {formatDistanceToNow(createdTime, { addSuffix: true, locale: zhCN })}
         </span>
       </td>
-      {/* 操作列 - 右对齐 */}
-      <td className="py-4 px-4 text-right">
-        <div className="flex items-center justify-end gap-2">
-          <Link href={`/markets/${market.id}`}>
-            <Button variant="neon" size="sm">
-              查看详情
-            </Button>
-          </Link>
-        </div>
+      {/* 操作列 */}
+      <td className="py-3 px-3 whitespace-nowrap text-right">
+        <Link href={`/markets/${market.id}`}>
+          <Button variant="neon" size="sm">查看详情</Button>
+        </Link>
       </td>
     </tr>
   );
