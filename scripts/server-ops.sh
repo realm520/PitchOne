@@ -18,9 +18,8 @@
 set -e
 
 # 服务器配置
-SERVER_HOST="42.60.109.87"
-SERVER_PORT="10021"
-SERVER_USER="harry"
+# SSH Host 别名（需在 ~/.ssh/config 中配置 pitchone-server）
+SSH_HOST="pitchone-server"
 PROJECT_PATH="/home/harry/code/PitchOne"
 
 # 颜色定义
@@ -49,7 +48,7 @@ print_error() {
 
 # SSH 命令封装（加载用户环境：nvm + npm-global + foundry）
 ssh_cmd() {
-    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export NVM_DIR=~/.nvm; source \$NVM_DIR/nvm.sh 2>/dev/null; export PATH=~/.foundry/bin:~/.npm-global/bin:\$PATH; $@"
+    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "export NVM_DIR=~/.nvm; source \$NVM_DIR/nvm.sh 2>/dev/null; export PATH=~/.foundry/bin:~/.npm-global/bin:\$PATH; $@"
 }
 
 # 显示帮助

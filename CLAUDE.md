@@ -17,6 +17,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **数据层**：The Graph Subgraph + Postgres/Timescale + Grafana
 - **基础设施**：Docker Compose + K8s + Terraform
 
+## SSH 配置（首次使用远程操作）
+
+远程操作命令（如 `make remote-subgraph`）需要 SSH 免密登录。在 `~/.ssh/config` 中添加：
+
+```
+Host pitchone-server
+    HostName 42.60.109.87
+    Port 10021
+    User harry
+    IdentityFile ~/.ssh/你的私钥文件名
+    IdentitiesOnly yes
+```
+
+**注意**：需要先将公钥添加到服务器的 `~/.ssh/authorized_keys` 中。
+
 ## 常用命令
 
 ### 开发环境启动
