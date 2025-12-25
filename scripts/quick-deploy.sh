@@ -54,7 +54,7 @@ fi
 # 步骤 1: 部署合约
 echo -e "${YELLOW}[1/4] 部署核心合约...${NC}"
 cd "$CONTRACTS_DIR"
-PRIVATE_KEY="$PRIVATE_KEY" forge script script/Deploy.s.sol:Deploy \
+PRIVATE_KEY="$PRIVATE_KEY" forge script script/Deploy_V3.s.sol:Deploy \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Deployed|Script ran successfully)" || true
@@ -72,7 +72,7 @@ echo "   Factory: $FACTORY_ADDRESS"
 # 步骤 2: 创建测试市场
 echo ""
 echo -e "${YELLOW}[2/4] 创建测试市场...${NC}"
-PRIVATE_KEY="$PRIVATE_KEY" forge script script/CreateMarkets_NoMultiLine.s.sol:CreateMarkets_NoMultiLine \
+PRIVATE_KEY="$PRIVATE_KEY" forge script script/CreateAllMarketTypes_V3.s.sol:CreateAllMarketTypes \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Created|markets authorized|Success)" || true
@@ -94,7 +94,7 @@ MIN_BET_AMOUNT="$MIN_BET_AMOUNT" \
 MAX_BET_AMOUNT="$MAX_BET_AMOUNT" \
 BETS_PER_USER="$BETS_PER_USER" \
 OUTCOME_DISTRIBUTION="$OUTCOME_DISTRIBUTION" \
-forge script script/SimulateBets.s.sol:SimulateBets \
+forge script script/SimulateBets_V3.s.sol:SimulateBets \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Bet Simulation|Total Bets|Total Volume|Success Rate)" || true
