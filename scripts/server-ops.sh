@@ -47,9 +47,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# SSH 命令封装（加载用户环境：nvm + npm-global）
+# SSH 命令封装（加载用户环境：nvm + npm-global + foundry）
 ssh_cmd() {
-    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export NVM_DIR=~/.nvm; source \$NVM_DIR/nvm.sh 2>/dev/null; export PATH=~/.npm-global/bin:\$PATH; $@"
+    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export NVM_DIR=~/.nvm; source \$NVM_DIR/nvm.sh 2>/dev/null; export PATH=~/.foundry/bin:~/.npm-global/bin:\$PATH; $@"
 }
 
 # 显示帮助
@@ -97,7 +97,9 @@ cmd_frontend_build() {
 # 重启前端 (pm2 生产模式)
 cmd_frontend_restart() {
     print_info "重启前端服务 (生产模式)..."
-    ssh_cmd "cd $PROJECT_PATH && pm2 delete pitchone-user pitchone-admin 2>/dev/null || true"
+    ssh_cmd "pm2 delete pitchone-user pitchone-admin 2>/dev/null || true"
+    ssh_cmd "lsof -ti:3000 -ti:3001 | xargs kill -9 2>/dev/null || true"
+    sleep 2
     ssh_cmd "cd $PROJECT_PATH/frontend && pm2 start pnpm --name pitchone-user -- start:user"
     ssh_cmd "cd $PROJECT_PATH/frontend && pm2 start pnpm --name pitchone-admin -- start:admin"
     print_success "前端服务已重启 (生产模式)"
