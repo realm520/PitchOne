@@ -127,8 +127,8 @@ if ! docker ps > /dev/null 2>&1; then
 fi
 
 # 使用 deploy.sh -c -u -y 部署
-if [ -f "$SUBGRAPH_DIR/deploy.sh -c -u -y" ]; then
-    bash "$SUBGRAPH_DIR/deploy.sh -c -u -y" > /tmp/subgraph-deploy.log 2>&1 &
+if [ -f "$SUBGRAPH_DIR/deploy.sh" ]; then
+    bash "$SUBGRAPH_DIR/deploy.sh" -c -u -y > /tmp/subgraph-deploy.log 2>&1 &
     DEPLOY_PID=$!
 
     # 等待部署完成（最多 60 秒）
@@ -155,7 +155,7 @@ if [ -f "$SUBGRAPH_DIR/deploy.sh -c -u -y" ]; then
         echo -e "${YELLOW}⚠️  Subgraph 部署可能需要更多时间，请稍后检查${NC}"
     fi
 else
-    echo -e "${RED}❌ 未找到 deploy.sh -c -u -y 脚本${NC}"
+    echo -e "${RED}❌ 未找到 deploy.sh 脚本${NC}"
     exit 1
 fi
 
