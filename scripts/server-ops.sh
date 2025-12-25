@@ -47,9 +47,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# SSH 命令封装（加载用户环境）
+# SSH 命令封装（加载用户环境：nvm + npm-global）
 ssh_cmd() {
-    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export PATH=~/.npm-global/bin:\$PATH; $@"
+    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export NVM_DIR=~/.nvm; source \$NVM_DIR/nvm.sh 2>/dev/null; export PATH=~/.npm-global/bin:\$PATH; $@"
 }
 
 # 显示帮助
