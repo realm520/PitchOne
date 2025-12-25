@@ -372,10 +372,10 @@ export default function ParamsPage() {
                   >
                     创建提案
                   </Button>
-                  <ConnectButton />
+                  <ConnectButton showBalance={false} />
                 </>
               ) : (
-                <ConnectButton />
+                <ConnectButton showBalance={false} />
               )}
             </div>
           </div>

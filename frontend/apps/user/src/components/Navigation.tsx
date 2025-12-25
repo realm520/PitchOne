@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation, LanguageSwitcher } from '@pitchone/i18n';
-import { CustomConnectButton } from '@pitchone/web3';
+import { ConnectButton } from '@pitchone/web3';
 
 const navItems = [
   { href: '/markets', labelKey: 'nav.markets' },
@@ -43,7 +43,7 @@ export function Navigation() {
 export function HeaderActions() {
   return (
     <div className="flex items-center gap-3">
-      <CustomConnectButton />
+      <ConnectButton />
       <LanguageSwitcher />
     </div>
   );

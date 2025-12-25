@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
 import { useState } from 'react';
+import { TEMPLATE_MAP, parseTemplateType } from '@/lib/market-utils';
 
 // 市场状态映射
 const STATUS_MAP = {
@@ -14,14 +15,6 @@ const STATUS_MAP = {
   Locked: { label: '已锁盘', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
   Resolved: { label: '已结算', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
   Finalized: { label: '已完成', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
-};
-
-// 玩法类型映射
-const TEMPLATE_TYPE_MAP: Record<string, string> = {
-  WDL: '胜平负',
-  OU: '大小球',
-  AH: '让球',
-  Score: '精确比分',
 };
 
 // 从 matchId 解析联赛和赛季信息
@@ -109,7 +102,7 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
       {/* 玩法列 */}
       <td className="py-3 px-3 whitespace-nowrap">
         <Badge variant="default">
-          {TEMPLATE_TYPE_MAP[market.templateId?.slice(0, 3)] || '胜平负'}
+          {TEMPLATE_MAP[parseTemplateType(market.templateId)] || '胜平负'}
         </Badge>
       </td>
       {/* 开赛时间列 */}

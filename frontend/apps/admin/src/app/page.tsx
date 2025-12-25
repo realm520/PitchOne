@@ -361,10 +361,10 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                运营数据看板
+                运营数据
               </h1>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                实时监控平台运营数据和市场状态
+                运营数据和市场状态
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -394,7 +394,7 @@ export default function AdminDashboard() {
                 </Button>
               </Link>
               {/* 钱包连接按钮 */}
-              <ConnectButton />
+              <ConnectButton showBalance={false} />
             </div>
           </div>
         </div>

@@ -189,9 +189,10 @@ cmd_full_reset() {
     echo ""
     cmd_anvil_restart
     echo ""
-    cmd_contracts_deploy
-    echo ""
-    cmd_subgraph_rebuild
+    # 直接调用 quick-deploy.sh（已包含合约部署 + Subgraph 部署）
+    print_info "部署合约和 Subgraph..."
+    ssh_cmd "cd $PROJECT_PATH && ./scripts/quick-deploy.sh"
+    print_success "合约和 Subgraph 部署完成"
     echo ""
     cmd_frontend_build
     echo ""

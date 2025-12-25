@@ -74,7 +74,15 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
 
   // 创建 Market 实体
   let market = new Market(marketAddress.toHexString());
-  market.templateId = templateId.toHexString();
+
+  // 尝试从 Template 实体获取名称，如果不存在则使用 hex 字符串
+  let template = Template.load(templateId.toHexString());
+  if (template !== null && template.name !== null) {
+    market.templateId = template.name as string;
+  } else {
+    market.templateId = templateId.toHexString();
+  }
+
   market.matchId = matchId;
   market.kickoffTime = kickoffTime;
 

@@ -27,7 +27,10 @@ export function AddUserModal({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const { writeContract, data: hash, isPending, error, reset } = useWriteContract();
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+
+    // 所有角色都授予成功
+    const [allRolesGranted, setAllRolesGranted] = useState(false);
 
     const resetForm = () => {
         setAddress('');
@@ -35,6 +38,7 @@ export function AddUserModal({
         setCurrentRoleIndex(0);
         setIsSubmitting(false);
         setIsDropdownOpen(false);
+        setAllRolesGranted(false);
         reset();
     };
 
@@ -55,11 +59,12 @@ export function AddUserModal({
         setSelectedRoles(prev => prev.filter(r => r !== roleHash));
     };
 
-    // 处理交易成功
+    // 处理交易确认成功
     useEffect(() => {
-        if (isSuccess && isSubmitting) {
+        if (isConfirmed && isSubmitting && !allRolesGranted) {
             const nextIndex = currentRoleIndex + 1;
             if (nextIndex < selectedRoles.length) {
+                // 还有更多角色需要授予
                 setCurrentRoleIndex(nextIndex);
                 reset();
                 const nextRole = selectedRoles[nextIndex];
@@ -75,17 +80,20 @@ export function AddUserModal({
                     args: [nextRole, address as `0x${string}`],
                 });
             } else {
-                console.log(`[AddUserModal] 添加用户成功`, {
+                // 所有角色都已授予成功
+                console.log(`[AddUserModal] 所有角色授予成功`, {
                     address,
                     roles: selectedRoles.map(h => ROLES.find(r => r.hash === h)?.name),
                 });
+                setAllRolesGranted(true);
+                setIsSubmitting(false);
                 setTimeout(() => {
                     onSuccess();
                     handleClose();
-                }, 1000);
+                }, 1500);
             }
         }
-    }, [isSuccess, isSubmitting, currentRoleIndex, selectedRoles, address, factoryAddress, writeContract, reset, onSuccess]);
+    }, [isConfirmed, isSubmitting, allRolesGranted, currentRoleIndex, selectedRoles, address, factoryAddress, writeContract, reset, onSuccess]);
 
     // 处理错误
     useEffect(() => {
@@ -229,10 +237,13 @@ export function AddUserModal({
                 </div>
 
                 {/* 进度显示 */}
-                {isSubmitting && selectedRoles.length > 0 && (
+                {isSubmitting && selectedRoles.length > 0 && !allRolesGranted && (
                     <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <p className="text-sm text-blue-800 dark:text-blue-200">
-                            正在授予角色 ({currentRoleIndex + 1}/{selectedRoles.length})：
+                            {isPending ? '请在钱包中确认交易...' : isConfirming ? '等待区块确认...' : '准备中...'}
+                        </p>
+                        <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                            角色 ({currentRoleIndex + 1}/{selectedRoles.length})：
                             <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${currentRoleInfo?.color}`}>{currentRoleInfo?.label}</span>
                         </p>
                     </div>
@@ -244,21 +255,23 @@ export function AddUserModal({
                     </div>
                 )}
 
-                {isSuccess && currentRoleIndex >= selectedRoles.length - 1 && (
+                {allRolesGranted && (
                     <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                        <p className="text-sm text-green-600 dark:text-green-400">用户添加成功！</p>
+                        <p className="text-sm text-green-600 dark:text-green-400">用户添加成功！所有角色已授予。</p>
                     </div>
                 )}
 
                 <div className="flex gap-3">
-                    <Button onClick={handleClose} variant="ghost" className="flex-1" disabled={isProcessing}>
-                        取消
+                    <Button onClick={handleClose} variant="ghost" className="flex-1" disabled={isProcessing && !allRolesGranted}>
+                        {allRolesGranted ? '关闭' : '取消'}
                     </Button>
-                    <Button onClick={handleSubmit} variant="primary" className="flex-1" disabled={isProcessing || !address}>
-                        {isProcessing ? (
+                    <Button onClick={handleSubmit} variant="primary" className="flex-1" disabled={isProcessing || !address || allRolesGranted}>
+                        {allRolesGranted ? (
+                            '完成'
+                        ) : isProcessing ? (
                             <span className="flex items-center justify-center gap-2">
                                 <LoadingSpinner size="sm" />
-                                {isPending ? '确认中...' : '交易中...'}
+                                {isPending ? '请确认钱包...' : isConfirming ? '等待确认...' : '处理中...'}
                             </span>
                         ) : selectedRoles.length > 0 ? `授予 ${selectedRoles.length} 个角色` : '添加用户'}
                     </Button>

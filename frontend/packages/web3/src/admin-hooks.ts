@@ -6,8 +6,8 @@
  */
 
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount, usePublicClient } from 'wagmi';
-import { parseUnits, type Address, type Hex, decodeErrorResult } from 'viem';
-import { useState, useEffect } from 'react';
+import { parseUnits, type Address, type Hex, encodeAbiParameters, parseAbiParameters } from 'viem';
+import { useState } from 'react';
 import {
   Market_V3_ABI,
   MarketFactory_V3_ABI,
@@ -502,6 +502,14 @@ export function useResolveMarket(marketAddress?: Address) {
     resetState();
     setIsConfirming(true);
 
+    // 编码 rawResult: abi.encode(uint256[] outcomeIds, uint256[] weights)
+    // 对于单一获胜结果，outcomeIds = [winningOutcomeId], weights = [10000] (100% 权重)
+    const rawResult = encodeAbiParameters(
+      parseAbiParameters('uint256[], uint256[]'),
+      [[winningOutcomeId], [10000n]]
+    );
+    console.log('[useResolveMarket] 编码后的 rawResult:', rawResult);
+
     try {
       // 先模拟调用（必须指定 account 以检查权限）
       console.log('[useResolveMarket] 模拟调用检查...', { account: accountAddress });
@@ -510,7 +518,7 @@ export function useResolveMarket(marketAddress?: Address) {
           address: marketAddress,
           abi: Market_V3_ABI,
           functionName: 'resolve',
-          args: [[winningOutcomeId], [10000n]],
+          args: [rawResult],
           account: accountAddress, // 必须指定账户以正确检查权限
         });
         console.log('[useResolveMarket] 模拟调用成功');
@@ -526,7 +534,7 @@ export function useResolveMarket(marketAddress?: Address) {
         address: marketAddress,
         abi: Market_V3_ABI,
         functionName: 'resolve',
-        args: [[winningOutcomeId], [10000n]],
+        args: [rawResult],
       });
 
       console.log('[useResolveMarket] 交易已发送:', txHash);
@@ -567,7 +575,7 @@ export function useResolveMarket(marketAddress?: Address) {
 
 /**
  * 终结市场 Hook
- * 调用 Market.finalize() 终结市场（争议期结束后）
+ * 调用 Market.finalize(scaleBps) 终结市场（争议期结束后）
  * @param marketAddress 市场合约地址
  */
 export function useFinalizeMarket(marketAddress?: Address) {
@@ -606,11 +614,17 @@ export function useFinalizeMarket(marketAddress?: Address) {
     throw new Error('等待交易确认超时');
   };
 
-  const finalizeMarket = async () => {
+  /**
+   * 终结市场
+   * @param scaleBps 赔付缩放比例（基点，默认 10000 = 100%）
+   *        - 0: 正常结算，超限时 revert
+   *        - 1-10000: 按比例缩减赔付 + 储备金兜底
+   */
+  const finalizeMarket = async (scaleBps: bigint = 0n) => {
     if (!marketAddress) throw new Error('Market address required');
     if (!publicClient) throw new Error('Public client not available');
 
-    console.log('[useFinalizeMarket] 终结市场:', { marketAddress });
+    console.log('[useFinalizeMarket] 终结市场:', { marketAddress, scaleBps });
     resetState();
     setIsConfirming(true);
 
@@ -622,7 +636,7 @@ export function useFinalizeMarket(marketAddress?: Address) {
           address: marketAddress,
           abi: Market_V3_ABI,
           functionName: 'finalize',
-          args: [],
+          args: [scaleBps],
           account: accountAddress, // 必须指定账户以正确检查权限
         });
         console.log('[useFinalizeMarket] 模拟调用成功');
@@ -638,7 +652,7 @@ export function useFinalizeMarket(marketAddress?: Address) {
         address: marketAddress,
         abi: Market_V3_ABI,
         functionName: 'finalize',
-        args: [],
+        args: [scaleBps],
       });
 
       console.log('[useFinalizeMarket] 交易已发送:', txHash);

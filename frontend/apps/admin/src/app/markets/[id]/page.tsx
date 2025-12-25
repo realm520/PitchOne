@@ -8,7 +8,7 @@ import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
 import { use, useState, useEffect } from 'react';
 import { AdminButton, AdminCard, InfoCard, Pagination, ConfirmDialog, TxStatus, EmptyState } from '@/components/ui';
-import { STATUS_MAP, TEMPLATE_MAP, LEAGUE_MAP, getOutcomeOptions, getOutcomeName, parseMatchInfo, shortAddr, formatUSDC } from '@/lib/market-utils';
+import { STATUS_MAP, TEMPLATE_MAP, LEAGUE_MAP, getOutcomeOptions, getOutcomeName, parseMatchInfo, shortAddr, formatUSDC, parseTemplateType } from '@/lib/market-utils';
 import { toast } from 'sonner';
 
 interface Order {
@@ -47,13 +47,29 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const totalPages = Math.ceil(orders.length / pageSize);
   const paginatedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  // Toast ID 常量，用于替换旧的 toast
+  const TOAST_IDS = {
+    lock: 'market-lock-toast',
+    resolve: 'market-resolve-toast',
+    finalize: 'market-finalize-toast',
+  };
+
   const handleAction = async (action: 'lock' | 'resolve' | 'finalize') => {
     if (!isConnected) {
       toast.error('请先连接钱包');
       return;
     }
     const actionNames = { lock: '锁盘', resolve: '结算', finalize: '终结' };
+    const toastId = TOAST_IDS[action];
+
     console.log(`[${action.toUpperCase()}] 开始执行操作...`, { marketId: id, action });
+
+    // 显示 loading toast
+    toast.loading(`正在${actionNames[action]}...`, {
+      id: toastId,
+      description: '请在钱包中确认交易',
+    });
+
     try {
       let result;
       if (action === 'lock') {
@@ -66,14 +82,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         console.log('[RESOLVE] 调用完成，返回结果:', result);
       } else if (action === 'finalize') {
         console.log('[FINALIZE] 调用 finalize.finalizeMarket()...');
-        result = await finalize.finalizeMarket();
+        // scaleBps = 0 表示正常结算模式（超限时会 revert）
+        // scaleBps = 10000 表示 100% 赔付（使用储备金兜底）
+        result = await finalize.finalizeMarket(0n);
         console.log('[FINALIZE] 调用完成，返回结果:', result);
       }
       console.log(`[${action.toUpperCase()}] 操作成功，关闭对话框`);
       setDialog(null);
       setSelectedOutcome(null);
       setTimeout(refetch, 3000);
-      toast.success('Success');
+      // 成功的 toast 会在 useEffect 监听 hook.isSuccess 时显示
     } catch (e) {
       console.error(`[${action.toUpperCase()}] 操作失败:`, e);
       console.error(`[${action.toUpperCase()}] 错误消息:`, e instanceof Error ? e.message : String(e));
@@ -87,9 +105,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     if (lock.error) {
       console.error('[LOCK] Hook 检测到错误:', lock.error);
       console.log('[LOCK] 错误消息:', lock.error.message);
-      // hook 返回的 error.message 已经是友好的消息了
       const errorMessage = lock.error.message || '未知错误';
       toast.error('锁盘失败', {
+        id: TOAST_IDS.lock,
         description: errorMessage,
         duration: 10000,
       });
@@ -101,6 +119,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       console.error('[RESOLVE] Hook 检测到错误:', resolve.error);
       const errorMessage = resolve.error.message || '未知错误';
       toast.error('结算失败', {
+        id: TOAST_IDS.resolve,
         description: errorMessage,
         duration: 10000,
       });
@@ -112,11 +131,40 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       console.error('[FINALIZE] Hook 检测到错误:', finalize.error);
       const errorMessage = finalize.error.message || '未知错误';
       toast.error('终结失败', {
+        id: TOAST_IDS.finalize,
         description: errorMessage,
         duration: 10000,
       });
     }
   }, [finalize.error]);
+
+  // 监听交易确认中状态，更新 toast 提示
+  useEffect(() => {
+    if (lock.isConfirming && lock.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.lock,
+        description: `交易哈希: ${lock.hash.slice(0, 10)}...${lock.hash.slice(-8)}`,
+      });
+    }
+  }, [lock.isConfirming, lock.hash]);
+
+  useEffect(() => {
+    if (resolve.isConfirming && resolve.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.resolve,
+        description: `交易哈希: ${resolve.hash.slice(0, 10)}...${resolve.hash.slice(-8)}`,
+      });
+    }
+  }, [resolve.isConfirming, resolve.hash]);
+
+  useEffect(() => {
+    if (finalize.isConfirming && finalize.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.finalize,
+        description: `交易哈希: ${finalize.hash.slice(0, 10)}...${finalize.hash.slice(-8)}`,
+      });
+    }
+  }, [finalize.isConfirming, finalize.hash]);
 
   // 监听锁盘 hook 状态变化
   useEffect(() => {
@@ -143,7 +191,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   }, [lock.isReverted, lock.hash, lock.receipt]);
 
-  // 监听成功状态
+  // 监听成功状态（使用相同 ID 替换之前的错误 toast）
   useEffect(() => {
     if (lock.isSuccess && lock.hash) {
       console.log('[LOCK] 交易成功!', {
@@ -152,6 +200,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         receipt: lock.receipt,
       });
       toast.success('锁盘成功！', {
+        id: TOAST_IDS.lock,
         description: `交易哈希: ${lock.hash.slice(0, 10)}...${lock.hash.slice(-8)}`,
       });
     }
@@ -161,6 +210,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     if (resolve.isSuccess && resolve.hash) {
       console.log('[RESOLVE] 交易成功!', { hash: resolve.hash });
       toast.success('结算成功！', {
+        id: TOAST_IDS.resolve,
         description: `交易哈希: ${resolve.hash.slice(0, 10)}...${resolve.hash.slice(-8)}`,
       });
     }
@@ -170,6 +220,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     if (finalize.isSuccess && finalize.hash) {
       console.log('[FINALIZE] 交易成功!', { hash: finalize.hash });
       toast.success('终结成功！', {
+        id: TOAST_IDS.finalize,
         description: `交易哈希: ${finalize.hash.slice(0, 10)}...${finalize.hash.slice(-8)}`,
       });
     }
@@ -180,7 +231,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   const status = STATUS_MAP[market.state as keyof typeof STATUS_MAP] || { label: market.state, color: 'bg-gray-100 text-gray-800' };
   const matchInfo = parseMatchInfo(market.matchId || '');
-  const templateType = market.templateId?.slice(0, 3)?.toUpperCase();
+  const templateType = parseTemplateType(market.templateId);
   const kickoffTime = market.kickoffTime ? new Date(Number(market.kickoffTime) * 1000) : null;
 
   return (
@@ -331,22 +382,25 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       {dialog === 'resolve' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="max-w-md w-full mx-4 p-6 bg-white rounded-lg shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">结算市场</h3>
-            <p className="text-sm text-gray-600 mb-4">选择获胜结果：</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">结算市场</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {market.homeTeam || matchInfo.homeTeam} vs {market.awayTeam || matchInfo.awayTeam}
+            </p>
+            <p className="text-sm text-gray-600 mb-3">选择比赛结果：</p>
             <div className="space-y-2 mb-6">
-              {getOutcomeOptions(templateType).map(opt => (
-                <label key={opt.id} className={`flex items-start p-3 border-2 rounded-lg cursor-pointer ${selectedOutcome === opt.id ? (opt.isPush ? 'border-orange-500 bg-orange-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:bg-gray-50'
+              {getOutcomeOptions(templateType, market.homeTeam || matchInfo.homeTeam, market.awayTeam || matchInfo.awayTeam).map(opt => (
+                <label key={opt.id} className={`flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all ${selectedOutcome === opt.id ? (opt.isPush ? 'border-orange-500 bg-orange-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:bg-gray-50'
                   }`}>
                   <input type="radio" checked={selectedOutcome === opt.id} onChange={() => setSelectedOutcome(opt.id)} className="mt-0.5 mr-3" />
-                  <div>
-                    <span className={`text-sm font-medium ${opt.isPush ? 'text-orange-800' : ''}`}>{opt.label}</span>
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium ${opt.isPush ? 'text-orange-800' : 'text-gray-900'}`}>{opt.label}</span>
                     {opt.description && <p className="text-xs text-gray-500 mt-1">{opt.description}</p>}
                   </div>
                 </label>
               ))}
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-red-800"><strong>警告：</strong>请确保选择正确的结果！</p>
+              <p className="text-sm text-red-800"><strong>警告：</strong>请确保选择正确的结果，结算后无法撤销！</p>
             </div>
             <div className="flex gap-3">
               <AdminButton variant="outline" onClick={() => { setDialog(null); setSelectedOutcome(null); }} className="flex-1">取消</AdminButton>

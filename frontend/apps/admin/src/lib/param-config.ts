@@ -23,7 +23,7 @@ export const CATEGORY_LABELS: Record<ParamCategoryType, { label: string; color: 
   other: { label: '其他', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' },
 };
 
-// 所有参数定义（与合约中的参数对应）
+// 所有参数定义（与合约 ParamKeys.sol 中的 12 个参数对应）
 export const PARAM_DEFINITIONS: ParamDefinition[] = [
   // 费用参数
   {
@@ -34,7 +34,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 100,
     decimals: 2,
     description: '下注时收取的基础手续费率',
-    validator: '0.1% - 5%',
+    validator: '0% - 10%',
     defaultValue: BigInt(200), // 2%
   },
   {
@@ -45,6 +45,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 100,
     decimals: 2,
     description: '手续费中分配给 LP 的比例',
+    validator: '0% - 100%',
     defaultValue: BigInt(6000), // 60%
   },
   {
@@ -55,6 +56,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 100,
     decimals: 2,
     description: '手续费中分配给推广池的比例',
+    validator: '0% - 100%',
     defaultValue: BigInt(2000), // 20%
   },
   {
@@ -65,6 +67,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 100,
     decimals: 2,
     description: '手续费中分配给保险金的比例',
+    validator: '0% - 100%',
     defaultValue: BigInt(1000), // 10%
   },
   {
@@ -75,6 +78,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 100,
     decimals: 2,
     description: '手续费中分配给国库的比例',
+    validator: '0% - 100%',
     defaultValue: BigInt(1000), // 10%
   },
 
@@ -87,6 +91,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 1000000,
     decimals: 2,
     description: '单笔下注的最小金额',
+    validator: '0.1 - 100 USDC',
     defaultValue: BigInt(1000000), // 1 USDC (6 decimals)
   },
   {
@@ -97,7 +102,8 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 1000000,
     decimals: 2,
     description: '单笔下注的最大金额',
-    defaultValue: BigInt(10000000000), // 10,000 USDC
+    validator: '1 - 1,000,000 USDC',
+    defaultValue: BigInt(5000000), // 5 USDC
   },
   {
     key: 'USER_EXPOSURE_LIMIT',
@@ -107,6 +113,7 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 1000000,
     decimals: 0,
     description: '单个用户在单个市场的最大敞口',
+    validator: '1 - 1,000,000 USDC',
     defaultValue: BigInt(50000000000), // 50,000 USDC
   },
   {
@@ -117,7 +124,8 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 1000000,
     decimals: 0,
     description: '单个市场的最大赔付金额',
-    defaultValue: BigInt(100000000000), // 100,000 USDC
+    validator: '1,000 - 100,000,000 USDC',
+    defaultValue: BigInt(10000000000000), // 10,000,000 USDC
   },
 
   // 定价参数
@@ -129,7 +137,8 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 10000,
     decimals: 2,
     description: '允许的最高赔率倍数',
-    defaultValue: BigInt(1000000), // 100x
+    validator: '1.01x - 10000x',
+    defaultValue: BigInt(10000000), // 1000x
   },
   {
     key: 'MIN_ODDS',
@@ -139,69 +148,19 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     divisor: 10000,
     decimals: 2,
     description: '允许的最低赔率倍数',
-    defaultValue: BigInt(10100), // 1.01x
-  },
-  {
-    key: 'OU_LINK_COEFF_2_0_TO_2_5',
-    name: '大小球 2.0-2.5 联动系数',
-    category: 'pricing',
-    unit: 'bp',
-    divisor: 100,
-    decimals: 2,
-    description: '相邻盘口线的价格联动系数',
-    defaultValue: BigInt(8500), // 0.85
-  },
-  {
-    key: 'SPREAD_GUARD_BPS',
-    name: '价差保护阈值',
-    category: 'pricing',
-    unit: 'bp',
-    divisor: 100,
-    decimals: 2,
-    description: '套利检测的价差阈值',
-    defaultValue: BigInt(500), // 5%
+    validator: '1.0x - 1.01x',
+    defaultValue: BigInt(10000), // 1.0x
   },
   {
     key: 'DISPUTE_WINDOW',
     name: '争议窗口期',
-    category: 'pricing',
+    category: 'other',
     unit: '秒',
     divisor: 1,
     decimals: 0,
     description: '结算后的争议期时长',
+    validator: '30分钟 - 7天',
     defaultValue: BigInt(7200), // 2 hours
-  },
-
-  // 推荐返佣参数
-  {
-    key: 'REFERRAL_RATE_TIER1',
-    name: '一级推荐返佣',
-    category: 'referral',
-    unit: 'bp',
-    divisor: 100,
-    decimals: 2,
-    description: '直推用户的返佣比例',
-    defaultValue: BigInt(2000), // 20%
-  },
-  {
-    key: 'REFERRAL_RATE_TIER2',
-    name: '二级推荐返佣',
-    category: 'referral',
-    unit: 'bp',
-    divisor: 100,
-    decimals: 2,
-    description: '间推用户的返佣比例',
-    defaultValue: BigInt(1000), // 10%
-  },
-  {
-    key: 'MAX_REFERRAL_DEPTH',
-    name: '最大推荐层级',
-    category: 'referral',
-    unit: '层',
-    divisor: 1,
-    decimals: 0,
-    description: '推荐关系的最大深度',
-    defaultValue: BigInt(2),
   },
 ];
 
@@ -228,8 +187,8 @@ export const PARAM_CONFIG: ParamCategory[] = [
     params: PARAM_DEFINITIONS.filter(p => p.category === 'pricing'),
   },
   {
-    category: '推荐返佣',
-    params: PARAM_DEFINITIONS.filter(p => p.category === 'referral'),
+    category: '其他参数',
+    params: PARAM_DEFINITIONS.filter(p => p.category === 'other'),
   },
 ];
 
