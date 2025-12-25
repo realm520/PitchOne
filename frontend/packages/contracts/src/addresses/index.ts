@@ -1,36 +1,36 @@
 import type { Address, ContractAddresses } from '../index';
 
 // Anvil 本地测试链地址 (V3 架构)
-// 部署时间: 2025-12-23 (自动生成)
-// 来源: contracts/deployments/localhost_v3.json
+// 部署时间: 2025-12-25 (自动生成)
+// 来源: 远程服务器 contracts/deployments/localhost_v3.json
 export const ANVIL_ADDRESSES: ContractAddresses = {
   // V3 核心合约
-  factory: '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318' as Address,
-  vault: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' as Address,
-  bettingRouter: '0x59b670e9fA9D0A427751Af201D676719a970857b' as Address,
-  feeRouter: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9' as Address,
-  referralRegistry: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0' as Address,
-  paramController: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' as Address,
-  usdc: '0x5FbDB2315678afecb367f032d93F642f64180aa3' as Address,
+  factory: '0x88D1aF96098a928eE278f162c1a84f339652f95b' as Address,
+  vault: '0x38F6F2caE52217101D7CA2a5eC040014b4164E6C' as Address,
+  bettingRouter: '0xfc073209b7936A771F77F63D42019a3a93311869' as Address,
+  feeRouter: '0x837a41023CF81234f89F956C94D676918b4791c1' as Address,
+  referralRegistry: '0xc075BC0f734EFE6ceD866324fc2A9DBe1065CBB1' as Address,
+  paramController: '0xd9abC93F81394Bd161a1b24B03518e0a570bDEAd' as Address,
+  usdc: '0xbFD3c8A956AFB7a9754C951D03C9aDdA7EC5d638' as Address,
 
   // Market Implementation (用于 Clone)
-  marketImplementation: '0x610178dA211FEF7D417bC0e6FeD39F05609AD788' as Address,
+  marketImplementation: '0x7Ce73F8f636C6bD3357A0A8a59e0ab6462C955B0' as Address,
 
   // V3 定价策略
   strategies: {
-    cpmm: '0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0' as Address,
-    lmsr: '0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82' as Address,
-    parimutuel: '0x9A676e781A523b5d0C0e43731313A708CB607508' as Address,
+    cpmm: '0x746a48E39dC57Ff14B872B8979E20efE5E5100B1' as Address,
+    lmsr: '0x96E303b6D807c0824E83f954784e2d6f3614f167' as Address,
+    parimutuel: '0x9CC8B5379C40E24F374cd55973c138fff83ed214' as Address,
   },
 
   // V3 结果映射器
   mappers: {
-    wdl: '0x0B306BF915C4d645ff596e518fAf3F9669b97016' as Address,
-    ou: '0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1' as Address,
-    ah: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
-    oddEven: '0x68B1D87F95878fE05B998F19b66F4baba5De1aed' as Address,
-    score: '0x3Aa5ebB10DC797CAC828524e59A333d0A371443c' as Address,
-    identity: '0xc6e7DF5E7b4f2A278906862b61205850344D4e7d' as Address,
+    wdl: '0xd3b893cd083f07Fe371c1a87393576e7B01C52C6' as Address,
+    ou: '0x3BFbbf82657577668144921b96aAb72BC170646C' as Address,
+    ah: '0x930b218f3e63eE452c13561057a8d5E61367d5b7' as Address,
+    oddEven: '0x721d8077771Ebf9B931733986d619aceea412a1C' as Address,
+    score: '0x38c76A767d45Fc390160449948aF80569E2C4217' as Address,
+    identity: '0xDC57724Ea354ec925BaFfCA0cCf8A1248a8E5CF1' as Address,
   },
 
   // 模板 ID
@@ -51,7 +51,7 @@ export const ANVIL_ADDRESSES: ContractAddresses = {
   rewardsDistributor: '0x0000000000000000000000000000000000000000' as Address,
 
   // 兼容旧代码
-  marketTemplateRegistry: '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318' as Address,
+  marketTemplateRegistry: '0x88D1aF96098a928eE278f162c1a84f339652f95b' as Address,
 };
 
 // Sepolia 测试网地址 (待部署)
