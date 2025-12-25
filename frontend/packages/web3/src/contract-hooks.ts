@@ -350,7 +350,7 @@ export function useAllPrices(marketAddress?: Address) {
  * @param marketAddress 市场合约地址
  */
 export function useIsMarketLocked(marketAddress?: Address) {
-  const { data: kickoffTime } = useReadContract({
+  const { data: kickoffTimeData } = useReadContract({
     address: marketAddress,
     abi: Market_V3_ABI,
     functionName: 'kickoffTime',
@@ -359,8 +359,9 @@ export function useIsMarketLocked(marketAddress?: Address) {
       enabled: !!marketAddress,
     },
   });
+  const kickoffTime = kickoffTimeData as bigint | undefined;
 
-  const { data: status } = useReadContract({
+  const { data: statusData } = useReadContract({
     address: marketAddress,
     abi: Market_V3_ABI,
     functionName: 'status',
@@ -371,6 +372,7 @@ export function useIsMarketLocked(marketAddress?: Address) {
       refetchInterval: 10000,
     },
   });
+  const status = statusData as number | undefined;
 
   // V3 状态枚举：0=Created, 1=Open, 2=Locked, 3=Resolved, 4=Finalized
   // 市场锁定条件：状态不是 Open(1) 或 当前时间 >= kickoffTime

@@ -4,7 +4,8 @@ import { Card, Badge, Button } from '@pitchone/ui';
 import { formatDistanceToNow, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   useAccount,
   ConnectButton,
@@ -14,159 +15,18 @@ import {
   useProposeChange,
   useExecuteProposal,
   useCancelProposal,
+  useProposals,
   type Proposal,
 } from '@pitchone/web3';
 import type { Hex } from 'viem';
-
-// 参数类别
-type ParamCategory = 'fee' | 'limit' | 'pricing' | 'referral' | 'other';
-
-// 参数定义
-interface ParamDefinition {
-  key: string;
-  name: string;
-  category: ParamCategory;
-  unit: string;
-  description: string;
-  validator?: string;
-  defaultValue: bigint;
-}
-
-// 所有参数定义（与合约中的参数对应）
-const PARAM_DEFINITIONS: ParamDefinition[] = [
-  // 费用参数
-  {
-    key: 'FEE_RATE',
-    name: '基础费率',
-    category: 'fee',
-    unit: 'bp',
-    description: '下注时收取的基础手续费率',
-    validator: '0.1% - 5%',
-    defaultValue: BigInt(200), // 2%
-  },
-  {
-    key: 'LP_SHARE',
-    name: 'LP 分成',
-    category: 'fee',
-    unit: 'bp',
-    description: '手续费中分配给 LP 的比例',
-    defaultValue: BigInt(6000), // 60%
-  },
-  {
-    key: 'PROMO_SHARE',
-    name: '推广池分成',
-    category: 'fee',
-    unit: 'bp',
-    description: '手续费中分配给推广池的比例',
-    defaultValue: BigInt(2000), // 20%
-  },
-  {
-    key: 'INSURANCE_SHARE',
-    name: '保险金分成',
-    category: 'fee',
-    unit: 'bp',
-    description: '手续费中分配给保险金的比例',
-    defaultValue: BigInt(1000), // 10%
-  },
-  {
-    key: 'TREASURY_SHARE',
-    name: '国库分成',
-    category: 'fee',
-    unit: 'bp',
-    description: '手续费中分配给国库的比例',
-    defaultValue: BigInt(1000), // 10%
-  },
-
-  // 限额参数
-  {
-    key: 'MIN_BET',
-    name: '最小下注额',
-    category: 'limit',
-    unit: 'USDC',
-    description: '单笔下注的最小金额',
-    defaultValue: BigInt(1000000), // 1 USDC (6 decimals)
-  },
-  {
-    key: 'MAX_BET',
-    name: '最大下注额',
-    category: 'limit',
-    unit: 'USDC',
-    description: '单笔下注的最大金额',
-    defaultValue: BigInt(10000000000), // 10,000 USDC
-  },
-  {
-    key: 'MAX_USER_EXPOSURE',
-    name: '单用户敞口',
-    category: 'limit',
-    unit: 'USDC',
-    description: '单个用户在单个市场的最大敞口',
-    defaultValue: BigInt(50000000000), // 50,000 USDC
-  },
-
-  // 联动定价参数
-  {
-    key: 'OU_LINK_COEFF_2_0_TO_2_5',
-    name: '大小球 2.0-2.5 联动系数',
-    category: 'pricing',
-    unit: 'bp',
-    description: '相邻盘口线的价格联动系数',
-    defaultValue: BigInt(8500), // 0.85
-  },
-  {
-    key: 'SPREAD_GUARD_BPS',
-    name: '价差保护阈值',
-    category: 'pricing',
-    unit: 'bp',
-    description: '套利检测的价差阈值',
-    defaultValue: BigInt(500), // 5%
-  },
-
-  // 推荐返佣参数
-  {
-    key: 'REFERRAL_RATE_TIER1',
-    name: '一级推荐返佣',
-    category: 'referral',
-    unit: 'bp',
-    description: '直推用户的返佣比例',
-    defaultValue: BigInt(2000), // 20%
-  },
-  {
-    key: 'REFERRAL_RATE_TIER2',
-    name: '二级推荐返佣',
-    category: 'referral',
-    unit: 'bp',
-    description: '间推用户的返佣比例',
-    defaultValue: BigInt(1000), // 10%
-  },
-  {
-    key: 'MAX_REFERRAL_DEPTH',
-    name: '最大推荐层级',
-    category: 'referral',
-    unit: '层',
-    description: '推荐关系的最大深度',
-    defaultValue: BigInt(2),
-  },
-];
-
-// 参数类别标签
-const CATEGORY_LABELS: Record<ParamCategory, { label: string; color: string }> = {
-  fee: { label: '费用', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  limit: { label: '限额', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-  pricing: { label: '定价', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-  referral: { label: '推荐', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  other: { label: '其他', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' },
-};
-
-// 格式化参数值显示
-function formatParamValue(value: bigint, unit: string): string {
-  if (unit === 'bp') {
-    return `${(Number(value) / 100).toFixed(2)}%`;
-  } else if (unit === 'USDC') {
-    return `${(Number(value) / 1_000_000).toLocaleString()} USDC`;
-  } else {
-    return value.toString();
-  }
-}
+import {
+  PARAM_DEFINITIONS,
+  CATEGORY_LABELS,
+  ALL_PARAM_KEYS,
+  formatParamValue,
+  type ParamDefinition,
+  type ParamCategoryType,
+} from '@/lib/param-config';
 
 // 参数卡片组件
 function ParamCard({ param, value }: { param: ParamDefinition; value?: bigint }) {
@@ -195,7 +55,7 @@ function ParamCard({ param, value }: { param: ParamDefinition; value?: bigint })
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-gray-500 dark:text-gray-400">当前值</span>
           <span className="text-lg font-bold text-gray-900 dark:text-white">
-            {formatParamValue(displayValue, param.unit)}
+            {formatParamValue(displayValue, param.divisor, param.decimals, param.unit)}
           </span>
         </div>
 
@@ -347,7 +207,7 @@ function ProposalRow({
 
 export default function ParamsPage() {
   const { address, isConnected } = useAccount();
-  const [selectedCategory, setSelectedCategory] = useState<ParamCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<ParamCategoryType | 'all'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // 读取 Timelock 延迟
@@ -361,9 +221,9 @@ export default function ParamsPage() {
   const { values: paramValues, refetch: refetchParams } = useReadParams(paramKeys);
 
   // 提案操作 hooks
-  const { executeProposal, isPending: isExecuting } = useExecuteProposal();
-  const { cancelProposal, isPending: isCancelling } = useCancelProposal();
-  const { proposeChange, isPending: isProposing } = useProposeChange();
+  const { executeProposal, isPending: isExecuting, isSuccess: executeSuccess } = useExecuteProposal();
+  const { cancelProposal, isPending: isCancelling, isSuccess: cancelSuccess } = useCancelProposal();
+  const { proposeChange, isPending: isProposing, isSuccess: proposeSuccess, isConfirming: isConfirmingPropose } = useProposeChange();
 
   // 按类别筛选参数
   const filteredParams = useMemo(() => {
@@ -372,14 +232,36 @@ export default function ParamsPage() {
     );
   }, [selectedCategory]);
 
-  // TODO: 从链上读取提案列表（需要事件监听或 Subgraph）
-  const proposals: Array<{ id: Hex; proposal: Proposal }> = [];
+  // 从链上读取提案列表
+  const { proposals, isLoading: isLoadingProposals, refetch: refetchProposals } = useProposals();
+
+  // 监听交易成功后刷新提案列表
+  useEffect(() => {
+    if (proposeSuccess) {
+      console.log('[ParamsPage] 提案创建成功，刷新列表');
+      refetchProposals();
+    }
+  }, [proposeSuccess, refetchProposals]);
+
+  useEffect(() => {
+    if (executeSuccess) {
+      console.log('[ParamsPage] 提案执行成功，刷新列表');
+      refetchProposals();
+      refetchParams();
+    }
+  }, [executeSuccess, refetchProposals, refetchParams]);
+
+  useEffect(() => {
+    if (cancelSuccess) {
+      console.log('[ParamsPage] 提案取消成功，刷新列表');
+      refetchProposals();
+    }
+  }, [cancelSuccess, refetchProposals]);
 
   const handleExecuteProposal = async (proposalId: Hex) => {
     try {
       await executeProposal(proposalId);
-      // 刷新参数值
-      refetchParams();
+      // 刷新通过 useEffect 监听 executeSuccess 自动处理
     } catch (error) {
       console.error('执行提案失败:', error);
     }
@@ -388,6 +270,7 @@ export default function ParamsPage() {
   const handleCancelProposal = async (proposalId: Hex) => {
     try {
       await cancelProposal(proposalId);
+      // 刷新通过 useEffect 监听 cancelSuccess 自动处理
     } catch (error) {
       console.error('取消提案失败:', error);
     }
@@ -400,7 +283,7 @@ export default function ParamsPage() {
 
   const handleCreateProposal = async () => {
     if (!selectedParam || !newValueInput || !reason) {
-      alert('请填写完整信息');
+      toast.warning('请填写完整信息');
       return;
     }
 
@@ -432,10 +315,10 @@ export default function ParamsPage() {
       setNewValueInput('');
       setReason('');
 
-      alert('提案创建成功！');
+      // 刷新通过 useEffect 监听 proposeSuccess 自动处理
+      toast.success('提案已提交，等待确认...');
     } catch (error: any) {
-      console.error('创建提案失败:', error);
-      alert(`创建提案失败: ${error.message || error}`);
+      toast.error(`创建提案失败: ${error.cause || error.message || error}`);
     }
   };
 
@@ -483,13 +366,13 @@ export default function ParamsPage() {
               </Link>
               {isConnected ? (
                 <>
-                  <ConnectButton />
                   <Button
                     variant="primary"
                     onClick={() => setShowCreateModal(true)}
                   >
                     创建提案
                   </Button>
+                  <ConnectButton />
                 </>
               ) : (
                 <ConnectButton />
@@ -537,8 +420,8 @@ export default function ParamsPage() {
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
               >
                 全部 ({PARAM_DEFINITIONS.length})
@@ -548,10 +431,10 @@ export default function ParamsPage() {
                 return (
                   <button
                     key={key}
-                    onClick={() => setSelectedCategory(key as ParamCategory)}
+                    onClick={() => setSelectedCategory(key as ParamCategoryType)}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedCategory === key
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                   >
                     {label} ({count})
@@ -582,7 +465,14 @@ export default function ParamsPage() {
           </div>
 
           {/* 提案表格 */}
-          {proposals.length > 0 ? (
+          {isLoadingProposals ? (
+            <Card className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                正在加载提案列表...
+              </p>
+            </Card>
+          ) : proposals.length > 0 ? (
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -648,8 +538,8 @@ export default function ParamsPage() {
       {/* 创建提案模态框 */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+          <Card className="w-full bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-2">
               {/* 标题 */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -666,7 +556,7 @@ export default function ParamsPage() {
               </div>
 
               {/* 表单 */}
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {/* 参数选择 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -705,7 +595,7 @@ export default function ParamsPage() {
                         {(() => {
                           const paramIndex = PARAM_DEFINITIONS.findIndex(p => p.key === selectedParam.key);
                           const currentValue = paramValues?.[paramIndex] || selectedParam.defaultValue;
-                          return formatParamValue(currentValue, selectedParam.unit);
+                          return formatParamValue(currentValue, selectedParam.divisor, selectedParam.decimals, selectedParam.unit);
                         })()}
                       </span>
                     </div>

@@ -6,9 +6,10 @@ import { LoadingSpinner, ErrorState, Badge } from '@pitchone/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { AdminButton, AdminCard, InfoCard, Pagination, ConfirmDialog, TxStatus, EmptyState } from '@/components/ui';
 import { STATUS_MAP, TEMPLATE_MAP, LEAGUE_MAP, getOutcomeOptions, getOutcomeName, parseMatchInfo, shortAddr, formatUSDC } from '@/lib/market-utils';
+import { toast } from 'sonner';
 
 interface Order {
   id: string;
@@ -47,18 +48,132 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const paginatedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleAction = async (action: 'lock' | 'resolve' | 'finalize') => {
-    if (!isConnected) return alert('请先连接钱包');
+    if (!isConnected) {
+      toast.error('请先连接钱包');
+      return;
+    }
+    const actionNames = { lock: '锁盘', resolve: '结算', finalize: '终结' };
+    console.log(`[${action.toUpperCase()}] 开始执行操作...`, { marketId: id, action });
     try {
-      if (action === 'lock') await lock.lockMarket();
-      else if (action === 'resolve' && selectedOutcome !== null) await resolve.resolveMarket(BigInt(selectedOutcome));
-      else if (action === 'finalize') await finalize.finalizeMarket();
+      let result;
+      if (action === 'lock') {
+        console.log('[LOCK] 调用 lock.lockMarket()...');
+        result = await lock.lockMarket();
+        console.log('[LOCK] 调用完成，返回结果:', result);
+      } else if (action === 'resolve' && selectedOutcome !== null) {
+        console.log('[RESOLVE] 调用 resolve.resolveMarket()，outcome:', selectedOutcome);
+        result = await resolve.resolveMarket(BigInt(selectedOutcome));
+        console.log('[RESOLVE] 调用完成，返回结果:', result);
+      } else if (action === 'finalize') {
+        console.log('[FINALIZE] 调用 finalize.finalizeMarket()...');
+        result = await finalize.finalizeMarket();
+        console.log('[FINALIZE] 调用完成，返回结果:', result);
+      }
+      console.log(`[${action.toUpperCase()}] 操作成功，关闭对话框`);
       setDialog(null);
       setSelectedOutcome(null);
       setTimeout(refetch, 3000);
+      toast.success('Success');
     } catch (e) {
-      console.error(`${action}失败:`, e);
+      console.error(`[${action.toUpperCase()}] 操作失败:`, e);
+      console.error(`[${action.toUpperCase()}] 错误消息:`, e instanceof Error ? e.message : String(e));
+      // 错误 toast 会在 useEffect 监听 hook.error 时显示
+      // 这里不需要显示，因为 hook 的 revertError 会触发 useEffect
     }
   };
+
+  // 监听各操作 hook 返回的错误
+  useEffect(() => {
+    if (lock.error) {
+      console.error('[LOCK] Hook 检测到错误:', lock.error);
+      console.log('[LOCK] 错误消息:', lock.error.message);
+      // hook 返回的 error.message 已经是友好的消息了
+      const errorMessage = lock.error.message || '未知错误';
+      toast.error('锁盘失败', {
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [lock.error]);
+
+  useEffect(() => {
+    if (resolve.error) {
+      console.error('[RESOLVE] Hook 检测到错误:', resolve.error);
+      const errorMessage = resolve.error.message || '未知错误';
+      toast.error('结算失败', {
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [resolve.error]);
+
+  useEffect(() => {
+    if (finalize.error) {
+      console.error('[FINALIZE] Hook 检测到错误:', finalize.error);
+      const errorMessage = finalize.error.message || '未知错误';
+      toast.error('终结失败', {
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [finalize.error]);
+
+  // 监听锁盘 hook 状态变化
+  useEffect(() => {
+    console.log('[LOCK] Hook 状态变化:', {
+      isPending: lock.isPending,
+      isConfirming: lock.isConfirming,
+      isSuccess: lock.isSuccess,
+      isReverted: lock.isReverted,
+      hash: lock.hash,
+      receipt: lock.receipt,
+      error: lock.error?.message,
+    });
+  }, [lock.isPending, lock.isConfirming, lock.isSuccess, lock.hash, lock.error, lock.isReverted, lock.receipt]);
+
+  // 监听交易 revert
+  useEffect(() => {
+    if (lock.isReverted && lock.hash) {
+      console.error('[LOCK] 交易被 revert!', {
+        hash: lock.hash,
+        receipt: lock.receipt,
+      });
+      // 如果 hook 已经设置了 revertError，它会通过 lock.error 传递，这里不需要重复 toast
+      // toast 会在 lock.error 变化时触发
+    }
+  }, [lock.isReverted, lock.hash, lock.receipt]);
+
+  // 监听成功状态
+  useEffect(() => {
+    if (lock.isSuccess && lock.hash) {
+      console.log('[LOCK] 交易成功!', {
+        hash: lock.hash,
+        isSuccess: lock.isSuccess,
+        receipt: lock.receipt,
+      });
+      toast.success('锁盘成功！', {
+        description: `交易哈希: ${lock.hash.slice(0, 10)}...${lock.hash.slice(-8)}`,
+      });
+    }
+  }, [lock.isSuccess, lock.hash, lock.receipt]);
+
+  useEffect(() => {
+    if (resolve.isSuccess && resolve.hash) {
+      console.log('[RESOLVE] 交易成功!', { hash: resolve.hash });
+      toast.success('结算成功！', {
+        description: `交易哈希: ${resolve.hash.slice(0, 10)}...${resolve.hash.slice(-8)}`,
+      });
+    }
+  }, [resolve.isSuccess, resolve.hash]);
+
+  useEffect(() => {
+    if (finalize.isSuccess && finalize.hash) {
+      console.log('[FINALIZE] 交易成功!', { hash: finalize.hash });
+      toast.success('终结成功！', {
+        description: `交易哈希: ${finalize.hash.slice(0, 10)}...${finalize.hash.slice(-8)}`,
+      });
+    }
+  }, [finalize.isSuccess, finalize.hash]);
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><LoadingSpinner size="lg" text="加载中..." /></div>;
   if (error || !market) return <div className="flex items-center justify-center min-h-screen"><ErrorState title="加载失败" message="市场不存在" onRetry={() => window.location.reload()} /></div>;
@@ -171,9 +286,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           </a>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            !resolved ? 'bg-gray-100 text-gray-600' : win ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${!resolved ? 'bg-gray-100 text-gray-600' : win ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {!resolved ? '待定' : win ? '胜' : '负'}
                           </span>
                         </td>
@@ -221,9 +335,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-sm text-gray-600 mb-4">选择获胜结果：</p>
             <div className="space-y-2 mb-6">
               {getOutcomeOptions(templateType).map(opt => (
-                <label key={opt.id} className={`flex items-start p-3 border-2 rounded-lg cursor-pointer ${
-                  selectedOutcome === opt.id ? (opt.isPush ? 'border-orange-500 bg-orange-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:bg-gray-50'
-                }`}>
+                <label key={opt.id} className={`flex items-start p-3 border-2 rounded-lg cursor-pointer ${selectedOutcome === opt.id ? (opt.isPush ? 'border-orange-500 bg-orange-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:bg-gray-50'
+                  }`}>
                   <input type="radio" checked={selectedOutcome === opt.id} onChange={() => setSelectedOutcome(opt.id)} className="mt-0.5 mr-3" />
                   <div>
                     <span className={`text-sm font-medium ${opt.isPush ? 'text-orange-800' : ''}`}>{opt.label}</span>

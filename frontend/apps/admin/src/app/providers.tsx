@@ -1,6 +1,7 @@
 'use client';
 
 import { Providers as Web3Providers } from '@pitchone/web3';
+import { Toaster } from 'sonner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // 直接使用 @pitchone/web3 的 Providers，它已经包含了：
@@ -10,6 +11,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Web3Providers>
       {children}
+      <Toaster
+        richColors
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: 'white',
+            border: '1px solid #e5e7eb',
+          },
+        }}
+      />
     </Web3Providers>
   );
 }

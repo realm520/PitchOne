@@ -8,6 +8,67 @@ import { getContractAddresses } from '@pitchone/contracts';
 import { Card, Button, Badge, LoadingSpinner } from '@pitchone/ui';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { toast } from 'sonner';
+
+// 已知的错误选择器映射
+const ERROR_SELECTORS: Record<string, string> = {
+  '0xe2517d3f': 'AccessControlUnauthorizedAccount', // 权限不足
+  '0x82b42900': 'Unauthorized',
+  '0x8e4a23d6': 'InvalidAmount',
+  '0x3ee5aeb5': 'InvalidAddress',
+};
+
+// 已知的角色哈希映射
+const ROLE_HASHES: Record<string, string> = {
+  '0xfc8737ab85eb45125971625a9ebdb75cc78e01d5c1fa80c4c6e5203f47bc4fab': 'KEEPER_ROLE',
+  '0x7a05a596cb0ce7fdea8a1e1ec73be300bdb35097c944ce1897202f7a13122eb2': 'ROUTER_ROLE',
+  '0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929': 'ORACLE_ROLE',
+  '0x0000000000000000000000000000000000000000000000000000000000000000': 'DEFAULT_ADMIN_ROLE',
+};
+
+// 解析合约错误信息
+function parseContractError(error: Error): string {
+  const message = error.message || '';
+
+  // 尝试从错误信息中提取 revert 原因
+  const revertMatch = message.match(/reverted with the following reason:\s*(.+)/i);
+  if (revertMatch) {
+    return revertMatch[1];
+  }
+
+  // 检查是否是 AccessControlUnauthorizedAccount 错误
+  if (message.includes('0xe2517d3f') || message.includes('AccessControlUnauthorizedAccount')) {
+    // 尝试提取角色哈希
+    const roleMatch = message.match(/0x[a-fA-F0-9]{64}/g);
+    if (roleMatch && roleMatch.length > 0) {
+      const roleHash = roleMatch[roleMatch.length - 1].toLowerCase();
+      const roleName = ROLE_HASHES[roleHash] || '未知角色';
+      return `权限不足：当前账户没有 ${roleName} 权限`;
+    }
+    return '权限不足：当前账户没有执行此操作的权限';
+  }
+
+  // 检查其他已知错误
+  for (const [selector, name] of Object.entries(ERROR_SELECTORS)) {
+    if (message.includes(selector)) {
+      return `合约错误: ${name}`;
+    }
+  }
+
+  // 用户拒绝交易
+  if (message.includes('User rejected') || message.includes('user rejected')) {
+    return '用户取消了交易';
+  }
+
+  // Gas 不足
+  if (message.includes('insufficient funds') || message.includes('gas required exceeds')) {
+    return 'Gas 费用不足';
+  }
+
+  // 返回原始错误信息（截断过长的部分）
+  const cleanMessage = message.replace(/\s+/g, ' ').trim();
+  return cleanMessage.length > 200 ? cleanMessage.slice(0, 200) + '...' : cleanMessage;
+}
 
 // 市场模板类型
 const MARKET_TEMPLATES = [
@@ -80,12 +141,12 @@ function CreateMarketForm() {
     }
 
     if (!isConnected || !addresses) {
-      alert('请先连接钱包');
+      toast.error('请先连接钱包');
       return;
     }
 
     if (!hasValidMatch) {
-      alert('缺少有效的赛事信息');
+      toast.error('缺少有效的赛事信息');
       return;
     }
 
@@ -110,7 +171,11 @@ function CreateMarketForm() {
       await createMarket(params);
     } catch (err) {
       console.error('创建市场失败:', err);
-      alert(`创建失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      const errorMessage = err instanceof Error ? parseContractError(err) : '未知错误';
+      toast.error('创建市场失败', {
+        description: errorMessage,
+        duration: 8000,
+      });
       setIsSubmitting(false);
     }
   };
@@ -122,15 +187,29 @@ function CreateMarketForm() {
     }
   }, [isSuccess, error]);
 
-  // 交易成功后跳转
+  // 交易成功后显示 toast 并跳转
   useEffect(() => {
     if (isSuccess && hash) {
+      toast.success('市场创建成功！', {
+        description: `交易哈希: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
+      });
       const timer = setTimeout(() => {
         router.push('/markets');
       }, 2000);
       return () => clearTimeout(timer);
     }
   }, [isSuccess, hash, router]);
+
+  // 监听 hook 返回的错误
+  useEffect(() => {
+    if (error) {
+      const errorMessage = parseContractError(error);
+      toast.error('交易失败', {
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [error]);
 
   // 如果没有有效的赛事信息，显示错误
   if (!hasValidMatch) {
