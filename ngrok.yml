@@ -1,19 +1,20 @@
 version: "2"
-authtoken: 2al2QqmYwBiZdK7R3axdcKhBsN2_6VAcuCu8kZS1f4g2WKgb9  # 从 https://dashboard.ngrok.com/get-started/your-authtoken 获取
+authtoken: 2al2QqmYwBiZdK7R3axdcKhBsN2_6VAcuCu8kZS1f4g2WKgb9
+
 tunnels:
   user-app:
     addr: 3000
     proto: http
-    inspect: true
+    domain: pitchone-user.ngrok-free.app
   admin-app:
     addr: 3001
     proto: http
-    inspect: true
+    domain: pitchone-admin.ngrok-free.app
   anvil-rpc:
     addr: 8545
     proto: http
-    inspect: true
+    domain: pitchone-rpc.ngrok-free.app
   subgraph:
     addr: 8010
     proto: http
-    inspect: true
+    domain: pitchone-graph.ngrok-free.app

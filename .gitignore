@@ -56,6 +56,7 @@ subgraph/*.yaml.backup
 .env.*
 !.env.example
 !.env.development
+!frontend/.env.web
 
 # 临时文件
 *.tmp

@@ -65,7 +65,7 @@ show_help() {
     echo "  subgraph-rebuild  重建 Subgraph"
     echo "  contracts-deploy  重新部署合约"
     echo "  anvil-restart     重启 Anvil"
-    echo "  ngrok-restart     重启 ngrok 隧道"
+    echo "  ngrok-url         查看 ngrok URL"
     echo "  status            查看服务状态"
     echo ""
     echo "聚合命令:"
@@ -94,11 +94,13 @@ cmd_frontend_build() {
     print_success "前端构建完成"
 }
 
-# 重启前端 (pm2)
+# 重启前端 (pm2 生产模式)
 cmd_frontend_restart() {
-    print_info "重启前端服务..."
-    ssh_cmd "cd $PROJECT_PATH && pm2 restart pitchone-user pitchone-admin 2>/dev/null || pm2 start ecosystem.config.js"
-    print_success "前端服务已重启"
+    print_info "重启前端服务 (生产模式)..."
+    ssh_cmd "cd $PROJECT_PATH && pm2 delete pitchone-user pitchone-admin 2>/dev/null || true"
+    ssh_cmd "cd $PROJECT_PATH/frontend && pm2 start pnpm --name pitchone-user -- start:user"
+    ssh_cmd "cd $PROJECT_PATH/frontend && pm2 start pnpm --name pitchone-admin -- start:admin"
+    print_success "前端服务已重启 (生产模式)"
 }
 
 # 重建 Subgraph
@@ -111,6 +113,7 @@ cmd_subgraph_rebuild() {
 # 重新部署合约
 cmd_contracts_deploy() {
     print_info "重新部署合约..."
+    cmd_pull
     ssh_cmd "cd $PROJECT_PATH && ./scripts/quick-deploy.sh"
     print_success "合约部署完成"
 }
@@ -123,13 +126,10 @@ cmd_anvil_restart() {
     print_success "Anvil 已重启"
 }
 
-# 重启 ngrok
-cmd_ngrok_restart() {
-    print_info "重启 ngrok 隧道..."
-    ssh_cmd "cd $PROJECT_PATH && docker-compose -f docker-compose.ngrok.yml restart"
-    sleep 5
-    print_success "ngrok 已重启"
-    print_warning "新的隧道 URL 请查看 ngrok 控制台: http://localhost:4040"
+# 查看 ngrok URL（不重启，避免域名变化）
+cmd_ngrok_url() {
+    print_info "当前 ngrok 隧道 URL："
+    ssh_cmd "curl -s http://localhost:4040/api/tunnels | python3 -c \"import sys,json; tunnels=json.load(sys.stdin)['tunnels']; [print(f'  {t[\\\"name\\\"]}: {t[\\\"public_url\\\"]}') for t in tunnels]\" 2>/dev/null || echo '  ngrok 未运行'"
 }
 
 # 查看状态
@@ -209,7 +209,7 @@ case "${1:-help}" in
     subgraph-rebuild)  cmd_subgraph_rebuild ;;
     contracts-deploy)  cmd_contracts_deploy ;;
     anvil-restart)     cmd_anvil_restart ;;
-    ngrok-restart)     cmd_ngrok_restart ;;
+    ngrok-url)         cmd_ngrok_url ;;
     status)            cmd_status ;;
     frontend-update)   cmd_frontend_update ;;
     subgraph-update)   cmd_subgraph_update ;;
