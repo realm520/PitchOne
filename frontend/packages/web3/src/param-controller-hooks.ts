@@ -409,10 +409,6 @@ export function useProposeChange() {
       });
       console.log('[useProposeChange] 模拟调用成功');
     } catch (simError: any) {
-      const errorMessage = parseContractError(simError);
-      console.log('解析后的错误消息:', errorMessage);
-      const error = new Error(errorMessage);
-      setSimulateError(error);
       throw simError;
     }
 
