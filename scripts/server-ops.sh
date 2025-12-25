@@ -47,9 +47,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# SSH 命令封装
+# SSH 命令封装（加载用户环境）
 ssh_cmd() {
-    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "$@"
+    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "export PATH=~/.npm-global/bin:\$PATH; $@"
 }
 
 # 显示帮助
