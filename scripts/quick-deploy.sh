@@ -4,6 +4,11 @@
 
 set -e
 
+# 加载用户环境（foundry, nvm, npm-global）
+export PATH="$HOME/.foundry/bin:$HOME/.npm-global/bin:$PATH"
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
