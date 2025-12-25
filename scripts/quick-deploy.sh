@@ -66,7 +66,7 @@ if [ ! -f "$DEPLOYMENT_FILE" ]; then
     exit 1
 fi
 
-FACTORY_ADDRESS=$(jq -r '.factory' "$DEPLOYMENT_FILE")
+FACTORY_ADDRESS=$(jq -r '.contracts.factory' "$DEPLOYMENT_FILE")
 echo -e "${GREEN}✅ 合约部署成功${NC}"
 echo "   Factory: $FACTORY_ADDRESS"
 
