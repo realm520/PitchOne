@@ -22,6 +22,8 @@ dataSources:
         - Market
         - Template
         - GlobalStats
+        - Admin
+        - RoleChange
       abis:
         - name: MarketFactory_V3
           file: ../contracts/out/MarketFactory_V3.sol/MarketFactory_V3.json
@@ -34,6 +36,10 @@ dataSources:
           handler: handleTemplateRegistered
         - event: TemplateUpdated(indexed bytes32,bool)
           handler: handleTemplateUpdated
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
       file: ./src/registry.ts
 
   # ============================================================================
