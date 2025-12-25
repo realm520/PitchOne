@@ -122,9 +122,18 @@ cmd_contracts_deploy() {
 # 重启 Anvil
 cmd_anvil_restart() {
     print_info "重启 Anvil..."
-    ssh_cmd "pkill anvil 2>/dev/null || true; sleep 2; cd $PROJECT_PATH/contracts && nohup anvil --host 0.0.0.0 > /tmp/anvil.log 2>&1 &"
+    # 使用 -f 强制后台，避免 SSH 等待
+    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "pkill anvil 2>/dev/null || true"
+    sleep 2
+    ssh -f -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "cd $PROJECT_PATH/contracts && nohup anvil --host 0.0.0.0 > /tmp/anvil.log 2>&1 &"
     sleep 3
-    print_success "Anvil 已重启"
+    # 验证 Anvil 是否启动
+    if ssh_cmd "curl -s -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 > /dev/null 2>&1"; then
+        print_success "Anvil 已重启"
+    else
+        print_error "Anvil 启动失败"
+        return 1
+    fi
 }
 
 # 查看 ngrok URL（不重启，避免域名变化）

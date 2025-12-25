@@ -4,20 +4,21 @@
   "private": true,
   "description": "PitchOne - 去中心化链上体育预测平台",
   "scripts": {
-    "dev:user": "pnpm --filter @pitchone/user dev",
-    "dev:admin": "pnpm --filter @pitchone/admin dev",
-    "dev": "pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
-    "web": "env-cmd -f .env.web pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
-    "web:user": "env-cmd -f .env.web pnpm --filter @pitchone/user dev",
-    "web:admin": "env-cmd -f .env.web pnpm --filter @pitchone/admin dev",
+    "dev:user": "pnpm sync-addresses && pnpm --filter @pitchone/user dev",
+    "dev:admin": "pnpm sync-addresses && pnpm --filter @pitchone/admin dev",
+    "dev": "pnpm sync-addresses && pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
+    "web": "pnpm sync-addresses && env-cmd -f .env.web pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
+    "web:user": "pnpm sync-addresses && env-cmd -f .env.web pnpm --filter @pitchone/user dev",
+    "web:admin": "pnpm sync-addresses && env-cmd -f .env.web pnpm --filter @pitchone/admin dev",
     "build:packages": "pnpm --filter @pitchone/i18n build && pnpm --filter @pitchone/ui build && pnpm --filter @pitchone/web3 build",
-    "build:user": "pnpm run build:packages && pnpm --filter @pitchone/user build",
-    "build:admin": "pnpm run build:packages && pnpm --filter @pitchone/admin build",
-    "build": "pnpm run build:packages && pnpm --filter @pitchone/user build && pnpm --filter @pitchone/admin build",
+    "build:user": "pnpm sync-addresses && pnpm run build:packages && pnpm --filter @pitchone/user build",
+    "build:admin": "pnpm sync-addresses && pnpm run build:packages && pnpm --filter @pitchone/admin build",
+    "build": "pnpm sync-addresses && pnpm run build:packages && pnpm --filter @pitchone/user build && pnpm --filter @pitchone/admin build",
     "start:user": "pnpm --filter @pitchone/user start",
     "start:admin": "pnpm --filter @pitchone/admin start",
     "lint": "pnpm --recursive lint",
-    "type-check": "pnpm --recursive type-check"
+    "type-check": "pnpm --recursive type-check",
+    "sync-addresses": "pnpm --filter @pitchone/contracts sync-addresses"
   },
   "devDependencies": {
     "env-cmd": "^10.1.0"

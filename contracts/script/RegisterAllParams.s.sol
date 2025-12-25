@@ -15,9 +15,9 @@ import "../src/governance/ParamKeys.sol";
  *      --broadcast
  */
 contract RegisterAllParams is Script {
-    // ParamController 地址（从前端 addresses/index.ts 获取）
-    // 注意：每次重新部署后需要更新此地址
-    address constant PARAM_CONTROLLER = 0xd9abC93F81394Bd161a1b24B03518e0a570bDEAd;
+    // ParamController 地址（从 contracts/deployments/localhost_v3.json 获取）
+    // 注意：Anvil 使用确定性部署，重启后地址保持不变
+    address constant PARAM_CONTROLLER = 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
