@@ -7,12 +7,18 @@
     "dev:user": "pnpm --filter @pitchone/user dev",
     "dev:admin": "pnpm --filter @pitchone/admin dev",
     "dev": "pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
+    "web": "env-cmd -f .env.remote pnpm --parallel --filter @pitchone/user --filter @pitchone/admin dev",
+    "web:user": "env-cmd -f .env.remote pnpm --filter @pitchone/user dev",
+    "web:admin": "env-cmd -f .env.remote pnpm --filter @pitchone/admin dev",
     "build:packages": "pnpm --filter @pitchone/i18n build && pnpm --filter @pitchone/ui build && pnpm --filter @pitchone/web3 build",
     "build:user": "pnpm run build:packages && pnpm --filter @pitchone/user build",
     "build:admin": "pnpm run build:packages && pnpm --filter @pitchone/admin build",
     "build": "pnpm run build:packages && pnpm --filter @pitchone/user build && pnpm --filter @pitchone/admin build",
     "lint": "pnpm --recursive lint",
     "type-check": "pnpm --recursive type-check"
+  },
+  "devDependencies": {
+    "env-cmd": "^10.1.0"
   },
   "engines": {
     "node": ">=20.0.0",

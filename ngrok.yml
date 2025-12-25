@@ -13,3 +13,7 @@ tunnels:
     addr: 8545
     proto: http
     inspect: true
+  subgraph:
+    addr: 8010
+    proto: http
+    inspect: true
