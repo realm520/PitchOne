@@ -2,11 +2,12 @@
   "name": "@pitchone/contracts",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "sync-addresses": "npx ts-node scripts/sync-addresses.ts"
+    "sync-addresses": "npx ts-node --esm scripts/sync-addresses.ts"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

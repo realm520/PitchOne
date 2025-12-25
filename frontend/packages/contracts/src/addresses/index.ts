@@ -1,7 +1,7 @@
 import type { Address, ContractAddresses } from '../index';
 
 // Anvil 本地测试链地址 (V3 架构)
-// 部署时间: 2025-12-25 (来源: contracts/deployments/localhost_v3.json)
+// 自动生成时间: 2025-12-25 (来源: contracts/deployments/localhost_v3.json)
 // 注意：每次 Anvil 重启后需要重新部署合约，地址会保持一致（确定性部署）
 export const ANVIL_ADDRESSES: ContractAddresses = {
   // V3 核心合约

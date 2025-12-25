@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 
 /**
  * 从合约部署文件同步地址到前端
@@ -11,6 +11,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Module 兼容的 __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CONTRACTS_DEPLOYMENT_PATH = path.resolve(__dirname, '../../../../contracts/deployments/localhost_v3.json');
 const ADDRESSES_OUTPUT_PATH = path.resolve(__dirname, '../src/addresses/index.ts');
