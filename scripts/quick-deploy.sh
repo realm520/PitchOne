@@ -54,25 +54,26 @@ fi
 # 步骤 1: 部署合约
 echo -e "${YELLOW}[1/4] 部署核心合约...${NC}"
 cd "$CONTRACTS_DIR"
-PRIVATE_KEY="$PRIVATE_KEY" forge script script/Deploy.s.sol:Deploy \
+PRIVATE_KEY="$PRIVATE_KEY" forge script script/Deploy_V3.s.sol:Deploy_V3 \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Deployed|Script ran successfully)" || true
 
 # 验证部署
-if [ ! -f "$CONTRACTS_DIR/deployments/localhost.json" ]; then
-    echo -e "${RED}❌ 部署失败: deployments/localhost.json 未生成${NC}"
+DEPLOYMENT_FILE="$CONTRACTS_DIR/deployments/localhost_v3.json"
+if [ ! -f "$DEPLOYMENT_FILE" ]; then
+    echo -e "${RED}❌ 部署失败: deployments/localhost_v3.json 未生成${NC}"
     exit 1
 fi
 
-FACTORY_ADDRESS=$(jq -r '.contracts.factory' "$CONTRACTS_DIR/deployments/localhost.json")
+FACTORY_ADDRESS=$(jq -r '.factory' "$DEPLOYMENT_FILE")
 echo -e "${GREEN}✅ 合约部署成功${NC}"
 echo "   Factory: $FACTORY_ADDRESS"
 
 # 步骤 2: 创建测试市场
 echo ""
 echo -e "${YELLOW}[2/4] 创建测试市场...${NC}"
-PRIVATE_KEY="$PRIVATE_KEY" forge script script/CreateMarkets_NoMultiLine.s.sol:CreateMarkets_NoMultiLine \
+PRIVATE_KEY="$PRIVATE_KEY" forge script script/CreateAllMarketTypes_V3.s.sol:CreateAllMarketTypes_V3 \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Created|markets authorized|Success)" || true
@@ -94,7 +95,7 @@ MIN_BET_AMOUNT="$MIN_BET_AMOUNT" \
 MAX_BET_AMOUNT="$MAX_BET_AMOUNT" \
 BETS_PER_USER="$BETS_PER_USER" \
 OUTCOME_DISTRIBUTION="$OUTCOME_DISTRIBUTION" \
-forge script script/SimulateBets.s.sol:SimulateBets \
+forge script script/SimulateBets_V3.s.sol:SimulateBets_V3 \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --silent 2>&1 | grep -E "(Bet Simulation|Total Bets|Total Volume|Success Rate)" || true
@@ -106,11 +107,11 @@ echo ""
 echo -e "${YELLOW}[4/5] 更新 Subgraph 配置...${NC}"
 cd "$SUBGRAPH_DIR"
 
-DEPLOYMENT_FILE="$CONTRACTS_DIR/deployments/localhost.json"
+DEPLOYMENT_FILE="$CONTRACTS_DIR/deployments/localhost_v3.json"
 if [ -f "$SUBGRAPH_DIR/config/update-config.js" ] && [ -f "$DEPLOYMENT_FILE" ]; then
     node "$SUBGRAPH_DIR/config/update-config.js" "$DEPLOYMENT_FILE"
 else
-    echo -e "${YELLOW}⚠️  警告: update-config.js 或 localhost.json 不存在，跳过自动配置${NC}"
+    echo -e "${YELLOW}⚠️  警告: update-config.js 或 localhost_v3.json 不存在，跳过自动配置${NC}"
 fi
 
 # 步骤 5: 部署 Subgraph
