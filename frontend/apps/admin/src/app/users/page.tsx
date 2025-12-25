@@ -8,6 +8,7 @@ import { ROLES } from '@/constants/roles';
 import { PageHeader } from '@/components/PageHeader';
 import { AddUserModal } from './components/AddUserModal';
 import { EditUserModal } from './components/EditUserModal';
+import { DeleteUserModal } from './components/DeleteUserModal';
 import { useAdmins, Admin, adminToRoleHashes, hasAnyRole } from '@/hooks/useAdmins';
 
 export default function UsersPage() {
@@ -28,6 +29,13 @@ export default function UsersPage() {
         currentRoles: `0x${string}`[];
     } | null>(null);
 
+    // 删除用户弹窗状态
+    const [deleteModalState, setDeleteModalState] = useState<{
+        isOpen: boolean;
+        address: `0x${string}`;
+        currentRoles: `0x${string}`[];
+    } | null>(null);
+
     // 筛选：只显示拥有至少一个角色的管理员
     const activeAdmins = useMemo(() => {
         return admins.filter(hasAnyRole);
@@ -35,6 +43,10 @@ export default function UsersPage() {
 
     const handleOpenEditModal = (address: `0x${string}`, currentRoles: `0x${string}`[]) => {
         setEditModalState({ isOpen: true, address, currentRoles });
+    };
+
+    const handleOpenDeleteModal = (address: `0x${string}`, currentRoles: `0x${string}`[]) => {
+        setDeleteModalState({ isOpen: true, address, currentRoles });
     };
 
     // 角色变更成功后刷新数据
@@ -130,6 +142,7 @@ export default function UsersPage() {
                                         admin={admin}
                                         factoryAddress={factoryAddress}
                                         onEdit={handleOpenEditModal}
+                                        onDelete={handleOpenDeleteModal}
                                     />
                                 ))
                             ) : (
@@ -168,6 +181,18 @@ export default function UsersPage() {
                     onSuccess={handleSuccess}
                 />
             )}
+
+            {/* 删除用户弹窗 */}
+            {deleteModalState && (
+                <DeleteUserModal
+                    isOpen={deleteModalState.isOpen}
+                    onClose={() => setDeleteModalState(null)}
+                    address={deleteModalState.address}
+                    currentRoles={deleteModalState.currentRoles}
+                    factoryAddress={factoryAddress}
+                    onSuccess={handleSuccess}
+                />
+            )}
         </div>
     );
 }
@@ -177,10 +202,12 @@ function UserRowFromSubgraph({
     admin,
     factoryAddress,
     onEdit,
+    onDelete,
 }: {
     admin: Admin;
     factoryAddress: `0x${string}`;
     onEdit: (address: `0x${string}`, currentRoles: `0x${string}`[]) => void;
+    onDelete: (address: `0x${string}`, currentRoles: `0x${string}`[]) => void;
 }) {
     const address = admin.id as `0x${string}`;
     const userRoleHashes = adminToRoleHashes(admin);
@@ -190,8 +217,12 @@ function UserRowFromSubgraph({
         onEdit(address, userRoleHashes);
     };
 
+    const handleDelete = () => {
+        onDelete(address, userRoleHashes);
+    };
+
     return (
-        <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b last:border-b-0 dark:border-gray-700">
+        <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 border-b dark:border-gray-700">
             <td className="py-4 px-4">
                 <div className="flex items-center">
                     <span className="font-mono text-sm text-gray-900 dark:text-white">
@@ -235,6 +266,16 @@ function UserRowFromSubgraph({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                         编辑
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-1 text-sm px-2 py-1 border border-red-300 dark:border-red-700 rounded bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        title="删除用户"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        删除
                     </button>
                 </div>
             </td>
