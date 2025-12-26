@@ -192,9 +192,16 @@ export default function SportsMatchesPage() {
                 选择一场赛事来创建预测市场
               </p>
             </div>
-            <Link href="/markets/create" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-              ← 返回
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/markets/create/sports/manual">
+                <Button variant="neon" size="sm">
+                  + 手动创建市场
+                </Button>
+              </Link>
+              <Link href="/markets/create" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                ← 返回
+              </Link>
+            </div>
           </div>
         </div>
       </div>

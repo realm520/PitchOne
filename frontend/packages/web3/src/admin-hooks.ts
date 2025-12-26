@@ -336,6 +336,7 @@ export interface CreateMarketParams {
   mapperInitData: Hex;       // Mapper 初始化数据
   initialLiquidity: bigint;  // 初始流动性
   outcomeRules: Array<{ name: string; payoutType: number }>; // outcome 规则
+  category?: number;         // 市场类别 (uint8, 默认 0)
 }
 
 /**
@@ -384,6 +385,7 @@ export function useCreateMarket() {
         mapperInitData: params.mapperInitData,
         initialLiquidity: params.initialLiquidity,
         outcomeRules: params.outcomeRules,
+        category: params.category ?? 0, // 默认类别为 0
       }],
     });
   };
