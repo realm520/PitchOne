@@ -111,10 +111,11 @@ cmd_subgraph_rebuild() {
     print_success "Subgraph 重建完成"
 }
 
-# 重新部署合约
+# 重新部署合约（重启 Anvil 确保地址一致）
 cmd_contracts_deploy() {
     print_info "重新部署合约..."
     cmd_pull
+    cmd_anvil_restart
     ssh_cmd "cd $PROJECT_PATH && ./scripts/quick-deploy.sh"
     print_success "合约部署完成"
 }
