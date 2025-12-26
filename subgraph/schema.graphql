@@ -203,14 +203,14 @@ type Order @entity(immutable: false) {
   "下注方向（0=主队胜/大, 1=平局, 2=客队胜/小）"
   outcome: Int!
 
-  "下注金额（USDC，原始 wei 值，6 decimals）"
-  amount: BigInt!
+  "下注金额（USDC，已格式化为小数）"
+  amount: BigDecimal!
 
   "获得的份额（Position Token 数量）"
   shares: BigInt!
 
-  "手续费（USDC，原始 wei 值，6 decimals）"
-  fee: BigInt!
+  "手续费（USDC，已格式化为小数）"
+  fee: BigDecimal!
 
   "推荐人地址（如有）"
   referrer: Bytes

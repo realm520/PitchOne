@@ -121,9 +121,9 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   order.market = marketAddress.toHexString();
   order.user = userAddress.toHexString();
   order.outcome = outcome;
-  order.amount = amount;
+  order.amount = toDecimal(amount);
   order.shares = shares;
-  order.fee = fee;
+  order.fee = toDecimal(fee);
   order.referrer = null;
   order.price = shares.gt(ZERO_BI)
     ? amount.toBigDecimal().div(shares.toBigDecimal())
