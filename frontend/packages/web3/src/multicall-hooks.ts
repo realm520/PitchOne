@@ -597,14 +597,14 @@ function getOutcomeName(outcomeId: number, templateType: string, line?: string):
     return outcomeId === 0 ? 'outcomes.oddEven.odd' : 'outcomes.oddEven.even';
   }
 
-  // WDL（胜平负）
-  if (templateType === 'WDL') {
+  // WDL（胜平负）- 包括 WDL 和 WDL_Pari
+  if (templateType === 'WDL' || templateType === 'WDL_Pari') {
     const keys = ['outcomes.wdl.homeWin', 'outcomes.wdl.draw', 'outcomes.wdl.awayWin'];
     return keys[outcomeId] || 'outcomes.fallback';
   }
 
-  // Score（精确比分）
-  if (templateType === 'Score') {
+  // Score（精确比分）- 包括 Score 和 Score_Pari
+  if (templateType === 'Score' || templateType === 'Score_Pari') {
     if (outcomeId === 999) {
       return 'outcomes.score.other';
     }

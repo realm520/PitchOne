@@ -169,7 +169,8 @@ export function getOutcomeKey(
   }
 
   // 根据模板类型返回对应 i18n key
-  if (templateId === 'WDL' || templateId === '0x00000000') {
+  // WDL 和 WDL_Pari 都使用相同的 outcome 定义
+  if (templateId === 'WDL' || templateId === 'WDL_Pari' || templateId === '0x00000000') {
     return WDL_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
@@ -185,7 +186,8 @@ export function getOutcomeKey(
     return ODDEVEN_OUTCOME_KEYS[outcomeId] || fallbackKey;
   }
 
-  if (templateId === 'Score') {
+  // Score 和 Score_Pari 都使用相同的比分格式
+  if (templateId === 'Score' || templateId === 'Score_Pari') {
     return formatScoreOutcome(outcomeId);
   }
 

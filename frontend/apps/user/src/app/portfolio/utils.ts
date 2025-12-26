@@ -88,8 +88,8 @@ export const getSelection = (
     const { templateId, line, homeTeam, awayTeam } = position.market;
     const outcomeId = position.outcome;
 
-    // WDL (胜平负): 显示押注的队伍名称
-    if (templateId === '1' || templateId === 'WDL' || templateId === '0x00000000') {
+    // WDL (胜平负): 显示押注的队伍名称 - 包括 WDL 和 WDL_Pari
+    if (templateId === '1' || templateId === 'WDL' || templateId === 'WDL_Pari' || templateId === '0x00000000') {
         if (outcomeId === 0) return translateTeam(homeTeam); // 主队胜
         if (outcomeId === 1) return 'Draw'; // 平局
         if (outcomeId === 2) return translateTeam(awayTeam); // 客队胜
@@ -117,8 +117,8 @@ export const getSelection = (
         if (outcomeId === 1) return 'Even';
     }
 
-    // Score (精确比分)
-    if (templateId === '5' || templateId === 'Score') {
+    // Score (精确比分) - 包括 Score 和 Score_Pari
+    if (templateId === '5' || templateId === 'Score' || templateId === 'Score_Pari') {
         if (outcomeId === 999) return 'Other';
         const homeGoals = Math.floor(outcomeId / 10);
         const awayGoals = outcomeId % 10;
