@@ -111,11 +111,15 @@ cmd_subgraph_rebuild() {
     print_success "Subgraph 重建完成"
 }
 
-# 重新部署合约（重启 Anvil 确保地址一致）
+# 重新部署合约（不重启 Anvil，直接部署到现有链上）
 cmd_contracts_deploy() {
     print_info "重新部署合约..."
     cmd_pull
-    cmd_anvil_restart
+    # 检查 Anvil 是否运行
+    if ! ssh_cmd "curl -s -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 > /dev/null 2>&1"; then
+        print_warning "Anvil 未运行，正在启动..."
+        cmd_anvil_restart
+    fi
     ssh_cmd "cd $PROJECT_PATH && ./scripts/quick-deploy.sh"
     print_success "合约部署完成"
 }
@@ -126,13 +130,15 @@ cmd_anvil_restart() {
     # 使用 -f 强制后台，避免 SSH 等待
     ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "pkill anvil 2>/dev/null || true"
     sleep 2
-    ssh -f -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "cd $PROJECT_PATH/contracts && nohup anvil --host 0.0.0.0 > /tmp/anvil.log 2>&1 &"
+    # 注意：ssh -f 不会加载用户环境，需要显式设置 PATH 包含 ~/.foundry/bin
+    ssh -f -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SSH_HOST" "export PATH=~/.foundry/bin:\$PATH; cd $PROJECT_PATH/contracts && nohup anvil --host 0.0.0.0 > /tmp/anvil.log 2>&1 &"
     sleep 3
     # 验证 Anvil 是否启动
     if ssh_cmd "curl -s -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 > /dev/null 2>&1"; then
         print_success "Anvil 已重启"
     else
         print_error "Anvil 启动失败"
+        ssh_cmd "cat /tmp/anvil.log 2>/dev/null | tail -10" || true
         return 1
     fi
 }
