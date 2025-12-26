@@ -6,8 +6,8 @@ import "../src/core/Market_V3.sol";
 
 contract ResolveAndFinalize is Script {
     // 刚创建的市场地址
-    address constant MARKET1 = 0xfd655BEB8852b7CBF1654D11C37ff6fE3FdBc28B;
-    address constant MARKET2 = 0xa54F7cE47e5ebDd6C1c536d040F3CEdBd2DE371B;
+    address constant MARKET1 = 0x7e1dffe290Ca47D98D4D00304906604bc1aF1ec9;
+    address constant MARKET2 = 0x1DB24B4741Cc1C733e4b5B44D445C66b905cb250;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
