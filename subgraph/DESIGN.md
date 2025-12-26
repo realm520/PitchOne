@@ -341,17 +341,19 @@ type GlobalStats @entity {
 
 | 文件 | 合约 | 事件数 | 说明 |
 |------|------|--------|------|
-| `registry.ts` | MarketFactory_v2 | 3 | 市场创建、模板注册 |
-| `market.ts` | Market Templates | 10+ | 市场生命周期事件 |
+| `registry.ts` | MarketFactory_V3 | 5 | 市场创建、模板注册、角色管理 |
+| `market.ts` | Market_V3 | 10 | 市场生命周期事件 |
+| `provider.ts` | LiquidityVault_V3 | 14 | LP 金库存取款、市场授权 |
 | `fee.ts` | FeeRouter | 2 | 费用接收与分发 |
+| `referral.ts` | ReferralRegistry | 2 | 推荐关系绑定与返佣 |
 | `oracle.ts` | MockOracle | 3 | 预言机提案与争议 |
 | `basket.ts` | Basket | 2 | 串关创建与结算 |
+| `correlation.ts` | CorrelationGuard | 3 | 相关性规则 |
 | `campaign.ts` | Campaign | 5 | 活动管理 |
 | `quest.ts` | Quest | 5 | 任务管理 |
 | `credit.ts` | CreditToken | 6 | 免佣券管理 |
 | `coupon.ts` | Coupon | 3 | 赔率加成券 |
 | `scaler.ts` | PayoutScaler | 4 | 预算缩放 |
-| `correlation.ts` | CorrelationGuard | 1 | 相关性规则 |
 
 ### 动态模板索引
 
@@ -387,10 +389,12 @@ sequenceDiagram
 ```yaml
 # subgraph.yaml
 templates:
-  - name: WDLMarket
-    kind: ethereum/contract
+  # Market_V3 统一市场模板（支持所有玩法类型）
+  - kind: ethereum/contract
+    name: Market_V3
+    network: localhost
     source:
-      abi: WDL_Template_V2
+      abi: Market_V3
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -400,35 +404,33 @@ templates:
         - Market
         - Order
         - Position
+        - Redemption
+        - User
+        - GlobalStats
       abis:
-        - name: WDL_Template_V2
-          file: ../contracts/out/WDL_Template_V2.sol/WDL_Template_V2.json
+        - name: Market_V3
+          file: ../contracts/out/Market_V3.sol/Market_V3.json
       eventHandlers:
         - event: BetPlaced(indexed address,indexed uint256,uint256,uint256)
           handler: handleBetPlaced
-        - event: Locked()
-          handler: handleLocked
-        - event: Resolved(uint256)
-          handler: handleResolved
+        - event: MarketLocked(uint256)
+          handler: handleMarketLocked
+        - event: MarketResolved(uint256[],uint256[])
+          handler: handleMarketResolved
 ```
 
-当 `MarketCreated` 事件触发时，动态创建对应模板的数据源：
+当 `MarketCreated` 事件触发时，动态创建统一的 Market_V3 数据源：
 
 ```typescript
 // registry.ts
-export function handleMarketCreatedFromRegistry(event: MarketCreatedEvent): void {
+export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void {
   // 1. 创建 Market 实体
   let market = new Market(event.params.market.toHexString());
-  market.templateId = event.params.templateId.toString();
+  market.templateId = event.params.templateId.toHexString();
   market.save();
 
-  // 2. 动态创建数据源
-  if (templateId == "WDL") {
-    WDLMarketTemplate.create(event.params.market);
-  } else if (templateId == "OU") {
-    OUMarketTemplate.create(event.params.market);
-  }
-  // ...
+  // 2. 动态创建 Market_V3 数据源（统一模板，支持所有玩法）
+  Market_V3.create(event.params.market);
 }
 ```
 
@@ -618,6 +620,7 @@ graph deploy --studio pitchone
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.3.1 | 2025-12-26 | 升级至 V3 架构（MarketFactory_V3、Market_V3 统一模板） |
 | v0.3.0 | 2025-11-08 | M3: 新增 Basket 串关、PlayerProps 球员道具市场支持 |
 | v0.2.0 | 2025-11-05 | M2: 新增运营工具（Campaign/Quest/Credit/Coupon/Scaler） |
 | v0.1.0 | 2025-10-31 | M1: 核心市场功能（WDL/OU/费用/预言机） |
