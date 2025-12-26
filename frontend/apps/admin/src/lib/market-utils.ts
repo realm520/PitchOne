@@ -110,8 +110,19 @@ const DEFAULT_OPTIONS = [
   { id: 2, label: '选项 C' },
 ];
 
-export function getOutcomeOptions(templateType?: string, homeTeam?: string, awayTeam?: string) {
-  const options = OUTCOME_OPTIONS[templateType?.toUpperCase() || ''] || DEFAULT_OPTIONS;
+export function getOutcomeOptions(
+  templateType?: string,
+  homeTeam?: string,
+  awayTeam?: string,
+  outcomeCount?: number
+) {
+  let options = OUTCOME_OPTIONS[templateType?.toUpperCase() || ''] || DEFAULT_OPTIONS;
+
+  // 如果提供了 outcomeCount，过滤掉超出范围的选项
+  // 例如：半球盘 AH/OU 市场只有 2 个 outcome，不包含走盘选项
+  if (outcomeCount !== undefined && outcomeCount > 0) {
+    options = options.filter(opt => opt.id < outcomeCount);
+  }
 
   // 如果提供了球队名称，替换选项中的"主队"/"客队"
   if (homeTeam && awayTeam) {

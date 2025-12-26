@@ -124,6 +124,9 @@ contract AH_Mapper is IResultMapper {
 
     /**
      * @notice 处理半球盘（如 -0.5, -1.5）
+     * @dev 半球盘只有两个结果，无 Push：
+     *      - Outcome 0: 主队赢盘
+     *      - Outcome 1: 客队赢盘（注意：不是 2，因为半球盘没有 Push）
      */
     function _handleHalfLine(int256 adjustedDiff)
         internal
@@ -135,9 +138,10 @@ contract AH_Mapper is IResultMapper {
         weights[0] = FULL_WEIGHT;
 
         if (adjustedDiff > 0) {
-            outcomeIds[0] = OUTCOME_HOME_WIN;
+            outcomeIds[0] = OUTCOME_HOME_WIN; // 0
         } else {
-            outcomeIds[0] = OUTCOME_AWAY_WIN;
+            // 半球盘没有 Push，所以客队赢盘是 outcome 1（不是 2）
+            outcomeIds[0] = 1; // 客队赢盘
         }
     }
 
@@ -225,8 +229,12 @@ contract AH_Mapper is IResultMapper {
     // ============ 元数据 ============
 
     /// @inheritdoc IResultMapper
-    function outcomeCount() external pure override returns (uint256) {
-        return 3;
+    /// @dev 半球盘返回 2（无 Push），整球盘和四分一盘返回 3（含 Push）
+    function outcomeCount() external view override returns (uint256) {
+        if (lineType == 0) {
+            return 2; // 半球盘：主队赢盘 / 客队赢盘
+        }
+        return 3; // 整球盘/四分一盘：主队赢盘 / Push / 客队赢盘
     }
 
     /// @inheritdoc IResultMapper
@@ -247,18 +255,36 @@ contract AH_Mapper is IResultMapper {
     // ============ 辅助查询 ============
 
     /// @inheritdoc IResultMapper
-    function getOutcomeName(uint256 outcomeId) external pure override returns (string memory name) {
-        if (outcomeId == OUTCOME_HOME_WIN) return "Home +line";
-        if (outcomeId == OUTCOME_PUSH) return "Push";
-        if (outcomeId == OUTCOME_AWAY_WIN) return "Away -line";
-        revert("Invalid outcome ID");
+    /// @dev 半球盘：0=主队赢盘, 1=客队赢盘
+    ///      整球盘/四分一盘：0=主队赢盘, 1=Push, 2=客队赢盘
+    function getOutcomeName(uint256 outcomeId) external view override returns (string memory name) {
+        if (lineType == 0) {
+            // 半球盘
+            if (outcomeId == 0) return "Home +line";
+            if (outcomeId == 1) return "Away -line";
+            revert("Invalid outcome ID");
+        } else {
+            // 整球盘/四分一盘
+            if (outcomeId == OUTCOME_HOME_WIN) return "Home +line";
+            if (outcomeId == OUTCOME_PUSH) return "Push";
+            if (outcomeId == OUTCOME_AWAY_WIN) return "Away -line";
+            revert("Invalid outcome ID");
+        }
     }
 
     /// @inheritdoc IResultMapper
-    function getAllOutcomeNames() external pure override returns (string[] memory names) {
-        names = new string[](3);
-        names[0] = "Home +line";
-        names[1] = "Push";
-        names[2] = "Away -line";
+    function getAllOutcomeNames() external view override returns (string[] memory names) {
+        if (lineType == 0) {
+            // 半球盘
+            names = new string[](2);
+            names[0] = "Home +line";
+            names[1] = "Away -line";
+        } else {
+            // 整球盘/四分一盘
+            names = new string[](3);
+            names[0] = "Home +line";
+            names[1] = "Push";
+            names[2] = "Away -line";
+        }
     }
 }

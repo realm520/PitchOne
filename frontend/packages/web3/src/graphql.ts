@@ -36,6 +36,7 @@ function getGraphQLClient(): GraphQLClient {
     _client = new GraphQLClient(url, {
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true', // 跳过 ngrok 警告页面
       },
     });
   }

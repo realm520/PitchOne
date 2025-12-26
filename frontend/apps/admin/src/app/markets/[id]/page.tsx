@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, useAccount } from '@pitchone/web3';
+import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, useAccount, useOutcomeCount } from '@pitchone/web3';
 import { LoadingSpinner, ErrorState, Badge } from '@pitchone/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -25,13 +25,17 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const { isConnected } = useAccount();
   const [dialog, setDialog] = useState<'lock' | 'resolve' | 'finalize' | null>(null);
-  const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
+  const [homeScore, setHomeScore] = useState<string>('');
+  const [awayScore, setAwayScore] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
   const lock = useLockMarket(id as `0x${string}`);
   const resolve = useResolveMarket(id as `0x${string}`);
   const finalize = useFinalizeMarket(id as `0x${string}`);
+
+  // 读取合约的 outcomeCount
+  const { data: outcomeCount } = useOutcomeCount(id as `0x${string}`);
 
   const { data: market, isLoading, error, refetch } = useQuery({
     queryKey: ['market', id],
@@ -76,9 +80,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         console.log('[LOCK] 调用 lock.lockMarket()...');
         result = await lock.lockMarket();
         console.log('[LOCK] 调用完成，返回结果:', result);
-      } else if (action === 'resolve' && selectedOutcome !== null) {
-        console.log('[RESOLVE] 调用 resolve.resolveMarket()，outcome:', selectedOutcome);
-        result = await resolve.resolveMarket(BigInt(selectedOutcome));
+      } else if (action === 'resolve' && homeScore !== '' && awayScore !== '') {
+        const home = BigInt(parseInt(homeScore, 10));
+        const away = BigInt(parseInt(awayScore, 10));
+        console.log('[RESOLVE] 调用 resolve.resolveMarket()，比分:', home, '-', away);
+        result = await resolve.resolveMarket(home, away);
         console.log('[RESOLVE] 调用完成，返回结果:', result);
       } else if (action === 'finalize') {
         console.log('[FINALIZE] 调用 finalize.finalizeMarket()...');
@@ -89,7 +95,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       }
       console.log(`[${action.toUpperCase()}] 操作成功，关闭对话框`);
       setDialog(null);
-      setSelectedOutcome(null);
+      setHomeScore('');
+      setAwayScore('');
       setTimeout(refetch, 3000);
       // 成功的 toast 会在 useEffect 监听 hook.isSuccess 时显示
     } catch (e) {
@@ -290,7 +297,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         {/* 详情 */}
         <AdminCard className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">市场详情</h2>
-          <div className="grid grid-cols-3 gap-6 text-sm">
+          <div className="grid grid-cols-4 gap-6 text-sm">
+            <div><span className="text-gray-500">玩法类型</span><p className="text-lg font-medium mt-1">{TEMPLATE_MAP[templateType] || templateType}</p></div>
             <div><span className="text-gray-500">胜出结果</span><p className="text-lg font-medium mt-1">{getOutcomeName(templateType, market.winnerOutcome)}</p></div>
             <div><span className="text-gray-500">盘口线</span><p className="text-lg font-medium mt-1">{market.line ? Number(market.line) / 10 : '--'}</p></div>
             <div><span className="text-gray-500">创建时间</span><p className="text-lg font-medium mt-1">{format(new Date(Number(market.createdAt) * 1000), 'yyyy-MM-dd HH:mm', { locale: zhCN })}</p></div>
@@ -327,7 +335,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                         </td>
                         <td className="py-3 px-4 font-mono text-sm">{shortAddr(order.user.id)}</td>
                         <td className="py-3 px-4 font-semibold">{formatUSDC(order.amount)} USDC</td>
-                        <td className="py-3 px-4"><Badge variant="default">{getOutcomeName(templateType, order.outcome)}</Badge></td>
+                        <td className="py-3 px-4">
+                          {(() => {
+                            const options = getOutcomeOptions(templateType, market.homeTeam || matchInfo.homeTeam, market.awayTeam || matchInfo.awayTeam);
+                            const opt = options.find(o => o.id === order.outcome);
+                            return (
+                              <div>
+                                <Badge variant="default">{opt?.label || `选项 ${order.outcome}`}</Badge>
+                                {opt?.description && <p className="text-xs text-gray-500 mt-1">{opt.description}</p>}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="py-3 px-4">{order.price ? (1 / Number(order.price)).toFixed(2) : '--'}</td>
                         <td className="py-3 px-4">
                           <a href={`https://etherscan.io/tx/${order.transactionHash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 hover:text-blue-800">
@@ -384,25 +403,76 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-sm text-gray-500 mb-4">
               {market.homeTeam || matchInfo.homeTeam} vs {market.awayTeam || matchInfo.awayTeam}
             </p>
-            <p className="text-sm text-gray-600 mb-3">选择比赛结果：</p>
-            <div className="space-y-2 mb-6">
-              {getOutcomeOptions(templateType, market.homeTeam || matchInfo.homeTeam, market.awayTeam || matchInfo.awayTeam).map(opt => (
-                <label key={opt.id} className={`flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all ${selectedOutcome === opt.id ? (opt.isPush ? 'border-orange-500 bg-orange-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:bg-gray-50'
-                  }`}>
-                  <input type="radio" checked={selectedOutcome === opt.id} onChange={() => setSelectedOutcome(opt.id)} className="mt-0.5 mr-3" />
-                  <div className="flex-1">
-                    <span className={`text-sm font-medium ${opt.isPush ? 'text-orange-800' : 'text-gray-900'}`}>{opt.label}</span>
-                    {opt.description && <p className="text-xs text-gray-500 mt-1">{opt.description}</p>}
-                  </div>
+            <p className="text-sm text-gray-600 mb-3">输入比赛比分：</p>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {market.homeTeam || matchInfo.homeTeam}
                 </label>
-              ))}
+                <input
+                  type="number"
+                  min="0"
+                  value={homeScore}
+                  onChange={(e) => setHomeScore(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-2xl font-bold"
+                  placeholder="0"
+                />
+              </div>
+              <span className="text-2xl font-bold text-gray-400 pt-6">:</span>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {market.awayTeam || matchInfo.awayTeam}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={awayScore}
+                  onChange={(e) => setAwayScore(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-2xl font-bold"
+                  placeholder="0"
+                />
+              </div>
             </div>
+            {homeScore !== '' && awayScore !== '' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>预计结果：</strong>
+                  {(() => {
+                    const h = parseInt(homeScore, 10);
+                    const a = parseInt(awayScore, 10);
+                    if (templateType === 'WDL') {
+                      if (h > a) return `${market.homeTeam || matchInfo.homeTeam} 胜`;
+                      if (h < a) return `${market.awayTeam || matchInfo.awayTeam} 胜`;
+                      return '平局';
+                    }
+                    if (templateType === 'AH') {
+                      const line = market.line ? Number(market.line) / 10 : 0;
+                      const adjustedHome = h + line;
+                      if (adjustedHome > a) return `${market.homeTeam || matchInfo.homeTeam} 赢盘`;
+                      if (adjustedHome < a) return `${market.awayTeam || matchInfo.awayTeam} 赢盘`;
+                      return '走盘 (Push)';
+                    }
+                    if (templateType === 'OU') {
+                      const line = market.line ? Number(market.line) / 10 : 2.5;
+                      const total = h + a;
+                      if (total > line) return '大 (Over)';
+                      if (total < line) return '小 (Under)';
+                      return '走盘 (Push)';
+                    }
+                    if (templateType === 'ODDEVEN') {
+                      return (h + a) % 2 === 1 ? '奇数' : '偶数';
+                    }
+                    return `比分 ${h}:${a}`;
+                  })()}
+                </p>
+              </div>
+            )}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-red-800"><strong>警告：</strong>请确保选择正确的结果，结算后无法撤销！</p>
+              <p className="text-sm text-red-800"><strong>警告：</strong>请确保输入正确的比分，结算后无法撤销！</p>
             </div>
             <div className="flex gap-3">
-              <AdminButton variant="outline" onClick={() => { setDialog(null); setSelectedOutcome(null); }} className="flex-1">取消</AdminButton>
-              <AdminButton onClick={() => handleAction('resolve')} disabled={selectedOutcome === null || resolve.isPending} className="flex-1">
+              <AdminButton variant="outline" onClick={() => { setDialog(null); setHomeScore(''); setAwayScore(''); }} className="flex-1">取消</AdminButton>
+              <AdminButton onClick={() => handleAction('resolve')} disabled={homeScore === '' || awayScore === '' || resolve.isPending} className="flex-1">
                 {resolve.isPending ? '结算中...' : '确认结算'}
               </AdminButton>
             </div>

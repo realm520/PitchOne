@@ -491,23 +491,45 @@ export function useResolveMarket(marketAddress?: Address) {
   };
 
   /**
-   * 结算市场
-   * @param winningOutcomeId 获胜结果 ID (0, 1, 2 等)
+   * 结算市场（通过比分）
+   * @param homeScore 主队进球数
+   * @param awayScore 客队进球数
+   *
+   * 大多数 Mapper（WDL、OU、AH、OddEven、Score）使用比分来计算获胜的 outcomeId
+   * rawResult 格式：abi.encode(homeScore, awayScore)
    */
-  const resolveMarket = async (winningOutcomeId: bigint) => {
+  const resolveMarket = async (homeScore: bigint, awayScore?: bigint) => {
     if (!marketAddress) throw new Error('Market address required');
     if (!publicClient) throw new Error('Public client not available');
 
-    console.log('[useResolveMarket] 结算市场:', { marketAddress, winningOutcomeId });
+    // 如果只传入一个参数，假设是直接的 outcomeId（用于 Identity_Mapper）
+    // 如果传入两个参数，假设是比分（用于其他 Mapper）
+    const isScoreMode = awayScore !== undefined;
+
+    console.log('[useResolveMarket] 结算市场:', {
+      marketAddress,
+      mode: isScoreMode ? 'score' : 'outcomeId',
+      homeScore,
+      awayScore
+    });
     resetState();
     setIsConfirming(true);
 
-    // 编码 rawResult: abi.encode(uint256[] outcomeIds, uint256[] weights)
-    // 对于单一获胜结果，outcomeIds = [winningOutcomeId], weights = [10000] (100% 权重)
-    const rawResult = encodeAbiParameters(
-      parseAbiParameters('uint256[], uint256[]'),
-      [[winningOutcomeId], [10000n]]
-    );
+    // 编码 rawResult
+    let rawResult: `0x${string}`;
+    if (isScoreMode) {
+      // 比分模式：abi.encode(homeScore, awayScore)
+      rawResult = encodeAbiParameters(
+        parseAbiParameters('uint256, uint256'),
+        [homeScore, awayScore]
+      );
+    } else {
+      // outcomeId 模式（用于 Identity_Mapper）：abi.encode(outcomeId)
+      rawResult = encodeAbiParameters(
+        parseAbiParameters('uint256'),
+        [homeScore]
+      );
+    }
     console.log('[useResolveMarket] 编码后的 rawResult:', rawResult);
 
     try {
