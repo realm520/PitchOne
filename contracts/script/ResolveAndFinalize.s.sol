@@ -6,8 +6,8 @@ import "../src/core/Market_V3.sol";
 
 contract ResolveAndFinalize is Script {
     // 刚创建的市场地址
-    address constant MARKET1 = 0x1C050C6c925080a94DAF53E042C89758ee0de40D;
-    address constant MARKET2 = 0xA3b903E67b28d902D54046737Ae535C2301F2b9D;
+    address constant MARKET1 = 0x23a1eA209a4cd420b11F4BAC784591693113Ebb8;
+    address constant MARKET2 = 0x2966b5DD3DCF3b389c50d48E614C1F97AB330445;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -17,10 +17,10 @@ contract ResolveAndFinalize is Script {
         Market_V3 market1 = Market_V3(MARKET1);
         Market_V3 market2 = Market_V3(MARKET2);
 
-        // === Market 1: 曼城 vs 热刺 ===
+        // === Market 1: 布莱顿 vs 阿斯顿维拉 ===
         // 下注的是 outcome 0 (主队胜)
         // 设置比分 2-1 让主队获胜
-        console.log("=== Market 1: MAN CITY vs TOTTENHAM ===");
+        console.log("=== Market 1: BRIGHTON vs ASTON VILLA ===");
         console.log("Current status:", uint256(market1.status()));
 
         // 1. 锁定市场
@@ -42,10 +42,10 @@ contract ResolveAndFinalize is Script {
         market1.finalize(10000); // 100% scale
         console.log("Market 1 finalized");
 
-        // === Market 2: 纽卡斯尔 vs 西汉姆 ===
+        // === Market 2: 富勒姆 vs 狼队 ===
         // 下注的是 outcome 1 (平局)
         // 设置比分 1-1 让平局获胜
-        console.log("\n=== Market 2: NEWCASTLE vs WEST HAM ===");
+        console.log("\n=== Market 2: FULHAM vs WOLVES ===");
         console.log("Current status:", uint256(market2.status()));
 
         // 1. 锁定市场
@@ -69,8 +69,8 @@ contract ResolveAndFinalize is Script {
         vm.stopBroadcast();
 
         console.log("\n=== Summary ===");
-        console.log("Market 1 (MAN CITY vs TOTTENHAM): Score 2-1, Home Win (Outcome 0)");
-        console.log("Market 2 (NEWCASTLE vs WEST HAM): Score 1-1, Draw (Outcome 1)");
+        console.log("Market 1 (BRIGHTON vs ASTON VILLA): Score 2-1, Home Win (Outcome 0)");
+        console.log("Market 2 (FULHAM vs WOLVES): Score 1-1, Draw (Outcome 1)");
         console.log("Both bets should be winning!");
     }
 }
