@@ -57,13 +57,13 @@ export interface ContractAddresses {
 
 // Localhost (Anvil) - Chain ID 31337
 const localhost: ContractAddresses = {
-  factory: '0x97fd63D049089cd70D9D139ccf9338c81372DE68',
-  vault: '0xc0c5618f0F3Fa66b496F2940f373DC366d765BAe',
-  bettingRouter: '0x021DBfF4A864Aa25c51F0ad2Cd73266Fde66199d',
+  factory: '0xc351628EB244ec633d5f21fBD6621e1a683B1181',
+  vault: '0x1291Be112d480055DaFd8a610b7d1e203891C274',
+  bettingRouter: '0x21dF544947ba3E8b3c32561399E88B52Dc8b2823',
   feeRouter: '0x6212cb549De37c25071cF506aB7E115D140D9e42',
   referralRegistry: '0xa195ACcEB1945163160CD5703Ed43E4f78176a54',
   paramController: '0xf4AE7E15B1012edceD8103510eeB560a9343AFd3',
-  usdc: '0xb04CB6c52E73CF3e2753776030CE85a36549c9C2',
+  usdc: '0x4c5859f0F772848b2D91F1D83E2Fe57935348029',
   marketImplementation: '0xC0BF43A4Ca27e0976195E6661b099742f10507e5',
   strategies: {
     cpmm: '0x9D3DA37d36BB0B825CD319ed129c2872b893f538',
@@ -89,7 +89,7 @@ const localhost: ContractAddresses = {
     firstGoalscorer: '0xf44ca50923fd3146c0ae29ba2693c48afd11abbeebce7c5c9a714f7a46e85b73',
   },
   // 兼容旧代码
-  marketTemplateRegistry: '0x97fd63D049089cd70D9D139ccf9338c81372DE68',
+  marketTemplateRegistry: '0xc351628EB244ec633d5f21fBD6621e1a683B1181',
 };
 
 // 地址映射表
