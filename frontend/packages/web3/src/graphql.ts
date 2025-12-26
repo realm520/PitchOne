@@ -162,6 +162,8 @@ export const USER_POSITIONS_QUERY = `
       balance
       averageCost
       totalInvested
+      createdTxHash
+      createdAt
       lastUpdatedAt
     }
   }
@@ -196,6 +198,8 @@ export const USER_POSITIONS_PAGINATED_QUERY = `
       balance
       averageCost
       totalInvested
+      createdTxHash
+      createdAt
       lastUpdatedAt
     }
   }
@@ -286,6 +290,32 @@ export const MARKET_ALL_ORDERS_QUERY = `
       fee
       price
       timestamp
+      transactionHash
+    }
+  }
+`;
+
+export const USER_REDEMPTIONS_QUERY = `
+  query UserRedemptions($userId: ID!, $first: Int) {
+    redemptions(
+      where: { user: $userId }
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      market {
+        id
+      }
+      user {
+        id
+      }
+      outcome
+      shares
+      payout
+      isRefund
+      timestamp
+      blockNumber
       transactionHash
     }
   }

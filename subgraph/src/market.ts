@@ -140,8 +140,14 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   const amountDecimal = toDecimal(amount);
   const feeDecimal = toDecimal(fee);
 
-  // 更新或创建头寸
-  let position = loadOrCreatePosition(marketAddress, userAddress, outcome);
+  // 更新或创建头寸（传递交易哈希和时间戳用于新创建的 position）
+  let position = loadOrCreatePosition(
+    marketAddress,
+    userAddress,
+    outcome,
+    event.transaction.hash,
+    event.block.timestamp
+  );
   updatePositionAverageCost(position, amountDecimal, shares);
   position.lastUpdatedAt = event.block.timestamp;
   position.save();

@@ -89,12 +89,16 @@ export function loadOrCreateUser(address: Address): User {
  * @param marketAddress - 市场地址
  * @param userAddress - 用户地址
  * @param outcome - 头寸方向
+ * @param txHash - 交易哈希（可选，用于新创建的 position）
+ * @param timestamp - 时间戳（可选，用于新创建的 position）
  * @returns Position 实体
  */
 export function loadOrCreatePosition(
   marketAddress: Address,
   userAddress: Address,
-  outcome: i32
+  outcome: i32,
+  txHash: Bytes | null = null,
+  timestamp: BigInt | null = null
 ): Position {
   const positionId = marketAddress
     .toHexString()
@@ -113,6 +117,8 @@ export function loadOrCreatePosition(
     position.balance = ZERO_BI;
     position.averageCost = ZERO_BD;
     position.totalInvested = ZERO_BD;
+    position.createdTxHash = txHash;
+    position.createdAt = timestamp !== null ? timestamp : ZERO_BI;
     position.lastUpdatedAt = ZERO_BI;
     position.save();
   }
