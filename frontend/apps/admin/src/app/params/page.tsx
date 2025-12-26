@@ -15,6 +15,7 @@ import {
   useCancelProposal,
   useProposals,
   type Proposal,
+  ConnectButton,
 } from '@pitchone/web3';
 import type { Hex } from 'viem';
 import {
@@ -25,6 +26,7 @@ import {
   type ParamDefinition,
   type ParamCategoryType,
 } from '@/lib/param-config';
+import Link from 'next/link';
 
 // 参数卡片组件
 function ParamCard({ param, value }: { param: ParamDefinition; value?: bigint }) {
@@ -343,15 +345,40 @@ export default function ParamsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Page Title */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">参数配置管理</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              管理平台参数和 Timelock 提案
-              {timelockDelay && ` · Timelock 延迟: ${Number(timelockDelay) / 86400} 天`}
-            </p>
+
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                参数配置管理
+              </h1>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                管理平台参数和 Timelock 提案
+                {timelockDelay && ` · Timelock 延迟: ${(Number(timelockDelay) / 86400).toFixed(2)} 天`}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/">
+                <Button variant="neon">
+                  返回看板
+                </Button>
+              </Link>
+              {isConnected ? (
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    创建提案
+                  </Button>
+                  <ConnectButton showBalance={false} />
+                </>
+              ) : (
+                <ConnectButton showBalance={false} />
+              )}
+            </div>
           </div>
           {isConnected && (
             <Button variant="primary" onClick={() => setShowCreateModal(true)}>
@@ -655,7 +682,7 @@ export default function ParamsPage() {
                           Timelock 延迟
                         </p>
                         <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
-                          提案创建后需要等待 <strong>{Number(timelockDelay) / 86400} 天</strong> 才能执行，
+                          提案创建后需要等待 <strong>{(Number(timelockDelay) / 86400).toFixed(2)} 天</strong> 才能执行，
                           给社区足够时间审查和反应。
                         </p>
                       </div>
