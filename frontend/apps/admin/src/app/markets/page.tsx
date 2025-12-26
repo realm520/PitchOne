@@ -53,36 +53,6 @@ const LEAGUE_MAP: Record<string, string> = {
   CHAMPIONS_LEAGUE: '欧冠联赛',
 };
 
-// 格式化盘口线显示
-function formatLine(line: string | null | undefined, lines: string[] | null | undefined, templateId: string): string {
-  const templateType = parseTemplateType(templateId);
-
-  // WDL 和 Score 玩法没有盘口线
-  if (templateType === 'WDL' || templateType === 'Score') {
-    return '-';
-  }
-
-  // 多线玩法显示所有线
-  if (lines && lines.length > 0) {
-    return lines.map(l => {
-      const value = parseFloat(l) / 1_000_000;
-      return value.toFixed(1);
-    }).join(', ');
-  }
-
-  // 单线玩法
-  if (line) {
-    const value = parseFloat(line) / 1_000_000;
-    // AH（让球）显示正负号
-    if (templateType === 'AH') {
-      return value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1);
-    }
-    return value.toFixed(1);
-  }
-
-  return '-';
-}
-
 // 格式化联赛名称（将下划线分隔的名称转为正常格式）
 function formatLeagueName(rawLeague: string): string {
   // 先查找已知映射
@@ -112,9 +82,10 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
 
   // 解析赛事信息
   const matchInfo = parseMatchInfo(market.matchId || '');
-  // 自定义赛事直接显示原始联赛名称，否则使用格式化函数
+  // 自定义赛事：用 matchId 第一个下划线分割部分 + (自定义)
   const isCustomMatch = matchInfo.league === 'CUSTOM' || matchInfo.league === 'Unknown';
-  const leagueName = isCustomMatch ? matchInfo.league : formatLeagueName(matchInfo.league);
+  const firstPart = (market.matchId || '').split('_')[0] || 'Unknown';
+  const leagueName = isCustomMatch ? `${firstPart}(自定义)` : formatLeagueName(matchInfo.league);
 
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? '' : 'border-b dark:border-gray-700'}`}>
@@ -124,15 +95,12 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{leagueName}</span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">{matchInfo.season}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{matchInfo.season ?? '无'}</span>
             </div>
             <div className="font-medium text-gray-900 dark:text-white whitespace-nowrap">
               {market.homeTeam || matchInfo.homeTeam}
               <span className="text-gray-400 dark:text-gray-500 mx-1">vs</span>
               {market.awayTeam || matchInfo.awayTeam}
-              {isCustomMatch && (
-                <span className="text-xs font-normal text-gray-400 ml-1">-自定义赛事</span>
-              )}
             </div>
           </div>
         </Link>
@@ -160,12 +128,6 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
         <Badge variant="default">
           {TEMPLATE_MAP[parseTemplateType(market.templateId)] || '胜平负'}
         </Badge>
-      </td>
-      {/* 盘口线列 */}
-      <td className="py-3 px-3 whitespace-nowrap">
-        <span className="text-sm text-gray-900 dark:text-white">
-          {formatLine(market.line, market.lines, market.templateId)}
-        </span>
       </td>
       {/* 开赛时间列 */}
       <td className="py-3 px-3 whitespace-nowrap">
@@ -467,9 +429,6 @@ export default function MarketsPage() {
                       玩法
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      盘口线
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       开赛时间
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -533,8 +492,8 @@ export default function MarketsPage() {
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
                         className={`w-10 h-10 flex items-center justify-center border dark:border-gray-600 rounded-lg text-sm font-medium ${currentPage === pageNum
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
                           }`}
                       >
                         {pageNum}
