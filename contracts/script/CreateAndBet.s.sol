@@ -33,10 +33,10 @@ contract CreateAndBet is Script {
         IMarket_V3.OutcomeRule[] memory emptyRules = new IMarket_V3.OutcomeRule[](0);
 
         console.log("Creating Market 1...");
-        // 创建第一个市场：曼城 vs 热刺
+        // 创建第一个市场：布莱顿 vs 阿斯顿维拉
         MarketFactory_V3.CreateMarketParams memory params1 = MarketFactory_V3.CreateMarketParams({
             templateId: WDL_PARI_TEMPLATE,
-            matchId: "EPL_2024_MAN_CITY_vs_TOTTENHAM",
+            matchId: "EPL_2024_BRIGHTON_vs_ASTON_VILLA",
             kickoffTime: twoDaysLater,
             mapperInitData: bytes(""),
             initialLiquidity: 0,
@@ -46,10 +46,10 @@ contract CreateAndBet is Script {
         console.log("Market 1 created:", market1);
 
         console.log("Creating Market 2...");
-        // 创建第二个市场：纽卡斯尔 vs 西汉姆
+        // 创建第二个市场：富勒姆 vs 狼队
         MarketFactory_V3.CreateMarketParams memory params2 = MarketFactory_V3.CreateMarketParams({
             templateId: WDL_PARI_TEMPLATE,
-            matchId: "EPL_2024_NEWCASTLE_vs_WEST_HAM",
+            matchId: "EPL_2024_FULHAM_vs_WOLVES",
             kickoffTime: twoDaysLater + 1 hours,
             mapperInitData: bytes(""),
             initialLiquidity: 0,
