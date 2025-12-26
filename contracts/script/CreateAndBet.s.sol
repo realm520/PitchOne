@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "../src/core/MarketFactory_V3.sol";
 import "../src/core/BettingRouter_V3.sol";
+import "../src/interfaces/IMarket_V3.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CreateAndBet is Script {
@@ -28,28 +29,33 @@ contract CreateAndBet is Script {
         // 计算两天后的时间戳
         uint256 twoDaysLater = block.timestamp + 2 days;
 
+        // 空的 outcomeRules 数组
+        IMarket_V3.OutcomeRule[] memory emptyRules = new IMarket_V3.OutcomeRule[](0);
+
         console.log("Creating Market 1...");
         // 创建第一个市场：曼联 vs 利物浦
-        bytes memory matchId1 = bytes("EPL_2024_MAN_UTD_vs_LIVERPOOL");
-        address market1 = factory.createMarket(
-            WDL_PARI_TEMPLATE,
-            string(matchId1),
-            twoDaysLater,
-            bytes(""),  // mapperInitData
-            0           // initialLiquidity (parimutuel 不需要)
-        );
+        MarketFactory_V3.CreateMarketParams memory params1 = MarketFactory_V3.CreateMarketParams({
+            templateId: WDL_PARI_TEMPLATE,
+            matchId: "EPL_2024_MAN_UTD_vs_LIVERPOOL",
+            kickoffTime: twoDaysLater,
+            mapperInitData: bytes(""),
+            initialLiquidity: 0,
+            outcomeRules: emptyRules
+        });
+        address market1 = factory.createMarket(params1);
         console.log("Market 1 created:", market1);
 
         console.log("Creating Market 2...");
         // 创建第二个市场：切尔西 vs 阿森纳
-        bytes memory matchId2 = bytes("EPL_2024_CHELSEA_vs_ARSENAL");
-        address market2 = factory.createMarket(
-            WDL_PARI_TEMPLATE,
-            string(matchId2),
-            twoDaysLater + 1 hours,  // 第二个市场稍晚开赛
-            bytes(""),
-            0
-        );
+        MarketFactory_V3.CreateMarketParams memory params2 = MarketFactory_V3.CreateMarketParams({
+            templateId: WDL_PARI_TEMPLATE,
+            matchId: "EPL_2024_CHELSEA_vs_ARSENAL",
+            kickoffTime: twoDaysLater + 1 hours,
+            mapperInitData: bytes(""),
+            initialLiquidity: 0,
+            outcomeRules: emptyRules
+        });
+        address market2 = factory.createMarket(params2);
         console.log("Market 2 created:", market2);
 
         // 批准 USDC 给 BettingRouter
