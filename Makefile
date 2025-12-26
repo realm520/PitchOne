@@ -25,7 +25,7 @@ help:
 	@echo "其他:"
 	@echo "  make install              安装依赖"
 	@echo "  make build                构建前端"
-	@echo "  make sync-remote-addresses  同步远端合约地址到本地"
+	@echo "  make sync-addresses       同步远程合约地址到本地配置"
 	@echo ""
 
 # ===================
@@ -55,8 +55,15 @@ build:
 	cd frontend && pnpm build
 
 # 同步远端合约地址到本地（用于本地连接远端 Anvil 开发）
-sync-remote-addresses:
-	@cd frontend && pnpm sync-remote
+# 从远程服务器获取最新合约地址，同步到：
+#   - contracts/deployments/localhost_v3.json
+#   - subgraph/subgraph.yaml
+#   - frontend/packages/contracts/src/addresses.ts
+sync-addresses:
+	@./scripts/sync-addresses.sh
+
+# 别名（兼容旧命令）
+sync-remote-addresses: sync-addresses
 
 # ===================
 # 远程操作

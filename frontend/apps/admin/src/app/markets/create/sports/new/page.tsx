@@ -70,30 +70,58 @@ function parseContractError(error: Error): string {
   return cleanMessage.length > 200 ? cleanMessage.slice(0, 200) + '...' : cleanMessage;
 }
 
-// 市场模板类型
-const MARKET_TEMPLATES = [
+// 玩法类型（用于 UI 显示）
+type PlayType = 'WDL' | 'OU' | 'AH' | 'OddEven' | 'Score';
+
+// 定价策略类型
+type PricingType = 'parimutuel' | 'cpmm' | 'lmsr';
+
+// 玩法定义
+const PLAY_TYPES: Array<{
+  id: PlayType;
+  name: string;
+  description: string;
+  supportedPricing: PricingType[];
+}> = [
   {
     id: 'WDL',
     name: '胜平负',
     description: '主胜 / 平局 / 客胜',
-    templateId: '0xd3848d8e7c5941e95e6e0b351749b347dbeb1b308f305f28b95b1328a3e669dc' as `0x${string}`,
+    supportedPricing: ['parimutuel', 'cpmm'],
   },
   {
     id: 'OU',
     name: '大小球',
     description: '总进球数大于/小于盘口',
-    templateId: '0x6441bdfa8f4495d4dd881afce0e761e3a05085b4330b9db35c684a348ef2697f' as `0x${string}`,
+    supportedPricing: ['cpmm'],
+  },
+  {
+    id: 'AH',
+    name: '让球',
+    description: '让球盘（亚洲盘）',
+    supportedPricing: ['cpmm'],
   },
   {
     id: 'OddEven',
     name: '单双',
     description: '总进球数单数/双数',
-    templateId: '0xf1d71fd4a1d5c765ed93ae053cb712e5c2d053fc61d39d01a15c3aadf1da027b' as `0x${string}`,
+    supportedPricing: ['cpmm'],
+  },
+  {
+    id: 'Score',
+    name: '精确比分',
+    description: '预测具体比分结果',
+    supportedPricing: ['parimutuel', 'lmsr'],
   },
 ];
 
-// 定价策略类型
-const PRICING_STRATEGIES = [
+// 定价策略定义
+const PRICING_STRATEGIES: Array<{
+  id: PricingType;
+  name: string;
+  description: string;
+  requiresLiquidity: boolean;
+}> = [
   {
     id: 'parimutuel',
     name: '奖金池模式',
@@ -109,10 +137,37 @@ const PRICING_STRATEGIES = [
   {
     id: 'lmsr',
     name: 'LMSR',
-    description: '对数市场评分规则，需要初始流动性',
+    description: '对数市场评分规则，适合多结果市场',
     requiresLiquidity: true,
   },
 ];
+
+// 根据玩法和定价策略获取模板 ID
+function getTemplateId(
+  playType: PlayType,
+  pricingType: PricingType,
+  templateIds: Record<string, `0x${string}`>
+): `0x${string}` {
+  // 映射关系：玩法 + 定价策略 -> 模板 ID
+  const mapping: Record<string, keyof typeof templateIds> = {
+    'WDL_parimutuel': 'wdlPari',
+    'WDL_cpmm': 'wdl',
+    'OU_cpmm': 'ou',
+    'AH_cpmm': 'ah',
+    'OddEven_cpmm': 'oddEven',
+    'Score_parimutuel': 'scorePari',
+    'Score_lmsr': 'score',
+  };
+
+  const key = `${playType}_${pricingType}`;
+  const templateKey = mapping[key];
+
+  if (!templateKey || !templateIds[templateKey]) {
+    throw new Error(`不支持的组合: ${playType} + ${pricingType}`);
+  }
+
+  return templateIds[templateKey] as `0x${string}`;
+}
 
 // 赛事信息（从 URL 参数获取）
 interface MatchInfo {
@@ -132,9 +187,22 @@ function CreateMarketForm() {
   const { createMarket, isPending, isConfirming, isSuccess, error, hash } = useCreateMarket();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('WDL');
-  const [selectedPricing, setSelectedPricing] = useState('parimutuel');
+  const [selectedPlayType, setSelectedPlayType] = useState<PlayType>('WDL');
+  const [selectedPricing, setSelectedPricing] = useState<PricingType>('parimutuel');
   const [initialLiquidity, setInitialLiquidity] = useState('1000');
+
+  // 当玩法改变时，自动选择该玩法支持的第一个定价策略
+  const currentPlayType = PLAY_TYPES.find(p => p.id === selectedPlayType);
+  const availablePricingStrategies = PRICING_STRATEGIES.filter(
+    s => currentPlayType?.supportedPricing.includes(s.id)
+  );
+
+  // 如果当前定价策略不被新玩法支持，切换到第一个支持的策略
+  useEffect(() => {
+    if (currentPlayType && !currentPlayType.supportedPricing.includes(selectedPricing)) {
+      setSelectedPricing(currentPlayType.supportedPricing[0]);
+    }
+  }, [selectedPlayType, currentPlayType, selectedPricing]);
 
   // 从 URL 参数解析赛事信息
   const matchInfo: MatchInfo = {
@@ -177,10 +245,16 @@ function CreateMarketForm() {
     try {
       setIsSubmitting(true);
 
-      const template = MARKET_TEMPLATES.find((t) => t.id === selectedTemplate);
-      if (!template) {
-        throw new Error('未找到模板');
+      if (!addresses?.templateIds) {
+        throw new Error('未找到模板配置');
       }
+
+      // 根据玩法和定价策略获取正确的模板 ID
+      const templateId = getTemplateId(
+        selectedPlayType,
+        selectedPricing,
+        addresses.templateIds as Record<string, `0x${string}`>
+      );
 
       // 计算初始流动性（仅 CPMM/LMSR 需要）
       const pricingStrategy = PRICING_STRATEGIES.find(s => s.id === selectedPricing);
@@ -189,17 +263,20 @@ function CreateMarketForm() {
         : 0n;
 
       const params: CreateMarketParams = {
-        templateId: template.templateId,
+        templateId,
         matchId: matchInfo.matchId,
         kickoffTime: BigInt(matchInfo.kickoffTime),
         mapperInitData: '0x' as `0x${string}`,
         initialLiquidity: liquidityAmount,
         outcomeRules: [],
-        // TODO: 传递定价策略类型到合约
-        // pricingStrategy: selectedPricing,
       };
 
-      console.log('创建市场:', params);
+      console.log('创建市场:', {
+        playType: selectedPlayType,
+        pricingStrategy: selectedPricing,
+        templateId,
+        params
+      });
       await createMarket(params);
     } catch (err) {
       console.error('创建市场失败:', err);
@@ -339,27 +416,27 @@ function CreateMarketForm() {
           </div>
         </Card>
 
-        {/* 选择玩法模板 */}
+        {/* 选择玩法 */}
         <Card className="p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             选择玩法
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {MARKET_TEMPLATES.map((template) => (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {PLAY_TYPES.map((playType) => (
               <button
-                key={template.id}
-                onClick={() => setSelectedTemplate(template.id)}
+                key={playType.id}
+                onClick={() => setSelectedPlayType(playType.id)}
                 className={`p-4 border-2 rounded-lg text-left transition-all ${
-                  selectedTemplate === template.id
+                  selectedPlayType === playType.id
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                 }`}
               >
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  {template.name}
+                  {playType.name}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {template.description}
+                  {playType.description}
                 </p>
               </button>
             ))}
@@ -371,8 +448,11 @@ function CreateMarketForm() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             定价策略
           </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            当前玩法「{currentPlayType?.name}」支持以下定价策略：
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            {PRICING_STRATEGIES.map((strategy) => (
+            {availablePricingStrategies.map((strategy, index) => (
               <button
                 key={strategy.id}
                 onClick={() => setSelectedPricing(strategy.id)}
@@ -386,7 +466,7 @@ function CreateMarketForm() {
                   <h3 className="font-semibold text-gray-900 dark:text-white">
                     {strategy.name}
                   </h3>
-                  {!strategy.requiresLiquidity && (
+                  {index === 0 && (
                     <Badge variant="success">推荐</Badge>
                   )}
                 </div>
