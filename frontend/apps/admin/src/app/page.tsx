@@ -1,12 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY, ConnectButton, formatUSDCFromWei } from '@pitchone/web3';
-import { Card, LoadingSpinner, ErrorState, Button } from '@pitchone/ui';
+import { graphqlClient, GLOBAL_STATS_QUERY, RECENT_ORDERS_QUERY, MARKET_STATS_QUERY, formatUSDCFromWei } from '@pitchone/web3';
+import { Card, LoadingSpinner, ErrorState } from '@pitchone/ui';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import Link from 'next/link';
 
 // 统计卡片组件
 function StatCard({ title, value, subtitle, trend }: {
@@ -355,51 +354,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                运营数据
-              </h1>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                运营数据和市场状态
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/markets">
-                <Button variant="neon">
-                  市场管理
-                </Button>
-              </Link>
-              <Link href="/users">
-                <Button variant="neon">
-                  用户
-                </Button>
-              </Link>
-              <Link href="/oracles">
-                <Button variant="neon">
-                  Oracle 提案
-                </Button>
-              </Link>
-              <Link href="/params">
-                <Button variant="neon">
-                  参数配置
-                </Button>
-              </Link>
-              <Link href="/campaigns">
-                <Button variant="neon">
-                  活动任务
-                </Button>
-              </Link>
-              {/* 钱包连接按钮 */}
-              <ConnectButton showBalance={false} />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 统计卡片 */}

@@ -244,8 +244,8 @@ function CreateMarketForm() {
                 确认赛事信息并选择玩法模板
               </p>
             </div>
-            <Link href="/markets/create/sports">
-              <Button variant="neon">← 返回赛事列表</Button>
+            <Link href="/markets/create/sports" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              ← 返回赛事列表
             </Link>
           </div>
         </div>

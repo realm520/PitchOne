@@ -3,7 +3,6 @@
 import { Card, Badge, Button } from '@pitchone/ui';
 import { formatDistanceToNow, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import Link from 'next/link';
 import { useState } from 'react';
 
 // Campaign 类型
@@ -356,30 +355,17 @@ export default function CampaignsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                活动与任务管理
-              </h1>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                管理营销活动和用户任务系统
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/">
-                <Button variant="neon">
-                  返回看板
-                </Button>
-              </Link>
-              <Button variant="primary" disabled>
-                创建活动
-                <span className="ml-2 text-xs">(需要 Web3)</span>
-              </Button>
-            </div>
+      {/* Page Title */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">活动与任务管理</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">管理营销活动和用户任务系统</p>
           </div>
+          <Button variant="primary" disabled>
+            创建活动
+            <span className="ml-2 text-xs">(需要 Web3)</span>
+          </Button>
         </div>
       </div>
 

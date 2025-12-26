@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient, ORACLE_PROPOSALS_QUERY } from '@pitchone/web3';
-import { Card, LoadingSpinner, ErrorState, Badge, Button } from '@pitchone/ui';
+import { Card, LoadingSpinner, ErrorState, Badge } from '@pitchone/ui';
 import { formatDistanceToNow, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
@@ -254,27 +254,10 @@ export default function OraclesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Oracle 提案管理
-              </h1>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                监控和管理 UMA 预言机的赛果提案
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/">
-                <Button variant="neon">
-                  返回看板
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
+      {/* Page Title */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Oracle 提案管理</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">监控和管理 UMA 预言机的赛果提案</p>
       </div>
 
       {/* Main Content */}

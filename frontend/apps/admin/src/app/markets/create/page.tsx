@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, Button } from '@pitchone/ui';
+import { Card } from '@pitchone/ui';
 
 // 市场分类
 const MARKET_CATEGORIES = [
@@ -38,10 +38,8 @@ export default function CreateMarketPage() {
                 选择市场类型开始创建预测市场
               </p>
             </div>
-            <Link href="/markets">
-              <Button variant="neon">
-                ← 返回列表
-              </Button>
+            <Link href="/markets" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              ← 返回列表
             </Link>
           </div>
         </div>
