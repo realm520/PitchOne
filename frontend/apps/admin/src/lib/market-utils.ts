@@ -76,10 +76,50 @@ export function parseTemplateType(templateId?: string): string {
 
 // 联赛映射
 export const LEAGUE_MAP: Record<string, string> = {
-  EPL: '英超联赛', LALIGA: '西甲联赛', SERIEA: '意甲联赛',
-  BUNDESLIGA: '德甲联赛', LIGUE1: '法甲联赛', UCL: '欧冠联赛',
-  UEL: '欧联杯', WC: '世界杯', NBA: 'NBA', MLB: 'MLB',
+  EPL: '英超联赛',
+  LALIGA: '西甲联赛',
+  SERIEA: '意甲联赛',
+  BUNDESLIGA: '德甲联赛',
+  LIGUE1: '法甲联赛',
+  UCL: '欧冠联赛',
+  UEL: '欧联杯',
+  WC: '世界杯',
+  NBA: 'NBA',
+  MLB: 'MLB',
+  PREMIER_LEAGUE: '英超联赛',
+  LA_LIGA: '西甲联赛',
+  SERIE_A: '意甲联赛',
+  CHAMPIONS_LEAGUE: '欧冠联赛',
 };
+
+// 格式化联赛名称
+export function formatLeagueName(rawLeague: string): string {
+  // 先查找已知映射
+  if (LEAGUE_MAP[rawLeague]) {
+    return LEAGUE_MAP[rawLeague];
+  }
+  // 如果是 CUSTOM 或 Unknown，返回"自定义赛事"
+  if (rawLeague === 'CUSTOM' || rawLeague === 'Unknown') {
+    return '自定义赛事';
+  }
+  // 将下划线替换为空格，每个单词首字母大写
+  return rawLeague
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// 判断是否为自定义赛事
+export function isCustomMatch(matchId: string): boolean {
+  const { league } = parseMatchInfo(matchId);
+  return league === 'CUSTOM' || league === 'Unknown';
+}
+
+// 获取自定义赛事显示名称
+export function getCustomMatchDisplayName(matchId: string): string {
+  const firstPart = matchId.split('_')[0] || 'Unknown';
+  return `${firstPart}(自定义)`;
+}
 
 // 结果选项配置
 const OUTCOME_OPTIONS: Record<string, { id: number; label: string; isPush?: boolean; description?: string }[]> = {

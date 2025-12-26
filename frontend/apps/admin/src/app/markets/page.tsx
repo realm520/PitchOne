@@ -7,7 +7,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
 import { useState } from 'react';
-import { TEMPLATE_MAP, parseTemplateType } from '@/lib/market-utils';
+import {
+  TEMPLATE_MAP,
+  parseTemplateType,
+  parseMatchInfo,
+  formatLeagueName,
+  isCustomMatch,
+  getCustomMatchDisplayName,
+} from '@/lib/market-utils';
 
 // 市场状态映射
 const STATUS_MAP = {
@@ -16,59 +23,6 @@ const STATUS_MAP = {
   Resolved: { label: '已结算', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
   Finalized: { label: '已完成', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
 };
-
-// 从 matchId 解析联赛和赛季信息
-// 假设格式: EPL_2024_MUN_vs_MCI 或类似格式
-function parseMatchInfo(matchId: string) {
-  const parts = matchId.split('_');
-  if (parts.length >= 4) {
-    const league = parts[0]; // 联赛代码
-    const season = parts[1]; // 赛季
-    const vsIndex = parts.findIndex(p => p.toLowerCase() === 'vs');
-    if (vsIndex > 2) {
-      const homeTeam = parts.slice(2, vsIndex).join(' ');
-      const awayTeam = parts.slice(vsIndex + 1).join(' ');
-      return { league, season, homeTeam, awayTeam };
-    }
-  }
-  // 如果无法解析，返回默认值
-  return { league: 'Unknown', season: '-', homeTeam: matchId, awayTeam: '' };
-}
-
-// 联赛代码到名称映射（用于已知的标准代码）
-const LEAGUE_MAP: Record<string, string> = {
-  EPL: '英超联赛',
-  LALIGA: '西甲联赛',
-  SERIEA: '意甲联赛',
-  BUNDESLIGA: '德甲联赛',
-  LIGUE1: '法甲联赛',
-  UCL: '欧冠联赛',
-  UEL: '欧联杯',
-  WC: '世界杯',
-  NBA: 'NBA',
-  MLB: 'MLB',
-  PREMIER_LEAGUE: '英超联赛',
-  LA_LIGA: '西甲联赛',
-  SERIE_A: '意甲联赛',
-  CHAMPIONS_LEAGUE: '欧冠联赛',
-};
-
-// 格式化联赛名称（将下划线分隔的名称转为正常格式）
-function formatLeagueName(rawLeague: string): string {
-  // 先查找已知映射
-  if (LEAGUE_MAP[rawLeague]) {
-    return LEAGUE_MAP[rawLeague];
-  }
-  // 如果是 CUSTOM，返回"自定义赛事"
-  if (rawLeague === 'CUSTOM' || rawLeague === 'Unknown') {
-    return '自定义赛事';
-  }
-  // 将下划线替换为空格，每个单词首字母大写
-  return rawLeague
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
 
 // 市场表格行组件
 function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
@@ -82,10 +36,10 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
 
   // 解析赛事信息
   const matchInfo = parseMatchInfo(market.matchId || '');
-  // 自定义赛事：用 matchId 第一个下划线分割部分 + (自定义)
-  const isCustomMatch = matchInfo.league === 'CUSTOM' || matchInfo.league === 'Unknown';
-  const firstPart = (market.matchId || '').split('_')[0] || 'Unknown';
-  const leagueName = isCustomMatch ? `${firstPart}(自定义)` : formatLeagueName(matchInfo.league);
+  const customMatch = isCustomMatch(market.matchId || '');
+  const leagueName = customMatch
+    ? getCustomMatchDisplayName(market.matchId || '')
+    : formatLeagueName(matchInfo.league);
 
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? '' : 'border-b dark:border-gray-700'}`}>
@@ -95,7 +49,7 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{leagueName}</span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">{matchInfo.season ?? '无'}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{matchInfo.season}</span>
             </div>
             <div className="font-medium text-gray-900 dark:text-white whitespace-nowrap">
               {market.homeTeam || matchInfo.homeTeam}

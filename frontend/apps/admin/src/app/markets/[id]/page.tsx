@@ -8,7 +8,7 @@ import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
 import { use, useState, useEffect } from 'react';
 import { AdminButton, AdminCard, InfoCard, Pagination, ConfirmDialog, TxStatus, EmptyState } from '@/components/ui';
-import { STATUS_MAP, TEMPLATE_MAP, LEAGUE_MAP, getOutcomeOptions, getOutcomeName, parseMatchInfo, shortAddr, formatUSDC, parseTemplateType } from '@/lib/market-utils';
+import { STATUS_MAP, TEMPLATE_MAP, LEAGUE_MAP, getOutcomeOptions, getOutcomeName, parseMatchInfo, shortAddr, formatUSDC, parseTemplateType, isCustomMatch, getCustomMatchDisplayName } from '@/lib/market-utils';
 import { toast } from 'sonner';
 
 interface Order {
@@ -261,8 +261,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 {market.homeTeam || matchInfo.homeTeam}
                 <span className="text-gray-400 mx-3">vs</span>
                 {market.awayTeam || matchInfo.awayTeam}
-                {(matchInfo.league === 'CUSTOM' || matchInfo.league === 'Unknown') && (
-                  <span className="text-sm font-normal text-gray-400 ml-2">(自定义赛事)</span>
+                {isCustomMatch(market.matchId || '') && (
+                  <span className="text-sm font-normal text-gray-400 ml-2">
+                    - {getCustomMatchDisplayName(market.matchId || '')}
+                  </span>
                 )}
               </h1>
               {kickoffTime && (
