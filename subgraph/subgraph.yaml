@@ -11,7 +11,7 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0xc351628EB244ec633d5f21fBD6621e1a683B1181"
+      address: "0xde2Bd2ffEA002b8E84ADeA96e5976aF664115E2c"
       abi: MarketFactory_V3
       startBlock: 1
     mapping:
@@ -49,7 +49,7 @@ dataSources:
     name: FeeRouter
     network: localhost
     source:
-      address: "0x6212cb549De37c25071cF506aB7E115D140D9e42"
+      address: "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575"
       abi: FeeRouter
       startBlock: 1
     mapping:
@@ -76,7 +76,7 @@ dataSources:
     name: LiquidityVault
     network: localhost
     source:
-      address: "0x1291Be112d480055DaFd8a610b7d1e203891C274"
+      address: "0xFD6F7A6a5c21A3f503EBaE7a473639974379c351"
       abi: LiquidityVault_V3
       startBlock: 1
     mapping:
@@ -107,7 +107,7 @@ dataSources:
     name: ReferralRegistry
     network: localhost
     source:
-      address: "0xa195ACcEB1945163160CD5703Ed43E4f78176a54"
+      address: "0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154"
       abi: ReferralRegistry
       startBlock: 1
     mapping:
