@@ -9,41 +9,49 @@ import { Card, Button, LoadingSpinner } from '@pitchone/ui';
 import { toast } from 'sonner';
 
 // 市场模板类型（从 addresses 中读取 templateIds）
+// 手动创建仅支持彩池模式（无需初始流动性）
 const MARKET_TEMPLATES = [
   {
-    id: 'wdl',
-    name: '胜平负 (WDL)',
-    description: '主胜 / 平局 / 客胜',
+    id: 'wdlPari',
+    name: '胜平负',
+    description: '主胜 / 平局 / 客胜 (彩池模式)',
+    enabled: true,
   },
   {
-    id: 'wdlPari',
-    name: '胜平负彩池模式 (WDL Pari)',
-    description: '主胜 / 平局 / 客胜 (Parimutuel)',
+    id: 'scorePari',
+    name: '精确比分',
+    description: '预测精确比分结果 (彩池模式)',
+    enabled: true,
+  },
+  {
+    id: 'wdl',
+    name: '胜平负 (CPMM)',
+    description: '需要初始流动性',
+    enabled: false,
   },
   {
     id: 'ou',
     name: '大小球 (O/U)',
-    description: '总进球数大于/小于盘口',
+    description: '需要初始流动性',
+    enabled: false,
   },
   {
     id: 'ah',
     name: '让球 (AH)',
-    description: '亚洲让球盘',
+    description: '需要初始流动性',
+    enabled: false,
   },
   {
     id: 'oddEven',
     name: '单双',
-    description: '总进球数单数/双数',
+    description: '需要初始流动性',
+    enabled: false,
   },
   {
     id: 'score',
-    name: '精确比分',
-    description: '预测精确比分结果',
-  },
-  {
-    id: 'scorePari',
-    name: '精确比分彩池模式',
-    description: '预测精确比分结果 (Parimutuel)',
+    name: '精确比分 (LMSR)',
+    description: '需要初始流动性',
+    enabled: false,
   },
 ];
 
@@ -77,7 +85,7 @@ export default function ManualCreateMarketPage() {
   const { createMarket, isPending, isConfirming, isSuccess, error, hash } = useCreateMarket();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('wdl');
+  const [selectedTemplate, setSelectedTemplate] = useState('wdlPari');
 
   // 表单状态
   const [formData, setFormData] = useState({
@@ -319,17 +327,24 @@ export default function ManualCreateMarketPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             选择玩法
           </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            手动创建仅支持彩池模式（无需初始流动性）
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {MARKET_TEMPLATES.map((template) => (
               <button
                 key={template.id}
-                onClick={() => setSelectedTemplate(template.id)}
-                className={`p-4 border-2 rounded-lg text-left transition-all ${selectedTemplate === template.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
+                onClick={() => template.enabled && setSelectedTemplate(template.id)}
+                disabled={!template.enabled}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  !template.enabled
+                    ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
+                    : selectedTemplate === template.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                }`}
               >
-                <h3 className="font-semibold text-gray-900 dark:text-white">
+                <h3 className={`font-semibold ${template.enabled ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
                   {template.name}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

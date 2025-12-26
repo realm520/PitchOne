@@ -261,6 +261,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 {market.homeTeam || matchInfo.homeTeam}
                 <span className="text-gray-400 mx-3">vs</span>
                 {market.awayTeam || matchInfo.awayTeam}
+                {(matchInfo.league === 'CUSTOM' || matchInfo.league === 'Unknown') && (
+                  <span className="text-sm font-normal text-gray-400 ml-2">(自定义赛事)</span>
+                )}
               </h1>
               {kickoffTime && (
                 <p className="text-sm text-gray-500">
