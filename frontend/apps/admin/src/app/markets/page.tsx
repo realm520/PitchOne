@@ -35,7 +35,7 @@ function parseMatchInfo(matchId: string) {
   return { league: 'Unknown', season: '-', homeTeam: matchId, awayTeam: '' };
 }
 
-// 联赛代码到名称映射
+// 联赛代码到名称映射（用于已知的标准代码）
 const LEAGUE_MAP: Record<string, string> = {
   EPL: '英超联赛',
   LALIGA: '西甲联赛',
@@ -47,7 +47,28 @@ const LEAGUE_MAP: Record<string, string> = {
   WC: '世界杯',
   NBA: 'NBA',
   MLB: 'MLB',
+  PREMIER_LEAGUE: '英超联赛',
+  LA_LIGA: '西甲联赛',
+  SERIE_A: '意甲联赛',
+  CHAMPIONS_LEAGUE: '欧冠联赛',
 };
+
+// 格式化联赛名称（将下划线分隔的名称转为正常格式）
+function formatLeagueName(rawLeague: string): string {
+  // 先查找已知映射
+  if (LEAGUE_MAP[rawLeague]) {
+    return LEAGUE_MAP[rawLeague];
+  }
+  // 如果是 CUSTOM，返回"自定义赛事"
+  if (rawLeague === 'CUSTOM' || rawLeague === 'Unknown') {
+    return '自定义赛事';
+  }
+  // 将下划线替换为空格，每个单词首字母大写
+  return rawLeague
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 
 // 市场表格行组件
 function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
@@ -61,7 +82,7 @@ function MarketRow({ market, isLast }: { market: any; isLast: boolean }) {
 
   // 解析赛事信息
   const matchInfo = parseMatchInfo(market.matchId || '');
-  const leagueName = LEAGUE_MAP[matchInfo.league] || matchInfo.league;
+  const leagueName = formatLeagueName(matchInfo.league);
 
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? '' : 'border-b dark:border-gray-700'}`}>

@@ -342,7 +342,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                             return (
                               <div>
                                 <Badge variant="default">{opt?.label || `选项 ${order.outcome}`}</Badge>
-                                {opt?.description && <p className="text-xs text-gray-500 mt-1">{opt.description}</p>}
                               </div>
                             );
                           })()}

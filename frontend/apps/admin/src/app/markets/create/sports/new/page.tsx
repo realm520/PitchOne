@@ -92,6 +92,28 @@ const MARKET_TEMPLATES = [
   },
 ];
 
+// 定价策略类型
+const PRICING_STRATEGIES = [
+  {
+    id: 'parimutuel',
+    name: '奖金池模式',
+    description: '无需初始流动性，赔率由投注池决定',
+    requiresLiquidity: false,
+  },
+  {
+    id: 'cpmm',
+    name: 'CPMM',
+    description: '恒定乘积做市商，需要初始流动性',
+    requiresLiquidity: true,
+  },
+  {
+    id: 'lmsr',
+    name: 'LMSR',
+    description: '对数市场评分规则，需要初始流动性',
+    requiresLiquidity: true,
+  },
+];
+
 // 赛事信息（从 URL 参数获取）
 interface MatchInfo {
   matchId: string;
@@ -111,6 +133,8 @@ function CreateMarketForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('WDL');
+  const [selectedPricing, setSelectedPricing] = useState('parimutuel');
+  const [initialLiquidity, setInitialLiquidity] = useState('1000');
 
   // 从 URL 参数解析赛事信息
   const matchInfo: MatchInfo = {
@@ -158,13 +182,21 @@ function CreateMarketForm() {
         throw new Error('未找到模板');
       }
 
+      // 计算初始流动性（仅 CPMM/LMSR 需要）
+      const pricingStrategy = PRICING_STRATEGIES.find(s => s.id === selectedPricing);
+      const liquidityAmount = pricingStrategy?.requiresLiquidity
+        ? BigInt(Math.floor(parseFloat(initialLiquidity) * 1e6)) // 转换为 USDC 单位 (6 decimals)
+        : 0n;
+
       const params: CreateMarketParams = {
         templateId: template.templateId,
         matchId: matchInfo.matchId,
         kickoffTime: BigInt(matchInfo.kickoffTime),
         mapperInitData: '0x' as `0x${string}`,
-        initialLiquidity: 0n,
+        initialLiquidity: liquidityAmount,
         outcomeRules: [],
+        // TODO: 传递定价策略类型到合约
+        // pricingStrategy: selectedPricing,
       };
 
       console.log('创建市场:', params);
@@ -334,21 +366,57 @@ function CreateMarketForm() {
           </div>
         </Card>
 
-        {/* 市场配置（固定值显示） */}
+        {/* 选择定价策略 */}
         <Card className="p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            市场配置
+            定价策略
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">定价模式</p>
-              <Badge variant="default">奖金池模式</Badge>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">市场类型</p>
-              <Badge variant="default">Live Market</Badge>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {PRICING_STRATEGIES.map((strategy) => (
+              <button
+                key={strategy.id}
+                onClick={() => setSelectedPricing(strategy.id)}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  selectedPricing === strategy.id
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {strategy.name}
+                  </h3>
+                  {!strategy.requiresLiquidity && (
+                    <Badge variant="success">推荐</Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {strategy.description}
+                </p>
+              </button>
+            ))}
           </div>
+
+          {/* 初始流动性输入（仅 CPMM/LMSR 需要） */}
+          {PRICING_STRATEGIES.find(s => s.id === selectedPricing)?.requiresLiquidity && (
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                初始流动性 (USDC)
+              </label>
+              <input
+                type="number"
+                value={initialLiquidity}
+                onChange={(e) => setInitialLiquidity(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="输入初始流动性金额"
+                min="100"
+                step="100"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                建议至少 1000 USDC 以确保足够的市场深度
+              </p>
+            </div>
+          )}
         </Card>
 
         {/* 交易状态 */}

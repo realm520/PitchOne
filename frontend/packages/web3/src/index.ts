@@ -79,6 +79,7 @@ export {
   useUSDCBalance,
   usePlaceBet,
   useRedeem,
+  useRedeemBatch,
   usePositionBalance,
   useMarketStatus,
   useOutcomeCount,

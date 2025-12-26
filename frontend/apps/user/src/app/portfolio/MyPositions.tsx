@@ -7,6 +7,7 @@ import Link from "next/link";
 import Stats from "./Stats";
 import { calculateExpectedPayout, getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
+import BatchClaimButton from "./components/BatchClaimButton";
 
 type TabType = 'all' | 'claimable';
 
@@ -143,9 +144,10 @@ export default function MyPositions() {
                                     onChange={(e) => setKeyword(e.target.value)}
                                     disabled={isLoading}
                                 />
-                                <Button variant="neon" size="sm" disabled={isLoading}>
-                                    {t('portfolio.batchClaim')}
-                                </Button>
+                                <BatchClaimButton
+                                    positions={positions || []}
+                                    onSuccess={refetch}
+                                />
                             </div>
                         </div>
 

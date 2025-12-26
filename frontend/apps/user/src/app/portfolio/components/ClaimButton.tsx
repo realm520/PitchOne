@@ -17,6 +17,16 @@ export default function ClaimButton({ position, onSuccess }: { position: Positio
     const handleClaim = async () => {
         if (status !== 'claimable') return;
 
+        // 打印 Claim 调用参数（JSON 字符串形式）
+        console.log('[ClaimButton] Claim 调用参数:', JSON.stringify({
+            marketId: position.market.id,
+            marketState: position.market.state,
+            winnerOutcome: position.market.winnerOutcome,
+            userOutcome: position.outcome,
+            balance: position.balance,
+            status,
+        }, null, 2));
+
         setIsClaiming(true);
         try {
             await redeem(position.outcome, position.balance);

@@ -20,7 +20,8 @@ export const getClaimStatus = (position: Position): ClaimStatus => {
     // 市场已结算（Resolved 或 Finalized）
     if (state === MarketStatus.Resolved || state === MarketStatus.Finalized) {
         // 用户的 outcome 与赢家 outcome 匹配
-        if (winnerOutcome !== undefined && winnerOutcome === position.outcome) {
+        // 注意：GraphQL 返回 null 而非 undefined，需要使用 != null 检查
+        if (winnerOutcome != null && winnerOutcome === position.outcome) {
             // 检查是否还有余额可领取
             const balance = parseFloat(position.balance);
             if (balance > 0) {
@@ -65,7 +66,8 @@ export const calculateExpectedPayout = (position: Position): number => {
  * 获取投注结果状态（返回 i18n key）
  */
 export const getResultKey = (position: Position): string => {
-    if (position.market.winnerOutcome === undefined) {
+    // 注意：GraphQL 返回 null 而非 undefined，需要同时检查两者
+    if (position.market.winnerOutcome == null) {
         return 'portfolio.pending';
     } else {
         if (position.market.winnerOutcome === position.outcome) {

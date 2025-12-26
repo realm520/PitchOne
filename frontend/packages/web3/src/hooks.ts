@@ -419,7 +419,6 @@ export function useUserPositions(userAddress: string | undefined) {
       }
 
       const userId = userAddress.toLowerCase();
-      console.log('[useUserPositions] 查询用户头寸:', { userId });
 
       try {
         // 并行查询：头寸数据 + redemptions
@@ -488,7 +487,6 @@ export function useUserPositionsPaginated(
       }
 
       const userId = userAddress.toLowerCase();
-      console.log('[useUserPositionsPaginated] 查询用户头寸:', { userId, page, pageSize, skip });
 
       try {
         // 并行查询：头寸数据 + 总数 + redemptions

@@ -531,7 +531,22 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         emit MarketCancelled(reason);
     }
 
-    // ============ 赎回（仅通过 Router）============
+    // ============ 赎回 ============
+
+    /**
+     * @notice 用户直接赎回赢得的份额
+     * @param outcomeId 结果 ID
+     * @param shares 份额数量
+     * @return payout 获得金额
+     */
+    function redeem(uint256 outcomeId, uint256 shares)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 payout)
+    {
+        payout = _redeemForInternal(msg.sender, outcomeId, shares);
+    }
 
     /**
      * @notice 代理赎回（供 Router 调用）
@@ -553,6 +568,27 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
         }
 
         payout = _redeemForInternal(user, outcomeId, shares);
+    }
+
+    /**
+     * @notice 用户批量赎回赢得的份额
+     * @param outcomeIds 结果 ID 数组
+     * @param sharesArray 份额数组
+     * @return totalPayout 总获得金额
+     */
+    function redeemBatch(uint256[] calldata outcomeIds, uint256[] calldata sharesArray)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 totalPayout)
+    {
+        require(outcomeIds.length == sharesArray.length, "Market: Length mismatch");
+
+        for (uint256 i = 0; i < outcomeIds.length; i++) {
+            if (sharesArray[i] > 0) {
+                totalPayout += _redeemForInternal(msg.sender, outcomeIds[i], sharesArray[i]);
+            }
+        }
     }
 
     /**

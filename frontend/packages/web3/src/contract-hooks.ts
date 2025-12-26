@@ -204,10 +204,24 @@ export function useRedeem(marketAddress?: Address) {
     }
   });
 
+  /**
+   * 赎回份额
+   * @param outcomeId 结果 ID
+   * @param shares 份额数量（字符串格式的原始 wei 值，从 Subgraph position.balance 获取）
+   */
   const redeem = async (outcomeId: number, shares: string) => {
     if (!marketAddress) throw new Error('Market address required');
 
-    const sharesInWei = parseUnits(shares, TOKEN_DECIMALS.SHARES);
+    // position.balance 从 Subgraph 返回的已经是原始 wei 值（BigInt 类型存储）
+    // 不需要再用 parseUnits 转换，直接使用 BigInt 即可
+    const sharesInWei = BigInt(shares);
+
+    console.log('[useRedeem] 发起赎回:', {
+      marketAddress,
+      outcomeId,
+      shares,
+      sharesInWei: sharesInWei.toString(),
+    });
 
     // V3: 直接调用 Market_V3.redeem
     return writeContract({
@@ -220,6 +234,66 @@ export function useRedeem(marketAddress?: Address) {
 
   return {
     redeem,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
+ * 批量赎回多个市场的份额 hook
+ * @description 用于一次性领取多个市场的奖励
+ */
+export function useRedeemBatch() {
+  const { chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  /**
+   * 批量赎回同一市场的多个 outcome
+   * @param marketAddress 市场地址
+   * @param outcomeIds 结果 ID 数组
+   * @param sharesArray 对应的份额数组
+   */
+  const redeemBatch = async (
+    marketAddress: Address,
+    outcomeIds: number[],
+    sharesArray: string[]
+  ) => {
+    if (!marketAddress) throw new Error('Market address required');
+    if (outcomeIds.length !== sharesArray.length) throw new Error('Arrays length mismatch');
+
+    console.log('[useRedeemBatch] 发起批量赎回:', {
+      marketAddress,
+      outcomeIds,
+      sharesArray,
+    });
+
+    return writeContract({
+      address: marketAddress,
+      abi: Market_V3_ABI,
+      functionName: 'redeemBatch',
+      args: [
+        outcomeIds.map(id => BigInt(id)),
+        sharesArray.map(s => BigInt(s)),
+      ],
+    });
+  };
+
+  return {
+    redeemBatch,
     isPending,
     isConfirming,
     isSuccess,

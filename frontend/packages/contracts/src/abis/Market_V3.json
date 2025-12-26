@@ -164,6 +164,37 @@
   },
   {
     "type": "function",
+    "name": "cancelResolved",
+    "inputs": [
+      {
+        "name": "reason",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "checkLiabilityLimit",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "exceedsLimit",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "excessLoss",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "factory",
     "inputs": [],
     "outputs": [
@@ -652,6 +683,19 @@
   },
   {
     "type": "function",
+    "name": "payoutScaleBps",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "placeBetFor",
     "inputs": [
       {
@@ -789,8 +833,71 @@
   },
   {
     "type": "function",
-    "name": "refund",
+    "name": "redeemBatchFor",
     "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "outcomeIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "sharesArray",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "totalPayout",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "redeemFor",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "outcomeId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "shares",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "payout",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "refundFor",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "outcomeId",
         "type": "uint256",
@@ -1575,6 +1682,19 @@
   },
   {
     "type": "event",
+    "name": "PayoutScaled",
+    "inputs": [
+      {
+        "name": "scaleBps",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "RefundClaimed",
     "inputs": [
       {
@@ -1843,6 +1963,19 @@
   },
   {
     "type": "event",
+    "name": "VaultLossOnCancel",
+    "inputs": [
+      {
+        "name": "lossAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "VaultSettled",
     "inputs": [
       {
@@ -2064,6 +2197,17 @@
         "name": "cap",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotAuthorized",
+    "inputs": [
+      {
+        "name": "caller",
+        "type": "address",
+        "internalType": "address"
       }
     ]
   },
