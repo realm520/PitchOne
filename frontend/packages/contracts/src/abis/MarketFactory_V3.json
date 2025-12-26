@@ -109,11 +109,6 @@
                 "internalType": "enum IPricingStrategy.PayoutType"
               }
             ]
-          },
-          {
-            "name": "category",
-            "type": "uint8",
-            "internalType": "uint8"
           }
         ]
       }
@@ -865,12 +860,6 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      },
-      {
-        "name": "category",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
       }
     ],
     "anonymous": false
