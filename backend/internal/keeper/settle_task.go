@@ -30,6 +30,7 @@ type MarketToSettle struct {
 	MatchEnd      time.Time
 	OracleAddress common.Address
 	MarketParams  map[string]interface{} // OU/AH 模板参数 (从 JSONB 解析)
+	Version       string                 // "v2" or "v3"
 }
 
 // MatchResult represents the result of a match
@@ -89,7 +90,8 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 			match_start,
 			match_end,
 			oracle_address,
-			COALESCE(market_params, '{}'::jsonb)
+			COALESCE(market_params, '{}'::jsonb),
+			COALESCE(version, 'v2') as version
 		FROM markets
 		WHERE status = 'Locked'
 		AND match_end <= $1
@@ -110,7 +112,7 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 		var matchStartUnix, matchEndUnix int64
 		var paramsJSON []byte
 
-		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex, &paramsJSON)
+		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex, &paramsJSON, &market.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan market row: %w", err)
 		}
@@ -144,8 +146,16 @@ func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle,
 	return markets, nil
 }
 
-// settleMarket proposes the result to the oracle and settles the market
+// settleMarket routes settlement to V2 or V3 based on market version
 func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) error {
+	if market.Version == "v3" {
+		return t.settleMarketV3(ctx, market)
+	}
+	return t.settleMarketV2(ctx, market)
+}
+
+// settleMarketV2 proposes the result to the oracle (for V2 markets)
+func (t *SettleTask) settleMarketV2(ctx context.Context, market *MarketToSettle) error {
 	// Validate addresses
 	if market.MarketAddress == (common.Address{}) {
 		return fmt.Errorf("invalid market address: zero address")
@@ -282,6 +292,120 @@ func (t *SettleTask) settleMarket(ctx context.Context, market *MarketToSettle) e
 	}
 
 	return nil
+}
+
+// settleMarketV3 directly resolves the V3 market by calling resolve()
+func (t *SettleTask) settleMarketV3(ctx context.Context, market *MarketToSettle) error {
+	// Validate market address
+	if market.MarketAddress == (common.Address{}) {
+		return fmt.Errorf("invalid market address: zero address")
+	}
+
+	// Get match result from data source
+	result, err := t.fetchMatchResult(ctx, market.EventID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch match result: %w", err)
+	}
+
+	// Create V3 market contract instance
+	marketContract, err := bindings.NewMarketV3(market.MarketAddress, t.keeper.web3Client.client)
+	if err != nil {
+		return fmt.Errorf("failed to create V3 market contract instance: %w", err)
+	}
+
+	// Get current gas price
+	gasPrice, err := t.keeper.web3Client.CalculateGasPrice(ctx, t.keeper.maxGasPrice)
+	if err != nil {
+		return fmt.Errorf("failed to calculate gas price: %w", err)
+	}
+
+	// Get nonce
+	nonce, err := t.keeper.web3Client.GetNonce(ctx, t.keeper.web3Client.account)
+	if err != nil {
+		return fmt.Errorf("failed to get nonce: %w", err)
+	}
+
+	// Build transaction opts
+	auth := &bind.TransactOpts{
+		From:     t.keeper.web3Client.account,
+		Nonce:    big.NewInt(int64(nonce)),
+		Signer:   t.createSigner(),
+		Value:    big.NewInt(0),
+		GasPrice: gasPrice,
+		GasLimit: t.keeper.config.GasLimit,
+		Context:  ctx,
+	}
+
+	// Encode rawResult: abi.encode(uint256 homeScore, uint256 awayScore)
+	// According to IResultMapper interface, rawResult is: abi.encode(uint256 homeScore, uint256 awayScore)
+	rawResult, err := encodeMatchResult(result.HomeGoals, result.AwayGoals)
+	if err != nil {
+		return fmt.Errorf("failed to encode match result: %w", err)
+	}
+
+	// Call resolve() method on V3 market
+	tx, err := marketContract.Resolve(auth, rawResult)
+	if err != nil {
+		return fmt.Errorf("failed to send resolve transaction: %w", err)
+	}
+
+	t.keeper.logger.Info("V3 resolve transaction sent",
+		zap.String("market", market.MarketAddress.Hex()),
+		zap.String("txHash", tx.Hash().Hex()),
+		zap.Uint64("nonce", nonce),
+		zap.String("gasPrice", gasPrice.String()),
+		zap.Uint8("homeGoals", result.HomeGoals),
+		zap.Uint8("awayGoals", result.AwayGoals),
+	)
+
+	// Wait for transaction to be mined (with timeout)
+	receiptCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	receipt, err := t.waitForTransaction(receiptCtx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to wait for transaction: %w", err)
+	}
+
+	// Check transaction status
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return fmt.Errorf("resolve transaction failed: status %d", receipt.Status)
+	}
+
+	t.keeper.logger.Info("V3 resolve transaction confirmed",
+		zap.String("market", market.MarketAddress.Hex()),
+		zap.String("txHash", tx.Hash().Hex()),
+		zap.Uint64("blockNumber", receipt.BlockNumber.Uint64()),
+		zap.Uint64("gasUsed", receipt.GasUsed),
+	)
+
+	// Update market status in database (V3 goes to "Resolved" directly)
+	if err := t.updateMarketStatus(ctx, market.MarketAddress, "Resolved", tx.Hash(), result); err != nil {
+		t.keeper.logger.Error("failed to update market status in database",
+			zap.String("market", market.MarketAddress.Hex()),
+			zap.Error(err),
+		)
+		// Don't return error as the on-chain resolve succeeded
+	}
+
+	return nil
+}
+
+// encodeMatchResult encodes match result as abi.encode(uint256 homeScore, uint256 awayScore)
+func encodeMatchResult(homeGoals, awayGoals uint8) ([]byte, error) {
+	// ABI encode two uint256 values (homeScore, awayScore)
+	// Each uint256 is 32 bytes, left-padded with zeros
+	result := make([]byte, 64)
+
+	// Encode homeGoals as uint256 (32 bytes, big-endian)
+	homeBytes := big.NewInt(int64(homeGoals)).Bytes()
+	copy(result[32-len(homeBytes):32], homeBytes)
+
+	// Encode awayGoals as uint256 (32 bytes, big-endian)
+	awayBytes := big.NewInt(int64(awayGoals)).Bytes()
+	copy(result[64-len(awayBytes):64], awayBytes)
+
+	return result, nil
 }
 
 // fetchMatchResult fetches the match result from external data source

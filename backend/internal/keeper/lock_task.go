@@ -24,6 +24,7 @@ type MarketToLock struct {
 	EventID       string
 	LockTime      time.Time
 	MatchStart    time.Time
+	Version       string // "v2" or "v3"
 }
 
 // NewLockTask creates a new LockTask instance
@@ -58,11 +59,19 @@ func (t *LockTask) Execute(ctx context.Context) error {
 			t.keeper.logger.Info("lock task cancelled")
 			return ctx.Err()
 		default:
-			// Lock the market
-			if err := t.lockMarket(ctx, market.MarketAddress); err != nil {
+			// Lock the market based on version
+			var err error
+			if market.Version == "v3" {
+				err = t.lockMarketV3(ctx, market.MarketAddress)
+			} else {
+				err = t.lockMarketV2(ctx, market.MarketAddress)
+			}
+
+			if err != nil {
 				t.keeper.logger.Error("failed to lock market",
 					zap.String("market", market.MarketAddress.Hex()),
 					zap.String("eventID", market.EventID),
+					zap.String("version", market.Version),
 					zap.Error(err),
 				)
 				// Continue with other markets even if one fails
@@ -72,6 +81,7 @@ func (t *LockTask) Execute(ctx context.Context) error {
 			t.keeper.logger.Info("successfully locked market",
 				zap.String("market", market.MarketAddress.Hex()),
 				zap.String("eventID", market.EventID),
+				zap.String("version", market.Version),
 			)
 		}
 	}
@@ -90,7 +100,8 @@ func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error
 			market_address,
 			event_id,
 			lock_time,
-			match_start
+			match_start,
+			COALESCE(version, 'v2') as version
 		FROM markets
 		WHERE status = 'Open'
 		AND lock_time <= $1
@@ -110,7 +121,7 @@ func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error
 		var marketAddrHex string
 		var lockTimeUnix, matchStartUnix int64
 
-		err := rows.Scan(&marketAddrHex, &market.EventID, &lockTimeUnix, &matchStartUnix)
+		err := rows.Scan(&marketAddrHex, &market.EventID, &lockTimeUnix, &matchStartUnix, &market.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan market row: %w", err)
 		}
@@ -132,8 +143,8 @@ func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error
 	return markets, nil
 }
 
-// lockMarket calls the contract's lock() method
-func (t *LockTask) lockMarket(ctx context.Context, marketAddr common.Address) error {
+// lockMarketV2 calls the V2 contract's lock() method
+func (t *LockTask) lockMarketV2(ctx context.Context, marketAddr common.Address) error {
 	// Validate market address
 	if marketAddr == (common.Address{}) {
 		return fmt.Errorf("invalid market address: zero address")
@@ -196,6 +207,88 @@ func (t *LockTask) lockMarket(ctx context.Context, marketAddr common.Address) er
 	}
 
 	t.keeper.logger.Info("lock transaction confirmed",
+		zap.String("market", marketAddr.Hex()),
+		zap.String("txHash", tx.Hash().Hex()),
+		zap.Uint64("blockNumber", receipt.BlockNumber.Uint64()),
+		zap.Uint64("gasUsed", receipt.GasUsed),
+	)
+
+	// Update market status in database
+	if err := t.updateMarketStatus(ctx, marketAddr, "Locked", tx.Hash()); err != nil {
+		t.keeper.logger.Error("failed to update market status in database",
+			zap.String("market", marketAddr.Hex()),
+			zap.Error(err),
+		)
+		// Don't return error as the on-chain lock succeeded
+	}
+
+	return nil
+}
+
+// lockMarketV3 calls the V3 contract's lock() method
+func (t *LockTask) lockMarketV3(ctx context.Context, marketAddr common.Address) error {
+	// Validate market address
+	if marketAddr == (common.Address{}) {
+		return fmt.Errorf("invalid market address: zero address")
+	}
+
+	// Create V3 market contract instance
+	market, err := bindings.NewMarketV3(marketAddr, t.keeper.web3Client.client)
+	if err != nil {
+		return fmt.Errorf("failed to create V3 market contract instance: %w", err)
+	}
+
+	// Get current gas price
+	gasPrice, err := t.keeper.web3Client.CalculateGasPrice(ctx, t.keeper.maxGasPrice)
+	if err != nil {
+		return fmt.Errorf("failed to calculate gas price: %w", err)
+	}
+
+	// Get nonce
+	nonce, err := t.keeper.web3Client.GetNonce(ctx, t.keeper.web3Client.account)
+	if err != nil {
+		return fmt.Errorf("failed to get nonce: %w", err)
+	}
+
+	// Build transaction opts
+	auth := &bind.TransactOpts{
+		From:     t.keeper.web3Client.account,
+		Nonce:    big.NewInt(int64(nonce)),
+		Signer:   t.createSigner(),
+		Value:    big.NewInt(0),
+		GasPrice: gasPrice,
+		GasLimit: t.keeper.config.GasLimit,
+		Context:  ctx,
+	}
+
+	// Call lock() method on V3 market
+	tx, err := market.Lock(auth)
+	if err != nil {
+		return fmt.Errorf("failed to send lock transaction: %w", err)
+	}
+
+	t.keeper.logger.Info("V3 lock transaction sent",
+		zap.String("market", marketAddr.Hex()),
+		zap.String("txHash", tx.Hash().Hex()),
+		zap.Uint64("nonce", nonce),
+		zap.String("gasPrice", gasPrice.String()),
+	)
+
+	// Wait for transaction to be mined (with timeout)
+	receiptCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	receipt, err := t.waitForTransaction(receiptCtx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to wait for transaction: %w", err)
+	}
+
+	// Check transaction status
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return fmt.Errorf("lock transaction failed: status %d", receipt.Status)
+	}
+
+	t.keeper.logger.Info("V3 lock transaction confirmed",
 		zap.String("market", marketAddr.Hex()),
 		zap.String("txHash", tx.Hash().Hex()),
 		zap.Uint64("blockNumber", receipt.BlockNumber.Uint64()),

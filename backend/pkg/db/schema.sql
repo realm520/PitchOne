@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS markets (
     home_goals SMALLINT,                       -- 主队进球数 (比赛结果)
     away_goals SMALLINT,                       -- 客队进球数 (比赛结果)
     updated_at BIGINT,                         -- 最后更新时间
+    version VARCHAR(10) DEFAULT 'v2',          -- 市场版本: v2 或 v3
 
     UNIQUE(tx_hash, log_index)                 -- 防重复插入
 );
@@ -47,6 +48,7 @@ CREATE INDEX idx_markets_market_address ON markets(market_address);
 CREATE INDEX idx_markets_lock_time ON markets(lock_time) WHERE status = 'Open';
 CREATE INDEX idx_markets_match_end ON markets(match_end) WHERE status = 'Locked';
 CREATE INDEX idx_markets_oracle ON markets(oracle_address);
+CREATE INDEX idx_markets_version ON markets(version);
 
 -- Orders table - 下注订单记录
 CREATE TABLE IF NOT EXISTS orders (
