@@ -253,7 +253,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-gray-500">{LEAGUE_MAP[matchInfo.league] || matchInfo.league}</span>
+                <span className="text-sm text-gray-500">{getCustomMatchDisplayName(market.matchId || '')}</span>
                 <span className="text-sm text-gray-400">{matchInfo.season}</span>
                 <Badge variant="default">{TEMPLATE_MAP[templateType] || '胜平负'}</Badge>
               </div>
@@ -261,11 +261,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 {market.homeTeam || matchInfo.homeTeam}
                 <span className="text-gray-400 mx-3">vs</span>
                 {market.awayTeam || matchInfo.awayTeam}
-                {isCustomMatch(market.matchId || '') && (
-                  <span className="text-sm font-normal text-gray-400 ml-2">
-                    - {getCustomMatchDisplayName(market.matchId || '')}
-                  </span>
-                )}
               </h1>
               {kickoffTime && (
                 <p className="text-sm text-gray-500">

@@ -217,6 +217,7 @@
     "totalProfit": "总盈利",
     "myTickets": "我的票据",
     "batchClaim": "批量领取",
+    "claimingProgress": "领取中 {{current}}/{{total}}",
     "ticketTabs": {
       "all": "全部",
       "claimable": "可领取"

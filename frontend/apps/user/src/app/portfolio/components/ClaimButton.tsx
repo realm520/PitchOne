@@ -7,17 +7,24 @@ import { useState } from "react";
 import { type Address } from "viem";
 import { getClaimStatus } from "../utils";
 
-export default function ClaimButton({ position, onSuccess }: { position: Position; onSuccess?: () => void }) {
+/**
+ * 截断交易 hash 显示
+ */
+function truncateHash(hash: string): string {
+    if (hash.length <= 12) return hash;
+    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+}
+
+export default function ClaimButton({ position }: { position: Position }) {
     const { t } = useTranslation();
     const [isClaiming, setIsClaiming] = useState(false);
-    const { redeem, isPending, isConfirming, isSuccess } = useRedeem(position.market.id as Address);
+    const { redeem, isPending, isConfirming, isSuccess, hash } = useRedeem(position.market.id as Address);
 
     const status = getClaimStatus(position);
 
     const handleClaim = async () => {
         if (status !== 'claimable') return;
 
-        // 打印 Claim 调用参数（JSON 字符串形式）
         console.log('[ClaimButton] Claim 调用参数:', JSON.stringify({
             marketId: position.market.id,
             marketState: position.market.state,
@@ -30,8 +37,6 @@ export default function ClaimButton({ position, onSuccess }: { position: Positio
         setIsClaiming(true);
         try {
             await redeem(position.outcome, position.balance);
-            // 延迟刷新，等待 Subgraph 索引
-            setTimeout(() => onSuccess?.(), 1500);
         } catch (err) {
             console.error('Claim failed:', err);
         } finally {
@@ -49,8 +54,22 @@ export default function ClaimButton({ position, onSuccess }: { position: Positio
         return <span className="text-red-400">{t("portfolio.ticket.lost")}</span>;
     }
 
-    if (status === 'claimed' || isSuccess) {
+    if (status === 'claimed') {
         return <span className="text-green-400">{t("portfolio.ticket.claimed")}</span>;
+    }
+
+    // Claim 成功，显示交易 hash
+    if (isSuccess && hash) {
+        return (
+            <a
+                href={`https://basescan.org/tx/${hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-400 hover:text-green-300 underline"
+            >
+                {truncateHash(hash)}
+            </a>
+        );
     }
 
     if (isLoading) {

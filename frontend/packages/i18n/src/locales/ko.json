@@ -217,6 +217,7 @@
     "totalProfit": "총 수익",
     "myTickets": "내 티켓",
     "batchClaim": "일괄 청구",
+    "claimingProgress": "청구 중 {{current}}/{{total}}",
     "ticketTabs": {
       "all": "전체",
       "claimable": "청구 가능"

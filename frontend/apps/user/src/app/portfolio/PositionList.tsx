@@ -35,7 +35,7 @@ function getTxExplorerUrl(hash: string | undefined): string | undefined {
     return undefined;
 }
 
-export default function PositionList({ positions, onClaimSuccess }: { positions?: Position[]; onClaimSuccess?: () => void }) {
+export default function PositionList({ positions }: { positions?: Position[] }) {
     const { t, translateTeam } = useTranslation();
     return (
         <motion.div
@@ -116,7 +116,7 @@ export default function PositionList({ positions, onClaimSuccess }: { positions?
                                             </span>
                                         )
                                     ) : (
-                                        <ClaimButton position={position} onSuccess={onClaimSuccess} />
+                                        <ClaimButton position={position} />
                                     )}
                                 </Td>
                             </Row>

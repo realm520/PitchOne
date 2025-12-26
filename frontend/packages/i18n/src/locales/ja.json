@@ -217,6 +217,7 @@
     "totalProfit": "総利益",
     "myTickets": "マイチケット",
     "batchClaim": "一括請求",
+    "claimingProgress": "請求中 {{current}}/{{total}}",
     "ticketTabs": {
       "all": "すべて",
       "claimable": "請求可能"

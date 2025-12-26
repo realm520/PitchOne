@@ -7,7 +7,6 @@ import Link from "next/link";
 import Stats from "./Stats";
 import { calculateExpectedPayout, getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
-import BatchClaimButton from "./components/BatchClaimButton";
 
 type TabType = 'all' | 'claimable';
 
@@ -51,7 +50,7 @@ export default function MyPositions() {
     const { address } = useAccount();
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10; // 每页显示条数
-    const { data, isLoading, error, refetch } = useUserPositionsPaginated(address, currentPage, pageSize);
+    const { data, isLoading, error } = useUserPositionsPaginated(address, currentPage, pageSize);
     const positions = data?.positions;
     const totalCount = data?.total || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
@@ -136,19 +135,13 @@ export default function MyPositions() {
                                     </Button>
                                 ))}
                             </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    className="p-1 w-64"
-                                    placeholder={t('portfolio.searchPlaceholder')}
-                                    value={keyword}
-                                    onChange={(e) => setKeyword(e.target.value)}
-                                    disabled={isLoading}
-                                />
-                                <BatchClaimButton
-                                    positions={positions || []}
-                                    onSuccess={refetch}
-                                />
-                            </div>
+                            <Input
+                                className="p-1 w-64"
+                                placeholder={t('portfolio.searchPlaceholder')}
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                disabled={isLoading}
+                            />
                         </div>
 
                         {isLoading ? (
@@ -179,7 +172,7 @@ export default function MyPositions() {
                                 />
                             ) : (
                                 <div className="flex flex-col gap-6">
-                                    <PositionList positions={filteredPositions} onClaimSuccess={refetch} />
+                                    <PositionList positions={filteredPositions} />
                                     {totalPages > 1 && (
                                         <Pagination
                                             currentPage={currentPage}

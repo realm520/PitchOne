@@ -217,6 +217,7 @@
     "totalProfit": "Total Profit",
     "myTickets": "My Tickets",
     "batchClaim": "Batch Claim",
+    "claimingProgress": "Claiming {{current}}/{{total}}",
     "ticketTabs": {
       "all": "All",
       "claimable": "Claimable"

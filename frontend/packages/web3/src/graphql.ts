@@ -139,8 +139,8 @@ export const MARKET_QUERY = `
 export const USER_POSITIONS_QUERY = `
   query UserPositions($userId: ID!) {
     positions(
-      where: { owner: $userId, balance_gt: "0" }
-      orderBy: lastUpdatedAt
+      where: { owner: $userId }
+      orderBy: createdAt
       orderDirection: desc
     ) {
       id
@@ -173,10 +173,10 @@ export const USER_POSITIONS_QUERY = `
 export const USER_POSITIONS_PAGINATED_QUERY = `
   query UserPositionsPaginated($userId: ID!, $first: Int!, $skip: Int!) {
     positions(
-      where: { owner: $userId, balance_gt: "0" }
+      where: { owner: $userId }
       first: $first
       skip: $skip
-      orderBy: lastUpdatedAt
+      orderBy: createdAt
       orderDirection: desc
     ) {
       id
