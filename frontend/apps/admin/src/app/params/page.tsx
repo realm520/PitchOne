@@ -359,26 +359,6 @@ export default function ParamsPage() {
                 {timelockDelay && ` · Timelock 延迟: ${(Number(timelockDelay) / 86400).toFixed(2)} 天`}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Link href="/">
-                <Button variant="neon">
-                  返回看板
-                </Button>
-              </Link>
-              {isConnected ? (
-                <>
-                  <Button
-                    variant="primary"
-                    onClick={() => setShowCreateModal(true)}
-                  >
-                    创建提案
-                  </Button>
-                  <ConnectButton showBalance={false} />
-                </>
-              ) : (
-                <ConnectButton showBalance={false} />
-              )}
-            </div>
           </div>
           {isConnected && (
             <Button variant="primary" onClick={() => setShowCreateModal(true)}>
@@ -390,29 +370,6 @@ export default function ParamsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Web3 连接提示 */}
-        {!isConnected && (
-          <Card className="p-6 mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  请连接钱包
-                </h3>
-                <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                  <p>
-                    连接 Web3 钱包以查看实时参数值和创建治理提案。
-                    需要 PROPOSER_ROLE 权限才能创建提案。
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* 参数列表部分 */}
         <div className="mb-12">
