@@ -5,38 +5,17 @@
 
 import { Address, BigInt, Bytes, log } from "@graphprotocol/graph-ts";
 import {
-  LiquidityBorrowed as LiquidityBorrowedEvent,
-  LiquidityRepaid as LiquidityRepaidEvent,
-  MarketAuthorizationChanged as MarketAuthorizationChangedEvent,
-  Paused as PausedEvent,
-  Unpaused as UnpausedEvent,
-} from "../generated/ERC4626LiquidityProvider/ERC4626LiquidityProvider";
-import {
   Deposit as VaultDepositEvent,
   Withdraw as VaultWithdrawEvent,
   MarketAuthorized as MarketAuthorizedEvent,
   MarketRevoked as MarketRevokedEvent,
+  LiquidityVault_V3,
 } from "../generated/LiquidityVault/LiquidityVault_V3";
 import {
-  PoolContribution as PoolContributionEvent,
-  RevenueDistributed as RevenueDistributedEvent,
-} from "../generated/ParimutuelLiquidityProvider/ParimutuelLiquidityProvider";
-import {
-  ProviderDeployed as ProviderDeployedEvent,
-  ProviderTypeRegistered as ProviderTypeRegisteredEvent,
-  DeployerAuthorized as DeployerAuthorizedEvent,
-} from "../generated/LiquidityProviderFactory/LiquidityProviderFactory";
-import {
   LiquidityProvider,
-  LiquidityProviderFactory,
-  LiquidityBorrowEvent,
-  PoolContribution,
   MarketAuthorization,
-  ProviderDeployment,
-  ProviderTypeRegistration,
 } from "../generated/schema";
 import { toDecimal, generateEventId } from "./helpers";
-import { LiquidityVault_V3 } from "../generated/LiquidityVault_V3/LiquidityVault_V3";
 
 // ============================================================================
 // LiquidityVault_V3 - Vault 存取款事件
