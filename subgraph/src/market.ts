@@ -24,11 +24,13 @@ import {
   Redemption,
   User,
   GlobalStats,
+  OutcomeVolume,
 } from "../generated/schema";
 import {
   loadOrCreateUser,
   loadOrCreatePosition,
   loadOrCreateGlobalStats,
+  loadOrCreateOutcomeVolume,
   toDecimal,
   updatePositionAverageCost,
   generateEventId,
@@ -172,6 +174,18 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
   market.totalVolume = market.totalVolume.plus(amountDecimal);
   market.feeAccrued = market.feeAccrued.plus(feeDecimal);
   market.save();
+
+  // 更新 OutcomeVolume 统计（用于前端计算赔率）
+  let outcomeVolume = loadOrCreateOutcomeVolume(
+    marketAddress,
+    outcome,
+    event.block.timestamp
+  );
+  outcomeVolume.volume = outcomeVolume.volume.plus(amountDecimal);
+  outcomeVolume.shares = outcomeVolume.shares.plus(shares);
+  outcomeVolume.betCount = outcomeVolume.betCount + 1;
+  outcomeVolume.lastUpdatedAt = event.block.timestamp;
+  outcomeVolume.save();
 
   // 更新全局统计
   let stats = loadOrCreateGlobalStats();

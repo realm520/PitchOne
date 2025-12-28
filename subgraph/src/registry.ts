@@ -3,7 +3,7 @@
  * 处理 MarketFactory_V3 的事件，实现动态市场索引
  */
 
-import { Address, BigInt, Bytes, log, crypto } from '@graphprotocol/graph-ts';
+import { Address, BigInt, Bytes, log, crypto, ethereum } from '@graphprotocol/graph-ts';
 import {
   MarketCreated as MarketCreatedEvent,
   TemplateRegistered as TemplateRegisteredEvent,
@@ -14,7 +14,8 @@ import {
 import { Market_V3 as Market_V3Template } from '../generated/templates';
 import { Market_V3 } from '../generated/templates/Market_V3/Market_V3';
 import { Template, GlobalStats, Market, Admin, RoleChange } from '../generated/schema';
-import { loadOrCreateGlobalStats, ZERO_BD, parseTeamsFromMatchId } from './helpers';
+import { loadOrCreateGlobalStats, ZERO_BD, parseTeamsFromMatchId, toDecimal } from './helpers';
+import { IPricingStrategy } from '../generated/MarketFactory/IPricingStrategy';
 
 // 角色哈希常量
 const DEFAULT_ADMIN_ROLE = Bytes.fromHexString('0x0000000000000000000000000000000000000000000000000000000000000000');
@@ -105,6 +106,39 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
   let pricingResult = marketContract.try_pricingStrategy();
   if (!pricingResult.reverted) {
     market.pricingEngine = pricingResult.value;
+
+    // 读取定价策略类型
+    let strategyContract = IPricingStrategy.bind(pricingResult.value);
+    let typeResult = strategyContract.try_strategyType();
+    if (!typeResult.reverted) {
+      market.pricingType = typeResult.value;
+    }
+  }
+
+  // 读取初始流动性
+  let liquidityResult = marketContract.try_initialLiquidity();
+  if (!liquidityResult.reverted) {
+    market.initialLiquidity = toDecimal(liquidityResult.value);
+  }
+
+  // 如果是 LMSR 策略，解码 pricingState 获取 b 参数
+  if (market.pricingType !== null && market.pricingType == 'LMSR') {
+    let stateResult = marketContract.try_pricingState();
+    if (!stateResult.reverted && stateResult.value.length > 0) {
+      // LMSR state 结构: abi.encode(uint256[] quantities, uint256 b)
+      // 解码最后 32 字节获取 b 值
+      let stateBytes = stateResult.value;
+      if (stateBytes.length >= 32) {
+        // b 是编码数据的最后 32 字节
+        // 先解码 quantities 数组长度，然后跳过数组数据读取 b
+        let decoded = ethereum.decode('(uint256[],uint256)', stateBytes);
+        if (decoded !== null) {
+          let tuple = decoded.toTuple();
+          let bValue = tuple[1].toBigInt();
+          market.lmsrB = toDecimal(bValue);
+        }
+      }
+    }
   }
 
   market.save();

@@ -112,6 +112,19 @@ type Market @entity(immutable: false) {
 
   "首球球员姓名列表（仅 FIRST_SCORER 市场）"
   firstScorerPlayerNames: [String!]
+
+  # ============ 定价策略扩展字段（用于前端计算赔率）============
+  "定价策略类型: CPMM, LMSR, PARIMUTUEL"
+  pricingType: String
+
+  "初始流动性（USDC，用于 CPMM 计算）"
+  initialLiquidity: BigDecimal
+
+  "LMSR 流动性参数 b（仅 LMSR 市场）"
+  lmsrB: BigDecimal
+
+  "各 outcome 的押注统计"
+  outcomeVolumes: [OutcomeVolume!]! @derivedFrom(field: "market")
 }
 
 enum MarketState {
@@ -119,6 +132,37 @@ enum MarketState {
   Locked
   Resolved
   Finalized
+}
+
+# ============================================================================
+# Outcome 押注统计实体
+# ============================================================================
+
+"""
+OutcomeVolume - 各 outcome 的押注统计
+用于前端计算实时赔率（无需链上调用）
+"""
+type OutcomeVolume @entity(immutable: false) {
+  "ID: marketAddress-outcomeId"
+  id: ID!
+
+  "关联的市场"
+  market: Market!
+
+  "Outcome ID（0=主队胜/大, 1=平局, 2=客队胜/小，或更多）"
+  outcomeId: Int!
+
+  "累计押注金额（USDC）"
+  volume: BigDecimal!
+
+  "累计获得的份额"
+  shares: BigInt!
+
+  "押注次数"
+  betCount: Int!
+
+  "最后更新时间"
+  lastUpdatedAt: BigInt!
 }
 
 # ============================================================================

@@ -9,6 +9,7 @@ import {
   User,
   Position,
   GlobalStats,
+  OutcomeVolume,
 } from "../generated/schema";
 
 // ============================================================================
@@ -292,5 +293,38 @@ export function parseTeamsFromMatchId(matchId: string): string[] {
 
   // 转换为全称
   return [getTeamFullName(homeCode), getTeamFullName(awayCode)];
+}
+
+// ============================================================================
+// OutcomeVolume 实体管理
+// ============================================================================
+
+/**
+ * 加载或创建 OutcomeVolume 实体
+ * @param marketAddress - 市场地址
+ * @param outcomeId - 结果 ID
+ * @param timestamp - 时间戳（用于新创建的实体）
+ * @returns OutcomeVolume 实体
+ */
+export function loadOrCreateOutcomeVolume(
+  marketAddress: Address,
+  outcomeId: i32,
+  timestamp: BigInt
+): OutcomeVolume {
+  const id = marketAddress.toHexString().concat("-").concat(outcomeId.toString());
+  let outcomeVolume = OutcomeVolume.load(id);
+
+  if (outcomeVolume === null) {
+    outcomeVolume = new OutcomeVolume(id);
+    outcomeVolume.market = marketAddress.toHexString();
+    outcomeVolume.outcomeId = outcomeId;
+    outcomeVolume.volume = ZERO_BD;
+    outcomeVolume.shares = ZERO_BI;
+    outcomeVolume.betCount = 0;
+    outcomeVolume.lastUpdatedAt = timestamp;
+    outcomeVolume.save();
+  }
+
+  return outcomeVolume as OutcomeVolume;
 }
 
