@@ -206,7 +206,8 @@
       "statusLocked": "잠김",
       "statusResolved": "정산됨",
       "statusSettled": "완료",
-      "outcomeLabel": "결과"
+      "outcomeLabel": "결과",
+      "payout": "배당금"
     }
   },
   "portfolio": {

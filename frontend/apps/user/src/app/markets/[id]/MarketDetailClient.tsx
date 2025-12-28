@@ -181,7 +181,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 1. 加载状态（优先级最高）
   if (isLoading || outcomesLoading) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+      <div className="min-h-[50vh] bg-dark-bg flex items-center justify-center">
         <LoadingSpinner size="lg" text={t('markets.detail.loadingDetail')} />
       </div>
     );
@@ -190,7 +190,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 2. 网络错误
   if (error) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+      <div className="min-h-[50vh] bg-dark-bg flex items-center justify-center">
         <ErrorState message={`${t('markets.detail.loadError')}: ${(error as Error).message || t('markets.errorLoading')}`} />
       </div>
     );
@@ -199,7 +199,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 3. 市场不存在
   if (!market) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+      <div className="min-h-[50vh] bg-dark-bg flex items-center justify-center">
         <ErrorState message={t('markets.detail.notFound')} />
       </div>
     );
@@ -208,7 +208,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 4. 合约数据加载失败
   if (!outcomes) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+      <div className="min-h-[50vh] bg-dark-bg flex items-center justify-center">
         <ErrorState message={t('markets.detail.oddsLoadError')} />
       </div>
     );
@@ -244,7 +244,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg">
+    <div className="bg-dark-bg">
       {/* Back Link */}
       <div className="px-6 py-4">
         <Link href="/markets" className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors">
@@ -253,9 +253,8 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
         </Link>
       </div>
 
-      <div className="flex">
-        {/* Main Content */}
-        <div className="flex-1 px-6 pb-8">
+      {/* Main Content */}
+      <div className="px-6 pb-8">
           {/* Match Header */}
           <Card className="mb-6 bg-dark-card border border-dark-border" padding="lg">
             {/* Teams with VS */}
@@ -418,7 +417,6 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               </table>
             </div>
           </Card>
-        </div>
       </div>
     </div>
   );

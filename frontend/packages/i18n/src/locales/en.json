@@ -206,7 +206,8 @@
       "statusLocked": "LOCKED",
       "statusResolved": "RESOLVED",
       "statusSettled": "SETTLED",
-      "outcomeLabel": "Outcome"
+      "outcomeLabel": "Outcome",
+      "payout": "Payout"
     }
   },
   "portfolio": {

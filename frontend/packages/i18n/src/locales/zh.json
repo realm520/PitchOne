@@ -206,7 +206,8 @@
       "statusLocked": "已锁盘",
       "statusResolved": "已结算",
       "statusSettled": "已完成",
-      "outcomeLabel": "结果"
+      "outcomeLabel": "结果",
+      "payout": "派彩"
     }
   },
   "portfolio": {

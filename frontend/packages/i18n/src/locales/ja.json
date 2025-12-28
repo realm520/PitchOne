@@ -206,7 +206,8 @@
       "statusLocked": "ロック",
       "statusResolved": "決済済",
       "statusSettled": "完了",
-      "outcomeLabel": "結果"
+      "outcomeLabel": "結果",
+      "payout": "配当"
     }
   },
   "portfolio": {
