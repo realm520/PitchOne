@@ -292,17 +292,29 @@ export function useMarketsCount(status?: MarketStatus[]) {
             MARKETS_COUNT_BY_STATUS_QUERY,
             { status }
           );
-          return data.markets.length;
+          return data.markets?.length ?? 0;
         } else {
-          // 所有市场数量
-          const data = await graphqlClient.request<{ globalStats: { totalMarkets: number } }>(
-            MARKETS_COUNT_QUERY
+          // 所有市场数量 - 使用 markets 查询作为备选
+          try {
+            const data = await graphqlClient.request<{ globalStats: { totalMarkets: number } | null }>(
+              MARKETS_COUNT_QUERY
+            );
+            if (data.globalStats?.totalMarkets !== undefined) {
+              return data.globalStats.totalMarkets;
+            }
+          } catch {
+            // globalStats 查询失败，使用备选方案
+          }
+
+          // 备选方案：查询所有市场 ID 来计数
+          const marketsData = await graphqlClient.request<{ markets: { id: string }[] }>(
+            `query { markets(first: 1000) { id } }`
           );
-          return data.globalStats?.totalMarkets ?? 0;
+          return marketsData.markets?.length ?? 0;
         }
       } catch (error) {
         console.error('[useMarketsCount] 查询失败:', error);
-        throw error;
+        return 0; // 返回 0 而不是抛出错误
       }
     },
     staleTime: 60 * 1000, // 1 分钟
@@ -684,3 +696,98 @@ export function useMarketAllOrders(
     staleTime: 10 * 1000, // 10 秒
   });
 }
+
+// ============================================================================
+// 基于 Subgraph 的赔率计算 Hook
+// ============================================================================
+
+import { MARKET_WITH_ODDS_QUERY } from './graphql';
+import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
+
+/**
+ * 市场赔率数据接口（从 Subgraph 返回）
+ */
+export interface MarketWithOddsData {
+  id: string;
+  templateId: string;
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  kickoffTime: string;
+  state: MarketStatus;
+  totalVolume: string;
+  feeAccrued: string;
+  line?: string;
+  lines?: string[];
+  pricingType: string | null;
+  initialLiquidity: string | null;
+  lmsrB: string | null;
+  outcomeVolumes: OutcomeVolume[];
+}
+
+/**
+ * 从 Subgraph 获取市场数据并计算赔率
+ * 完全不依赖合约调用，所有数据来自 Subgraph
+ *
+ * @param marketId 市场地址
+ * @param feeRate 手续费率（默认 2%）
+ */
+export function useMarketOddsFromSubgraph(
+  marketId: string | undefined,
+  feeRate = 0.02
+) {
+  return useQuery({
+    queryKey: ['marketOdds', marketId, feeRate],
+    queryFn: async () => {
+      if (!marketId) {
+        return null;
+      }
+
+      const normalizedId = marketId.toLowerCase();
+      console.log('[useMarketOddsFromSubgraph] 查询市场赔率:', normalizedId);
+
+      try {
+        const data = await graphqlClient.request<{ market: MarketWithOddsData }>(
+          MARKET_WITH_ODDS_QUERY,
+          { id: normalizedId }
+        );
+
+        if (!data.market) {
+          console.error('[useMarketOddsFromSubgraph] 市场不存在:', normalizedId);
+          return null;
+        }
+
+        const market = data.market;
+
+        // 使用 Subgraph 数据计算赔率
+        const odds = calculateOddsFromSubgraph({
+          pricingType: market.pricingType,
+          initialLiquidity: market.initialLiquidity,
+          lmsrB: market.lmsrB,
+          totalVolume: market.totalVolume,
+          outcomeVolumes: market.outcomeVolumes,
+          feeRate,
+        });
+
+        console.log('[useMarketOddsFromSubgraph] 计算完成:', {
+          pricingType: market.pricingType,
+          outcomeCount: odds.length,
+          odds: odds.map(o => ({ id: o.outcomeId, odds: o.odds?.toFixed(2) })),
+        });
+
+        return {
+          market,
+          odds,
+        };
+      } catch (error) {
+        console.error('[useMarketOddsFromSubgraph] 查询失败:', error);
+        throw error;
+      }
+    },
+    enabled: !!marketId,
+    staleTime: 5 * 1000, // 5 秒，赔率需要较实时
+  });
+}
+
+// 导出赔率相关类型
+export type { OutcomeOdds };

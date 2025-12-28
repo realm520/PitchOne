@@ -64,12 +64,14 @@ export {
   useUserOrders,
   useMarketOrders,
   useMarketAllOrders,
+  useMarketOddsFromSubgraph,
   MarketStatus,
   type Market,
   type Position,
   type Order,
   type PaginationInfo,
   type PaginatedMarketsResult,
+  type MarketWithOddsData,
 } from './hooks';
 
 // Contract Interaction Hooks (User)
@@ -185,3 +187,12 @@ export {
   type ParamDefinition,
   type ProposalListItem,
 } from './param-controller-hooks';
+
+// Odds Calculator (Subgraph-based)
+export {
+  calculateOddsFromSubgraph,
+  formatOdds,
+  type MarketOddsData,
+  type OutcomeVolume,
+  type OutcomeOdds,
+} from './odds-calculator';

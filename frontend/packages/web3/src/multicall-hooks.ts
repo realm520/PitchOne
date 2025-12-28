@@ -1,9 +1,12 @@
 'use client';
 
 import { useReadContracts, useAccount as useWagmiAccount } from 'wagmi';
+import { useQuery } from '@tanstack/react-query';
 import { Market_V3_ABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
 import { useOutcomeCount } from './contract-hooks';
+import { graphqlClient, MARKET_WITH_ODDS_QUERY } from './graphql';
+import { calculateOddsFromSubgraph, type OutcomeVolume } from './odds-calculator';
 
 /**
  * 市场完整数据接口
@@ -374,156 +377,95 @@ function getExpectedOutcomeCount(templateType: string): number | null {
   }
 }
 
+// 市场赔率数据接口（从 Subgraph 返回）
+interface MarketWithOddsDataInternal {
+  id: string;
+  templateId: string;
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  kickoffTime: string;
+  state: string;
+  totalVolume: string;
+  feeAccrued: string;
+  line?: string;
+  lines?: string[];
+  pricingType: string | null;
+  initialLiquidity: string | null;
+  lmsrB: string | null;
+  outcomeVolumes: OutcomeVolume[];
+}
+
 /**
  * 获取格式化的 Outcome 数据（包括名称和实时赔率）
+ *
+ * 🔄 V2 更新：现在使用 Subgraph 数据计算赔率，不再调用合约
  *
  * @param marketAddress 市场合约地址
  * @param templateType 市场模板类型（WDL, OU, AH等）
  * @param line 盘口线（可选，用于 OU/AH 市场显示完整名称，如 "2.5 球"）
  */
 export function useMarketOutcomes(marketAddress?: Address, templateType?: string, line?: string) {
-  console.log('[useMarketOutcomes] 开始查询:', { marketAddress, templateType });
+  console.log('[useMarketOutcomes] 开始查询 (Subgraph 模式):', { marketAddress, templateType });
 
-  const { data: marketData, isLoading, error, refetch } = useMarketFullData(marketAddress);
+  // 直接使用 GraphQL 查询，避免循环依赖
+  const { data: oddsData, isLoading, error, refetch } = useQuery({
+    queryKey: ['marketOutcomesSubgraph', marketAddress],
+    queryFn: async () => {
+      if (!marketAddress) return null;
 
-  console.log('[useMarketOutcomes] useMarketFullData 返回:', {
-    hasMarketData: !!marketData,
-    isLoading,
-    hasError: !!error
+      const normalizedId = marketAddress.toLowerCase();
+      const data = await graphqlClient.request<{ market: MarketWithOddsDataInternal }>(
+        MARKET_WITH_ODDS_QUERY,
+        { id: normalizedId }
+      );
+
+      if (!data.market) return null;
+
+      const market = data.market;
+
+      // 根据模板类型确定预期的 outcome 数量
+      const expectedCount = getExpectedOutcomeCount(market.templateId || 'WDL');
+
+      // 使用 Subgraph 数据计算赔率
+      const odds = calculateOddsFromSubgraph({
+        pricingType: market.pricingType,
+        initialLiquidity: market.initialLiquidity,
+        lmsrB: market.lmsrB,
+        totalVolume: market.totalVolume,
+        outcomeVolumes: market.outcomeVolumes,
+        feeRate: 0.02,
+        expectedOutcomeCount: expectedCount || 3, // 默认 3 个（WDL）
+      });
+
+      return { market, odds };
+    },
+    enabled: !!marketAddress,
+    staleTime: 5000, // 5 秒
   });
 
-  if (!marketData || isLoading) {
+  if (!oddsData || isLoading) {
     console.log('[useMarketOutcomes] 返回 null，原因:', {
-      hasMarketData: !!marketData,
+      hasOddsData: !!oddsData,
       isLoading
     });
     return { data: null, isLoading, error, refetch };
   }
 
-  const rawOutcomeCount = Number(marketData.outcomeCount);
-  const outcomeLiquidity = marketData.outcomeLiquidity;
-  const totalLiquidity = marketData.totalLiquidity;
+  const { market, odds } = oddsData;
 
   // 根据市场类型限制显示的 outcome 数量
-  // 防止合约返回异常数据时显示过多按钮
-  const expectedCount = getExpectedOutcomeCount(templateType || 'WDL');
-  const outcomeCount = expectedCount !== null
-    ? Math.min(rawOutcomeCount, expectedCount)
-    : rawOutcomeCount;
+  const expectedCount = getExpectedOutcomeCount(templateType || market.templateId || 'WDL');
+  const displayOdds = expectedCount !== null
+    ? odds.slice(0, expectedCount)
+    : odds;
 
-  // 计算每个 outcome 的数据
-  const outcomes: OutcomeData[] = [];
-
-  for (let i = 0; i < outcomeCount; i++) {
-    const reserve = outcomeLiquidity[i];
-
-    let probability = 0;
-    let directOdds: number | null = null; // Parimutuel 直接计算的赔率
-
-    // 根据定价模式使用不同的公式
-    if (marketData.isParimutel) {
-      // ===== Parimutuel 奖池模式 =====
-      // 直接计算赔率：odds = (totalPool * (1 - fee)) / myBets
-      // 不使用概率转换，避免误导性的赔率
-      const totalPool = Number(totalLiquidity);
-      const myBets = Number(reserve);
-      const feeRate = Number(marketData.feeRate) / 10000;
-
-      if (totalPool > 0 && myBets > 0) {
-        // 赔率 = 扣费后的总奖池 / 该结果投注额
-        directOdds = (totalPool * (1 - feeRate)) / myBets;
-        // 确保赔率有效
-        if (!isFinite(directOdds) || isNaN(directOdds)) {
-          directOdds = null; // 标记为无效，后续显示 "-"
-        }
-      } else if (myBets === 0) {
-        // 该结果没有投注，赔率为 null（显示 "-"）
-        directOdds = null;
-      } else {
-        // 初始状态（总池为0）：赔率为 null
-        directOdds = null;
-      }
-
-      // 为了后续逻辑兼容，也计算一个"等效概率"
-      // 但这个概率仅用于显示，不影响赔率计算
-      probability = directOdds > 0 ? 1 / directOdds : 0;
-    } else {
-      // ===== CPMM 做市商模式 =====
-      // 使用虚拟储备计算隐含概率
-      // 对于二向市场：price_i = reserves[1-i] / (reserves[0] + reserves[1])
-      // 对于三向市场：price_i = (reserves[j] * reserves[k]) / (r0*r1 + r0*r2 + r1*r2)
-
-      if (outcomeCount === 2) {
-        // 二向市场
-        const opponentReserve = outcomeLiquidity[1 - i];
-        const sumReserves = Number(outcomeLiquidity[0]) + Number(outcomeLiquidity[1]);
-
-        if (sumReserves > 0) {
-          probability = Number(opponentReserve) / sumReserves;
-        } else {
-          // 初始状态：平均概率
-          probability = 0.5;
-        }
-      } else if (outcomeCount === 3) {
-        // 三向市场
-        const [r0, r1, r2] = outcomeLiquidity;
-        let numerator = 0n;
-        let denominator = r0 * r1 + r0 * r2 + r1 * r2;
-
-        if (i === 0) {
-          numerator = r1 * r2;
-        } else if (i === 1) {
-          numerator = r0 * r2;
-        } else {
-          numerator = r0 * r1;
-        }
-
-        if (denominator > 0n) {
-          probability = Number(numerator) / Number(denominator);
-        } else {
-          // 初始状态：平均概率
-          probability = 1 / 3;
-        }
-      } else {
-        // 多结果市场（如 Score、PlayerProps）：使用简化的倒数求和法
-        // price_i = (1/r_i) / Σ(1/r_j)
-        let sumInverse = 0;
-        for (let j = 0; j < outcomeCount; j++) {
-          const r = Number(outcomeLiquidity[j]);
-          if (r > 0) {
-            sumInverse += 1 / r;
-          }
-        }
-
-        const currentReserve = Number(reserve);
-        if (currentReserve > 0 && sumInverse > 0) {
-          probability = (1 / currentReserve) / sumInverse;
-        } else {
-          // 初始状态或储备为0：平均概率
-          probability = 1 / outcomeCount;
-        }
-      }
-    }
-
-    // 计算赔率
-    let odds: number | null;
-
-    if (marketData.isParimutel) {
-      // Parimutuel 模式：使用直接计算的赔率（可能为 null）
-      odds = directOdds;
-    } else {
-      // CPMM 模式：从概率计算赔率（考虑手续费）
-      const feeRate = Number(marketData.feeRate) / 10000; // feeRate 是基点（如 200 = 2%）
-      const effectiveProbability = probability * (1 - feeRate);
-      odds = effectiveProbability > 0 ? 1 / effectiveProbability : 99.99;
-    }
-
+  // 转换为 OutcomeData 格式
+  const outcomes: OutcomeData[] = displayOdds.map((o) => {
     // 根据模板类型获取 outcome 名称
-    // 优先使用从合约获取的 line 值，如果没有则使用传入的参数
-    const effectiveLine = marketData.line !== undefined
-      ? marketData.line.toString()
-      : line;
-    const name = getOutcomeName(i, templateType || 'WDL', effectiveLine);
+    const effectiveLine = market.line || line;
+    const effectiveTemplateType = templateType || market.templateId || 'WDL';
+    const name = getOutcomeName(o.outcomeId, effectiveTemplateType, effectiveLine);
 
     // 根据 outcome ID 设置颜色
     const colors = [
@@ -533,21 +475,22 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
       'from-purple-600 to-purple-800',
       'from-red-600 to-red-800',
     ];
-    const color = colors[i] || 'from-gray-600 to-gray-800';
+    const color = colors[o.outcomeId] || 'from-gray-600 to-gray-800';
 
-    outcomes.push({
-      id: i,
+    return {
+      id: o.outcomeId,
       name,
-      odds: odds !== null ? odds.toFixed(2) : '-',
+      odds: o.odds !== null ? o.odds.toFixed(2) : '-',
       color,
-      liquidity: reserve,
-      probability,
-    });
-  }
+      liquidity: o.shares, // 使用 shares 作为流动性指标
+      probability: o.probability,
+    };
+  });
 
-  console.log('[useMarketOutcomes] 查询成功，返回 outcomes:', {
-    outcomeCount,
-    outcomes
+  console.log('[useMarketOutcomes] Subgraph 查询成功，返回 outcomes:', {
+    outcomeCount: outcomes.length,
+    pricingType: market.pricingType,
+    outcomes: outcomes.map(o => ({ id: o.id, name: o.name, odds: o.odds }))
   });
 
   return { data: outcomes, isLoading: false, error, refetch };

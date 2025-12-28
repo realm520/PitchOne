@@ -132,6 +132,45 @@ export const MARKET_QUERY = `
       finalizedAt
       line
       lines
+      pricingType
+      initialLiquidity
+      lmsrB
+      outcomeVolumes {
+        id
+        outcomeId
+        volume
+        shares
+        betCount
+      }
+    }
+  }
+`;
+
+// 市场详情查询（带 outcomeVolumes，用于赔率计算）
+export const MARKET_WITH_ODDS_QUERY = `
+  query MarketWithOdds($id: ID!) {
+    market(id: $id) {
+      id
+      templateId
+      matchId
+      homeTeam
+      awayTeam
+      kickoffTime
+      state
+      totalVolume
+      feeAccrued
+      line
+      lines
+      pricingType
+      initialLiquidity
+      lmsrB
+      outcomeVolumes {
+        id
+        outcomeId
+        volume
+        shares
+        betCount
+      }
     }
   }
 `;
