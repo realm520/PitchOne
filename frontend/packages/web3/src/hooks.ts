@@ -167,24 +167,36 @@ function formatLineDisplay(lineStr: string): string {
  */
 function generateDisplayInfo(market: Market): Market['_displayInfo'] {
   // 模板类型映射 - templateId -> 类型代码
+  // 包括 Pari（彩池模式）变体
   const templateIdToTypeMap: Record<string, string> = {
     '0x00000000': 'WDL',
     WDL: 'WDL',
+    WDL_Pari: 'WDL_Pari',
     OU: 'OU',
+    OU_Pari: 'OU_Pari',
     OU_MULTI: 'OU_MULTI',
     AH: 'AH',
+    AH_Pari: 'AH_Pari',
     Score: 'Score',
+    Score_Pari: 'Score_Pari',
     OddEven: 'OddEven',
+    OddEven_Pari: 'OddEven_Pari',
   };
 
   // 类型代码 -> i18n key
+  // Pari 变体使用相同的显示名称
   const typeDisplayKeyMap: Record<string, string> = {
     WDL: 'markets.type.wdl',
+    WDL_Pari: 'markets.type.wdl',
     OU: 'markets.type.ou',
+    OU_Pari: 'markets.type.ou',
     OU_MULTI: 'markets.type.ou',
     AH: 'markets.type.ah',
+    AH_Pari: 'markets.type.ah',
     Score: 'markets.type.score',
+    Score_Pari: 'markets.type.score',
     OddEven: 'markets.type.oddEven',
+    OddEven_Pari: 'markets.type.oddEven',
   };
 
   // 从 templateId 提取类型代码

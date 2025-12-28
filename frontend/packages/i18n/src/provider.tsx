@@ -100,7 +100,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   // 设置语言并持久化
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+    }
   }, []);
 
   // 翻译函数

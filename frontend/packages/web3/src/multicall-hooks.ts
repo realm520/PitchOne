@@ -72,17 +72,17 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
       },
       {
         address: marketAddress,
-        // pricingEngine 是模板合约的公共变量，需要手动定义 ABI
+        // pricingStrategy 是 Market_V3 的公共变量
         abi: [
           {
             inputs: [],
-            name: 'pricingEngine',
+            name: 'pricingStrategy',
             outputs: [{ internalType: 'address', name: '', type: 'address' }],
             stateMutability: 'view',
             type: 'function',
           },
         ],
-        functionName: 'pricingEngine',
+        functionName: 'pricingStrategy',
       },
       {
         address: marketAddress,
@@ -100,13 +100,13 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
       }
     );
 
-    // 为每个结果查询虚拟储备（V2 模板使用 virtualReserves）
+    // 为每个结果查询投注份额（V3 使用 totalSharesPerOutcome）
     if (outcomeCountNumber > 0) {
       for (let i = 0; i < outcomeCountNumber; i++) {
         contracts.push({
           address: marketAddress,
           abi: Market_V3_ABI,
-          functionName: 'virtualReserves',
+          functionName: 'totalSharesPerOutcome',
           args: [BigInt(i)],
         });
       }
@@ -158,7 +158,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   const status = data[0]?.result as number;
   const totalLiquidity = data[1]?.result as bigint;
   const feeRate = data[2]?.result as bigint;
-  const pricingEngine = (data[3]?.result as string)?.toLowerCase();
+  const pricingStrategy = (data[3]?.result as string)?.toLowerCase();
   // line 可能在非 OU/AH 市场中不存在，所以需要处理错误情况
   const lineResult = data[4]?.result;
   const line = lineResult !== undefined && lineResult !== null ? (lineResult as bigint) : undefined;
@@ -182,7 +182,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   // 通过对比定价引擎地址来判断（最可靠的方法）
   // 从配置中读取 Parimutuel 引擎地址（支持多链）
   const parimutuelAddress = getContractAddresses(chainId).strategies.parimutuel.toLowerCase();
-  const isParimutel = pricingEngine === parimutuelAddress;
+  const isParimutel = pricingStrategy === parimutuelAddress;
 
   const fullData: MarketFullData = {
     status,
@@ -198,7 +198,7 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   console.log('[useMarketFullData] 解析完成:', {
     status,
     totalLiquidity: totalLiquidity.toString(),
-    pricingEngine,
+    pricingStrategy,
     parimutuelAddress,
     isParimutel,
     line: line?.toString(),
@@ -432,12 +432,16 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
       if (totalPool > 0 && myBets > 0) {
         // 赔率 = 扣费后的总奖池 / 该结果投注额
         directOdds = (totalPool * (1 - feeRate)) / myBets;
-      } else if (totalPool > 0 && myBets === 0) {
-        // 该结果没有投注，赔率为上限（99.99）
-        directOdds = 99.99;
+        // 确保赔率有效
+        if (!isFinite(directOdds) || isNaN(directOdds)) {
+          directOdds = null; // 标记为无效，后续显示 "-"
+        }
+      } else if (myBets === 0) {
+        // 该结果没有投注，赔率为 null（显示 "-"）
+        directOdds = null;
       } else {
-        // 初始状态：默认赔率
-        directOdds = 1 / outcomeCount;
+        // 初始状态（总池为0）：赔率为 null
+        directOdds = null;
       }
 
       // 为了后续逻辑兼容，也计算一个"等效概率"
@@ -502,10 +506,10 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
     }
 
     // 计算赔率
-    let odds: number;
+    let odds: number | null;
 
-    if (directOdds !== null) {
-      // Parimutuel 模式：使用直接计算的赔率
+    if (marketData.isParimutel) {
+      // Parimutuel 模式：使用直接计算的赔率（可能为 null）
       odds = directOdds;
     } else {
       // CPMM 模式：从概率计算赔率（考虑手续费）
@@ -534,7 +538,7 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
     outcomes.push({
       id: i,
       name,
-      odds: odds.toFixed(2),
+      odds: odds !== null ? odds.toFixed(2) : '-',
       color,
       liquidity: reserve,
       probability,

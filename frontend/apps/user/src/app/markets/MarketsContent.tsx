@@ -85,9 +85,9 @@ export function MarketsContent() {
       return true;
     });
 
-    // Sort by creation time (earliest first)
+    // Sort by creation time (newest first)
     return filtered.sort(
-      (a, b) => parseInt(a.createdAt) - parseInt(b.createdAt)
+      (a, b) => parseInt(b.createdAt) - parseInt(a.createdAt)
     );
   }, [markets, typeFilter, selectedLeague]);
 
@@ -126,9 +126,9 @@ export function MarketsContent() {
       groups[dateKey].push(market);
     });
 
-    // Sort by date
+    // Sort by date (newest first)
     return Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => b.localeCompare(a))
       .map(([dateKey, markets]) => {
         const date = new Date(dateKey + "T00:00:00");
         const today = new Date();

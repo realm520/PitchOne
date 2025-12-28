@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Providers } from "@pitchone/web3";
 import { I18nProvider } from "@pitchone/i18n";
 import { Header } from "@pitchone/ui";
 import { Toaster } from 'react-hot-toast';
+import { ClientProviders } from "../components/ClientProviders";
 import { ParlayProvider } from "../lib/parlay-store";
 import { BetSlipProvider } from "../lib/betslip-store";
 import { SidebarProvider } from "../lib/sidebar-store";
@@ -33,7 +33,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <RouteProgressBar />
-        <Providers>
+        <ClientProviders>
           <I18nProvider>
             <DynamicHead />
             <SidebarProvider>
@@ -57,7 +57,7 @@ export default function RootLayout({
                     navigation={<Navigation />}
                     actions={<HeaderActions />}
                   />
-                  <main className="flex-1 overflow-auto">{children}</main>
+                  <main className="flex-1">{children}</main>
                   <AppFooter />
                   <ParlayCart />
                 </div>
@@ -79,7 +79,7 @@ export default function RootLayout({
               },
             }}
           />
-        </Providers>
+        </ClientProviders>
       </body>
     </html>
   );

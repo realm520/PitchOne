@@ -658,6 +658,7 @@
     "termsLink": "利用規約",
     "liquidity": "流動性",
     "potentialWin": "予想獲得",
-    "connectWallet": "ウォレットを接続"
+    "connectWallet": "ウォレットを接続",
+    "insufficientBalance": "残高不足"
   }
 }

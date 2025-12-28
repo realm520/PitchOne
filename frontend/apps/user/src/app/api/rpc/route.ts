@@ -4,7 +4,24 @@ const RPC_URL = process.env.ANVIL_RPC_URL || 'http://localhost:8545';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // 检查请求体是否为空
+    const text = await request.text();
+    if (!text || text.trim() === '') {
+      return NextResponse.json(
+        { error: 'Empty request body' },
+        { status: 400 }
+      );
+    }
+
+    let body;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     const response = await fetch(RPC_URL, {
       method: 'POST',

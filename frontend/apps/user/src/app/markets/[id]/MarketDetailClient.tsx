@@ -70,10 +70,28 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   // 合并历史订单和实时事件
   const allBetEvents = useMemo(() => {
     // 辅助函数：安全地将字符串转换为 BigInt
-    // Subgraph 现在返回原始 BigInt 字符串，直接转换即可
-    const stringToBigInt = (value: string | undefined): bigint => {
+    // Subgraph 返回的是小数格式（如 "0.98" USDC），需要转换为 wei
+    const stringToBigInt = (value: string | undefined, decimals: number = 6): bigint => {
       if (!value) return 0n;
-      return BigInt(value);
+      try {
+        // 处理小数格式（如 "0.98"）
+        const num = parseFloat(value);
+        if (isNaN(num)) return 0n;
+        // 转换为 wei（USDC 是 6 位小数）
+        return BigInt(Math.round(num * Math.pow(10, decimals)));
+      } catch {
+        return 0n;
+      }
+    };
+
+    // 辅助函数：将整数字符串转换为 BigInt（如 shares, fee）
+    const intStringToBigInt = (value: string | undefined): bigint => {
+      if (!value) return 0n;
+      try {
+        return BigInt(value);
+      } catch {
+        return 0n;
+      }
     };
 
     const historicalEvents = (allOrders || []).map(order => {
@@ -81,9 +99,9 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       return {
         user: order.user as `0x${string}`,
         outcomeId: BigInt(order.outcome),
-        amount: stringToBigInt(order.amount), // 原始 wei 值
-        shares: stringToBigInt(order.shares), // 原始 wei 值
-        fee: stringToBigInt(order.fee), // 原始 wei 值
+        amount: stringToBigInt(order.amount), // 小数格式（如 "0.98"），转换为 wei
+        shares: intStringToBigInt(order.shares), // 整数格式，直接转换
+        fee: intStringToBigInt(order.fee), // 整数格式，直接转换
         blockNumber: 0n, // 历史订单没有 blockNumber
         transactionHash: order.transactionHash,
         timestamp: parseInt(order.timestamp) * 1000, // 转换为毫秒

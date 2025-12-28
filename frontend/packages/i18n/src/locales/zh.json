@@ -658,6 +658,7 @@
     "termsLink": "使用条款",
     "liquidity": "流动性",
     "potentialWin": "预期收益",
-    "connectWallet": "连接钱包"
+    "connectWallet": "连接钱包",
+    "insufficientBalance": "余额不足"
   }
 }

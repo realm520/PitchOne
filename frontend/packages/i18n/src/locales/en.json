@@ -658,6 +658,7 @@
     "termsLink": "Terms of Use",
     "liquidity": "Liq.",
     "potentialWin": "Poten.Win",
-    "connectWallet": "Connect Wallet"
+    "connectWallet": "Connect Wallet",
+    "insufficientBalance": "Insufficient Balance"
   }
 }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -8,6 +9,11 @@ const nextConfig: NextConfig = {
     "@pitchone/web3",
     "@pitchone/utils",
   ],
+  // Turbopack 配置
+  turbopack: {
+    root: path.resolve(__dirname, "../../"),
+  },
+  // Webpack 配置（仅在非 Turbopack 模式下使用）
   webpack: (config) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatUnits } from "viem";
 import { X } from "lucide-react";
 import {
@@ -11,6 +11,7 @@ import {
   useUSDCBalance,
   useMarketFullData,
 } from "@pitchone/web3";
+import { getContractAddresses } from "@pitchone/contracts";
 import { Card, Button } from "@pitchone/ui";
 import { useTranslation } from "@pitchone/i18n";
 import { useBetSlipStore } from "../../lib/betslip-store";
@@ -24,7 +25,8 @@ interface BetSlipProps {
 export function BetSlip({ className }: BetSlipProps) {
   const { t } = useTranslation();
   const { selectedBet, clearBet } = useBetSlipStore();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
 
   // 避免水合不匹配：延迟渲染客户端特定 UI
   const [mounted, setMounted] = useState(false);
@@ -45,12 +47,14 @@ export function BetSlip({ className }: BetSlipProps) {
 
   // Contract interaction hooks
   const { data: usdcBalance } = useUSDCBalance(address as `0x${string}`);
+  // 重要：用户需要授权给 BettingRouter，而不是市场地址
+  // 因为下注是通过 BettingRouter.placeBet() 进行的
   const {
     data: allowance,
     refetch: refetchAllowance,
     isLoading: isAllowanceLoading,
     error: allowanceError,
-  } = useUSDCAllowance(address as `0x${string}`, selectedBet?.marketAddress);
+  } = useUSDCAllowance(address as `0x${string}`, addresses?.bettingRouter);
 
   const {
     approve,
@@ -76,30 +80,47 @@ export function BetSlip({ className }: BetSlipProps) {
       ? parseFloat(formatUnits(usdcBalance, 6)).toFixed(2)
       : "--";
 
+  // 检查余额是否不足
+  const insufficientBalance = useMemo(() => {
+    if (!betAmount || parseFloat(betAmount) <= 0) return false;
+    if (usdcBalance === undefined || usdcBalance === null) return false;
+    if (typeof usdcBalance !== "bigint") return false;
+
+    const amountInWei = BigInt(Math.floor(parseFloat(betAmount) * 1e6));
+    return usdcBalance < amountInWei;
+  }, [betAmount, usdcBalance]);
+
   // Reset amount when bet changes
   useEffect(() => {
     setBetAmount("");
   }, [selectedBet?.marketAddress, selectedBet?.outcomeId]);
 
   // Check if needs approval
+  // 优化：提前检查授权状态，如果用户已授权 BettingRouter，直接显示 Trade 按钮
   useEffect(() => {
-    if (!betAmount) {
-      setNeedsApproval(false);
-      return;
-    }
-
+    // 如果查询出错，假设需要授权
     if (allowanceError) {
       setNeedsApproval(true);
       return;
     }
 
-    if (
-      allowance !== undefined &&
-      allowance !== null &&
-      typeof allowance === "bigint"
-    ) {
-      const amountInWei = BigInt(parseFloat(betAmount) * 1e6);
-      setNeedsApproval(allowance < amountInWei);
+    // 如果还没有授权数据，等待查询完成
+    if (allowance === undefined || allowance === null) {
+      return;
+    }
+
+    if (typeof allowance === "bigint") {
+      // 如果用户输入了金额，检查是否足够
+      if (betAmount && parseFloat(betAmount) > 0) {
+        const amountInWei = BigInt(Math.floor(parseFloat(betAmount) * 1e6));
+        setNeedsApproval(allowance < amountInWei);
+      } else {
+        // 没有输入金额时，检查是否有任何授权
+        // 如果授权额度 > 0（通常是 max），认为已授权
+        // 使用 1 USDC (1e6) 作为最小阈值
+        const minThreshold = BigInt(1e6);
+        setNeedsApproval(allowance < minThreshold);
+      }
     }
   }, [betAmount, allowance, allowanceError]);
 
@@ -251,9 +272,10 @@ export function BetSlip({ className }: BetSlipProps) {
   };
 
   const handleApprove = async () => {
-    if (!selectedBet?.marketAddress) return;
+    // 授权给 BettingRouter，而不是市场地址
+    if (!addresses?.bettingRouter) return;
     try {
-      await approve(selectedBet.marketAddress, "max");
+      await approve(addresses.bettingRouter, "max");
     } catch (error: unknown) {
       console.error("Approve error:", error);
       if (approveToastId) {
@@ -373,6 +395,13 @@ export function BetSlip({ className }: BetSlipProps) {
                   USDC
                 </span>
               </div>
+
+              {/* 余额不足警告 */}
+              {insufficientBalance && (
+                <p className="text-red-400 text-xs mt-2">
+                  {t("betslip.insufficientBalance")}
+                </p>
+              )}
             </div>
 
             {/* 分割线 */}
@@ -414,6 +443,7 @@ export function BetSlip({ className }: BetSlipProps) {
                   disabled={
                     !betAmount ||
                     parseFloat(betAmount) < 1 ||
+                    insufficientBalance ||
                     isApproving ||
                     isApprovingConfirming ||
                     isAllowanceLoading
@@ -422,7 +452,9 @@ export function BetSlip({ className }: BetSlipProps) {
                     isApproving || isApprovingConfirming || isAllowanceLoading
                   }
                 >
-                  {isApproving || isApprovingConfirming
+                  {insufficientBalance
+                    ? t("betslip.insufficientBalance")
+                    : isApproving || isApprovingConfirming
                     ? t("betslip.approving")
                     : isAllowanceLoading
                     ? t("betslip.checking")
@@ -437,6 +469,7 @@ export function BetSlip({ className }: BetSlipProps) {
                     !isConnected ||
                     !betAmount ||
                     parseFloat(betAmount) < 1 ||
+                    insufficientBalance ||
                     isBetting ||
                     isBettingConfirming
                   }
@@ -444,6 +477,8 @@ export function BetSlip({ className }: BetSlipProps) {
                 >
                   {!isConnected
                     ? t("betslip.connectWallet")
+                    : insufficientBalance
+                    ? t("betslip.insufficientBalance")
                     : isBetting || isBettingConfirming
                     ? t("betslip.trading")
                     : t("betslip.trade")}
