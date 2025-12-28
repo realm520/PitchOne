@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY, USER_REDEMPTIONS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, MARKET_WITH_ODDS_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY, USER_REDEMPTIONS_QUERY } from './graphql';
+import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
 
 // Redemption 类型定义
 interface RedemptionRaw {
@@ -25,6 +26,16 @@ export enum MarketStatus {
   Finalized = 'Finalized',
 }
 
+// Outcome 数据类型（用于 UI 显示）
+export interface OutcomeData {
+  id: number;
+  name: string;  // i18n key 或显示文本
+  odds: string;  // 格式化的赔率（如 "1.85"）或 "-"
+  color: string;
+  liquidity: bigint;
+  probability: number;
+}
+
 // 类型定义
 export interface Market {
   id: string;
@@ -45,6 +56,13 @@ export interface Market {
   winnerOutcome?: number;
   line?: string; // 大小球盘口线（单线市场，如 "2500000000000000000" = 2.5 球）
   lines?: string[]; // 大小球盘口线数组（多线市场，如 ["2000000000000000000", "2500000000000000000", "3000000000000000000"]）
+  // 赔率相关字段（从 Subgraph 获取，用于本地计算赔率）
+  pricingType?: string;
+  initialLiquidity?: string;
+  lmsrB?: string;
+  outcomeVolumes?: OutcomeVolume[];
+  // 计算后的赔率数据（直接用于 UI 显示）
+  outcomes?: OutcomeData[];
   // 辅助字段用于显示
   _displayInfo?: {
     homeTeam: string;
@@ -239,6 +257,116 @@ function generateDisplayInfo(market: Market): Market['_displayInfo'] {
 }
 
 /**
+ * 根据市场类型获取预期的 outcome 数量
+ */
+function getExpectedOutcomeCount(templateType: string): number | null {
+  switch (templateType) {
+    case 'WDL':
+    case 'WDL_Pari':
+      return 3;      // 胜平负：主胜、平局、客胜
+    case 'OU':
+    case 'OU_Pari':
+      return 2;       // 大小球：大、小
+    case 'OU_MULTI': return null; // 多线大小球：由线数决定
+    case 'AH':
+    case 'AH_Pari':
+      return 3;       // 让球：主队赢盘、客队赢盘、走盘
+    case 'OddEven':
+    case 'OddEven_Pari':
+      return 2;  // 单双：单、双
+    case 'Score':
+    case 'Score_Pari':
+      return null; // 精确比分：不限制
+    case 'PlayerProps': return null; // 球员道具：不限制
+    default: return 3;         // 默认返回 3（WDL 最常见）
+  }
+}
+
+/**
+ * 根据模板类型和 outcome ID 获取 i18n key
+ */
+function getOutcomeName(outcomeId: number, templateType: string): string {
+  // OU_MULTI 特殊处理
+  if (templateType === 'OU_MULTI') {
+    const direction = outcomeId % 2;
+    return direction === 0 ? 'outcomes.ou.over' : 'outcomes.ou.under';
+  }
+
+  // OU
+  if (templateType === 'OU' || templateType === 'OU_Pari') {
+    return outcomeId === 0 ? 'outcomes.ou.over' : 'outcomes.ou.under';
+  }
+
+  // AH
+  if (templateType === 'AH' || templateType === 'AH_Pari') {
+    if (outcomeId === 0) return 'outcomes.ah.homeCover';
+    if (outcomeId === 1) return 'outcomes.ah.awayCover';
+    return 'outcomes.ah.push';
+  }
+
+  // OddEven
+  if (templateType === 'OddEven' || templateType === 'OddEven_Pari') {
+    return outcomeId === 0 ? 'outcomes.oddEven.odd' : 'outcomes.oddEven.even';
+  }
+
+  // WDL
+  if (templateType === 'WDL' || templateType === 'WDL_Pari') {
+    const keys = ['outcomes.wdl.homeWin', 'outcomes.wdl.draw', 'outcomes.wdl.awayWin'];
+    return keys[outcomeId] || 'outcomes.fallback';
+  }
+
+  // Score
+  if (templateType === 'Score' || templateType === 'Score_Pari') {
+    if (outcomeId === 999) return 'outcomes.score.other';
+    const homeGoals = Math.floor(outcomeId / 10);
+    const awayGoals = outcomeId % 10;
+    return `${homeGoals}-${awayGoals}`;
+  }
+
+  return 'outcomes.fallback';
+}
+
+/**
+ * 为市场计算赔率数据
+ */
+function calculateMarketOutcomes(market: Market): OutcomeData[] {
+  const templateType = market.templateId || 'WDL';
+  const expectedCount = getExpectedOutcomeCount(templateType);
+
+  // 使用 Subgraph 数据计算赔率
+  const odds = calculateOddsFromSubgraph({
+    pricingType: market.pricingType || null,
+    initialLiquidity: market.initialLiquidity || null,
+    lmsrB: market.lmsrB || null,
+    totalVolume: market.totalVolume,
+    outcomeVolumes: market.outcomeVolumes || [],
+    feeRate: 0.02,
+    expectedOutcomeCount: expectedCount || 3,
+  });
+
+  // 限制显示数量
+  const displayOdds = expectedCount !== null ? odds.slice(0, expectedCount) : odds;
+
+  // 转换为 OutcomeData 格式
+  const colors = [
+    'from-green-600 to-green-800',
+    'from-yellow-600 to-yellow-800',
+    'from-blue-600 to-blue-800',
+    'from-purple-600 to-purple-800',
+    'from-red-600 to-red-800',
+  ];
+
+  return displayOdds.map((o) => ({
+    id: o.outcomeId,
+    name: getOutcomeName(o.outcomeId, templateType),
+    odds: o.odds !== null ? o.odds.toFixed(2) : '-',
+    color: colors[o.outcomeId] || 'from-gray-600 to-gray-800',
+    liquidity: o.shares,
+    probability: o.probability,
+  }));
+}
+
+/**
  * 查询市场列表
  */
 export function useMarkets(status?: MarketStatus[], first = 20, skip = 0) {
@@ -264,17 +392,18 @@ export function useMarkets(status?: MarketStatus[], first = 20, skip = 0) {
 
         console.log('[useMarkets] 查询成功，返回', data.markets.length, '个市场');
 
-        // 为每个市场添加显示信息
+        // 为每个市场添加显示信息和计算赔率
         return data.markets.map(market => ({
           ...market,
           _displayInfo: generateDisplayInfo(market),
+          outcomes: calculateMarketOutcomes(market),
         }));
       } catch (error) {
         console.error('[useMarkets] 查询失败:', error);
         throw error;
       }
     },
-    staleTime: 30 * 1000, // 30 秒
+    staleTime: 5 * 1000, // 5 秒（赔率需要更实时）
   });
 }
 
@@ -700,9 +829,6 @@ export function useMarketAllOrders(
 // ============================================================================
 // 基于 Subgraph 的赔率计算 Hook
 // ============================================================================
-
-import { MARKET_WITH_ODDS_QUERY } from './graphql';
-import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
 
 /**
  * 市场赔率数据接口（从 Subgraph 返回）

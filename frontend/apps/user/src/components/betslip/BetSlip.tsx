@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { formatUnits } from "viem";
 import { X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useAccount,
   usePlaceBet,
@@ -24,6 +25,7 @@ interface BetSlipProps {
 
 export function BetSlip({ className }: BetSlipProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { selectedBet, clearBet } = useBetSlipStore();
   const { address, isConnected, chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
@@ -186,8 +188,25 @@ export function BetSlip({ className }: BetSlipProps) {
       setBetToastId(null);
       setBetAmount("");
       clearBet();
+
+      // 延迟刷新市场数据，等待 Subgraph 索引新的下注数据
+      // 第一次刷新：2秒后（快速反馈）
+      // 第二次刷新：5秒后（确保 Subgraph 完成索引）
+      const refreshMarketData = () => {
+        queryClient.invalidateQueries({ queryKey: ['markets'] });
+        queryClient.invalidateQueries({ queryKey: ['marketOutcomesSubgraph'] });
+        queryClient.invalidateQueries({ queryKey: ['userPositions'] });
+      };
+
+      const timer1 = setTimeout(refreshMarketData, 2000);
+      const timer2 = setTimeout(refreshMarketData, 5000);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     }
-  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet]);
+  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet, queryClient]);
 
   // Calculate expected payout
   const calculatePayout = () => {

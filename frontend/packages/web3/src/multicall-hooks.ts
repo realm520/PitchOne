@@ -5,8 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Market_V3_ABI, getContractAddresses } from '@pitchone/contracts';
 import type { Address } from 'viem';
 import { useOutcomeCount } from './contract-hooks';
-import { graphqlClient, MARKET_WITH_ODDS_QUERY } from './graphql';
-import { calculateOddsFromSubgraph, type OutcomeVolume } from './odds-calculator';
+import { graphqlClient, MARKET_WITH_ODDS_QUERY, MARKETS_WITH_ODDS_QUERY } from './graphql';
+import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
 
 /**
  * 市场完整数据接口
@@ -494,6 +494,79 @@ export function useMarketOutcomes(marketAddress?: Address, templateType?: string
   });
 
   return { data: outcomes, isLoading: false, error, refetch };
+}
+
+/**
+ * 批量获取多个市场的赔率数据
+ * 用于市场列表页面，一次性获取所有市场的赔率，避免每个卡片独立请求
+ *
+ * @param marketIds 市场地址数组
+ * @returns 市场赔率数据映射 { [marketId]: OutcomeData[] }
+ */
+export function useMarketsOddsBatch(marketIds: string[]) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['marketsOddsBatch', marketIds.sort().join(',')],
+    queryFn: async () => {
+      if (!marketIds || marketIds.length === 0) return {};
+
+      const normalizedIds = marketIds.map(id => id.toLowerCase());
+      const result = await graphqlClient.request<{ markets: MarketWithOddsDataInternal[] }>(
+        MARKETS_WITH_ODDS_QUERY,
+        { ids: normalizedIds }
+      );
+
+      if (!result.markets) return {};
+
+      // 为每个市场计算赔率
+      const oddsMap: Record<string, OutcomeData[]> = {};
+
+      for (const market of result.markets) {
+        const expectedCount = getExpectedOutcomeCount(market.templateId || 'WDL');
+        const odds = calculateOddsFromSubgraph({
+          pricingType: market.pricingType,
+          initialLiquidity: market.initialLiquidity,
+          lmsrB: market.lmsrB,
+          totalVolume: market.totalVolume,
+          outcomeVolumes: market.outcomeVolumes,
+          feeRate: 0.02,
+          expectedOutcomeCount: expectedCount || 3,
+        });
+
+        // 限制显示数量
+        const displayOdds = expectedCount !== null ? odds.slice(0, expectedCount) : odds;
+
+        // 转换为 OutcomeData 格式
+        const outcomes: OutcomeData[] = displayOdds.map((o) => {
+          const name = getOutcomeName(o.outcomeId, market.templateId || 'WDL', market.line);
+          const colors = [
+            'from-green-600 to-green-800',
+            'from-yellow-600 to-yellow-800',
+            'from-blue-600 to-blue-800',
+            'from-purple-600 to-purple-800',
+            'from-red-600 to-red-800',
+          ];
+          const color = colors[o.outcomeId] || 'from-gray-600 to-gray-800';
+
+          return {
+            id: o.outcomeId,
+            name,
+            odds: o.odds !== null ? o.odds.toFixed(2) : '-',
+            color,
+            liquidity: o.shares,
+            probability: o.probability,
+          };
+        });
+
+        oddsMap[market.id.toLowerCase()] = outcomes;
+      }
+
+      return oddsMap;
+    },
+    enabled: marketIds.length > 0,
+    staleTime: 5000, // 5 秒缓存
+  });
+
+  return { data: data || {}, isLoading, error, refetch };
 }
 
 /**

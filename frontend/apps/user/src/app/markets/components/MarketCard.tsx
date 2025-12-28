@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { ShieldCheck, BadgeCheck, ChevronRight } from 'lucide-react';
 import {
-  useMarketOutcomes,
   MarketStatus,
   useIsMarketLocked,
   Market,
@@ -25,12 +24,8 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
   const { selectBet, isSelected } = useBetSlipStore();
   const { address } = useAccount();
 
-  // Fetch real-time outcomes/odds for this market
-  const { data: outcomes, isLoading: outcomesLoading } = useMarketOutcomes(
-    market.id as `0x${string}`,
-    market._displayInfo?.templateType || 'WDL',
-    market.line
-  );
+  // 直接使用 market.outcomes（已在 useMarkets 中计算好）
+  const outcomes = market.outcomes;
 
   // Check if market is locked (based on time)
   const { data: isMarketLocked } = useIsMarketLocked(market.id as `0x${string}`);
@@ -149,13 +144,7 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
             <span className="text-base text-gray-500 text-center">WINNER</span>
             {/* Buttons row - grid ensures fixed 33.33% width per button */}
             <div className="grid grid-cols-3 gap-2">
-              {outcomesLoading ? (
-                <>
-                  <div className="h-10 bg-white/10 rounded animate-pulse" />
-                  <div className="h-10 bg-white/10 rounded animate-pulse" />
-                  <div className="h-10 bg-white/10 rounded animate-pulse" />
-                </>
-              ) : outcomes && outcomes.length > 0 ? (
+              {outcomes && outcomes.length > 0 ? (
                 outcomes.slice(0, 3).map((outcome) => (
                   <OutcomeButton
                     key={outcome.id}
@@ -172,7 +161,12 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
                   />
                 ))
               ) : (
-                <span className="text-xs text-gray-500">-</span>
+                // 没有赔率数据时显示占位符
+                <>
+                  <div className="h-10 bg-white/5 rounded flex items-center justify-center text-gray-500">-</div>
+                  <div className="h-10 bg-white/5 rounded flex items-center justify-center text-gray-500">-</div>
+                  <div className="h-10 bg-white/5 rounded flex items-center justify-center text-gray-500">-</div>
+                </>
               )}
             </div>
           </div>

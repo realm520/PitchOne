@@ -72,6 +72,7 @@ export {
   type PaginationInfo,
   type PaginatedMarketsResult,
   type MarketWithOddsData,
+  type OutcomeData,
 } from './hooks';
 
 // Contract Interaction Hooks (User)
@@ -132,7 +133,6 @@ export {
   useUserUSDCDataForMarkets,
   useMarketOutcomes,
   type MarketFullData,
-  type OutcomeData,
 } from './multicall-hooks';
 
 // Basket (Parlay) Hooks

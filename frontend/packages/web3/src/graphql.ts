@@ -52,7 +52,7 @@ export const graphqlClient = new Proxy({} as GraphQLClient, {
   }
 });
 
-// GraphQL 查询定义（带状态过滤）
+// GraphQL 查询定义（带状态过滤）- 包含赔率计算所需的 outcomeVolumes
 export const MARKETS_QUERY_FILTERED = `
   query Markets($first: Int, $skip: Int, $status: [MarketState!]!) {
     markets(
@@ -78,11 +78,21 @@ export const MARKETS_QUERY_FILTERED = `
       resolvedAt
       line
       lines
+      pricingType
+      initialLiquidity
+      lmsrB
+      outcomeVolumes {
+        id
+        outcomeId
+        volume
+        shares
+        betCount
+      }
     }
   }
 `;
 
-// GraphQL 查询定义（不带状态过滤）
+// GraphQL 查询定义（不带状态过滤）- 包含赔率计算所需的 outcomeVolumes
 export const MARKETS_QUERY = `
   query Markets($first: Int, $skip: Int) {
     markets(
@@ -107,6 +117,16 @@ export const MARKETS_QUERY = `
       resolvedAt
       line
       lines
+      pricingType
+      initialLiquidity
+      lmsrB
+      outcomeVolumes {
+        id
+        outcomeId
+        volume
+        shares
+        betCount
+      }
     }
   }
 `;
@@ -150,6 +170,35 @@ export const MARKET_QUERY = `
 export const MARKET_WITH_ODDS_QUERY = `
   query MarketWithOdds($id: ID!) {
     market(id: $id) {
+      id
+      templateId
+      matchId
+      homeTeam
+      awayTeam
+      kickoffTime
+      state
+      totalVolume
+      feeAccrued
+      line
+      lines
+      pricingType
+      initialLiquidity
+      lmsrB
+      outcomeVolumes {
+        id
+        outcomeId
+        volume
+        shares
+        betCount
+      }
+    }
+  }
+`;
+
+// 批量获取多个市场的赔率数据（用于市场列表页面，一次性获取所有市场的赔率）
+export const MARKETS_WITH_ODDS_QUERY = `
+  query MarketsWithOdds($ids: [ID!]!) {
+    markets(where: { id_in: $ids }) {
       id
       templateId
       matchId
