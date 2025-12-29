@@ -45,6 +45,9 @@ export interface Market {
   awayTeam: string;
   kickoffTime: string;
   state: MarketStatus;
+  paused?: boolean; // 是否暂停（临时锁盘）
+  pausedAt?: string;
+  pausedBy?: string;
   totalVolume: string;
   feeAccrued: string;
   lpLiquidity: string;
