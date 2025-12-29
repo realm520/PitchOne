@@ -46,10 +46,10 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { data: isMarketLocked } = useIsMarketLocked(marketId as `0x${string}`);
 
   // 计算有效的下注状态
-  // 如果基于时间的锁定生效，则不允许下注（即使合约状态是 Open）
+  // 如果基于时间的锁定生效，或者市场已暂停，则不允许下注（即使合约状态是 Open）
   const canBet = useMemo(() => {
     if (!market) return false;
-    return market.state === MarketStatus.Open && !isMarketLocked;
+    return market.state === MarketStatus.Open && !isMarketLocked && !market.paused;
   }, [market, isMarketLocked]);
 
   // 调试日志：显示所有关键状态
@@ -218,7 +218,8 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
   const getMarketStatusText = () => {
     if (market.state === MarketStatus.Finalized) return 'SETTLED';
     if (market.state === MarketStatus.Resolved) return 'RESOLVED';
-    if (market.state === MarketStatus.Locked || isMarketLocked) return 'LOCKED';
+    // 暂停状态也显示为 LOCKED
+    if (market.state === MarketStatus.Locked || isMarketLocked || market.paused) return 'LOCKED';
     return 'OPEN';
   };
 
