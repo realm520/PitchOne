@@ -15,6 +15,8 @@ import {
   RefundClaimed as RefundClaimedEvent,
   TransferSingle as TransferSingleEvent,
   TransferBatch as TransferBatchEvent,
+  Paused as PausedEvent,
+  Unpaused as UnpausedEvent,
   Market_V3,
 } from "../generated/templates/Market_V3/Market_V3";
 import {
@@ -63,6 +65,7 @@ export function handleMarketInitialized(event: MarketInitializedEvent): void {
     market.kickoffTime = ZERO_BI;
     market.ruleVer = Bytes.empty();
     market.state = "Open";
+    market.paused = false;
     market.createdAt = event.block.timestamp;
     market.totalVolume = ZERO_BD;
     market.feeAccrued = ZERO_BD;
@@ -101,6 +104,7 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
     market.kickoffTime = ZERO_BI;
     market.ruleVer = Bytes.empty();
     market.state = "Open";
+    market.paused = false;
     market.createdAt = event.block.timestamp;
     market.totalVolume = ZERO_BD;
     market.feeAccrued = ZERO_BD;
@@ -461,4 +465,42 @@ export function handleTransferBatch(event: TransferBatchEvent): void {
     toPosition.lastUpdatedAt = event.block.timestamp;
     toPosition.save();
   }
+}
+
+// ============================================================================
+// Paused - 市场暂停事件 (临时锁盘)
+// event Paused(address account)
+// ============================================================================
+
+export function handlePaused(event: PausedEvent): void {
+  const marketAddress = event.address;
+
+  let market = Market.load(marketAddress.toHexString());
+  if (market === null) {
+    return;
+  }
+
+  market.paused = true;
+  market.pausedAt = event.block.timestamp;
+  market.pausedBy = event.params.account;
+  market.save();
+}
+
+// ============================================================================
+// Unpaused - 市场恢复事件 (解除临时锁盘)
+// event Unpaused(address account)
+// ============================================================================
+
+export function handleUnpaused(event: UnpausedEvent): void {
+  const marketAddress = event.address;
+
+  let market = Market.load(marketAddress.toHexString());
+  if (market === null) {
+    return;
+  }
+
+  market.paused = false;
+  market.pausedAt = null;
+  market.pausedBy = null;
+  market.save();
 }

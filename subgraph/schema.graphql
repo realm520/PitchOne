@@ -34,6 +34,15 @@ type Market @entity(immutable: false) {
   "市场状态: Open, Locked, Resolved, Finalized"
   state: MarketState!
 
+  "是否已暂停（临时锁盘）"
+  paused: Boolean!
+
+  "暂停时间戳"
+  pausedAt: BigInt
+
+  "暂停操作人地址"
+  pausedBy: Bytes
+
   "创建时间戳"
   createdAt: BigInt!
 

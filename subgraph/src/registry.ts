@@ -93,6 +93,7 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
   market.awayTeam = teams[1];
   market.ruleVer = Bytes.empty();
   market.state = "Open";
+  market.paused = false;
   market.createdAt = event.block.timestamp;
   market.totalVolume = ZERO_BD;
   market.feeAccrued = ZERO_BD;
