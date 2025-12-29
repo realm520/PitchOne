@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { formatUnits } from "viem";
 import { X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   useAccount,
   usePlaceBet,
@@ -25,8 +24,7 @@ interface BetSlipProps {
 
 export function BetSlip({ className }: BetSlipProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const { selectedBet, clearBet } = useBetSlipStore();
+  const { selectedBet, clearBet, triggerRefresh } = useBetSlipStore();
   const { address, isConnected, chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
 
@@ -40,6 +38,9 @@ export function BetSlip({ className }: BetSlipProps) {
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approveToastId, setApproveToastId] = useState<string | null>(null);
   const [betToastId, setBetToastId] = useState<string | null>(null);
+
+  // 用于存储刷新 timer，避免被 useEffect cleanup 清除
+  const refreshTimersRef = useRef<NodeJS.Timeout[]>([]);
 
   // Get market full data for payout calculation
   const { data: marketFullData } = useMarketFullData(
@@ -187,26 +188,35 @@ export function BetSlip({ className }: BetSlipProps) {
       );
       setBetToastId(null);
       setBetAmount("");
+
+      // 清除旧的 timer
+      refreshTimersRef.current.forEach(clearTimeout);
+
+      // 立即触发市场列表刷新（通过 store 通知 MarketsContent）
+      console.log('[BetSlip] 触发市场列表刷新');
+      triggerRefresh();
+
+      // 5秒后再刷新一次（等 Subgraph 索引）
+      refreshTimersRef.current = [
+        setTimeout(() => {
+          console.log('[BetSlip] 5秒后再次刷新');
+          triggerRefresh();
+        }, 5000)
+      ];
+
+      // 清除投注状态
       clearBet();
 
-      // 延迟刷新市场数据，等待 Subgraph 索引新的下注数据
-      // 第一次刷新：2秒后（快速反馈）
-      // 第二次刷新：5秒后（确保 Subgraph 完成索引）
-      const refreshMarketData = () => {
-        queryClient.invalidateQueries({ queryKey: ['markets'] });
-        queryClient.invalidateQueries({ queryKey: ['marketOutcomesSubgraph'] });
-        queryClient.invalidateQueries({ queryKey: ['userPositions'] });
-      };
-
-      const timer1 = setTimeout(refreshMarketData, 2000);
-      const timer2 = setTimeout(refreshMarketData, 5000);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
+      // 注意：不返回 cleanup！timer 存储在 ref 中，由单独的 effect 在卸载时清理
     }
-  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet, queryClient]);
+  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet, triggerRefresh]);
+
+  // 组件卸载时清理 timer
+  useEffect(() => {
+    return () => {
+      refreshTimersRef.current.forEach(clearTimeout);
+    };
+  }, []);
 
   // Calculate expected payout
   const calculatePayout = () => {

@@ -27,6 +27,9 @@ interface BetSlipStore {
   clearBet: () => void;
   isSelected: (marketAddress: Address, outcomeId: number) => boolean;
   updateOdds: (marketAddress: Address, outcomeId: number, newOdds: string) => void;
+  // 刷新触发器：下注成功后递增，市场列表监听此值来触发刷新
+  refreshCounter: number;
+  triggerRefresh: () => void;
 }
 
 // ============================================================================
@@ -41,10 +44,16 @@ const BetSlipContext = createContext<BetSlipStore | undefined>(undefined);
 
 export function BetSlipProvider({ children }: { children: ReactNode }) {
   const [selectedBet, setSelectedBet] = useState<SelectedBet | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Select or replace bet
   const selectBet = useCallback((bet: SelectedBet) => {
     setSelectedBet(bet);
+  }, []);
+
+  // 触发市场列表刷新
+  const triggerRefresh = useCallback(() => {
+    setRefreshCounter(c => c + 1);
   }, []);
 
   // Clear selection
@@ -87,6 +96,8 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     clearBet,
     isSelected,
     updateOdds,
+    refreshCounter,
+    triggerRefresh,
   };
 
   return <BetSlipContext.Provider value={value}>{children}</BetSlipContext.Provider>;

@@ -404,6 +404,7 @@ export function useMarkets(status?: MarketStatus[], first = 20, skip = 0) {
       }
     },
     staleTime: 5 * 1000, // 5 秒（赔率需要更实时）
+    refetchInterval: 15000, // 15 秒轮询
   });
 }
 

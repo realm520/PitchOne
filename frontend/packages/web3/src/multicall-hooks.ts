@@ -159,8 +159,8 @@ export function useMarketFullData(marketAddress?: Address, userAddress?: Address
   }
 
   const status = data[0]?.result as number;
-  const totalLiquidity = data[1]?.result as bigint;
-  const feeRate = data[2]?.result as bigint;
+  const totalLiquidity = (data[1]?.result as bigint) ?? 0n;
+  const feeRate = (data[2]?.result as bigint) ?? 0n;
   const pricingStrategy = (data[3]?.result as string)?.toLowerCase();
   // line 可能在非 OU/AH 市场中不存在，所以需要处理错误情况
   const lineResult = data[4]?.result;
@@ -240,6 +240,7 @@ export function useMultipleMarketsData(marketAddresses: Address[]) {
     query: {
       enabled: marketAddresses.length > 0,
       staleTime: 30000, // 30 秒
+      refetchInterval: 15000, // 15 秒轮询
     },
   });
 

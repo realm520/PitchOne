@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMarketsPaginated, MarketStatus, useMultipleMarketsData, type PaginationInfo } from "@pitchone/web3";
 import type { Address } from "viem";
 import { useTranslation } from "@pitchone/i18n";
@@ -13,6 +13,7 @@ import {
   ErrorState,
 } from "@pitchone/ui";
 import { useSidebarStore } from "../../lib/sidebar-store";
+import { useBetSlipStore } from "../../lib/betslip-store";
 import { parseLeagueFromMatchId } from "../../types/sports";
 import { MarketCard } from "./components/MarketCard";
 
@@ -41,6 +42,9 @@ export function MarketsContent() {
 
   // Get league filter from sidebar
   const { selectedLeague, resetFilters: resetLeagueFilter } = useSidebarStore();
+
+  // 监听下注成功后的刷新触发
+  const { refreshCounter } = useBetSlipStore();
 
   // Generate filter options
   const statusFilters = [
@@ -97,7 +101,16 @@ export function MarketsContent() {
   }, [filteredMarkets]);
 
   // 批量获取链上流动性数据
-  const { data: marketsChainData } = useMultipleMarketsData(marketAddresses);
+  const { data: marketsChainData, refetch: refetchChainData } = useMultipleMarketsData(marketAddresses);
+
+  // 下注成功后刷新数据
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      console.log('[MarketsContent] 收到刷新信号，刷新链上数据...');
+      refetchChainData();
+      refetch(); // 刷新 Subgraph 数据
+    }
+  }, [refreshCounter, refetchChainData, refetch]);
 
   // 创建 address -> totalLiquidity 映射
   const liquidityMap = useMemo(() => {
