@@ -69,6 +69,7 @@ export const MARKETS_QUERY_FILTERED = `
       awayTeam
       kickoffTime
       state
+      paused
       totalVolume
       feeAccrued
       lpLiquidity
@@ -108,6 +109,7 @@ export const MARKETS_QUERY = `
       awayTeam
       kickoffTime
       state
+      paused
       totalVolume
       feeAccrued
       lpLiquidity
@@ -141,6 +143,9 @@ export const MARKET_QUERY = `
       awayTeam
       kickoffTime
       state
+      paused
+      pausedAt
+      pausedBy
       winnerOutcome
       totalVolume
       feeAccrued
