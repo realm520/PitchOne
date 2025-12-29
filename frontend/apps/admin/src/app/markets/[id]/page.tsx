@@ -357,7 +357,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </>
                 )}
                 {market.state === 'Open' && market.paused && (
-                  <AdminButton variant="secondary" onClick={() => setDialog('unpause')} disabled={!isConnected || unpause.isPending}>恢复下注</AdminButton>
+                  <>
+                    <AdminButton variant="secondary" onClick={() => setDialog('unpause')} disabled={!isConnected || unpause.isPending}>恢复下注</AdminButton>
+                    <AdminButton variant="danger" onClick={() => setDialog('lock')} disabled={!isConnected || lock.isPending}>停盘</AdminButton>
+                  </>
                 )}
                 {market.state === 'Locked' && <AdminButton onClick={() => setDialog('resolve')} disabled={!isConnected || resolve.isPending}>结算市场</AdminButton>}
                 {market.state === 'Resolved' && <AdminButton variant="secondary" onClick={() => setDialog('finalize')} disabled={!isConnected || finalize.isPending}>终结市场</AdminButton>}
