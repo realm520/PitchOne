@@ -36,7 +36,8 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
     (p) => p.market.id.toLowerCase() === market.id.toLowerCase()
   );
 
-  const canBet = market.state === MarketStatus.Open && !isMarketLocked;
+  // 暂停状态也视为不可下注
+  const canBet = market.state === MarketStatus.Open && !isMarketLocked && !market.paused;
 
   // Check if market is settled (has winner)
   const isMarketSettled = market.state === MarketStatus.Resolved ||
@@ -54,8 +55,18 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
       .toLowerCase();
   };
 
-  const getStatusIndicator = (state: MarketStatus) => {
-    const config: Record<MarketStatus, { color: string; label: string }> = {
+  const getStatusIndicator = (state: MarketStatus, isPaused?: boolean) => {
+    // 如果市场是 Open 但已暂停，显示为 Locked
+    if (state === MarketStatus.Open && isPaused) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-gray-400">
+          <span className="w-2 h-2 rounded-full bg-yellow-500" />
+          {t('markets.status.locked')}
+        </span>
+      );
+    }
+
+    const config = {
       [MarketStatus.Created]: { color: '#A855F7', label: t('markets.status.created') },
       [MarketStatus.Open]: { color: '#22C55E', label: t('markets.status.open') },
       [MarketStatus.Locked]: { color: '#FC1B0B', label: t('markets.status.locked') },
@@ -116,7 +127,7 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
             {market._displayInfo?.lineDisplay && (
               <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
             )}
-            {getStatusIndicator(market.state)}
+            {getStatusIndicator(market.state, market.paused)}
           </div>
         </div>
 
