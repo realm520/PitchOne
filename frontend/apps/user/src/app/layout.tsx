@@ -76,6 +76,8 @@ export default function RootLayout({
                 borderRadius: '8px',
                 fontSize: '14px',
                 padding: '12px 16px',
+                maxWidth: '400px',
+                wordBreak: 'break-all' as const,
               },
             }}
           />

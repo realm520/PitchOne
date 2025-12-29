@@ -18,12 +18,14 @@ interface RedemptionRaw {
   transactionHash: string;
 }
 
-// 市场状态枚举
+// 市场状态枚举（与合约层 IMarket_V3.MarketStatus 一致）
 export enum MarketStatus {
-  Open = 'Open',
-  Locked = 'Locked',
-  Resolved = 'Resolved',
-  Finalized = 'Finalized',
+  Created = 'Created',     // 已创建，尚未开放
+  Open = 'Open',           // 开放下注
+  Locked = 'Locked',       // 锁盘，禁止下注
+  Resolved = 'Resolved',   // 已结算，等待争议期
+  Finalized = 'Finalized', // 已终结，可赎回
+  Cancelled = 'Cancelled', // 已取消，可退款
 }
 
 // Outcome 数据类型（用于 UI 显示）

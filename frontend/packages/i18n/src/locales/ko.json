@@ -91,10 +91,12 @@
       "playerProps": "선수 기록"
     },
     "status": {
+      "created": "준비중",
       "open": "오픈",
       "locked": "잠김",
       "resolved": "정산됨",
-      "finalized": "완료"
+      "finalized": "완료",
+      "cancelled": "취소"
     },
     "empty": {
       "title": "마켓 없음",
@@ -207,7 +209,16 @@
       "statusResolved": "정산됨",
       "statusSettled": "완료",
       "outcomeLabel": "결과",
-      "payout": "배당금"
+      "payout": "배당금",
+      "vs": "vs",
+      "sport": "스포츠",
+      "contract": "계약",
+      "time": "시간",
+      "owner": "소유자",
+      "selected": "선택",
+      "paid": "지불(U)",
+      "payoutColumn": "지급(U)",
+      "status": "상태"
     }
   },
   "portfolio": {

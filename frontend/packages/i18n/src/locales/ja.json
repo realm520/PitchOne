@@ -91,10 +91,12 @@
       "playerProps": "選手予想"
     },
     "status": {
+      "created": "準備中",
       "open": "オープン",
       "locked": "ロック",
       "resolved": "決済済",
-      "finalized": "完了"
+      "finalized": "完了",
+      "cancelled": "キャンセル"
     },
     "empty": {
       "title": "マーケットなし",
@@ -207,7 +209,16 @@
       "statusResolved": "決済済",
       "statusSettled": "完了",
       "outcomeLabel": "結果",
-      "payout": "配当"
+      "payout": "配当",
+      "vs": "対",
+      "sport": "スポーツ",
+      "contract": "コントラクト",
+      "time": "時間",
+      "owner": "オーナー",
+      "selected": "選択",
+      "paid": "支払い(U)",
+      "payoutColumn": "払出(U)",
+      "status": "ステータス"
     }
   },
   "portfolio": {

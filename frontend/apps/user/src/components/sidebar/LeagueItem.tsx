@@ -21,6 +21,8 @@ export function LeagueItem({ league, sportId }: LeagueItemProps) {
   // 处理联赛选择，如果在详情页则导航回列表页
   const handleClick = () => {
     selectLeague(sportId, league.id);
+    // 滚动到页面顶部
+    window.scrollTo(0, 0);
     // 如果在详情页（路径格式为 /markets/0x...），导航回列表
     // 使用 nextjs-toploader/app 的 router.push 会自动触发进度条
     if (pathname && pathname.startsWith('/markets/') && pathname !== '/markets') {

@@ -55,17 +55,19 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
   };
 
   const getStatusIndicator = (state: MarketStatus) => {
-    const config = {
-      [MarketStatus.Open]: { dot: 'bg-green-500', label: t('markets.status.open') },
-      [MarketStatus.Locked]: { dot: 'bg-yellow-500', label: t('markets.status.locked') },
-      [MarketStatus.Resolved]: { dot: 'bg-blue-500', label: t('markets.status.resolved') },
-      [MarketStatus.Finalized]: { dot: 'bg-gray-500', label: t('markets.status.finalized') },
+    const config: Record<MarketStatus, { color: string; label: string }> = {
+      [MarketStatus.Created]: { color: '#A855F7', label: t('markets.status.created') },
+      [MarketStatus.Open]: { color: '#22C55E', label: t('markets.status.open') },
+      [MarketStatus.Locked]: { color: '#FC1B0B', label: t('markets.status.locked') },
+      [MarketStatus.Resolved]: { color: '#61D4D3', label: t('markets.status.resolved') },
+      [MarketStatus.Finalized]: { color: '#FC870B', label: t('markets.status.finalized') },
+      [MarketStatus.Cancelled]: { color: '#6B7280', label: t('markets.status.cancelled') },
     };
-    const { dot, label } = config[state] || { dot: 'bg-gray-500', label: t('markets.unknown') };
+    const { color, label } = config[state] || { color: '#6B7280', label: t('markets.unknown') };
 
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-gray-400">
-        <span className={`w-2 h-2 rounded-full ${dot}`} />
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
         {label}
       </span>
     );

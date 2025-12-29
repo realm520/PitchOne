@@ -91,10 +91,12 @@
       "playerProps": "Player Props"
     },
     "status": {
+      "created": "Created",
       "open": "Open",
       "locked": "Locked",
       "resolved": "Resolved",
-      "finalized": "Finalized"
+      "finalized": "Finalized",
+      "cancelled": "Cancelled"
     },
     "empty": {
       "title": "No Markets",
@@ -207,7 +209,16 @@
       "statusResolved": "RESOLVED",
       "statusSettled": "SETTLED",
       "outcomeLabel": "Outcome",
-      "payout": "Payout"
+      "payout": "Payout",
+      "vs": "vs",
+      "sport": "Sport",
+      "contract": "Contract",
+      "time": "Time",
+      "owner": "Owner",
+      "selected": "Selected",
+      "paid": "Paid(U)",
+      "payoutColumn": "Payout(U)",
+      "status": "Status"
     }
   },
   "portfolio": {

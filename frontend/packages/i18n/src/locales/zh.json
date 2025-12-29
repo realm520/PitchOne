@@ -91,10 +91,12 @@
       "playerProps": "球员数据"
     },
     "status": {
+      "created": "待开放",
       "open": "进行中",
       "locked": "已锁盘",
       "resolved": "已结算",
-      "finalized": "已完成"
+      "finalized": "已完成",
+      "cancelled": "已取消"
     },
     "empty": {
       "title": "暂无市场",
@@ -207,7 +209,16 @@
       "statusResolved": "已结算",
       "statusSettled": "已完成",
       "outcomeLabel": "结果",
-      "payout": "派彩"
+      "payout": "派彩",
+      "vs": "对阵",
+      "sport": "运动",
+      "contract": "合约地址",
+      "time": "时间",
+      "owner": "用户",
+      "selected": "选择",
+      "paid": "投注额(U)",
+      "payoutColumn": "预期收益(U)",
+      "status": "状态"
     }
   },
   "portfolio": {
