@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, useAccount, useOutcomeCount } from '@pitchone/web3';
+import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, usePauseMarket, useUnpauseMarket, useAccount, useOutcomeCount } from '@pitchone/web3';
 import { LoadingSpinner, ErrorState, Badge } from '@pitchone/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -24,7 +24,7 @@ interface Order {
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { isConnected } = useAccount();
-  const [dialog, setDialog] = useState<'lock' | 'resolve' | 'finalize' | null>(null);
+  const [dialog, setDialog] = useState<'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize' | null>(null);
   const [homeScore, setHomeScore] = useState<string>('');
   const [awayScore, setAwayScore] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,6 +33,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const lock = useLockMarket(id as `0x${string}`);
   const resolve = useResolveMarket(id as `0x${string}`);
   const finalize = useFinalizeMarket(id as `0x${string}`);
+  const pause = usePauseMarket(id as `0x${string}`);
+  const unpause = useUnpauseMarket(id as `0x${string}`);
 
   // 读取合约的 outcomeCount
   const { data: outcomeCount } = useOutcomeCount(id as `0x${string}`);
@@ -53,17 +55,19 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   // Toast ID 常量，用于替换旧的 toast
   const TOAST_IDS = {
+    pause: 'market-pause-toast',
+    unpause: 'market-unpause-toast',
     lock: 'market-lock-toast',
     resolve: 'market-resolve-toast',
     finalize: 'market-finalize-toast',
   };
 
-  const handleAction = async (action: 'lock' | 'resolve' | 'finalize') => {
+  const handleAction = async (action: 'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize') => {
     if (!isConnected) {
       toast.error('请先连接钱包');
       return;
     }
-    const actionNames = { lock: '锁盘', resolve: '结算', finalize: '终结' };
+    const actionNames = { pause: '临时锁盘', unpause: '恢复', lock: '停盘', resolve: '结算', finalize: '终结' };
     const toastId = TOAST_IDS[action];
 
     console.log(`[${action.toUpperCase()}] 开始执行操作...`, { marketId: id, action });
@@ -76,7 +80,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
     try {
       let result;
-      if (action === 'lock') {
+      if (action === 'pause') {
+        console.log('[PAUSE] 调用 pause.pauseMarket()...');
+        result = await pause.pauseMarket();
+        console.log('[PAUSE] 调用完成，返回结果:', result);
+      } else if (action === 'unpause') {
+        console.log('[UNPAUSE] 调用 unpause.unpauseMarket()...');
+        result = await unpause.unpauseMarket();
+        console.log('[UNPAUSE] 调用完成，返回结果:', result);
+      } else if (action === 'lock') {
         console.log('[LOCK] 调用 lock.lockMarket()...');
         result = await lock.lockMarket();
         console.log('[LOCK] 调用完成，返回结果:', result);
@@ -109,11 +121,35 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   // 监听各操作 hook 返回的错误
   useEffect(() => {
+    if (pause.error) {
+      console.error('[PAUSE] Hook 检测到错误:', pause.error);
+      const errorMessage = pause.error.message || '未知错误';
+      toast.error('临时锁盘失败', {
+        id: TOAST_IDS.pause,
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [pause.error]);
+
+  useEffect(() => {
+    if (unpause.error) {
+      console.error('[UNPAUSE] Hook 检测到错误:', unpause.error);
+      const errorMessage = unpause.error.message || '未知错误';
+      toast.error('恢复失败', {
+        id: TOAST_IDS.unpause,
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [unpause.error]);
+
+  useEffect(() => {
     if (lock.error) {
       console.error('[LOCK] Hook 检测到错误:', lock.error);
       console.log('[LOCK] 错误消息:', lock.error.message);
       const errorMessage = lock.error.message || '未知错误';
-      toast.error('锁盘失败', {
+      toast.error('停盘失败', {
         id: TOAST_IDS.lock,
         description: errorMessage,
         duration: 10000,
@@ -146,6 +182,24 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   }, [finalize.error]);
 
   // 监听交易确认中状态，更新 toast 提示
+  useEffect(() => {
+    if (pause.isConfirming && pause.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.pause,
+        description: `交易哈希: ${pause.hash.slice(0, 10)}...${pause.hash.slice(-8)}`,
+      });
+    }
+  }, [pause.isConfirming, pause.hash]);
+
+  useEffect(() => {
+    if (unpause.isConfirming && unpause.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.unpause,
+        description: `交易哈希: ${unpause.hash.slice(0, 10)}...${unpause.hash.slice(-8)}`,
+      });
+    }
+  }, [unpause.isConfirming, unpause.hash]);
+
   useEffect(() => {
     if (lock.isConfirming && lock.hash) {
       toast.loading('交易确认中...', {
@@ -200,13 +254,33 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   // 监听成功状态（使用相同 ID 替换之前的错误 toast）
   useEffect(() => {
+    if (pause.isSuccess && pause.hash) {
+      console.log('[PAUSE] 交易成功!', { hash: pause.hash });
+      toast.success('临时锁盘成功！', {
+        id: TOAST_IDS.pause,
+        description: `交易哈希: ${pause.hash.slice(0, 10)}...${pause.hash.slice(-8)}`,
+      });
+    }
+  }, [pause.isSuccess, pause.hash]);
+
+  useEffect(() => {
+    if (unpause.isSuccess && unpause.hash) {
+      console.log('[UNPAUSE] 交易成功!', { hash: unpause.hash });
+      toast.success('恢复成功！', {
+        id: TOAST_IDS.unpause,
+        description: `交易哈希: ${unpause.hash.slice(0, 10)}...${unpause.hash.slice(-8)}`,
+      });
+    }
+  }, [unpause.isSuccess, unpause.hash]);
+
+  useEffect(() => {
     if (lock.isSuccess && lock.hash) {
       console.log('[LOCK] 交易成功!', {
         hash: lock.hash,
         isSuccess: lock.isSuccess,
         receipt: lock.receipt,
       });
-      toast.success('锁盘成功！', {
+      toast.success('停盘成功！', {
         id: TOAST_IDS.lock,
         description: `交易哈希: ${lock.hash.slice(0, 10)}...${lock.hash.slice(-8)}`,
       });
@@ -271,13 +345,19 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               <p className="mt-2 text-xs text-gray-400 font-mono">ID: {market.id}</p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>{status.label}</span>
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>{status.label}</span>
+                {market.paused && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">已暂停</span>}
+              </div>
               <div className="flex gap-2">
-                {market.state === 'Open' && (
+                {market.state === 'Open' && !market.paused && (
                   <>
-                    <AdminButton variant="warning" onClick={() => setDialog('lock')} disabled={!isConnected || lock.isPending}>临时锁盘</AdminButton>
+                    <AdminButton variant="warning" onClick={() => setDialog('pause')} disabled={!isConnected || pause.isPending}>临时锁盘</AdminButton>
                     <AdminButton variant="danger" onClick={() => setDialog('lock')} disabled={!isConnected || lock.isPending}>停盘</AdminButton>
                   </>
+                )}
+                {market.state === 'Open' && market.paused && (
+                  <AdminButton variant="secondary" onClick={() => setDialog('unpause')} disabled={!isConnected || unpause.isPending}>恢复下注</AdminButton>
                 )}
                 {market.state === 'Locked' && <AdminButton onClick={() => setDialog('resolve')} disabled={!isConnected || resolve.isPending}>结算市场</AdminButton>}
                 {market.state === 'Resolved' && <AdminButton variant="secondary" onClick={() => setDialog('finalize')} disabled={!isConnected || finalize.isPending}>终结市场</AdminButton>}
@@ -376,19 +456,47 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         </AdminCard>
 
         {/* 交易状态 */}
-        <TxStatus {...lock} actionName="锁盘" />
+        <TxStatus {...pause} actionName="临时锁盘" />
+        <TxStatus {...unpause} actionName="恢复" />
+        <TxStatus {...lock} actionName="停盘" />
         <TxStatus {...resolve} actionName="结算" />
         <TxStatus {...finalize} actionName="终结" />
       </div>
 
-      {/* 锁盘对话框 */}
+      {/* 临时锁盘对话框 */}
+      <ConfirmDialog
+        open={dialog === 'pause'}
+        title="临时锁盘"
+        message="暂停市场后将暂时禁止新的下注。"
+        warning={'提示：此操作可以通过「恢复下注」撤销。'}
+        warningType="info"
+        confirmText="确认暂停"
+        confirmVariant="warning"
+        loading={pause.isPending || pause.isConfirming}
+        onConfirm={() => handleAction('pause')}
+        onCancel={() => setDialog(null)}
+      />
+
+      {/* 恢复下注对话框 */}
+      <ConfirmDialog
+        open={dialog === 'unpause'}
+        title="恢复下注"
+        message="恢复后用户可以继续下注。"
+        confirmText="确认恢复"
+        confirmVariant="secondary"
+        loading={unpause.isPending || unpause.isConfirming}
+        onConfirm={() => handleAction('unpause')}
+        onCancel={() => setDialog(null)}
+      />
+
+      {/* 停盘对话框 */}
       <ConfirmDialog
         open={dialog === 'lock'}
-        title="确认锁盘"
-        message="锁盘后将禁止新的下注。"
+        title="确认停盘"
+        message="停盘后将永久禁止新的下注，等待结算。"
         warning="注意：此操作不可撤销！"
-        confirmText="确认锁盘"
-        confirmVariant="warning"
+        confirmText="确认停盘"
+        confirmVariant="danger"
         loading={lock.isPending || lock.isConfirming}
         onConfirm={() => handleAction('lock')}
         onCancel={() => setDialog(null)}

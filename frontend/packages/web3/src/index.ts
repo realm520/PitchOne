@@ -100,6 +100,7 @@ export {
   useCreateMarket,
   useAuthorizeMarket,
   usePauseMarket,
+  useUnpauseMarket,
   useParamControllerPropose,
   useParamControllerExecute,
   useParamControllerCancel,

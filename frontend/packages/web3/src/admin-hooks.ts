@@ -716,36 +716,102 @@ export function useFinalizeMarket(marketAddress?: Address) {
 }
 
 /**
- * 暂停市场 Hook
- * 调用 Market.pause() 紧急暂停市场
+ * 暂停市场 Hook（临时锁盘）
+ * 调用 Market.pause() 暂停市场，可通过 unpause() 恢复
  * @param marketAddress 市场合约地址
  */
 export function usePauseMarket(marketAddress?: Address) {
-  const { chainId } = useAccount();
-  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
-  const {
-    isLoading: isConfirming,
-    isSuccess,
-    error: receiptError
-  } = useWaitForTransactionReceipt({
-    hash,
-    chainId,
-    query: {
-      enabled: !!hash,
+  const publicClient = usePublicClient();
+  const { address: accountAddress } = useAccount();
+  const { writeContractAsync, isPending, error: writeError } = useWriteContract();
+
+  const [hash, setHash] = useState<Hex | undefined>(undefined);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isReverted, setIsReverted] = useState(false);
+  const [receipt, setReceipt] = useState<any>(null);
+  const [revertError, setRevertError] = useState<Error | null>(null);
+
+  const resetState = () => {
+    setHash(undefined);
+    setIsConfirming(false);
+    setIsSuccess(false);
+    setIsReverted(false);
+    setReceipt(null);
+    setRevertError(null);
+  };
+
+  const waitForReceipt = async (txHash: Hex): Promise<any> => {
+    if (!publicClient) throw new Error('Public client not available');
+    for (let i = 0; i < 30; i++) {
+      try {
+        return await publicClient.getTransactionReceipt({ hash: txHash });
+      } catch (err: any) {
+        if (err?.message?.includes('could not be found') || err?.message?.includes('not found')) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          throw err;
+        }
+      }
     }
-  });
+    throw new Error('等待交易确认超时');
+  };
 
   const pauseMarket = async () => {
     if (!marketAddress) throw new Error('Market address required');
+    if (!publicClient) throw new Error('Public client not available');
 
     console.log('[usePauseMarket] 暂停市场:', { marketAddress });
+    resetState();
+    setIsConfirming(true);
 
-    return writeContract({
-      address: marketAddress,
-      abi: Market_V3_ABI,
-      functionName: 'pause',
-      args: [],
-    });
+    try {
+      // 先模拟调用
+      try {
+        await publicClient.simulateContract({
+          address: marketAddress,
+          abi: Market_V3_ABI,
+          functionName: 'pause',
+          args: [],
+          account: accountAddress,
+        });
+      } catch (simError: any) {
+        setIsConfirming(false);
+        const errorMessage = extractErrorMessage(simError);
+        setRevertError(new Error(errorMessage));
+        throw new Error(errorMessage);
+      }
+
+      const txHash = await writeContractAsync({
+        address: marketAddress,
+        abi: Market_V3_ABI,
+        functionName: 'pause',
+        args: [],
+      });
+
+      console.log('[usePauseMarket] 交易已发送:', txHash);
+      setHash(txHash);
+
+      const txReceipt = await waitForReceipt(txHash);
+      setReceipt(txReceipt);
+      setIsConfirming(false);
+
+      if (txReceipt.status === 'success') {
+        setIsSuccess(true);
+        console.log('[usePauseMarket] 暂停成功！');
+      } else {
+        setIsReverted(true);
+        setRevertError(new Error('交易被链上拒绝'));
+      }
+
+      return txHash;
+    } catch (err: any) {
+      console.error('[usePauseMarket] 交易失败:', err);
+      setIsConfirming(false);
+      const errorMessage = extractErrorMessage(err);
+      setRevertError(new Error(errorMessage));
+      throw err;
+    }
   };
 
   return {
@@ -753,8 +819,121 @@ export function usePauseMarket(marketAddress?: Address) {
     isPending,
     isConfirming,
     isSuccess,
-    error: writeError || receiptError,
+    isReverted,
+    error: writeError || revertError,
     hash,
+    receipt,
+  };
+}
+
+/**
+ * 恢复市场 Hook（解除临时锁盘）
+ * 调用 Market.unpause() 恢复已暂停的市场
+ * @param marketAddress 市场合约地址
+ */
+export function useUnpauseMarket(marketAddress?: Address) {
+  const publicClient = usePublicClient();
+  const { address: accountAddress } = useAccount();
+  const { writeContractAsync, isPending, error: writeError } = useWriteContract();
+
+  const [hash, setHash] = useState<Hex | undefined>(undefined);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isReverted, setIsReverted] = useState(false);
+  const [receipt, setReceipt] = useState<any>(null);
+  const [revertError, setRevertError] = useState<Error | null>(null);
+
+  const resetState = () => {
+    setHash(undefined);
+    setIsConfirming(false);
+    setIsSuccess(false);
+    setIsReverted(false);
+    setReceipt(null);
+    setRevertError(null);
+  };
+
+  const waitForReceipt = async (txHash: Hex): Promise<any> => {
+    if (!publicClient) throw new Error('Public client not available');
+    for (let i = 0; i < 30; i++) {
+      try {
+        return await publicClient.getTransactionReceipt({ hash: txHash });
+      } catch (err: any) {
+        if (err?.message?.includes('could not be found') || err?.message?.includes('not found')) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error('等待交易确认超时');
+  };
+
+  const unpauseMarket = async () => {
+    if (!marketAddress) throw new Error('Market address required');
+    if (!publicClient) throw new Error('Public client not available');
+
+    console.log('[useUnpauseMarket] 恢复市场:', { marketAddress });
+    resetState();
+    setIsConfirming(true);
+
+    try {
+      // 先模拟调用
+      try {
+        await publicClient.simulateContract({
+          address: marketAddress,
+          abi: Market_V3_ABI,
+          functionName: 'unpause',
+          args: [],
+          account: accountAddress,
+        });
+      } catch (simError: any) {
+        setIsConfirming(false);
+        const errorMessage = extractErrorMessage(simError);
+        setRevertError(new Error(errorMessage));
+        throw new Error(errorMessage);
+      }
+
+      const txHash = await writeContractAsync({
+        address: marketAddress,
+        abi: Market_V3_ABI,
+        functionName: 'unpause',
+        args: [],
+      });
+
+      console.log('[useUnpauseMarket] 交易已发送:', txHash);
+      setHash(txHash);
+
+      const txReceipt = await waitForReceipt(txHash);
+      setReceipt(txReceipt);
+      setIsConfirming(false);
+
+      if (txReceipt.status === 'success') {
+        setIsSuccess(true);
+        console.log('[useUnpauseMarket] 恢复成功！');
+      } else {
+        setIsReverted(true);
+        setRevertError(new Error('交易被链上拒绝'));
+      }
+
+      return txHash;
+    } catch (err: any) {
+      console.error('[useUnpauseMarket] 交易失败:', err);
+      setIsConfirming(false);
+      const errorMessage = extractErrorMessage(err);
+      setRevertError(new Error(errorMessage));
+      throw err;
+    }
+  };
+
+  return {
+    unpauseMarket,
+    isPending,
+    isConfirming,
+    isSuccess,
+    isReverted,
+    error: writeError || revertError,
+    hash,
+    receipt,
   };
 }
 
