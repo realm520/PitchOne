@@ -31,7 +31,8 @@
     "noData": "データなし",
     "connectWallet": "ウォレット接続",
     "wrongNetwork": "ネットワークエラー",
-    "connected": "接続済み"
+    "connected": "接続済み",
+    "tbd": "未定"
   },
   "nav": {
     "markets": "マーケット",

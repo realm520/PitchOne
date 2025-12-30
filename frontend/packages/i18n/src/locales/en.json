@@ -31,7 +31,8 @@
     "noData": "No data",
     "connectWallet": "Connect Wallet",
     "wrongNetwork": "Wrong Network",
-    "connected": "Connected"
+    "connected": "Connected",
+    "tbd": "TBD"
   },
   "nav": {
     "markets": "Markets",

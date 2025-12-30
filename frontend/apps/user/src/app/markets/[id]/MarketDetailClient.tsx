@@ -204,7 +204,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
   // 获取队名缩写
   const getTeamAbbr = (teamName: string) => {
-    if (!teamName) return 'TBD';
+    if (!teamName) return t('common.tbd');
     // 提取前3个字母作为缩写
     return teamName.slice(0, 3).toUpperCase();
   };
@@ -445,7 +445,8 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     allBetEvents.slice(0, 20).map((event, idx) => {
                       const amountUSDC = Number(event.amount) / 1e6;
                       const payoutUSDC = Number(event.shares) / 1e6;
-                      const outcomeName = outcomes[Number(event.outcomeId)]?.name || `Outcome ${event.outcomeId}`;
+                      const outcomeKey = outcomes[Number(event.outcomeId)]?.name;
+                      const outcomeName = outcomeKey ? t(outcomeKey) : `${t('markets.detail.outcomeLabel')} ${event.outcomeId}`;
 
                       return (
                         <tr key={event.transactionHash || idx} className="hover:bg-dark-hover">
