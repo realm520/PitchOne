@@ -17,6 +17,7 @@ import { useTranslation } from "@pitchone/i18n";
 import { useBetSlipStore } from "../../lib/betslip-store";
 import { BetSlipEmpty } from "./BetSlipEmpty";
 import { betNotifications } from "@/lib/notifications";
+import { AmountInput } from "@/components/ui/AmountInput";
 
 interface BetSlipProps {
   className?: string;
@@ -181,10 +182,16 @@ export function BetSlip({ className }: BetSlipProps) {
 
   useEffect(() => {
     if (isBetSuccess && betToastId && selectedBet) {
+      const translatedOutcome = t(selectedBet.outcomeName, { id: selectedBet.outcomeId });
+      console.log('[BetSlip] 翻译 outcome:', {
+        key: selectedBet.outcomeName,
+        translated: translatedOutcome,
+        outcomeId: selectedBet.outcomeId
+      });
       betNotifications.betPlaced(
         betToastId,
         betAmount,
-        selectedBet.outcomeName
+        translatedOutcome
       );
       setBetToastId(null);
       setBetAmount("");
@@ -209,7 +216,7 @@ export function BetSlip({ className }: BetSlipProps) {
 
       // 注意：不返回 cleanup！timer 存储在 ref 中，由单独的 effect 在卸载时清理
     }
-  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet, triggerRefresh]);
+  }, [isBetSuccess, betToastId, selectedBet, betAmount, clearBet, triggerRefresh, t]);
 
   // 组件卸载时清理 timer
   useEffect(() => {
@@ -387,19 +394,15 @@ export function BetSlip({ className }: BetSlipProps) {
                   </span>
                 </div>
                 {/* 金额输入 */}
-                <div className="flex-1 min-w-0 flex items-center border border-zinc-700 rounded bg-zinc-900 focus-within:border-white/40 overflow-hidden">
-                  <input
-                    type="number"
-                    placeholder={t("betslip.enterAmount")}
+                <div className="flex-1 min-w-0">
+                  <AmountInput
                     value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    min="1"
-                    max="10000"
-                    className="flex-1 min-w-0 px-2 py-1.5 bg-transparent text-white placeholder-zinc-500 focus:outline-none text-sm"
+                    onChange={setBetAmount}
+                    min={1}
+                    max={100000}
+                    placeholder={t("betslip.enterAmount")}
+                    suffix="USDC"
                   />
-                  <span className="flex-shrink-0 px-2 py-1.5 text-xs text-zinc-400">
-                    USDC
-                  </span>
                 </div>
               </div>
 
