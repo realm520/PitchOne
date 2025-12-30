@@ -118,6 +118,7 @@ export function loadOrCreatePosition(
     position.balance = ZERO_BI;
     position.averageCost = ZERO_BD;
     position.totalInvested = ZERO_BD;
+    position.totalPayment = ZERO_BD;
     position.createdTxHash = txHash;
     position.createdAt = timestamp !== null ? timestamp : ZERO_BI;
     position.lastUpdatedAt = ZERO_BI;

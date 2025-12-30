@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, usePauseMarket, useUnpauseMarket, useAccount, useOutcomeCount } from '@pitchone/web3';
+import { graphqlClient, MARKET_QUERY, MARKET_ALL_ORDERS_QUERY, useLockMarket, useResolveMarket, useFinalizeMarket, usePauseMarket, useUnpauseMarket, useCancelMarket, useAccount, useOutcomeCount } from '@pitchone/web3';
 import { LoadingSpinner, ErrorState, Badge } from '@pitchone/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -24,9 +24,10 @@ interface Order {
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { isConnected } = useAccount();
-  const [dialog, setDialog] = useState<'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize' | null>(null);
+  const [dialog, setDialog] = useState<'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize' | 'cancel' | null>(null);
   const [homeScore, setHomeScore] = useState<string>('');
   const [awayScore, setAwayScore] = useState<string>('');
+  const [cancelReason, setCancelReason] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -35,6 +36,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const finalize = useFinalizeMarket(id as `0x${string}`);
   const pause = usePauseMarket(id as `0x${string}`);
   const unpause = useUnpauseMarket(id as `0x${string}`);
+  const cancel = useCancelMarket(id as `0x${string}`);
 
   // 读取合约的 outcomeCount
   const { data: outcomeCount } = useOutcomeCount(id as `0x${string}`);
@@ -60,14 +62,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     lock: 'market-lock-toast',
     resolve: 'market-resolve-toast',
     finalize: 'market-finalize-toast',
+    cancel: 'market-cancel-toast',
   };
 
-  const handleAction = async (action: 'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize') => {
+  const handleAction = async (action: 'pause' | 'unpause' | 'lock' | 'resolve' | 'finalize' | 'cancel') => {
     if (!isConnected) {
       toast.error('请先连接钱包');
       return;
     }
-    const actionNames = { pause: '临时锁盘', unpause: '恢复', lock: '停盘', resolve: '结算', finalize: '终结' };
+    const actionNames = { pause: '临时锁盘', unpause: '恢复', lock: '停盘', resolve: '结算', finalize: '终结', cancel: '取消' };
     const toastId = TOAST_IDS[action];
 
     console.log(`[${action.toUpperCase()}] 开始执行操作...`, { marketId: id, action });
@@ -104,11 +107,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         // scaleBps = 10000 表示 100% 赔付（使用储备金兜底）
         result = await finalize.finalizeMarket(0n);
         console.log('[FINALIZE] 调用完成，返回结果:', result);
+      } else if (action === 'cancel' && cancelReason) {
+        console.log('[CANCEL] 调用 cancel.cancelMarket()...');
+        // 判断是否为已结算市场（Resolved 状态使用 cancelResolved）
+        const isResolved = market?.state === 'Resolved';
+        result = await cancel.cancelMarket(cancelReason, isResolved);
+        console.log('[CANCEL] 调用完成，返回结果:', result);
       }
       console.log(`[${action.toUpperCase()}] 操作成功，关闭对话框`);
       setDialog(null);
       setHomeScore('');
       setAwayScore('');
+      setCancelReason('');
       setTimeout(refetch, 3000);
       // 成功的 toast 会在 useEffect 监听 hook.isSuccess 时显示
     } catch (e) {
@@ -181,6 +191,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   }, [finalize.error]);
 
+  useEffect(() => {
+    if (cancel.error) {
+      console.error('[CANCEL] Hook 检测到错误:', cancel.error);
+      const errorMessage = cancel.error.message || '未知错误';
+      toast.error('取消失败', {
+        id: TOAST_IDS.cancel,
+        description: errorMessage,
+        duration: 10000,
+      });
+    }
+  }, [cancel.error]);
+
   // 监听交易确认中状态，更新 toast 提示
   useEffect(() => {
     if (pause.isConfirming && pause.hash) {
@@ -226,6 +248,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       });
     }
   }, [finalize.isConfirming, finalize.hash]);
+
+  useEffect(() => {
+    if (cancel.isConfirming && cancel.hash) {
+      toast.loading('交易确认中...', {
+        id: TOAST_IDS.cancel,
+        description: `交易哈希: ${cancel.hash.slice(0, 10)}...${cancel.hash.slice(-8)}`,
+      });
+    }
+  }, [cancel.isConfirming, cancel.hash]);
 
   // 监听锁盘 hook 状态变化
   useEffect(() => {
@@ -307,6 +338,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   }, [finalize.isSuccess, finalize.hash]);
 
+  useEffect(() => {
+    if (cancel.isSuccess && cancel.hash) {
+      console.log('[CANCEL] 交易成功!', { hash: cancel.hash });
+      toast.success('取消成功！', {
+        id: TOAST_IDS.cancel,
+        description: `交易哈希: ${cancel.hash.slice(0, 10)}...${cancel.hash.slice(-8)}`,
+      });
+    }
+  }, [cancel.isSuccess, cancel.hash]);
+
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><LoadingSpinner size="lg" text="加载中..." /></div>;
   if (error || !market) return <div className="flex items-center justify-center min-h-screen"><ErrorState title="加载失败" message="市场不存在" onRetry={() => window.location.reload()} /></div>;
 
@@ -354,16 +395,28 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <>
                     <AdminButton variant="warning" onClick={() => setDialog('pause')} disabled={!isConnected || pause.isPending}>临时锁盘</AdminButton>
                     <AdminButton variant="danger" onClick={() => setDialog('lock')} disabled={!isConnected || lock.isPending}>停盘</AdminButton>
+                    <AdminButton variant="outline" onClick={() => setDialog('cancel')} disabled={!isConnected || cancel.isPending}>取消市场</AdminButton>
                   </>
                 )}
                 {market.state === 'Open' && market.paused && (
                   <>
                     <AdminButton variant="secondary" onClick={() => setDialog('unpause')} disabled={!isConnected || unpause.isPending}>恢复下注</AdminButton>
                     <AdminButton variant="danger" onClick={() => setDialog('lock')} disabled={!isConnected || lock.isPending}>停盘</AdminButton>
+                    <AdminButton variant="outline" onClick={() => setDialog('cancel')} disabled={!isConnected || cancel.isPending}>取消市场</AdminButton>
                   </>
                 )}
-                {market.state === 'Locked' && <AdminButton onClick={() => setDialog('resolve')} disabled={!isConnected || resolve.isPending}>结算市场</AdminButton>}
-                {market.state === 'Resolved' && <AdminButton variant="secondary" onClick={() => setDialog('finalize')} disabled={!isConnected || finalize.isPending}>终结市场</AdminButton>}
+                {market.state === 'Locked' && (
+                  <>
+                    <AdminButton onClick={() => setDialog('resolve')} disabled={!isConnected || resolve.isPending}>结算市场</AdminButton>
+                    <AdminButton variant="outline" onClick={() => setDialog('cancel')} disabled={!isConnected || cancel.isPending}>取消市场</AdminButton>
+                  </>
+                )}
+                {market.state === 'Resolved' && (
+                  <>
+                    <AdminButton variant="secondary" onClick={() => setDialog('finalize')} disabled={!isConnected || finalize.isPending}>终结市场</AdminButton>
+                    <AdminButton variant="outline" onClick={() => setDialog('cancel')} disabled={!isConnected || cancel.isPending}>撤销结算</AdminButton>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -464,6 +517,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         <TxStatus {...lock} actionName="停盘" />
         <TxStatus {...resolve} actionName="结算" />
         <TxStatus {...finalize} actionName="终结" />
+        <TxStatus {...cancel} actionName="取消" />
       </div>
 
       {/* 临时锁盘对话框 */}
@@ -603,6 +657,48 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         onConfirm={() => handleAction('finalize')}
         onCancel={() => setDialog(null)}
       />
+
+      {/* 取消市场对话框 */}
+      {dialog === 'cancel' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="max-w-md w-full mx-4 p-6 bg-white rounded-lg shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {market.state === 'Resolved' ? '撤销结算' : '取消市场'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {market.homeTeam || matchInfo.homeTeam} vs {market.awayTeam || matchInfo.awayTeam}
+            </p>
+            <p className="text-sm text-gray-600 mb-3">请输入取消原因：</p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="例如：比赛延期、赛事取消、数据错误..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={3}
+            />
+            <div className={`mt-4 border rounded-lg p-4 mb-4 ${market.state === 'Resolved' ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
+              <p className={`text-sm ${market.state === 'Resolved' ? 'text-orange-800' : 'text-red-800'}`}>
+                <strong>{market.state === 'Resolved' ? '注意：' : '警告：'}</strong>
+                {market.state === 'Resolved'
+                  ? '撤销结算后，市场将变为取消状态，所有用户将获得全额退款。'
+                  : '取消后市场将永久关闭，所有用户将获得全额退款。此操作不可撤销！'
+                }
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <AdminButton variant="outline" onClick={() => { setDialog(null); setCancelReason(''); }} className="flex-1">返回</AdminButton>
+              <AdminButton
+                variant="danger"
+                onClick={() => handleAction('cancel')}
+                disabled={!cancelReason.trim() || cancel.isPending || cancel.isConfirming}
+                className="flex-1"
+              >
+                {cancel.isPending || cancel.isConfirming ? '处理中...' : market.state === 'Resolved' ? '确认撤销' : '确认取消'}
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

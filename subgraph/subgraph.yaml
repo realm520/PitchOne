@@ -45,6 +45,37 @@ dataSources:
       file: ./src/registry.ts
 
   # ============================================================================
+  # BettingRouter_V3 - 下注路由（包含手续费信息）
+  # ============================================================================
+  - kind: ethereum/contract
+    name: BettingRouter
+    network: localhost
+    source:
+      address: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823"
+      abi: BettingRouter_V3
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Order
+        - Position
+        - User
+        - Market
+        - GlobalStats
+        - OutcomeVolume
+      abis:
+        - name: BettingRouter_V3
+          file: ../contracts/out/BettingRouter_V3.sol/BettingRouter_V3.json
+        - name: Market_V3
+          file: ../contracts/out/Market_V3.sol/Market_V3.json
+      eventHandlers:
+        - event: BetPlaced(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleRouterBetPlaced
+      file: ./src/router.ts
+
+  # ============================================================================
   # FeeRouter - 费用分发事件
   # ============================================================================
   - kind: ethereum/contract

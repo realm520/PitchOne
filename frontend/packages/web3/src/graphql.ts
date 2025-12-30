@@ -253,11 +253,18 @@ export const USER_POSITIONS_QUERY = `
         winnerOutcome
         line
         lines
+        totalVolume
+        feeAccrued
+        outcomeVolumes {
+          outcomeId
+          volume
+        }
       }
       outcome
       balance
       averageCost
       totalInvested
+      totalPayment
       createdTxHash
       createdAt
       lastUpdatedAt
@@ -289,11 +296,18 @@ export const USER_POSITIONS_PAGINATED_QUERY = `
         winnerOutcome
         line
         lines
+        totalVolume
+        feeAccrued
+        outcomeVolumes {
+          outcomeId
+          volume
+        }
       }
       outcome
       balance
       averageCost
       totalInvested
+      totalPayment
       createdTxHash
       createdAt
       lastUpdatedAt
@@ -306,6 +320,19 @@ export const USER_POSITIONS_COUNT_QUERY = `
     user(id: $userId) {
       id
       totalBets
+    }
+  }
+`;
+
+export const USER_STATS_QUERY = `
+  query UserStats($userId: ID!) {
+    user(id: $userId) {
+      id
+      totalBetAmount
+      totalRedeemed
+      netProfit
+      totalBets
+      marketsParticipated
     }
   }
 `;

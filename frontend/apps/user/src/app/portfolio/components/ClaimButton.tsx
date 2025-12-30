@@ -5,15 +5,7 @@ import { Button, LoadingSpinner } from "@pitchone/ui";
 import { Position, useRedeem } from "@pitchone/web3";
 import { useState } from "react";
 import { type Address } from "viem";
-import { getClaimStatus } from "../utils";
-
-/**
- * 截断交易 hash 显示
- */
-function truncateHash(hash: string): string {
-    if (hash.length <= 12) return hash;
-    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-}
+import { getClaimStatus, formatTxHash, getTxExplorerUrl } from "../utils";
 
 export default function ClaimButton({ position }: { position: Position }) {
     const { t } = useTranslation();
@@ -62,12 +54,12 @@ export default function ClaimButton({ position }: { position: Position }) {
     if (isSuccess && hash) {
         return (
             <a
-                href={`https://basescan.org/tx/${hash}`}
+                href={getTxExplorerUrl(hash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-green-400 hover:text-green-300 underline"
             >
-                {truncateHash(hash)}
+                {formatTxHash(hash)}
             </a>
         );
     }

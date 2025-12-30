@@ -141,6 +141,7 @@ enum MarketState {
   Locked
   Resolved
   Finalized
+  Cancelled
 }
 
 # ============================================================================
@@ -308,8 +309,11 @@ type Position @entity(immutable: false) {
   "平均成本（USDC per share）"
   averageCost: BigDecimal!
 
-  "累计投入（USDC）"
+  "累计投入（USDC，扣除手续费后）"
   totalInvested: BigDecimal!
+
+  "累计支付（USDC，未扣手续费的原始金额）"
+  totalPayment: BigDecimal!
 
   "首次下注交易哈希"
   createdTxHash: Bytes

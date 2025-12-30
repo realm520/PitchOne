@@ -32,6 +32,15 @@ Host pitchone-server
 
 **注意**：需要先将公钥添加到服务器的 `~/.ssh/authorized_keys` 中。
 
+## 生产环境端点
+
+| 服务 | 地址 |
+|------|------|
+| **RPC** | `https://pitchone-rpc.ngrok-free.app` |
+| **Subgraph GraphQL** | `https://pitchone-graph.ngrok-free.app/subgraphs/name/pitchone-sportsbook` |
+
+这些是通过 ngrok 暴露的生产环境公开端点，用于前端连接和数据查询。
+
 ## 常用命令
 
 ### 开发环境启动
@@ -833,7 +842,7 @@ export GELATO_API_KEY=...                      # Gelato 自动化 API Key
 提交代码前确保：
 - [ ] 运行 `forge test` 且所有测试通过
 - [ ] 运行 `slither src/` 且无高危/中危问题
-- [ ] 运行 `forge coverage` 且覆盖率 ≥80%
+- [ ] 运行 `forge coverage` ���覆盖率 ≥80%
 - [ ] 所有公开/外部函数都有 NatSpec 注释
 - [ ] 敏感操作（转账、状态变更）有权限控制和事件记录
 - [ ] 新增合约已添加对应的单元测试和不变量测试

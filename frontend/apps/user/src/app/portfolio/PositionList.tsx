@@ -4,36 +4,17 @@ import { Position } from "@pitchone/web3";
 import { motion } from "framer-motion";
 import {
     calculateExpectedPayout,
+    calculateOdds,
+    getOriginalPayment,
     getResultKey,
     getSelection,
     formatDate,
     getLeagueCode,
-    formatAmount,
+    formatUSDC,
+    formatTxHash,
+    getTxExplorerUrl,
 } from "./utils";
 import ClaimButton from "./components/ClaimButton";
-
-/**
- * 格式化交易哈希为短格式（0x1234...5678）
- */
-function formatTxHash(hash: string | undefined): string {
-    if (!hash) return '-';
-    // 处理 0x 前缀
-    const cleanHash = hash.startsWith('0x') ? hash : `0x${hash}`;
-    if (cleanHash.length <= 12) return cleanHash;
-    return `${cleanHash.slice(0, 6)}...${cleanHash.slice(-4)}`;
-}
-
-/**
- * 获取区块浏览器链接
- * TODO: 根据实际网络配置动态获取
- */
-function getTxExplorerUrl(hash: string | undefined): string | undefined {
-    if (!hash) return undefined;
-    const cleanHash = hash.startsWith('0x') ? hash : `0x${hash}`;
-    // 本地测试环境暂时不返回链接
-    // 生产环境可以返回如 https://etherscan.io/tx/${cleanHash}
-    return undefined;
-}
 
 export default function PositionList({ positions }: { positions?: Position[] }) {
     const { t, translateTeam } = useTranslation();
@@ -76,9 +57,9 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                                     </div>
                                 </Td>
                                 <Td>{getSelection(position, translateTeam)}</Td>
-                                <Td>{formatAmount(position.balance)}</Td>
-                                <Td>-</Td>
-                                <Td>{formatAmount(calculateExpectedPayout(position))}</Td>
+                                <Td>{formatUSDC(getOriginalPayment(position))} USDC</Td>
+                                <Td>{calculateOdds(position)}</Td>
+                                <Td>{calculateExpectedPayout(position).toFixed(2)} USDC</Td>
                                 <Td>{t(getResultKey(position))}</Td>
                                 <Td>{formatDate(position.createdAt)}</Td>
                                 <Td>
@@ -87,34 +68,26 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                                             href={bettingTxUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-blue-500 hover:text-blue-700 hover:underline"
+                                            className="text-blue-400 hover:text-blue-300 hover:underline"
                                             title={position.createdTxHash}
                                         >
                                             {formatTxHash(position.createdTxHash)}
                                         </a>
                                     ) : (
-                                        <span title={position.createdTxHash} className="text-gray-500">
-                                            {formatTxHash(position.createdTxHash)}
-                                        </span>
+                                        <span className="text-gray-500">-</span>
                                     )}
                                 </Td>
                                 <Td className="text-right">
                                     {position.claimTxHash ? (
-                                        claimTxUrl ? (
-                                            <a
-                                                href={claimTxUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-500 hover:text-blue-700 hover:underline"
-                                                title={position.claimTxHash}
-                                            >
-                                                {formatTxHash(position.claimTxHash)}
-                                            </a>
-                                        ) : (
-                                            <span title={position.claimTxHash} className="text-gray-500">
-                                                {formatTxHash(position.claimTxHash)}
-                                            </span>
-                                        )
+                                        <a
+                                            href={claimTxUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-green-400 hover:text-green-300 hover:underline"
+                                            title={position.claimTxHash}
+                                        >
+                                            {formatTxHash(position.claimTxHash)}
+                                        </a>
                                     ) : (
                                         <ClaimButton position={position} />
                                     )}

@@ -2,10 +2,10 @@ import { useTranslation } from "@pitchone/i18n";
 import { Button, Card, EmptyState, ErrorState, Input, Pagination } from "@pitchone/ui";
 import { useState } from "react";
 import PositionList from "./PositionList";
-import { MarketStatus, Position, useAccount, useUserPositionsPaginated } from "@pitchone/web3";
+import { Position, useAccount, useUserPositionsPaginated, useUserStats } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
-import { calculateExpectedPayout, getClaimStatus } from "./utils";
+import { getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 type TabType = 'all' | 'claimable';
@@ -51,60 +51,23 @@ export default function MyPositions() {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10; // 每页显示条数
     const { data, isLoading, error } = useUserPositionsPaginated(address, currentPage, pageSize);
+    const { data: userStats } = useUserStats(address);
     const positions = data?.positions;
     const totalCount = data?.total || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
     const { t } = useTranslation()
 
-    // 计算统计数据
-    const stats = (() => {
-        if (!positions || positions.length === 0) {
-            return {
-                totalBetAmount: 0,
-                totalMarkets: 0,
-                totalBets: 0,
-                totalProfit: 0,
-            };
-        }
-
-        // 总投注额：所有头寸的 totalInvested 之和
-        const totalBetAmount = positions.reduce((sum, pos) => {
-            const invested = pos.totalInvested ? parseFloat(pos.totalInvested) : 0;
-            return sum + invested;
-        }, 0);
-
-        // 投注市场数：去重的市场数量
-        const uniqueMarkets = new Set(positions.map((pos) => pos.market.id));
-        const totalMarkets = uniqueMarkets.size;
-
-        // 总投注次数：头寸数量
-        const totalBets = positions.length;
-
-        // 盈利金额：已结算且赢得的头寸的收益 - 已结算且输掉的投注额
-        const totalProfit = positions.reduce((sum, pos) => {
-            const invested = pos.totalInvested ? parseFloat(pos.totalInvested) : 0;
-
-            // 只计算已结算的市场
-            if (pos.market.state === MarketStatus.Resolved || pos.market.state === MarketStatus.Finalized) {
-                if (pos.market.winnerOutcome !== undefined && pos.market.winnerOutcome === pos.outcome) {
-                    // 赢了：预期收益 - 投入
-                    const expectedPayout = calculateExpectedPayout(pos);
-                    return sum + (expectedPayout - invested);
-                } else {
-                    // 输了：损失全部投入
-                    return sum - invested;
-                }
-            }
-            return sum;
-        }, 0);
-
-        return {
-            totalBetAmount,
-            totalMarkets,
-            totalBets,
-            totalProfit,
-        };
-    })();
+    // 使用 Subgraph 的 User 实体统计数据
+    const stats = {
+        // 总投注额（从 Subgraph User.totalBetAmount 获取）
+        totalBetAmount: userStats?.totalBetAmount || 0,
+        // 投注市场数
+        totalMarkets: userStats?.marketsParticipated || 0,
+        // 总投注次数
+        totalBets: userStats?.totalBets || 0,
+        // 净盈亏 = 总赎回金额 - 总投注额
+        totalProfit: userStats?.netProfit || 0,
+    };
 
     return (
         <div className="flex flex-col gap-6">

@@ -937,6 +937,123 @@ export function useUnpauseMarket(marketAddress?: Address) {
   };
 }
 
+/**
+ * 取消市场 Hook
+ * 调用 Market_V3.cancel(reason) - 仅限 Open/Locked 状态
+ * 或 Market_V3.cancelResolved(reason) - 仅限 Resolved 状态
+ */
+export function useCancelMarket(marketAddress?: Address) {
+  const publicClient = usePublicClient();
+  const { address: accountAddress } = useAccount();
+  const { writeContractAsync, isPending, error: writeError } = useWriteContract();
+
+  const [hash, setHash] = useState<Hex | undefined>(undefined);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isReverted, setIsReverted] = useState(false);
+  const [receipt, setReceipt] = useState<any>(null);
+  const [revertError, setRevertError] = useState<Error | null>(null);
+
+  const resetState = () => {
+    setHash(undefined);
+    setIsConfirming(false);
+    setIsSuccess(false);
+    setIsReverted(false);
+    setReceipt(null);
+    setRevertError(null);
+  };
+
+  const waitForReceipt = async (txHash: Hex): Promise<any> => {
+    if (!publicClient) throw new Error('Public client not available');
+    for (let i = 0; i < 30; i++) {
+      try {
+        return await publicClient.getTransactionReceipt({ hash: txHash });
+      } catch (err: any) {
+        if (err?.message?.includes('could not be found') || err?.message?.includes('not found')) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error('等待交易确认超时');
+  };
+
+  /**
+   * 取消市场
+   * @param reason 取消原因
+   * @param isResolved 是否为已结算市场（决定调用 cancel 还是 cancelResolved）
+   */
+  const cancelMarket = async (reason: string, isResolved: boolean = false) => {
+    if (!marketAddress) throw new Error('Market address required');
+    if (!publicClient) throw new Error('Public client not available');
+
+    const functionName = isResolved ? 'cancelResolved' : 'cancel';
+    console.log(`[useCancelMarket] 取消市场 (${functionName}):`, { marketAddress, reason });
+    resetState();
+    setIsConfirming(true);
+
+    try {
+      // 先模拟调用
+      try {
+        await publicClient.simulateContract({
+          address: marketAddress,
+          abi: Market_V3_ABI,
+          functionName,
+          args: [reason],
+          account: accountAddress,
+        });
+      } catch (simError: any) {
+        setIsConfirming(false);
+        const errorMessage = extractErrorMessage(simError);
+        setRevertError(new Error(errorMessage));
+        throw new Error(errorMessage);
+      }
+
+      const txHash = await writeContractAsync({
+        address: marketAddress,
+        abi: Market_V3_ABI,
+        functionName,
+        args: [reason],
+      });
+
+      console.log('[useCancelMarket] 交易已发送:', txHash);
+      setHash(txHash);
+
+      const txReceipt = await waitForReceipt(txHash);
+      setReceipt(txReceipt);
+      setIsConfirming(false);
+
+      if (txReceipt.status === 'success') {
+        setIsSuccess(true);
+        console.log('[useCancelMarket] 取消成功！');
+      } else {
+        setIsReverted(true);
+        setRevertError(new Error('交易被链上拒绝'));
+      }
+
+      return txHash;
+    } catch (err: any) {
+      console.error('[useCancelMarket] 交易失败:', err);
+      setIsConfirming(false);
+      const errorMessage = extractErrorMessage(err);
+      setRevertError(new Error(errorMessage));
+      throw err;
+    }
+  };
+
+  return {
+    cancelMarket,
+    isPending,
+    isConfirming,
+    isSuccess,
+    isReverted,
+    error: writeError || revertError,
+    hash,
+    receipt,
+  };
+}
+
 // ============================================
 // 参数治理 Hooks
 // ============================================

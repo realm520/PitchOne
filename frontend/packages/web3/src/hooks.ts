@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, MARKET_WITH_ODDS_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY, USER_REDEMPTIONS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, MARKET_WITH_ODDS_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_STATS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY, USER_REDEMPTIONS_QUERY } from './graphql';
 import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
 
 // Redemption 类型定义
@@ -79,6 +79,12 @@ export interface Market {
   };
 }
 
+// OutcomeVolume 类型（用于 Position 中的市场数据）
+export interface OutcomeVolumeInfo {
+  outcomeId: number;
+  volume: string;
+}
+
 export interface Position {
   id: string;
   market: {
@@ -92,12 +98,17 @@ export interface Position {
     winnerOutcome?: number;
     line?: string;
     lines?: string[];
+    // 用于计算预期收益的字段
+    totalVolume?: string;
+    feeAccrued?: string;
+    outcomeVolumes?: OutcomeVolumeInfo[];
   };
   outcome: number;
   balance: string;
   owner: string;
   averageCost?: string;
   totalInvested?: string;
+  totalPayment?: string;  // 原始押注金额（未扣手续费）
   createdTxHash?: string;
   createdAt: string;
   lastUpdatedAt?: string;
@@ -119,6 +130,10 @@ interface PositionRaw {
     winnerOutcome?: number;
     line?: string;
     lines?: string[];
+    // 用于计算预期收益的字段
+    totalVolume?: string;
+    feeAccrued?: string;
+    outcomeVolumes?: OutcomeVolumeInfo[];
   };
   outcome: number;
   balance: string;
@@ -127,6 +142,7 @@ interface PositionRaw {
   };
   averageCost?: string;
   totalInvested?: string;
+  totalPayment?: string;  // 原始押注金额（未扣手续费）
   createdTxHash?: string;
   createdAt?: string;
   lastUpdatedAt?: string;
@@ -692,6 +708,72 @@ export function useUserPositionsPaginated(
         return { positions, total };
       } catch (error) {
         console.error('[useUserPositionsPaginated] 查询失败:', error);
+        throw error;
+      }
+    },
+    enabled: !!userAddress,
+    staleTime: 15 * 1000, // 15 秒
+  });
+}
+
+/**
+ * 用户统计数据类型
+ */
+export interface UserStats {
+  totalBetAmount: number;   // 总投注额（USDC）
+  totalRedeemed: number;    // 总赎回金额（USDC）
+  netProfit: number;        // 净盈亏（赎回 - 投注）
+  totalBets: number;        // 下注次数
+  marketsParticipated: number;  // 参与的市场数
+}
+
+/**
+ * 查询用户统计数据（从 Subgraph User 实体）
+ */
+export function useUserStats(userAddress: string | undefined) {
+  return useQuery({
+    queryKey: ['userStats', userAddress],
+    queryFn: async (): Promise<UserStats | null> => {
+      if (!userAddress) {
+        console.log('[useUserStats] 地址为空，返回 null');
+        return null;
+      }
+
+      const userId = userAddress.toLowerCase();
+
+      try {
+        const data = await graphqlClient.request<{
+          user: {
+            id: string;
+            totalBetAmount: string;
+            totalRedeemed: string;
+            netProfit: string;
+            totalBets: number;
+            marketsParticipated: number;
+          } | null;
+        }>(USER_STATS_QUERY, { userId });
+
+        if (!data.user) {
+          console.log('[useUserStats] 用户不存在，返回空统计');
+          return {
+            totalBetAmount: 0,
+            totalRedeemed: 0,
+            netProfit: 0,
+            totalBets: 0,
+            marketsParticipated: 0,
+          };
+        }
+
+        // 将 BigDecimal 字符串转换为数字（Subgraph 返回的是 USDC 单位）
+        return {
+          totalBetAmount: parseFloat(data.user.totalBetAmount) || 0,
+          totalRedeemed: parseFloat(data.user.totalRedeemed) || 0,
+          netProfit: parseFloat(data.user.netProfit) || 0,
+          totalBets: data.user.totalBets || 0,
+          marketsParticipated: data.user.marketsParticipated || 0,
+        };
+      } catch (error) {
+        console.error('[useUserStats] 查询失败:', error);
         throw error;
       }
     },
