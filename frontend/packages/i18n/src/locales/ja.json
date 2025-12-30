@@ -279,7 +279,12 @@
       "open": "オープン",
       "locked": "ロック",
       "resolved": "請求可能",
-      "finalized": "完了"
+      "finalized": "完了",
+      "claimable": "請求可能",
+      "refundable": "返金可能",
+      "claimed": "請求済み",
+      "lost": "落選",
+      "pending": "進行中"
     },
     "connectWallet": "ウォレットを接続してください",
     "connectDesc": "ウォレットを接続すると予想を表示できます",

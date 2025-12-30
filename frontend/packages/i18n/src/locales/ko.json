@@ -279,7 +279,12 @@
       "open": "진행 중",
       "locked": "잠김",
       "resolved": "청구 가능",
-      "finalized": "완료"
+      "finalized": "완료",
+      "claimable": "청구 가능",
+      "refundable": "환불 가능",
+      "claimed": "청구 완료",
+      "lost": "낙첨",
+      "pending": "진행 중"
     },
     "connectWallet": "지갑을 연결해 주세요",
     "connectDesc": "지갑을 연결하면 예측을 볼 수 있습니다",
