@@ -239,6 +239,7 @@
       "claimable": "청구 가능"
     },
     "ticket": {
+      "status": "상태",
       "match": "경기",
       "selection": "선택",
       "payment": "베팅액",

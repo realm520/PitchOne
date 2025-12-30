@@ -239,6 +239,7 @@
       "claimable": "請求可能"
     },
     "ticket": {
+      "status": "ステータス",
       "match": "試合",
       "selection": "選択",
       "payment": "支払額",
