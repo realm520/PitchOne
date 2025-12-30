@@ -221,6 +221,7 @@
       "selected": "선택",
       "paid": "지불(U)",
       "payoutColumn": "지급(U)",
+      "txHash": "Tx 해시",
       "status": "상태"
     }
   },

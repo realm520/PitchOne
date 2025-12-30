@@ -221,6 +221,7 @@
       "selected": "选择",
       "paid": "投注额(U)",
       "payoutColumn": "预期收益(U)",
+      "txHash": "交易哈希",
       "status": "状态"
     }
   },

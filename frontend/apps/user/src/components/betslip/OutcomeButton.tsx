@@ -40,7 +40,7 @@ export function OutcomeButton({
     const cardStyles = isWinner
       ? 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
       : isSelected
-        ? 'bg-white text-gray-900'
+        ? 'bg-white text-gray-900 border border-transparent'
         : 'bg-white/10 text-gray-200 border border-white/10 hover:bg-white/15 hover:border-white/20';
 
     return (
@@ -78,7 +78,7 @@ export function OutcomeButton({
   const detailStyles = isWinner
     ? 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
     : isSelected
-      ? 'bg-white text-gray-900'
+      ? 'bg-white text-gray-900 border border-transparent'
       : 'bg-white/10 text-gray-200 border border-white/10 hover:bg-white/15 hover:border-white/20';
 
   return (

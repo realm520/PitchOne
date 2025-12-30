@@ -29,7 +29,7 @@ import { useBetSlipStore, SelectedBet } from '@/lib/betslip-store';
 export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { t, translateTeam, translateLeague } = useTranslation();
   const { address } = useAccount();
-  const { selectBet, isSelected } = useBetSlipStore();
+  const { selectBet, isSelected, refreshCounter } = useBetSlipStore();
 
   const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
   const { refetch: refetchOrders } = useMarketOrders(address, marketId);
@@ -184,6 +184,19 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       pollInterval: 15000, // 15 秒轮询一次作为备选
     }
   );
+
+  // 监听下注成功后的全局刷新信号
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      console.log('[MarketDetailClient] 收到刷新信号，刷新详情页数据');
+      refetchMarket();
+      refetchOutcomes();
+      refetchAllOrders();
+      if (address) {
+        refetchOrders();
+      }
+    }
+  }, [refreshCounter, refetchMarket, refetchOutcomes, refetchAllOrders, refetchOrders, address]);
 
   // 格式化日期为简短格式 (DEC 02 12:07)
   const formatShortDate = (timestamp: string | number) => {
@@ -431,13 +444,14 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.selected')}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.paid')}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.payout')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.txHash')}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-border">
                   {allBetEvents.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                         {t('markets.detail.noActivity')}
                       </td>
                     </tr>
@@ -450,22 +464,34 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
                       return (
                         <tr key={event.transactionHash || idx} className="hover:bg-dark-hover">
-                          <td className="px-4 py-3 text-sm text-gray-400">
+                          <td className="px-4 py-3 text-sm text-gray-400 whitespace-nowrap">
                             {formatShortDate(event.timestamp / 1000)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-400 font-mono">
+                          <td className="px-4 py-3 text-sm text-gray-400 font-mono whitespace-nowrap">
                             {truncateAddress(event.user)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white font-medium">
+                          <td className="px-4 py-3 text-sm text-white font-medium whitespace-nowrap">
                             {getTeamAbbr(homeTeam)} - {outcomeName}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white">
+                          <td className="px-4 py-3 text-sm text-white whitespace-nowrap">
                             ${amountUSDC.toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white">
+                          <td className="px-4 py-3 text-sm text-white whitespace-nowrap">
                             ${payoutUSDC.toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-400">
+                          <td className="px-4 py-3 text-sm text-gray-400 font-mono whitespace-nowrap">
+                            {event.transactionHash ? (
+                              <a
+                                href={`https://basescan.org/tx/${event.transactionHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-accent transition-colors"
+                              >
+                                {truncateAddress(event.transactionHash)}
+                              </a>
+                            ) : '--'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400 whitespace-nowrap">
                             {getMarketStatusText()}
                           </td>
                         </tr>

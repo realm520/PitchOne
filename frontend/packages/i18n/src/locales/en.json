@@ -221,6 +221,7 @@
       "selected": "Selected",
       "paid": "Paid(U)",
       "payoutColumn": "Payout(U)",
+      "txHash": "Tx Hash",
       "status": "Status"
     }
   },

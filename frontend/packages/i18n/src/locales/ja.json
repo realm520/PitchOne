@@ -221,6 +221,7 @@
       "selected": "選択",
       "paid": "支払い(U)",
       "payoutColumn": "払出(U)",
+      "txHash": "Txハッシュ",
       "status": "ステータス"
     }
   },
