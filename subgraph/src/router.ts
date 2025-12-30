@@ -116,6 +116,7 @@ export function handleRouterBetPlaced(event: RouterBetPlacedEvent): void {
 
   // 更新用户统计（使用净金额）
   user.totalBetAmount = user.totalBetAmount.plus(netAmountDecimal);
+  user.totalPayment = user.totalPayment.plus(originalAmountDecimal);
   user.netProfit = user.netProfit.minus(netAmountDecimal);
   user.totalBets = user.totalBets + 1;
 

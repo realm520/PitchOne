@@ -67,6 +67,7 @@ export function loadOrCreateUser(address: Address): User {
   if (user === null) {
     user = new User(address.toHexString());
     user.totalBetAmount = ZERO_BD;
+    user.totalPayment = ZERO_BD;
     user.totalRedeemed = ZERO_BD;
     user.netProfit = ZERO_BD;
     user.totalBets = 0;

@@ -59,8 +59,8 @@ export default function MyPositions() {
 
     // 使用 Subgraph 的 User 实体统计数据
     const stats = {
-        // 总投注额（从 Subgraph User.totalBetAmount 获取）
-        totalBetAmount: userStats?.totalBetAmount || 0,
+        // 总投注额（从 Subgraph User.totalPayment 获取，原始金额不扣手续费）
+        totalBetAmount: userStats?.totalPayment || 0,
         // 投注市场数
         totalMarkets: userStats?.marketsParticipated || 0,
         // 总投注次数

@@ -55,6 +55,9 @@ type Market @entity(immutable: false) {
   "最终确认时间戳"
   finalizedAt: BigInt
 
+  "终结交易哈希"
+  finalizedTxHash: Bytes
+
   "取消时间戳（V3）"
   cancelledAt: BigInt
 
@@ -187,8 +190,11 @@ type User @entity(immutable: false) {
   "用户地址"
   id: ID!
 
-  "总下注金额（USDC）"
+  "总下注金额（USDC，扣除手续费后）"
   totalBetAmount: BigDecimal!
+
+  "原始投注金额（USDC，不扣手续费）"
+  totalPayment: BigDecimal!
 
   "总赎回金额（USDC）"
   totalRedeemed: BigDecimal!

@@ -726,7 +726,8 @@ export function useUserPositionsPaginated(
  * 用户统计数据类型
  */
 export interface UserStats {
-  totalBetAmount: number;   // 总投注额（USDC）
+  totalBetAmount: number;   // 总投注额（USDC，扣除手续费后）
+  totalPayment: number;     // 原始投注金额（USDC，不扣手续费）
   totalRedeemed: number;    // 总赎回金额（USDC）
   netProfit: number;        // 净盈亏（赎回 - 投注）
   totalBets: number;        // 下注次数
@@ -752,6 +753,7 @@ export function useUserStats(userAddress: string | undefined) {
           user: {
             id: string;
             totalBetAmount: string;
+            totalPayment: string;
             totalRedeemed: string;
             netProfit: string;
             totalBets: number;
@@ -763,6 +765,7 @@ export function useUserStats(userAddress: string | undefined) {
           console.log('[useUserStats] 用户不存在，返回空统计');
           return {
             totalBetAmount: 0,
+            totalPayment: 0,
             totalRedeemed: 0,
             netProfit: 0,
             totalBets: 0,
@@ -773,6 +776,7 @@ export function useUserStats(userAddress: string | undefined) {
         // 将 BigDecimal 字符串转换为数字（Subgraph 返回的是 USDC 单位）
         return {
           totalBetAmount: parseFloat(data.user.totalBetAmount) || 0,
+          totalPayment: parseFloat(data.user.totalPayment) || 0,
           totalRedeemed: parseFloat(data.user.totalRedeemed) || 0,
           netProfit: parseFloat(data.user.netProfit) || 0,
           totalBets: data.user.totalBets || 0,

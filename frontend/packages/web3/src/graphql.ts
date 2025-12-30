@@ -331,6 +331,7 @@ export const USER_STATS_QUERY = `
     user(id: $userId) {
       id
       totalBetAmount
+      totalPayment
       totalRedeemed
       netProfit
       totalBets

@@ -160,6 +160,7 @@ export function handleBetPlaced(event: BetPlacedEvent): void {
 
   // 更新用户统计
   user.totalBetAmount = user.totalBetAmount.plus(amountDecimal);
+  user.totalPayment = user.totalPayment.plus(amountDecimal);
   user.netProfit = user.netProfit.minus(amountDecimal);
   user.totalBets = user.totalBets + 1;
 
