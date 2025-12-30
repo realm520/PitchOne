@@ -11,26 +11,28 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pitchone/sportsbook/internal/graphql"
 	"github.com/pitchone/sportsbook/internal/rewards"
 	_ "github.com/lib/pq"
 )
 
 // Config 配置
 type Config struct {
-	DatabaseURL     string
-	RPCURL          string
-	DistributorAddr string
-	PrivateKey      string
-	Week            uint64
-	DryRun          bool
-	OutputFile      string
+	DatabaseURL      string
+	SubgraphEndpoint string
+	RPCURL           string
+	DistributorAddr  string
+	PrivateKey       string
+	Week             uint64
+	DryRun           bool
+	OutputFile       string
 }
 
 func main() {
 	// 解析命令行参数
 	config := parseFlags()
 
-	// 连接数据库
+	// 连接数据库（仅用于 reward_distributions 表）
 	db, err := sql.Open("postgres", config.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -43,8 +45,21 @@ func main() {
 
 	log.Printf("Connected to database successfully")
 
+	// 创建 GraphQL 客户端（用于查询 orders/referrals/quests）
+	graphClient := graphql.NewClient(config.SubgraphEndpoint)
+
+	// 验证 Subgraph 连接
+	ctx := context.Background()
+	healthCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := graphClient.HealthCheck(healthCtx); err != nil {
+		log.Fatalf("Failed to connect to Subgraph: %v", err)
+	}
+
+	log.Printf("Connected to Subgraph (%s)", config.SubgraphEndpoint)
+
 	// 创建聚合器
-	aggregator := rewards.NewAggregator(db)
+	aggregator := rewards.NewAggregator(graphClient, db)
 
 	// 确定要处理的周
 	week := config.Week
@@ -56,7 +71,6 @@ func main() {
 	log.Printf("Building rewards distribution for week %d", week)
 
 	// 聚合奖励数据
-	ctx := context.Background()
 	entries, err := aggregator.AggregateWeeklyRewards(ctx, week)
 	if err != nil {
 		log.Fatalf("Failed to aggregate rewards: %v", err)
@@ -157,6 +171,7 @@ func parseFlags() *Config {
 	config := &Config{}
 
 	flag.StringVar(&config.DatabaseURL, "db", os.Getenv("DATABASE_URL"), "Database URL (env: DATABASE_URL)")
+	flag.StringVar(&config.SubgraphEndpoint, "subgraph", getEnvOrDefault("SUBGRAPH_ENDPOINT", "http://localhost:8010/subgraphs/name/pitchone-sportsbook"), "Subgraph GraphQL endpoint (env: SUBGRAPH_ENDPOINT)")
 	flag.StringVar(&config.RPCURL, "rpc-url", os.Getenv("RPC_URL"), "Ethereum RPC URL (env: RPC_URL)")
 	flag.StringVar(&config.DistributorAddr, "distributor", os.Getenv("REWARDS_DISTRIBUTOR_ADDR"), "RewardsDistributor contract address")
 	flag.StringVar(&config.PrivateKey, "private-key", os.Getenv("PRIVATE_KEY"), "Private key for signing transactions")
@@ -171,6 +186,14 @@ func parseFlags() *Config {
 	}
 
 	return config
+}
+
+// getEnvOrDefault 获取环境变量，如果不存在则返回默认值
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func exportDistribution(dist *rewards.MerkleDistribution, filename string) error {

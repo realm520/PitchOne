@@ -1,4 +1,4 @@
-.PHONY: help build build-cli test run-indexer run-keeper run-rewards run-cli db-migrate db-rollback generate-bindings
+.PHONY: help build build-cli test run-keeper run-rewards run-scheduler run-cli db-migrate db-rollback generate-bindings
 
 help:
 	@echo "PitchOne Backend Makefile"
@@ -8,9 +8,9 @@ help:
 	@echo "  build            - Build all binaries"
 	@echo "  build-cli        - Build CLI tool only"
 	@echo "  test             - Run tests"
-	@echo "  run-indexer      - Run Indexer service"
 	@echo "  run-keeper       - Run Keeper service"
 	@echo "  run-rewards      - Run Rewards service"
+	@echo "  run-scheduler    - Run Scheduler service"
 	@echo "  run-cli          - Run CLI tool (use ARGS for arguments)"
 	@echo "  db-migrate       - Apply database migrations"
 	@echo "  db-rollback      - Rollback last migration"
@@ -18,9 +18,9 @@ help:
 build:
 	@echo "Building binaries..."
 	@mkdir -p bin
-	@go build -o bin/indexer ./cmd/indexer
 	@go build -o bin/keeper ./cmd/keeper
 	@go build -o bin/rewards ./cmd/rewards
+	@go build -o bin/scheduler ./cmd/scheduler
 	@go build -o bin/p1cli ./cmd/cli
 	@echo "Build complete: bin/"
 
@@ -37,9 +37,9 @@ test:
 	@echo "Running tests..."
 	@go test ./... -v
 
-run-indexer:
-	@echo "Starting Indexer..."
-	@go run ./cmd/indexer
+run-scheduler:
+	@echo "Starting Scheduler..."
+	@go run ./cmd/scheduler
 
 run-keeper:
 	@echo "Starting Keeper..."

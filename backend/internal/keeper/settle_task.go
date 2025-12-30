@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"sync"
@@ -78,69 +77,56 @@ func (t *SettleTask) Execute(ctx context.Context) error {
 	return nil
 }
 
-// getMarketsToSettle queries the database for markets that need settling
+// getMarketsToSettle queries the Subgraph for markets that need settling
 func (t *SettleTask) getMarketsToSettle(ctx context.Context) ([]*MarketToSettle, error) {
 	// Calculate settle window: match ended + finalize delay (Unix timestamp)
 	settleTime := time.Now().Unix() - int64(t.keeper.config.FinalizeDelay)
 
-	query := `
-		SELECT
-			market_address,
-			event_id,
-			match_start,
-			match_end,
-			oracle_address,
-			COALESCE(market_params, '{}'::jsonb),
-			COALESCE(version, 'v2') as version
-		FROM markets
-		WHERE status = 'Locked'
-		AND match_end <= $1
-		AND match_end IS NOT NULL
-		ORDER BY match_end ASC
-	`
-
-	rows, err := t.keeper.db.QueryContext(ctx, query, settleTime)
+	// 从 Subgraph 查询需要结算的市场
+	subgraphMarkets, err := t.keeper.graphClient.GetMarketsToSettle(ctx, settleTime)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query markets: %w", err)
+		return nil, fmt.Errorf("failed to query Subgraph: %w", err)
 	}
-	defer rows.Close()
 
-	markets := make([]*MarketToSettle, 0)
-	for rows.Next() {
-		var market MarketToSettle
-		var marketAddrHex, oracleAddrHex string
-		var matchStartUnix, matchEndUnix int64
-		var paramsJSON []byte
-
-		err := rows.Scan(&marketAddrHex, &market.EventID, &matchStartUnix, &matchEndUnix, &oracleAddrHex, &paramsJSON, &market.Version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan market row: %w", err)
+	markets := make([]*MarketToSettle, 0, len(subgraphMarkets))
+	for _, m := range subgraphMarkets {
+		// 解析时间戳
+		var kickoffTimeUnix, matchEndTimeUnix int64
+		if m.KickoffTime != "" {
+			fmt.Sscanf(m.KickoffTime, "%d", &kickoffTimeUnix)
+		}
+		if m.MatchEndTime != "" {
+			fmt.Sscanf(m.MatchEndTime, "%d", &matchEndTimeUnix)
 		}
 
-		// Parse addresses
-		market.MarketAddress = common.HexToAddress(marketAddrHex)
-		market.OracleAddress = common.HexToAddress(oracleAddrHex)
+		// 确定版本（默认 v3，Subgraph 的市场都是 V3 Factory 创建的）
+		version := m.Version
+		if version == "" {
+			version = "v3"
+		}
 
-		// Convert Unix timestamps to time.Time
-		market.MatchStart = time.Unix(matchStartUnix, 0)
-		market.MatchEnd = time.Unix(matchEndUnix, 0)
-
-		// Parse market_params JSONB
-		market.MarketParams = make(map[string]interface{})
-		if len(paramsJSON) > 0 && string(paramsJSON) != "{}" {
-			if err := json.Unmarshal(paramsJSON, &market.MarketParams); err != nil {
-				t.keeper.logger.Warn("failed to parse market_params, using empty map",
-					zap.String("market", marketAddrHex),
-					zap.Error(err),
-				)
+		// 构建 MarketParams（用于 OU/AH 市场）
+		marketParams := make(map[string]interface{})
+		if m.TemplateID == "OU" || m.TemplateID == "AH" {
+			marketParams["type"] = m.TemplateID
+			// 解析 line（千分位表示）
+			if m.Line != "" {
+				var lineValue int64
+				fmt.Sscanf(m.Line, "%d", &lineValue)
+				marketParams["line"] = float64(lineValue)
 			}
+			marketParams["isHalfLine"] = m.IsHalfLine
 		}
 
-		markets = append(markets, &market)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating market rows: %w", err)
+		markets = append(markets, &MarketToSettle{
+			MarketAddress: common.HexToAddress(m.ID),
+			EventID:       m.MatchID,
+			MatchStart:    time.Unix(kickoffTimeUnix, 0),
+			MatchEnd:      time.Unix(matchEndTimeUnix, 0),
+			OracleAddress: m.OracleAddress(),
+			MarketParams:  marketParams,
+			Version:       version,
+		})
 	}
 
 	return markets, nil
@@ -282,14 +268,7 @@ func (t *SettleTask) settleMarketV2(ctx context.Context, market *MarketToSettle)
 		zap.Uint64("gasUsed", receipt.GasUsed),
 	)
 
-	// Update market status in database
-	if err := t.updateMarketStatus(ctx, market.MarketAddress, "Proposed", tx.Hash(), result); err != nil {
-		t.keeper.logger.Error("failed to update market status in database",
-			zap.String("market", market.MarketAddress.Hex()),
-			zap.Error(err),
-		)
-		// Don't return error as the on-chain propose succeeded
-	}
+	// 状态由链上事件自动更新到 Subgraph，无需手动更新数据库
 
 	return nil
 }
@@ -379,14 +358,7 @@ func (t *SettleTask) settleMarketV3(ctx context.Context, market *MarketToSettle)
 		zap.Uint64("gasUsed", receipt.GasUsed),
 	)
 
-	// Update market status in database (V3 goes to "Resolved" directly)
-	if err := t.updateMarketStatus(ctx, market.MarketAddress, "Resolved", tx.Hash(), result); err != nil {
-		t.keeper.logger.Error("failed to update market status in database",
-			zap.String("market", market.MarketAddress.Hex()),
-			zap.Error(err),
-		)
-		// Don't return error as the on-chain resolve succeeded
-	}
+	// 状态由链上事件自动更新到 Subgraph，无需手动更新数据库
 
 	return nil
 }
@@ -469,45 +441,6 @@ func (t *SettleTask) waitForTransaction(ctx context.Context, txHash common.Hash)
 			return receipt, nil
 		}
 	}
-}
-
-// updateMarketStatus updates the market status in the database
-func (t *SettleTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash, result *MatchResult) error {
-	now := time.Now().Unix()
-
-	query := `
-		UPDATE markets
-		SET
-			status = $1,
-			settle_tx_hash = $2,
-			home_goals = $3,
-			away_goals = $4,
-			settled_at = $5,
-			updated_at = $6
-		WHERE market_address = $7
-	`
-
-	execResult, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), result.HomeGoals, result.AwayGoals, now, now, marketAddr.Hex())
-	if err != nil {
-		return fmt.Errorf("failed to update market status: %w", err)
-	}
-
-	rowsAffected, err := execResult.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("no market found with address %s", marketAddr.Hex())
-	}
-
-	t.keeper.logger.Debug("updated market status in database",
-		zap.String("market", marketAddr.Hex()),
-		zap.String("status", status),
-		zap.String("txHash", txHash.Hex()),
-	)
-
-	return nil
 }
 
 // ======================================

@@ -89,55 +89,42 @@ func (t *LockTask) Execute(ctx context.Context) error {
 	return nil
 }
 
-// getMarketsToLock queries the database for markets that need locking
+// getMarketsToLock queries the Subgraph for markets that need locking
 func (t *LockTask) getMarketsToLock(ctx context.Context) ([]*MarketToLock, error) {
 	// Calculate lock window: current time + lock lead time (Unix timestamp)
 	now := time.Now().Unix()
-	lockTime := now + int64(t.keeper.config.LockLeadTime)
+	lockWindow := now + int64(t.keeper.config.LockLeadTime)
 
-	query := `
-		SELECT
-			market_address,
-			event_id,
-			lock_time,
-			match_start,
-			COALESCE(version, 'v2') as version
-		FROM markets
-		WHERE status = 'Open'
-		AND lock_time <= $1
-		AND lock_time > $2
-		ORDER BY lock_time ASC
-	`
-
-	rows, err := t.keeper.db.QueryContext(ctx, query, lockTime, now)
+	// 从 Subgraph 查询需要锁盘的市场
+	subgraphMarkets, err := t.keeper.graphClient.GetMarketsToLock(ctx, now, lockWindow)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query markets: %w", err)
+		return nil, fmt.Errorf("failed to query Subgraph: %w", err)
 	}
-	defer rows.Close()
 
-	markets := make([]*MarketToLock, 0)
-	for rows.Next() {
-		var market MarketToLock
-		var marketAddrHex string
-		var lockTimeUnix, matchStartUnix int64
-
-		err := rows.Scan(&marketAddrHex, &market.EventID, &lockTimeUnix, &matchStartUnix, &market.Version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan market row: %w", err)
+	markets := make([]*MarketToLock, 0, len(subgraphMarkets))
+	for _, m := range subgraphMarkets {
+		// 解析时间戳
+		var lockTimeUnix, kickoffTimeUnix int64
+		if m.LockTime != "" {
+			fmt.Sscanf(m.LockTime, "%d", &lockTimeUnix)
+		}
+		if m.KickoffTime != "" {
+			fmt.Sscanf(m.KickoffTime, "%d", &kickoffTimeUnix)
 		}
 
-		// Parse market address
-		market.MarketAddress = common.HexToAddress(marketAddrHex)
+		// 确定版本（默认 v3，Subgraph 的市场都是 V3 Factory 创建的）
+		version := m.Version
+		if version == "" {
+			version = "v3"
+		}
 
-		// Convert Unix timestamps to time.Time
-		market.LockTime = time.Unix(lockTimeUnix, 0)
-		market.MatchStart = time.Unix(matchStartUnix, 0)
-
-		markets = append(markets, &market)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating market rows: %w", err)
+		markets = append(markets, &MarketToLock{
+			MarketAddress: common.HexToAddress(m.ID),
+			EventID:       m.MatchID,
+			LockTime:      time.Unix(lockTimeUnix, 0),
+			MatchStart:    time.Unix(kickoffTimeUnix, 0),
+			Version:       version,
+		})
 	}
 
 	return markets, nil
@@ -213,14 +200,7 @@ func (t *LockTask) lockMarketV2(ctx context.Context, marketAddr common.Address) 
 		zap.Uint64("gasUsed", receipt.GasUsed),
 	)
 
-	// Update market status in database
-	if err := t.updateMarketStatus(ctx, marketAddr, "Locked", tx.Hash()); err != nil {
-		t.keeper.logger.Error("failed to update market status in database",
-			zap.String("market", marketAddr.Hex()),
-			zap.Error(err),
-		)
-		// Don't return error as the on-chain lock succeeded
-	}
+	// 状态由链上事件自动更新到 Subgraph，无需手动更新数据库
 
 	return nil
 }
@@ -295,14 +275,7 @@ func (t *LockTask) lockMarketV3(ctx context.Context, marketAddr common.Address) 
 		zap.Uint64("gasUsed", receipt.GasUsed),
 	)
 
-	// Update market status in database
-	if err := t.updateMarketStatus(ctx, marketAddr, "Locked", tx.Hash()); err != nil {
-		t.keeper.logger.Error("failed to update market status in database",
-			zap.String("market", marketAddr.Hex()),
-			zap.Error(err),
-		)
-		// Don't return error as the on-chain lock succeeded
-	}
+	// 状态由链上事件自动更新到 Subgraph，无需手动更新数据库
 
 	return nil
 }
@@ -334,39 +307,3 @@ func (t *LockTask) waitForTransaction(ctx context.Context, txHash common.Hash) (
 	}
 }
 
-// updateMarketStatus updates the market status in the database
-func (t *LockTask) updateMarketStatus(ctx context.Context, marketAddr common.Address, status string, txHash common.Hash) error {
-	now := time.Now().Unix()
-
-	query := `
-		UPDATE markets
-		SET
-			status = $1,
-			lock_tx_hash = $2,
-			locked_at = $3,
-			updated_at = $4
-		WHERE market_address = $5
-	`
-
-	result, err := t.keeper.db.ExecContext(ctx, query, status, txHash.Hex(), now, now, marketAddr.Hex())
-	if err != nil {
-		return fmt.Errorf("failed to update market status: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("no market found with address %s", marketAddr.Hex())
-	}
-
-	t.keeper.logger.Debug("updated market status in database",
-		zap.String("market", marketAddr.Hex()),
-		zap.String("status", status),
-		zap.String("txHash", txHash.Hex()),
-	)
-
-	return nil
-}

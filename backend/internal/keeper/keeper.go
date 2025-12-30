@@ -2,15 +2,14 @@ package keeper
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/big"
 	"os"
 	"sync"
 	"time"
 
-	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/pitchone/sportsbook/internal/datasource"
+	"github.com/pitchone/sportsbook/internal/graphql"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +19,7 @@ const version = "0.1.0"
 type Keeper struct {
 	config       *Config
 	web3Client   *Web3Client
-	db           *sql.DB
+	graphClient  *graphql.Client // 使用 Subgraph 替代数据库
 	logger       *zap.Logger
 	chainID      int64
 	maxGasPrice  *big.Int
@@ -39,7 +38,7 @@ type Keeper struct {
 type HealthStatus struct {
 	Healthy  bool   `json:"healthy"`
 	Version  string `json:"version"`
-	Database string `json:"database"`
+	Subgraph string `json:"subgraph"` // 替代 Database
 	Web3     string `json:"web3"`
 	Uptime   string `json:"uptime"`
 }
@@ -88,25 +87,26 @@ func NewKeeper(cfg *Config) (*Keeper, error) {
 		zap.Int64("chainID", cfg.ChainID),
 	)
 
-	// Initialize database connection
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+	// Initialize GraphQL client (替代数据库连接)
+	graphClient := graphql.NewClient(cfg.SubgraphEndpoint)
+
+	// Test Subgraph connection
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel2()
+	if err := graphClient.HealthCheck(ctx2); err != nil {
+		return nil, fmt.Errorf("failed to connect to Subgraph: %w", err)
 	}
 
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	logger.Info("database connected",
-		zap.String("url", maskDatabaseURL(cfg.DatabaseURL)),
+	logger.Info("Subgraph client initialized",
+		zap.String("endpoint", cfg.SubgraphEndpoint),
 	)
+
+	// 如果设置了旧的 DatabaseURL，打印警告
+	if cfg.DatabaseURL != "" {
+		logger.Warn("DatabaseURL is deprecated, using SubgraphEndpoint instead",
+			zap.String("deprecated_url", maskDatabaseURL(cfg.DatabaseURL)),
+		)
+	}
 
 	// Initialize data source (Sportradar or Mock)
 	var dataSource datasource.ResultProvider
@@ -132,7 +132,7 @@ func NewKeeper(cfg *Config) (*Keeper, error) {
 	keeper := &Keeper{
 		config:       cfg,
 		web3Client:   web3Client,
-		db:           db,
+		graphClient:  graphClient, // 使用 Subgraph 替代数据库
 		logger:       logger,
 		chainID:      cfg.ChainID,
 		maxGasPrice:  maxGasPrice,
@@ -235,9 +235,7 @@ func (k *Keeper) Shutdown(ctx context.Context) error {
 		k.web3Client.Close()
 	}
 
-	if k.db != nil {
-		k.db.Close()
-	}
+	// GraphQL 客户端不需要显式关闭（使用 HTTP 连接池）
 
 	if k.logger != nil {
 		k.logger.Sync()
@@ -253,18 +251,18 @@ func (k *Keeper) HealthCheck() *HealthStatus {
 		Version: version,
 	}
 
-	// Check database
-	if err := k.db.Ping(); err != nil {
-		status.Database = "error: " + err.Error()
-		status.Healthy = false
-	} else {
-		status.Database = "ok"
-	}
-
-	// Check Web3 connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Check Subgraph connection (替代数据库检查)
+	if err := k.graphClient.HealthCheck(ctx); err != nil {
+		status.Subgraph = "error: " + err.Error()
+		status.Healthy = false
+	} else {
+		status.Subgraph = "ok"
+	}
+
+	// Check Web3 connection
 	if _, err := k.web3Client.GetBlockNumber(ctx); err != nil {
 		status.Web3 = "error: " + err.Error()
 		status.Healthy = false

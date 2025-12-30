@@ -83,45 +83,6 @@ func (c *Client) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	return c.db.BeginTx(ctx, nil)
 }
 
-// GetLastProcessedBlock 获取最后处理的区块
-func (c *Client) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	var blockNumber sql.NullInt64
-	query := `SELECT last_processed_block FROM indexer_state WHERE id = 1`
-
-	err := c.db.QueryRowContext(ctx, query).Scan(&blockNumber)
-	if err == sql.ErrNoRows {
-		// 首次启动，返回 0
-		return 0, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("failed to get last processed block: %w", err)
-	}
-
-	if !blockNumber.Valid {
-		return 0, nil
-	}
-
-	return uint64(blockNumber.Int64), nil
-}
-
-// UpdateLastProcessedBlock 更新最后处理的区块
-func (c *Client) UpdateLastProcessedBlock(ctx context.Context, blockNumber uint64) error {
-	query := `
-		INSERT INTO indexer_state (id, last_processed_block, updated_at)
-		VALUES (1, $1, $2)
-		ON CONFLICT (id) DO UPDATE
-		SET last_processed_block = EXCLUDED.last_processed_block,
-		    updated_at = EXCLUDED.updated_at
-	`
-
-	_, err := c.db.ExecContext(ctx, query, blockNumber, time.Now())
-	if err != nil {
-		return fmt.Errorf("failed to update last processed block: %w", err)
-	}
-
-	return nil
-}
-
 // Health 健康检查
 func (c *Client) Health(ctx context.Context) error {
 	return c.db.PingContext(ctx)

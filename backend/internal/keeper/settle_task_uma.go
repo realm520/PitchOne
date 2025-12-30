@@ -186,14 +186,7 @@ func (t *SettleTaskUMA) proposeResultToUMA(ctx context.Context, market *MarketTo
 		zap.Uint64("gasUsed", receipt.GasUsed),
 	)
 
-	// Update market status in database
-	if err := t.updateMarketStatus(ctx, market.MarketAddress, "Proposed", tx.Hash(), result); err != nil {
-		t.keeper.logger.Error("failed to update market status in database",
-			zap.String("market", market.MarketAddress.Hex()),
-			zap.Error(err),
-		)
-		// Don't return error as the on-chain propose succeeded
-	}
+	// 状态由链上事件自动更新到 Subgraph，无需手动更新数据库
 
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pitchone/sportsbook/internal/graphql"
 )
 
 // RewardType 奖励类型
@@ -30,12 +31,16 @@ type UserReward struct {
 
 // Aggregator 奖励聚合器
 type Aggregator struct {
-	db *sql.DB
+	graphClient *graphql.Client // 用于查询 orders/quests/campaigns
+	db          *sql.DB         // 仅用于 reward_distributions
 }
 
 // NewAggregator 创建聚合器
-func NewAggregator(db *sql.DB) *Aggregator {
-	return &Aggregator{db: db}
+func NewAggregator(graphClient *graphql.Client, db *sql.DB) *Aggregator {
+	return &Aggregator{
+		graphClient: graphClient,
+		db:          db,
+	}
 }
 
 // AggregateWeeklyRewards 聚合指定周的所有奖励
@@ -79,88 +84,81 @@ func (a *Aggregator) AggregateWeeklyRewards(ctx context.Context, week uint64) ([
 	return entries, nil
 }
 
-// aggregateReferralRewards 聚合推荐返佣
+// aggregateReferralRewards 聚合推荐返佣（从 Subgraph 查询）
 func (a *Aggregator) aggregateReferralRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
-	query := `
-		SELECT
-			o.referrer,
-			SUM(o.fee * 0.08) as total_rewards  -- 假设8%返佣率
-		FROM orders o
-		WHERE o.referrer IS NOT NULL
-			AND o.timestamp >= $1
-			AND o.timestamp < $2
-		GROUP BY o.referrer
-	`
-
-	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
+	// 从 Subgraph 查询推荐奖励
+	referralRewards, err := a.graphClient.GetReferralRewardsByTimeRange(ctx, weekStart.Unix(), weekEnd.Unix())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query Subgraph for referral rewards: %w", err)
 	}
-	defer rows.Close()
 
 	rewards := make(map[common.Address]*big.Int)
 
-	for rows.Next() {
-		var referrerHex string
-		var rewardStr string
+	for _, r := range referralRewards {
+		referrer := r.Referrer.Address()
+		amount := graphql.ParseBigInt(r.Amount)
 
-		if err := rows.Scan(&referrerHex, &rewardStr); err != nil {
-			return nil, err
+		if existing, ok := rewards[referrer]; ok {
+			rewards[referrer] = new(big.Int).Add(existing, amount)
+		} else {
+			rewards[referrer] = amount
 		}
-
-		referrer := common.HexToAddress(referrerHex)
-		reward, ok := new(big.Int).SetString(rewardStr, 10)
-		if !ok {
-			return nil, fmt.Errorf("invalid reward amount: %s", rewardStr)
-		}
-
-		rewards[referrer] = reward
 	}
 
-	return rewards, rows.Err()
+	return rewards, nil
 }
 
-// aggregateTradingRewards 聚合交易奖励（基于交易量）
+// aggregateTradingRewards 聚合交易奖励（基于交易量，从 Subgraph 查询）
 func (a *Aggregator) aggregateTradingRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
-	query := `
-		SELECT
-			user_address,
-			SUM(stake) as total_volume
-		FROM orders
-		WHERE timestamp >= $1
-			AND timestamp < $2
-		GROUP BY user_address
-		HAVING SUM(stake) >= 1000000000  -- 最小交易量（1000 USDC with 6 decimals）
-	`
+	// 从 Subgraph 分页查询订单
+	userVolumes := make(map[common.Address]*big.Int)
 
-	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
-	if err != nil {
-		return nil, err
+	first := 1000
+	skip := 0
+
+	for {
+		orders, err := a.graphClient.GetOrdersByTimeRange(ctx, weekStart.Unix(), weekEnd.Unix(), first, skip)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query Subgraph for orders: %w", err)
+		}
+
+		if len(orders) == 0 {
+			break
+		}
+
+		// 聚合用户交易量
+		for _, order := range orders {
+			user := order.User.Address()
+			amount := graphql.ParseBigInt(order.Amount)
+
+			if existing, ok := userVolumes[user]; ok {
+				userVolumes[user] = new(big.Int).Add(existing, amount)
+			} else {
+				userVolumes[user] = amount
+			}
+		}
+
+		skip += first
+
+		// 如果返回数量少于请求数量，说明已经没有更多数据
+		if len(orders) < first {
+			break
+		}
 	}
-	defer rows.Close()
 
+	// 计算奖励：只有交易量 >= 1000 USDC（1000000000 with 6 decimals）的用户才有奖励
 	rewards := make(map[common.Address]*big.Int)
+	minVolume := big.NewInt(1000000000) // 1000 USDC
 
-	for rows.Next() {
-		var userHex string
-		var volumeStr string
-
-		if err := rows.Scan(&userHex, &volumeStr); err != nil {
-			return nil, err
+	for user, volume := range userVolumes {
+		if volume.Cmp(minVolume) >= 0 {
+			// 奖励 = 交易量 * 0.1% (示例)
+			reward := new(big.Int).Div(volume, big.NewInt(1000))
+			rewards[user] = reward
 		}
-
-		user := common.HexToAddress(userHex)
-		volume, ok := new(big.Int).SetString(volumeStr, 10)
-		if !ok {
-			return nil, fmt.Errorf("invalid volume: %s", volumeStr)
-		}
-
-		// 奖励 = 交易量 * 0.1% (示例)
-		reward := new(big.Int).Div(volume, big.NewInt(1000))
-		rewards[user] = reward
 	}
 
-	return rewards, rows.Err()
+	return rewards, nil
 }
 
 // aggregateCampaignRewards 聚合活动奖励（Campaign + Quest）
@@ -192,99 +190,37 @@ func (a *Aggregator) aggregateCampaignRewards(ctx context.Context, weekStart, we
 	return rewards, nil
 }
 
-// aggregateQuestRewards 聚合任务完成奖励
-// 假设数据库有 quest_completions 表记录用户完成的任务
+// aggregateQuestRewards 聚合任务完成奖励（从 Subgraph 查询）
 func (a *Aggregator) aggregateQuestRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
-	// 查询：从 Quest 合约事件索引的数据
-	// 注意：这里假设 Indexer 已经将 QuestCompleted 事件存入数据库
-	query := `
-		SELECT
-			user_address,
-			SUM(reward_amount) as total_rewards
-		FROM quest_completions
-		WHERE completed_at >= $1
-			AND completed_at < $2
-			AND reward_claimed = true
-		GROUP BY user_address
-	`
-
-	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
+	// 从 Subgraph 查询任务奖励领取记录
+	questClaims, err := a.graphClient.GetQuestRewardClaimsByTimeRange(ctx, weekStart.Unix(), weekEnd.Unix())
 	if err != nil {
-		// 如果表不存在（开发早期），返回空而不是错误
-		if err.Error() == "relation \"quest_completions\" does not exist" {
-			return make(map[common.Address]*big.Int), nil
-		}
-		return nil, err
+		return nil, fmt.Errorf("failed to query Subgraph for quest rewards: %w", err)
 	}
-	defer rows.Close()
 
 	rewards := make(map[common.Address]*big.Int)
 
-	for rows.Next() {
-		var userHex string
-		var rewardStr string
+	for _, claim := range questClaims {
+		user := claim.User.Address()
+		amount := graphql.ParseBigInt(claim.RewardAmount)
 
-		if err := rows.Scan(&userHex, &rewardStr); err != nil {
-			return nil, err
+		if existing, ok := rewards[user]; ok {
+			rewards[user] = new(big.Int).Add(existing, amount)
+		} else {
+			rewards[user] = amount
 		}
-
-		user := common.HexToAddress(userHex)
-		reward, ok := new(big.Int).SetString(rewardStr, 10)
-		if !ok {
-			return nil, fmt.Errorf("invalid quest reward amount: %s", rewardStr)
-		}
-
-		rewards[user] = reward
 	}
 
-	return rewards, rows.Err()
+	return rewards, nil
 }
 
 // aggregateCampaignParticipationRewards 聚合活动参与奖励
-// 假设数据库有 campaign_participations 表记录用户参与活动
+// TODO: 当 Subgraph 支持 Campaign 参与索引时，添加相应的 GraphQL 查询
+// 目前返回空，活动奖励通过 Quest 系统领取
 func (a *Aggregator) aggregateCampaignParticipationRewards(ctx context.Context, weekStart, weekEnd time.Time) (map[common.Address]*big.Int, error) {
-	// 查询：从 Campaign 合约事件索引的数据
-	query := `
-		SELECT
-			participant_address,
-			SUM(reward_amount) as total_rewards
-		FROM campaign_participations
-		WHERE participated_at >= $1
-			AND participated_at < $2
-			AND reward_claimed = true
-		GROUP BY participant_address
-	`
-
-	rows, err := a.db.QueryContext(ctx, query, weekStart.Unix(), weekEnd.Unix())
-	if err != nil {
-		// 如果表不存在，返回空
-		if err.Error() == "relation \"campaign_participations\" does not exist" {
-			return make(map[common.Address]*big.Int), nil
-		}
-		return nil, err
-	}
-	defer rows.Close()
-
-	rewards := make(map[common.Address]*big.Int)
-
-	for rows.Next() {
-		var userHex string
-		var rewardStr string
-
-		if err := rows.Scan(&userHex, &rewardStr); err != nil {
-			return nil, err
-		}
-
-		user := common.HexToAddress(userHex)
-		reward, ok := new(big.Int).SetString(rewardStr, 10)
-		if !ok {
-			return nil, fmt.Errorf("invalid campaign reward amount: %s", rewardStr)
-		}
-
-		rewards[user] = reward
-	}
-
-	return rewards, rows.Err()
+	// Campaign 参与奖励目前由 Quest 系统处理
+	// 如果需要独立的 Campaign 奖励追踪，需要扩展 Subgraph schema
+	return make(map[common.Address]*big.Int), nil
 }
 
 // mergeRewards 合并多个奖励映射

@@ -24,7 +24,11 @@ type Config struct {
 	RetryAttempts int `mapstructure:"retry_attempts"`  // Max retry attempts
 	RetryDelay    int `mapstructure:"retry_delay"`     // Seconds between retries
 
-	// Database
+	// Subgraph (替代数据库查询)
+	SubgraphEndpoint string `mapstructure:"subgraph_endpoint"`
+
+	// Database (已废弃，仅用于向后兼容)
+	// 新版本使用 SubgraphEndpoint 代替数据库查询
 	DatabaseURL string `mapstructure:"database_url"`
 
 	// Monitoring
@@ -86,9 +90,14 @@ func (c *Config) Validate() error {
 		c.RetryDelay = 5 // Default 5 seconds
 	}
 
-	if c.DatabaseURL == "" {
-		return errors.New("database_url is required")
+	// SubgraphEndpoint 是必需的（替代旧的 DatabaseURL）
+	if c.SubgraphEndpoint == "" {
+		// 向后兼容：如果没有设置 SubgraphEndpoint，尝试使用默认值
+		c.SubgraphEndpoint = "http://localhost:8010/subgraphs/name/pitchone-sportsbook"
 	}
+
+	// DatabaseURL 不再是必需的（已废弃）
+	// 如果设置了 DatabaseURL，会打印警告但不会报错
 
 	if c.HealthCheckPort == 0 {
 		c.HealthCheckPort = 8081 // Default port
