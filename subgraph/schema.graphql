@@ -329,6 +329,9 @@ type Position @entity(immutable: false) {
 
   "最后更新时间"
   lastUpdatedAt: BigInt!
+
+  "赎回/退款交易哈希"
+  claimTxHash: Bytes
 }
 
 # ============================================================================

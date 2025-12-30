@@ -268,6 +268,7 @@ export function handleMarketFinalized(event: MarketFinalizedEvent): void {
 
   market.state = "Finalized";
   market.finalizedAt = timestamp;
+  market.finalizedTxHash = event.transaction.hash;
   market.save();
 
   // 更新全局统计
@@ -330,6 +331,7 @@ export function handlePayoutClaimed(event: PayoutClaimedEvent): void {
   // 更新头寸
   let position = loadOrCreatePosition(marketAddress, userAddress, outcome);
   position.balance = position.balance.minus(shares);
+  position.claimTxHash = event.transaction.hash;
   position.lastUpdatedAt = event.block.timestamp;
   position.save();
 
@@ -376,6 +378,7 @@ export function handleRefundClaimed(event: RefundClaimedEvent): void {
   // 更新头寸
   let position = loadOrCreatePosition(marketAddress, userAddress, outcome);
   position.balance = position.balance.minus(shares);
+  position.claimTxHash = event.transaction.hash;
   position.lastUpdatedAt = event.block.timestamp;
   position.save();
 
