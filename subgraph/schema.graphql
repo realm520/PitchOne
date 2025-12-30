@@ -137,6 +137,28 @@ type Market @entity(immutable: false) {
 
   "各 outcome 的押注统计"
   outcomeVolumes: [OutcomeVolume!]! @derivedFrom(field: "market")
+
+  # ============ Keeper 服务需要的字段 ============
+  "锁盘时间（开赛前 N 分钟，Unix 时间戳）- Keeper 用于判断何时锁盘"
+  lockTime: BigInt
+
+  "比赛结束时间（由外部 API 填充）- Keeper 用于判断何时结算"
+  matchEndTime: BigInt
+
+  "锁盘交易哈希"
+  lockTxHash: Bytes
+
+  "结算交易哈希"
+  settleTxHash: Bytes
+
+  "主队进球数（结算后填充）"
+  homeScore: Int
+
+  "客队进球数（结算后填充）"
+  awayScore: Int
+
+  "市场版本: v2, v3 - Keeper 用于调用正确的合约方法"
+  version: String
 }
 
 enum MarketState {

@@ -142,6 +142,21 @@ export function handleMarketCreatedFromFactory(event: MarketCreatedEvent): void 
     }
   }
 
+  // ============ Keeper 服务需要的字段 ============
+  // 设置市场版本（V3 Factory 创建的都是 v3）
+  market.version = "v3";
+
+  // 计算 lockTime（默认开赛前 5 分钟 = 300 秒）
+  const LOCK_LEAD_TIME = BigInt.fromI32(300);
+  market.lockTime = kickoffTime.minus(LOCK_LEAD_TIME);
+
+  // matchEndTime 留空，由外部服务（Keeper/Sportradar）填充
+  market.matchEndTime = null;
+
+  // 比分字段初始化为 null
+  market.homeScore = null;
+  market.awayScore = null;
+
   market.save();
 
   // 更新全局统计

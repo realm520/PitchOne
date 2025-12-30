@@ -215,6 +215,8 @@ export function handleMarketLocked(event: MarketLockedEvent): void {
 
   market.state = "Locked";
   market.lockedAt = timestamp;
+  // 记录锁盘交易哈希（Keeper 追踪用）
+  market.lockTxHash = event.transaction.hash;
   market.save();
 
   // 更新全局统计
@@ -241,6 +243,8 @@ export function handleMarketResolved(event: MarketResolvedEvent): void {
 
   market.state = "Resolved";
   market.resolvedAt = event.block.timestamp;
+  // 记录结算交易哈希（Keeper 追踪用）
+  market.settleTxHash = event.transaction.hash;
 
   // 存储获胜的 outcome（第一个非零权重的 outcome）
   for (let i = 0; i < outcomeIds.length; i++) {
@@ -249,6 +253,9 @@ export function handleMarketResolved(event: MarketResolvedEvent): void {
       break;
     }
   }
+
+  // 注意：homeScore 和 awayScore 需要由外部服务填充（Keeper 从 Sportradar 获取）
+  // Subgraph 无法从链上事件直接获取比分信息
 
   market.save();
 }
