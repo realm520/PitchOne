@@ -243,15 +243,23 @@ export function BetSlip({ className }: BetSlipProps) {
     }
 
     if (marketFullData.isParimutel) {
-      const newTotalPool = Number(marketFullData.totalLiquidity || 0n) + amount * 1e6;
+      // 当前池子已经是扣除手续费后的净金额
+      const currentNetPool = Number(marketFullData.totalLiquidity || 0n);
       const currentOutcomeBets = Number(
         marketFullData.outcomeLiquidity[outcomeId] || 0n
       );
-      const newOutcomeBets = currentOutcomeBets + amount * 1e6;
-      const netPool = newTotalPool * (1 - feeRate);
+
+      // 玩家此次投注的净金额（扣除手续费）
+      const playerNetBet = netAmount * 1e6;
+
+      // 净池子 = 当前池子(已扣费) + 玩家净投注额
+      const newNetPool = currentNetPool + playerNetBet;
+      // 该结果总投注 = 当前该结果池子(已扣费) + 玩家净投注额
+      const newOutcomeBets = currentOutcomeBets + playerNetBet;
 
       if (newOutcomeBets > 0) {
-        const payout = (netPool * (amount * 1e6)) / newOutcomeBets;
+        // 预期收益 = 净池子 × (投注额 / 该结果总投注)
+        const payout = (newNetPool * playerNetBet) / newOutcomeBets;
         return (payout / 1e6).toFixed(2);
       }
       return "0.00";
