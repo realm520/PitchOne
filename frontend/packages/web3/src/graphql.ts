@@ -255,6 +255,7 @@ export const USER_POSITIONS_QUERY = `
         lines
         totalVolume
         feeAccrued
+        cancelReason
         outcomeVolumes {
           outcomeId
           volume
@@ -298,6 +299,7 @@ export const USER_POSITIONS_PAGINATED_QUERY = `
         lines
         totalVolume
         feeAccrued
+        cancelReason
         outcomeVolumes {
           outcomeId
           volume

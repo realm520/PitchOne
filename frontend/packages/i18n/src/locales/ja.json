@@ -251,8 +251,12 @@
       "claim": "請求",
       "claiming": "請求中...",
       "claimed": "請求済み",
+      "refund": "返金",
+      "refunding": "返金中...",
+      "refunded": "返金済み",
       "pending": "進行中",
-      "lost": "落選"
+      "lost": "落選",
+      "viewMarket": "マーケットを見る"
     },
     "loading": "予想を読み込み中...",
     "loadError": "予想の読み込みに失敗しました",
@@ -297,6 +301,7 @@
     "expectedPayout": "予想利益",
     "dataLoading": "読み込み中...",
     "win": "勝ち",
+    "cancelled": "キャンセル",
     "redeem": "請求",
     "stats": {
       "totalBetAmount": "総ベット額",

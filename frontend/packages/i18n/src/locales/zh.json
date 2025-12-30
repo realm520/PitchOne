@@ -239,6 +239,7 @@
       "claimable": "可领取"
     },
     "ticket": {
+      "status": "状态",
       "match": "比赛",
       "selection": "选择",
       "payment": "投注额",
@@ -247,12 +248,16 @@
       "result": "结果",
       "placed": "下注时间",
       "bettingTx": "下注交易",
-      "claimingTx": "领取",
+      "claimingTx": "领取交易",
       "claim": "领取",
       "claiming": "领取中...",
       "claimed": "已领取",
+      "refund": "退款",
+      "refunding": "退款中...",
+      "refunded": "已退款",
       "pending": "进行中",
-      "lost": "未中奖"
+      "lost": "未中奖",
+      "viewMarket": "查看市场"
     },
     "loading": "加载预测数据...",
     "loadError": "无法加载预测数据",
@@ -274,7 +279,12 @@
       "open": "进行中",
       "locked": "已锁盘",
       "resolved": "可兑付",
-      "finalized": "已完成"
+      "finalized": "已完成",
+      "claimable": "可领取",
+      "refundable": "可退款",
+      "claimed": "已领取",
+      "lost": "未中奖",
+      "pending": "进行中"
     },
     "connectWallet": "请先连接钱包",
     "connectDesc": "连接钱包后即可查看您的预测",
@@ -291,12 +301,13 @@
     "connecting": "正在连接钱包...",
     "pending": "进行中",
     "lose": "输",
+    "win": "赢",
+    "cancelled": "已取消",
     "betDirection": "预测结果",
     "createdAt": "创建时间",
     "betAmount": "投注额",
     "expectedPayout": "预期收益",
     "dataLoading": "数据加载中...",
-    "win": "赢",
     "redeem": "兑付",
     "stats": {
       "totalBetAmount": "总投注额",

@@ -2,6 +2,8 @@ import { useTranslation } from "@pitchone/i18n";
 import { Table, Head, Body, Row, Th, Td } from "@pitchone/ui";
 import { Position } from "@pitchone/web3";
 import { motion } from "framer-motion";
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import {
     calculateExpectedPayout,
     calculateOdds,
@@ -13,6 +15,7 @@ import {
     formatUSDC,
     formatTxHash,
     getTxExplorerUrl,
+    getStatusDisplay,
 } from "./utils";
 import ClaimButton from "./components/ClaimButton";
 
@@ -36,24 +39,31 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                         <Th>{t("portfolio.ticket.result")}</Th>
                         <Th>{t("portfolio.ticket.placed")}</Th>
                         <Th>{t("portfolio.ticket.bettingTx")}</Th>
-                        <Th className="text-right">{t("portfolio.ticket.claimingTx")}</Th>
+                        <Th>{t("portfolio.ticket.claimingTx")}</Th>
+                        <Th className="w-10"></Th>
                     </Row>
                 </Head>
                 <Body>
                     {positions?.map((position) => {
                         const bettingTxUrl = getTxExplorerUrl(position.createdTxHash);
                         const claimTxUrl = getTxExplorerUrl(position.claimTxHash);
+                        const statusDisplay = getStatusDisplay(position);
 
                         return (
                             <Row key={position.id}>
                                 <Td>
-                                    <div className="flex flex-col">
-                                        <div className="text-[10px]">{getLeagueCode(position)}</div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px]">{getLeagueCode(position)}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusDisplay.color}`}>
+                                                {t(statusDisplay.textKey)}
+                                            </span>
+                                        </div>
                                         <div className="font-bold">
                                             {position.market.homeTeam ? translateTeam(position.market.homeTeam) : t('markets.unknown')} vs{' '}
                                             {position.market.awayTeam ? translateTeam(position.market.awayTeam) : t('markets.unknown')}
                                         </div>
-                                        <div>{formatDate(position.createdAt)}</div>
+                                        <div className="text-[10px] text-gray-400">{formatDate(position.createdAt)}</div>
                                     </div>
                                 </Td>
                                 <Td>{getSelection(position, translateTeam)}</Td>
@@ -77,7 +87,7 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                                         <span className="text-gray-500">-</span>
                                     )}
                                 </Td>
-                                <Td className="text-right">
+                                <Td>
                                     {position.claimTxHash ? (
                                         <a
                                             href={claimTxUrl}
@@ -91,6 +101,15 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                                     ) : (
                                         <ClaimButton position={position} />
                                     )}
+                                </Td>
+                                <Td className="text-right">
+                                    <Link
+                                        href={`/markets/${position.market.id}`}
+                                        className="inline-flex items-center text-gray-500 hover:text-white transition-colors"
+                                        title={t("portfolio.ticket.viewMarket")}
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </Link>
                                 </Td>
                             </Row>
                         );

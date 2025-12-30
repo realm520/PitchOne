@@ -251,8 +251,12 @@
       "claim": "청구",
       "claiming": "청구 중...",
       "claimed": "청구 완료",
+      "refund": "환불",
+      "refunding": "환불 중...",
+      "refunded": "환불 완료",
       "pending": "진행 중",
-      "lost": "낙첨"
+      "lost": "낙첨",
+      "viewMarket": "마켓 보기"
     },
     "loading": "예측 데이터 로딩 중...",
     "loadError": "예측 데이터를 불러올 수 없습니다",
@@ -297,6 +301,7 @@
     "expectedPayout": "예상 수익",
     "dataLoading": "로딩 중...",
     "win": "승리",
+    "cancelled": "취소",
     "redeem": "청구",
     "stats": {
       "totalBetAmount": "총 베팅액",
