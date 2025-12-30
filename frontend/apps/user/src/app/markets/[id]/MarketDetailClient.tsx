@@ -25,6 +25,7 @@ import { ChevronLeft, ShieldCheck, BadgeCheck, Copy } from 'lucide-react';
 import { marketNotifications, notifySuccess } from '@/lib/notifications';
 import { OutcomeButton } from '@/components/betslip';
 import { useBetSlipStore, SelectedBet } from '@/lib/betslip-store';
+import { formatTxHash, getTxExplorerUrl } from '@/app/portfolio/utils';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { t, translateTeam, translateLeague } = useTranslation();
@@ -376,7 +377,16 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
             <div className="grid grid-cols-3 gap-2 mb-4">
               {/* 第一列：Resolved Hash */}
               <div className="text-left text-gray-400 text-sm font-medium tracking-wider">
-                {t('markets.detail.resolvedHash')}: --
+                {t('markets.detail.resolvedHash')}: {market.finalizedTxHash ? (
+                  <a
+                    href={getTxExplorerUrl(market.finalizedTxHash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white"
+                  >
+                    {formatTxHash(market.finalizedTxHash)}
+                  </a>
+                ) : '--'}
               </div>
               {/* 第二列：WINNER */}
               <div className="text-center text-gray-400 text-lg font-medium uppercase tracking-wider">

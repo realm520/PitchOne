@@ -13,6 +13,7 @@ import { Badge } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
 import { useBetSlipStore, SelectedBet } from '../../../lib/betslip-store';
 import { OutcomeButton } from '../../../components/betslip';
+import { formatTxHash, getTxExplorerUrl } from '../../portfolio/utils';
 
 interface MarketCardProps {
   market: Market;
@@ -156,7 +157,16 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
             {/* WINNER label - 三列布局 */}
             <div className="grid grid-cols-3 gap-2">
               <span className="text-xs text-gray-500 text-left truncate">
-                {t('markets.detail.resolvedHash')}: --
+                {t('markets.detail.resolvedHash')}: {market.finalizedTxHash ? (
+                  <a
+                    href={getTxExplorerUrl(market.finalizedTxHash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white"
+                  >
+                    {formatTxHash(market.finalizedTxHash)}
+                  </a>
+                ) : '--'}
               </span>
               <span className="text-base text-gray-500 text-center">WINNER</span>
               <span></span>
