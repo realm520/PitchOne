@@ -267,6 +267,7 @@ export const USER_POSITIONS_QUERY = `
       totalInvested
       totalPayment
       createdTxHash
+      claimTxHash
       createdAt
       lastUpdatedAt
     }
@@ -311,6 +312,7 @@ export const USER_POSITIONS_PAGINATED_QUERY = `
       totalInvested
       totalPayment
       createdTxHash
+      claimTxHash
       createdAt
       lastUpdatedAt
     }
