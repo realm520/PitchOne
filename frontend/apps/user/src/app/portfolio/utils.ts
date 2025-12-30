@@ -3,8 +3,34 @@ import { formatUnits } from "viem/utils";
 
 /**
  * Claim 状态类型
+ * - claimable: 可领取奖金（赢了）
+ * - refundable: 可退款（市场取消）
+ * - claimed: 已领取
+ * - lost: 输了
+ * - pending: 进行中
  */
-export type ClaimStatus = 'claimable' | 'claimed' | 'lost' | 'pending';
+export type ClaimStatus = 'claimable' | 'refundable' | 'claimed' | 'lost' | 'pending';
+
+/**
+ * 获取头寸状态的显示信息（颜色和文本）
+ */
+export const getStatusDisplay = (position: Position): { color: string; textKey: string } => {
+    const status = getClaimStatus(position);
+
+    switch (status) {
+        case 'claimable':
+            return { color: 'bg-green-500/20 text-green-400 border-green-500/30', textKey: 'portfolio.status.claimable' };
+        case 'refundable':
+            return { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', textKey: 'portfolio.status.refundable' };
+        case 'claimed':
+            return { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', textKey: 'portfolio.status.claimed' };
+        case 'lost':
+            return { color: 'bg-red-500/20 text-red-400 border-red-500/30', textKey: 'portfolio.status.lost' };
+        case 'pending':
+        default:
+            return { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', textKey: 'portfolio.status.pending' };
+    }
+};
 
 /**
  * 获取头寸的 claim 状态
@@ -15,6 +41,15 @@ export const getClaimStatus = (position: Position): ClaimStatus => {
     // 市场未结算，还在进行中
     if (state === MarketStatus.Open || state === MarketStatus.Locked) {
         return 'pending';
+    }
+
+    // 市场已取消，可退款
+    if (state === MarketStatus.Cancelled) {
+        const balance = parseFloat(position.balance);
+        if (balance > 0) {
+            return 'refundable';
+        }
+        return 'claimed'; // 已退款
     }
 
     // 市场已结算（Resolved 或 Finalized）
@@ -36,44 +71,37 @@ export const getClaimStatus = (position: Position): ClaimStatus => {
 };
 
 /**
- * 计算预期收益（Pari-mutuel 模式）
+ * 计算预期赔付金额（Pari-mutuel 模式）
  *
- * 市场 Open/Locked 状态：显示可能的获胜金额
- *   预期收益 = 净池子 × (投注额 / 该结果总投注)
- *   - 净池子 = 当前池子的实际金额(扣掉手续费) = totalVolume - feeAccrued
- *   - 投注额 = 玩家此次投注的Payment金额(扣除手续费) = totalInvested
- *   - 该结果总投注 = 当前池子的该结果实际金额(扣掉手续费) = outcomeVolume
+ * Payout = 如果该结果胜出，用户能获得的金额
  *
- * 市场 Resolved/Finalized 状态：
- *   - 若玩家投注结果为 Won: 显示确定的获胜金额（用 balance）
- *   - 若玩家投注结果为 Lost: 显示 0
+ * 市场 Cancelled 状态：显示 0
+ *
+ * 其他状态（Open/Locked/Resolved/Finalized）：
+ *   预期赔付 = 净池子 × (用户投注额 / 该结果总投注)
+ *   - 净池子 = totalVolume - feeAccrued
+ *   - 用户投注额 = totalInvested（已扣手续费）
+ *   - 该结果总投注 = outcomeVolume
+ *
+ * 注意：Subgraph 返回的金额字段（totalVolume, feeAccrued, outcomeVolume, totalInvested）
+ * 已经是 USDC 单位（如 "6.86"），不是链上原始值（wei）。
  */
 export const calculateExpectedPayout = (position: Position): number => {
     try {
-        const { state, winnerOutcome, totalVolume, feeAccrued, outcomeVolumes } = position.market;
+        const { state, totalVolume, feeAccrued, outcomeVolumes } = position.market;
 
-        // 市场已结算（Resolved 或 Finalized）
-        if (state === MarketStatus.Resolved || state === MarketStatus.Finalized) {
-            // 判断是否赢了
-            if (winnerOutcome != null && winnerOutcome === position.outcome) {
-                // 赢了，返回 balance（实际可领取金额）
-                if (position.balance && position.balance !== '0') {
-                    const balanceInUSDC = BigInt(position.balance);
-                    return parseFloat(formatUnits(balanceInUSDC, TOKEN_DECIMALS.USDC));
-                }
-            }
-            // 输了或已领取，返回 0
+        // 市场已取消：显示 0
+        if (state === MarketStatus.Cancelled) {
             return 0;
         }
 
-        // 市场 Open 或 Locked 状态：计算预期收益
-        // 获取用户投注额
+        // 其他状态：计算预期赔付
+        // Subgraph 返回的金额已是 USDC 单位，直接使用
         const userInvestment = parseFloat(position.totalInvested || '0');
         if (userInvestment <= 0) {
             return 0;
         }
 
-        // 获取市场总投注额和手续费
         const totalVolumeNum = parseFloat(totalVolume || '0');
         const feeAccruedNum = parseFloat(feeAccrued || '0');
 
@@ -90,14 +118,13 @@ export const calculateExpectedPayout = (position: Position): number => {
             return 0;
         }
 
-        // 预期收益 = 净池子 × (用户投注额 / 该结果总投注)
-        // 注意：所有金额都是原始值（6 位小数），需要转换
+        // 预期赔付 = 净池子 × (用户投注额 / 该结果总投注)
+        // 所有金额已是 USDC 单位，不需要再转换
         const expectedPayout = (netPool * userInvestment) / outcomeVolumeNum;
 
-        // 转换为 USDC 单位（除以 10^6）
-        return expectedPayout / 1_000_000;
+        return expectedPayout;
     } catch (error) {
-        console.error('[Portfolio] 计算预期收益失败:', error, position);
+        console.error('[Portfolio] 计算预期赔付失败:', error, position);
         return 0;
     }
 };
@@ -106,15 +133,23 @@ export const calculateExpectedPayout = (position: Position): number => {
  * 获取投注结果状态（返回 i18n key）
  */
 export const getResultKey = (position: Position): string => {
-    // 注意：GraphQL 返回 null 而非 undefined，需要同时检查两者
-    if (position.market.winnerOutcome == null) {
+    const { state, winnerOutcome } = position.market;
+
+    // 市场已取消
+    if (state === MarketStatus.Cancelled) {
+        return 'portfolio.cancelled';
+    }
+
+    // 市场未结算
+    if (winnerOutcome == null) {
         return 'portfolio.pending';
+    }
+
+    // 市场已结算
+    if (winnerOutcome === position.outcome) {
+        return 'portfolio.win';
     } else {
-        if (position.market.winnerOutcome === position.outcome) {
-            return 'portfolio.win';
-        } else {
-            return 'portfolio.lose';
-        }
+        return 'portfolio.lose';
     }
 };
 
@@ -265,16 +300,21 @@ const DEFAULT_FEE_RATE_BPS = 200;
  * 优先使用 Subgraph 的 totalPayment 字段（通过 BettingRouter 下注时记录）
  * 如果 totalPayment 不存在（旧数据或直接调用 Market 下注），则通过 totalInvested 计算
  *
+ * 注意：Subgraph 返回的 totalInvested/totalPayment 已经是 USDC 单位（如 "0.98"），
+ * 而不是链上原始值（如 "980000"）。此函数返回的是**链上原始值（6位小数）**，
+ * 用于后续与 formatUSDC 配合使用。
+ *
  * @param position - 用户头寸
- * @returns 原始押注金额（链上原始值，6 位小数）
+ * @returns 原始押注金额（链上原始值，需要除以 10^6 才是 USDC）
  */
 export const getOriginalPayment = (position: Position): string => {
-    // 优先使用 Subgraph 的 totalPayment 字段
+    // 优先使用 Subgraph 的 totalPayment 字段（已是 USDC 单位）
     if (position.totalPayment && parseFloat(position.totalPayment) > 0) {
-        return position.totalPayment;
+        // 转换为链上原始值
+        return (parseFloat(position.totalPayment) * 1_000_000).toString();
     }
 
-    // 回退：通过 totalInvested 计算
+    // 回退：通过 totalInvested 计算（已是 USDC 单位）
     const invested = parseFloat(position.totalInvested || '0');
     if (invested <= 0) return '0';
 
@@ -283,7 +323,8 @@ export const getOriginalPayment = (position: Position): string => {
     const feeRate = DEFAULT_FEE_RATE_BPS / 10000;
     const originalPayment = invested / (1 - feeRate);
 
-    return originalPayment.toString();
+    // 转换为链上原始值（6位小数）
+    return (originalPayment * 1_000_000).toString();
 };
 
 /**

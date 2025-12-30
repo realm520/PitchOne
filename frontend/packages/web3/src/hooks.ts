@@ -102,6 +102,8 @@ export interface Position {
     totalVolume?: string;
     feeAccrued?: string;
     outcomeVolumes?: OutcomeVolumeInfo[];
+    // 取消原因（市场被取消时）
+    cancelReason?: string;
   };
   outcome: number;
   balance: string;
@@ -134,6 +136,8 @@ interface PositionRaw {
     totalVolume?: string;
     feeAccrued?: string;
     outcomeVolumes?: OutcomeVolumeInfo[];
+    // 取消原因（市场被取消时）
+    cancelReason?: string;
   };
   outcome: number;
   balance: string;
@@ -625,6 +629,7 @@ export function useUserPositions(userAddress: string | undefined) {
             ...pos,
             owner: pos.owner.id,
             createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
+            // 从 redemptions 查询 claimTxHash
             claimTxHash: redemptionMap.get(claimKey),
           };
         });
@@ -698,6 +703,7 @@ export function useUserPositionsPaginated(
             ...pos,
             owner: pos.owner.id,
             createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
+            // 从 redemptions 查询 claimTxHash
             claimTxHash: redemptionMap.get(claimKey),
           };
         });
