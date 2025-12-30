@@ -78,6 +78,8 @@ export const MARKETS_QUERY_FILTERED = `
       createdAt
       lockedAt
       resolvedAt
+      finalizedAt
+      finalizedTxHash
       line
       lines
       pricingType
@@ -119,6 +121,8 @@ export const MARKETS_QUERY = `
       createdAt
       lockedAt
       resolvedAt
+      finalizedAt
+      finalizedTxHash
       line
       lines
       pricingType
@@ -157,6 +161,7 @@ export const MARKET_QUERY = `
       lockedAt
       resolvedAt
       finalizedAt
+      finalizedTxHash
       line
       lines
       pricingType
@@ -186,6 +191,8 @@ export const MARKET_WITH_ODDS_QUERY = `
       state
       totalVolume
       feeAccrued
+      finalizedAt
+      finalizedTxHash
       line
       lines
       pricingType

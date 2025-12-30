@@ -1,22 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, MARKET_WITH_ODDS_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_STATS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY, USER_REDEMPTIONS_QUERY } from './graphql';
+import { graphqlClient, MARKETS_QUERY, MARKETS_QUERY_FILTERED, MARKET_QUERY, MARKET_WITH_ODDS_QUERY, USER_POSITIONS_QUERY, USER_POSITIONS_PAGINATED_QUERY, USER_POSITIONS_COUNT_QUERY, USER_STATS_QUERY, USER_ORDERS_QUERY, MARKET_ORDERS_QUERY, MARKET_ALL_ORDERS_QUERY, MARKETS_COUNT_QUERY, MARKETS_COUNT_BY_STATUS_QUERY } from './graphql';
 import { calculateOddsFromSubgraph, type OutcomeVolume, type OutcomeOdds } from './odds-calculator';
-
-// Redemption 类型定义
-interface RedemptionRaw {
-  id: string;
-  market: { id: string };
-  user: { id: string };
-  outcome: number;
-  shares: string;
-  payout: string;
-  isRefund?: boolean;
-  timestamp: string;
-  blockNumber: string;
-  transactionHash: string;
-}
 
 // 市场状态枚举（与合约层 IMarket_V3.MarketStatus 一致）
 export enum MarketStatus {
@@ -58,6 +44,7 @@ export interface Market {
   lockedAt?: string;
   resolvedAt?: string;
   finalizedAt?: string;
+  finalizedTxHash?: string; // 终结交易哈希
   winnerOutcome?: number;
   line?: string; // 大小球盘口线（单线市场，如 "2500000000000000000" = 2.5 球）
   lines?: string[]; // 大小球盘口线数组（多线市场，如 ["2000000000000000000", "2500000000000000000", "3000000000000000000"]）
@@ -114,7 +101,7 @@ export interface Position {
   createdTxHash?: string;
   createdAt: string;
   lastUpdatedAt?: string;
-  // 前端填充的 claim hash（从 redemptions 查询获取）
+  // 领取/退款交易哈希（来自 Subgraph）
   claimTxHash?: string;
 }
 
@@ -148,6 +135,7 @@ interface PositionRaw {
   totalInvested?: string;
   totalPayment?: string;  // 原始押注金额（未扣手续费）
   createdTxHash?: string;
+  claimTxHash?: string;   // 领取/退款交易哈希
   createdAt?: string;
   lastUpdatedAt?: string;
 }
@@ -600,39 +588,18 @@ export function useUserPositions(userAddress: string | undefined) {
       const userId = userAddress.toLowerCase();
 
       try {
-        // 并行查询：头寸数据 + redemptions
-        const [positionsData, redemptionsData] = await Promise.all([
-          graphqlClient.request<{ positions: PositionRaw[] }>(
-            USER_POSITIONS_QUERY,
-            { userId }
-          ),
-          graphqlClient.request<{ redemptions: RedemptionRaw[] }>(
-            USER_REDEMPTIONS_QUERY,
-            { userId, first: 100 }
-          ),
-        ]);
+        const positionsData = await graphqlClient.request<{ positions: PositionRaw[] }>(
+          USER_POSITIONS_QUERY,
+          { userId }
+        );
         console.log('[useUserPositions] 查询成功，返回', positionsData.positions.length, '个头寸');
 
-        // 构建 redemption 查找表：market-outcome -> transactionHash
-        const redemptionMap = new Map<string, string>();
-        for (const r of redemptionsData.redemptions) {
-          const key = `${r.market.id}-${r.outcome}`;
-          if (!redemptionMap.has(key)) {
-            redemptionMap.set(key, r.transactionHash);
-          }
-        }
-
         // 转换嵌套结构为扁平结构
-        const positions: Position[] = positionsData.positions.map(pos => {
-          const claimKey = `${pos.market.id}-${pos.outcome}`;
-          return {
-            ...pos,
-            owner: pos.owner.id,
-            createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
-            // 从 redemptions 查询 claimTxHash
-            claimTxHash: redemptionMap.get(claimKey),
-          };
-        });
+        const positions: Position[] = positionsData.positions.map(pos => ({
+          ...pos,
+          owner: pos.owner.id,
+          createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
+        }));
 
         return positions;
       } catch (error) {
@@ -669,8 +636,8 @@ export function useUserPositionsPaginated(
       const userId = userAddress.toLowerCase();
 
       try {
-        // 并行查询：头寸数据 + 总数 + redemptions
-        const [positionsData, countData, redemptionsData] = await Promise.all([
+        // 并行查询：头寸数据 + 总数
+        const [positionsData, countData] = await Promise.all([
           graphqlClient.request<{ positions: PositionRaw[] }>(
             USER_POSITIONS_PAGINATED_QUERY,
             { userId, first: pageSize, skip }
@@ -679,34 +646,16 @@ export function useUserPositionsPaginated(
             USER_POSITIONS_COUNT_QUERY,
             { userId }
           ),
-          graphqlClient.request<{ redemptions: RedemptionRaw[] }>(
-            USER_REDEMPTIONS_QUERY,
-            { userId, first: 100 }
-          ),
         ]);
 
         console.log('[useUserPositionsPaginated] 查询成功，返回', positionsData.positions.length, '个头寸');
 
-        // 构建 redemption 查找表：market-outcome -> transactionHash
-        const redemptionMap = new Map<string, string>();
-        for (const r of redemptionsData.redemptions) {
-          const key = `${r.market.id}-${r.outcome}`;
-          if (!redemptionMap.has(key)) {
-            redemptionMap.set(key, r.transactionHash);
-          }
-        }
-
         // 转换嵌套结构为扁平结构
-        const positions: Position[] = positionsData.positions.map(pos => {
-          const claimKey = `${pos.market.id}-${pos.outcome}`;
-          return {
-            ...pos,
-            owner: pos.owner.id,
-            createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
-            // 从 redemptions 查询 claimTxHash
-            claimTxHash: redemptionMap.get(claimKey),
-          };
-        });
+        const positions: Position[] = positionsData.positions.map(pos => ({
+          ...pos,
+          owner: pos.owner.id,
+          createdAt: pos.createdAt || pos.lastUpdatedAt || '0',
+        }));
 
         // 总数从 user.totalBets 获取，如果用户不存在则为 0
         const total = countData.user?.totalBets || 0;
