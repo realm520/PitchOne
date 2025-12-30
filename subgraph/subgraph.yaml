@@ -30,7 +30,7 @@ dataSources:
         - name: Market_V3
           file: ../contracts/out/Market_V3.sol/Market_V3.json
         - name: IPricingStrategy
-          file: ./abis/IPricingStrategy.json
+          file: ../contracts/out/IPricingStrategy.sol/IPricingStrategy.json
       eventHandlers:
         - event: MarketCreated(indexed address,indexed bytes32,string,uint256)
           handler: handleMarketCreatedFromFactory
@@ -188,7 +188,7 @@ templates:
         - name: Market_V3
           file: ../contracts/out/Market_V3.sol/Market_V3.json
         - name: IPricingStrategy
-          file: ./abis/IPricingStrategy.json
+          file: ../contracts/out/IPricingStrategy.sol/IPricingStrategy.json
       eventHandlers:
         - event: BetPlaced(indexed address,indexed uint256,uint256,uint256)
           handler: handleBetPlaced
