@@ -153,8 +153,14 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
 
           {/* Right: Outcome buttons */}
           <div className="w-[70%] flex flex-col gap-1 flex-shrink-0">
-            {/* WINNER label */}
-            <span className="text-base text-gray-500 text-center">WINNER</span>
+            {/* WINNER label - 三列布局 */}
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-xs text-gray-500 text-left truncate">
+                {t('markets.detail.resolvedHash')}: --
+              </span>
+              <span className="text-base text-gray-500 text-center">WINNER</span>
+              <span></span>
+            </div>
             {/* Buttons row - grid ensures fixed 33.33% width per button */}
             <div className="grid grid-cols-3 gap-2">
               {outcomes && outcomes.length > 0 ? (

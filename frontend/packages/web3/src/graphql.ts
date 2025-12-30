@@ -110,6 +110,7 @@ export const MARKETS_QUERY = `
       awayTeam
       kickoffTime
       state
+      winnerOutcome
       paused
       totalVolume
       feeAccrued

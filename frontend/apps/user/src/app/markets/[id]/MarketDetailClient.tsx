@@ -17,6 +17,7 @@ import {
   Card,
   LoadingSpinner,
   ErrorState,
+  Badge,
 } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
 import Link from 'next/link';
@@ -51,6 +52,36 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
     if (!market) return false;
     return market.state === MarketStatus.Open && !isMarketLocked && !market.paused;
   }, [market, isMarketLocked]);
+
+  // 状态指示器（与列表页保持一致）
+  const getStatusIndicator = (state: MarketStatus, isPaused?: boolean) => {
+    // 如果市场是 Open 但已暂停，显示为 Locked
+    if (state === MarketStatus.Open && isPaused) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-gray-400">
+          <span className="w-2 h-2 rounded-full bg-yellow-500" />
+          {t('markets.status.locked')}
+        </span>
+      );
+    }
+
+    const config = {
+      [MarketStatus.Created]: { color: '#A855F7', label: t('markets.status.created') },
+      [MarketStatus.Open]: { color: '#22C55E', label: t('markets.status.open') },
+      [MarketStatus.Locked]: { color: '#FC1B0B', label: t('markets.status.locked') },
+      [MarketStatus.Resolved]: { color: '#61D4D3', label: t('markets.status.resolved') },
+      [MarketStatus.Finalized]: { color: '#FC870B', label: t('markets.status.finalized') },
+      [MarketStatus.Cancelled]: { color: '#6B7280', label: t('markets.status.cancelled') },
+    };
+    const { color, label } = config[state] || { color: '#6B7280', label: t('markets.unknown') };
+
+    return (
+      <span className="inline-flex items-center gap-1.5 text-sm text-gray-400">
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+        {label}
+      </span>
+    );
+  };
 
   // 调试日志：显示所有关键状态
   console.log('[MarketDetailClient] 组件状态:', {
@@ -267,7 +298,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               </div>
 
               {/* VS */}
-              <span className="text-gray-500 text-lg font-medium px-2">{t('markets.detail.vs')}</span>
+              <span className="text-gray-500 text-lg font-medium px-2">vs</span>
 
               {/* Away Team */}
               <div className="flex-1 flex items-center justify-start gap-3">
@@ -284,6 +315,23 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
               <span className="flex-1 text-right">{t('markets.detail.sport')}: {t('markets.detail.soccer')}</span>
               <span className="text-gray-600 px-2">|</span>
               <span className="flex-1 text-left">{t('markets.detail.matchTime')}: {formatShortDate(market.kickoffTime)}</span>
+            </div>
+
+            {/* Market Type & Status */}
+            <div className="flex items-center justify-center gap-4 pt-4 border-t border-dark-border text-sm text-gray-500 mb-4">
+              <span className="flex-1 text-right flex items-center justify-end gap-2">
+                {t('markets.detail.type')}:{' '}
+                {market._displayInfo?.templateTypeDisplay
+                  ? t(market._displayInfo.templateTypeDisplay)
+                  : t('markets.unknown')}
+                {market._displayInfo?.lineDisplay && (
+                  <Badge variant="info" size="sm">{market._displayInfo.lineDisplay}</Badge>
+                )}
+              </span>
+              <span className="text-gray-600 px-2">|</span>
+              <span className="flex-1 text-left flex items-center gap-2">
+                {t('markets.detail.status')}: {getStatusIndicator(market.state, market.paused)}
+              </span>
             </div>
 
             {/* Liquidity & Contract Info */}
@@ -311,9 +359,19 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
           {/* Winner Section */}
           <Card className="mb-6 bg-dark-card border border-dark-border" padding="lg">
-            <h3 className="text-center text-gray-400 text-sm font-medium uppercase tracking-wider mb-4">
-              {t('markets.detail.winner')}
-            </h3>
+            {/* 三列布局标题 */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {/* 第一列：Resolved Hash */}
+              <div className="text-left text-gray-400 text-sm font-medium tracking-wider">
+                {t('markets.detail.resolvedHash')}: --
+              </div>
+              {/* 第二列：WINNER */}
+              <div className="text-center text-gray-400 text-lg font-medium uppercase tracking-wider">
+                WINNER
+              </div>
+              {/* 第三列：空 */}
+              <div></div>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {(() => {
                 // 二级防护：根据市场类型限制显示的 outcomes 数量
@@ -341,19 +399,18 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                     key={outcome.id}
                     outcome={{
                       id: outcome.id,
-                      name: t(outcome.name),
+                      name: outcome.name,
                       odds: outcome.odds,
                     }}
                     isSelected={isSelected(marketId as `0x${string}`, outcome.id)}
                     isDisabled={!canBet}
                     isWinner={isMarketSettled && market.winnerOutcome === outcome.id}
-                    onClick={() => canBet && handleSelectOutcome({
+                    onClick={() => handleSelectOutcome({
                       id: outcome.id,
                       name: outcome.name,
                       odds: outcome.odds,
                     })}
                     variant="detail"
-                    showBorder={false}
                   />
                 ));
               })()}
@@ -362,19 +419,19 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
 
           {/* Activity Section */}
           <Card className="bg-dark-card border border-dark-border" padding="none">
-            <h3 className="text-center text-gray-400 text-sm font-medium uppercase tracking-wider py-4 border-b border-dark-border">
+            <h3 className="text-center text-gray-400 text-sm font-medium tracking-wider py-4 border-b border-dark-border">
               {t('markets.detail.activity')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-dark-hover/50 border-b border-dark-border">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.time')} ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.owner')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.selected')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.paid')} ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.payout')} ▼</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">{t('markets.detail.status')} ▼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.time')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.owner')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.selected')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.paid')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.payout')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">{t('markets.detail.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-border">
@@ -399,7 +456,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                             {truncateAddress(event.user)}
                           </td>
                           <td className="px-4 py-3 text-sm text-white font-medium">
-                            {getTeamAbbr(homeTeam)} - {outcomeName.toUpperCase()}
+                            {getTeamAbbr(homeTeam)} - {outcomeName}
                           </td>
                           <td className="px-4 py-3 text-sm text-white">
                             ${amountUSDC.toFixed(2)}
@@ -407,7 +464,7 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                           <td className="px-4 py-3 text-sm text-white">
                             ${payoutUSDC.toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-400 uppercase">
+                          <td className="px-4 py-3 text-sm text-gray-400">
                             {getMarketStatusText()}
                           </td>
                         </tr>

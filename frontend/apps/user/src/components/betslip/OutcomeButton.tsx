@@ -18,7 +18,6 @@ interface OutcomeButtonProps {
   isWinner?: boolean;
   onClick: () => void;
   variant?: 'card' | 'detail';
-  showBorder?: boolean;
 }
 
 export function OutcomeButton({
@@ -29,7 +28,6 @@ export function OutcomeButton({
   isWinner = false,
   onClick,
   variant = 'detail',
-  showBorder = true,
 }: OutcomeButtonProps) {
   const { t } = useTranslation();
 
