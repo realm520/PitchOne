@@ -84,6 +84,7 @@ export {
   useUSDCBalance,
   usePlaceBet,
   useRedeem,
+  useRefund,
   useRedeemBatch,
   usePositionBalance,
   useMarketStatus,

@@ -239,6 +239,7 @@
       "claimable": "Claimable"
     },
     "ticket": {
+      "status": "Status",
       "match": "Match",
       "selection": "Selection",
       "payment": "Payment",
@@ -247,12 +248,16 @@
       "result": "Result",
       "placed": "Placed",
       "bettingTx": "Betting Tx",
-      "claimingTx": "Claiming",
+      "claimingTx": "Claiming Tx",
       "claim": "Claim",
       "claiming": "Claiming...",
       "claimed": "Claimed",
+      "refund": "Refund",
+      "refunding": "Refunding...",
+      "refunded": "Refunded",
       "pending": "Pending",
-      "lost": "Lost"
+      "lost": "Lost",
+      "viewMarket": "View Market"
     },
     "loading": "Loading predictions...",
     "loadError": "Failed to load predictions",
@@ -274,7 +279,12 @@
       "open": "Open",
       "locked": "Locked",
       "resolved": "Claimable",
-      "finalized": "Finalized"
+      "finalized": "Finalized",
+      "claimable": "Claimable",
+      "refundable": "Refundable",
+      "claimed": "Claimed",
+      "lost": "Lost",
+      "pending": "Pending"
     },
     "connectWallet": "Please connect wallet",
     "connectDesc": "Connect wallet to view your predictions",
@@ -297,6 +307,7 @@
     "pending": "Pending",
     "win": "Won",
     "lose": "Lost",
+    "cancelled": "Cancelled",
     "redeem": "Redeem",
     "stats": {
       "totalBetAmount": "Total Bet Amount",

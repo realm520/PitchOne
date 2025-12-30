@@ -243,6 +243,63 @@ export function useRedeem(marketAddress?: Address) {
 }
 
 /**
+ * 退款 hook（用于市场取消时）
+ * @param marketAddress 市场合约地址
+ */
+export function useRefund(marketAddress?: Address) {
+  const { address: userAddress, chainId } = useAccount();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  /**
+   * 申请退款
+   * @param outcomeId 结果 ID
+   * @param shares 份额数量（字符串格式的原始 wei 值，从 Subgraph position.balance 获取）
+   */
+  const refund = async (outcomeId: number, shares: string) => {
+    if (!marketAddress) throw new Error('Market address required');
+    if (!userAddress) throw new Error('Wallet not connected');
+
+    const sharesInWei = BigInt(shares);
+
+    console.log('[useRefund] 发起退款:', {
+      marketAddress,
+      userAddress,
+      outcomeId,
+      shares,
+      sharesInWei: sharesInWei.toString(),
+    });
+
+    // V3: 调用 Market_V3.refundFor
+    return writeContract({
+      address: marketAddress,
+      abi: Market_V3_ABI,
+      functionName: 'refundFor',
+      args: [userAddress, BigInt(outcomeId), sharesInWei],
+    });
+  };
+
+  return {
+    refund,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
  * 批量赎回多个市场的份额 hook
  * @description 用于一次性领取多个市场的奖励
  */
