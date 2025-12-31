@@ -1,6 +1,6 @@
 # PitchOne Backend Dockerfile
 # 多阶段构建，生成轻量级生产镜像
-# 注意：从项目根目录构建，使用 backend/ 子目录
+# 注意：构建上下文为 backend/ 目录
 
 # ============================================
 # Stage 1: Builder
@@ -13,11 +13,11 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 # 复制依赖文件并下载（利用 Docker 缓存）
-COPY backend/go.mod backend/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 # 复制源代码
-COPY backend/ .
+COPY . .
 
 # 构建二进制文件
 # -ldflags="-s -w" 去除调试信息，减小二进制体积
