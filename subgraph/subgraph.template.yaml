@@ -42,6 +42,10 @@ dataSources:
           handler: handleRoleGranted
         - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
           handler: handleRoleRevoked
+        - event: KeeperAdded(indexed address)
+          handler: handleKeeperAdded
+        - event: KeeperRemoved(indexed address)
+          handler: handleKeeperRemoved
       file: ./src/registry.ts
 
   # ============================================================================
