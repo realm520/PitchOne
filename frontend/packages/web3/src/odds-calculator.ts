@@ -143,16 +143,17 @@ function calculateParimutuelOdds(
 /**
  * CPMM 恒定乘积做市商赔率计算
  *
- * 储备量推算：
+ * 使用投注量 (volume) 而非 shares 来计算储备变化
+ * 因为 volume 和 initialLiquidity 单位一致（USDC）
+ *
+ * 储备变化逻辑：
  * - 初始储备：initialLiquidity / outcomeCount（均分）
- * - 当前储备：需要从 shares 反推
+ * - 下注到 outcome i 时：
+ *   - outcome i 的储备减少（发放份额）
+ *   - 其他 outcome 的储备增加（收到资金）
  *
- * 简化公式（二向市场）：
- * - reserve[i] = initialReserve + sumOtherShares - shares[i]
- * - price[i] = reserve[other] / (reserve[i] + reserve[other])
- *
- * 三向市场：
- * - price[i] = (r[j] * r[k]) / (r[0]*r[1] + r[0]*r[2] + r[1]*r[2])
+ * 简化近似：
+ * - reserve[i] = initialReserve - volume[i] + sum(volume[others]) / (outcomeCount - 1)
  */
 function calculateCPMMOdds(
   volumes: OutcomeVolume[],
@@ -174,27 +175,33 @@ function calculateCPMMOdds(
   // 初始储备（均分）
   const initialReserve = initialLiquidity / outcomeCount;
 
-  // 解析各 outcome 的份额
-  const shares = volumes.map(v => parseFloat(v.shares) || 0);
-  const totalShares = shares.reduce((a, b) => a + b, 0);
+  // 解析各 outcome 的投注量（使用 volume 而非 shares，因为单位与 initialLiquidity 一致）
+  const volumeNums = volumes.map(v => parseFloat(v.volume) || 0);
+  const totalVolume = volumeNums.reduce((a, b) => a + b, 0);
+
+  // 如果没有任何投注，返回初始赔率（均分）
+  if (totalVolume === 0) {
+    const equalProb = 1 / outcomeCount;
+    const equalOdds = 1 / (equalProb * (1 - feeRate));
+    return volumes.map(v => ({
+      outcomeId: v.outcomeId,
+      odds: equalOdds,
+      probability: equalProb,
+      volume: 0,
+      shares: BigInt(v.shares || '0'),
+    }));
+  }
 
   // 计算当前储备
-  // CPMM 下注时：其他 outcome 储备增加 amount，目标 outcome 储备减少（份额发放）
-  // 反推：reserve[i] = initialReserve + (totalShares - shares[i]) - shares[i]
-  //                  = initialReserve + totalShares - 2 * shares[i]
-  // 注意：这是简化模型，实际 CPMM 的储备变化更复杂
-
-  // 更准确的方法：使用 CPMM 的价格公式
-  // price[i] = (1/reserve[i]) / sum(1/reserve[j])
-  // 但我们需要从份额推算储备
-
-  // 简化处理：假设储备与份额成反比关系
-  // 份额越多，储备越少（价格越高）
-  const reserves = shares.map((s, i) => {
-    // 储备 = 初始储备 - 该 outcome 的份额（已发放）+ 其他 outcome 流入的资金
-    // 简化：储备与 (initReserve - s/outcomeCount) 成正比
-    const otherShares = totalShares - s;
-    return Math.max(initialReserve - s + otherShares / (outcomeCount - 1), 1);
+  // reserve[i] = initialReserve + (流入资金) - (流出资金)
+  // 简化模型：假设投注到某个 outcome 会按比例影响储备
+  const reserves = volumeNums.map((vol, i) => {
+    const otherVolume = totalVolume - vol;
+    // 该 outcome 收到其他投注的一部分资金，同时支出自己的投注给池子
+    // 储备增加 = 其他投注 / (outcomeCount - 1)
+    // 储备减少 ≈ 本 outcome 投注量（用于兑换份额）
+    const netChange = (otherVolume / Math.max(outcomeCount - 1, 1)) - vol * 0.5;
+    return Math.max(initialReserve + netChange, initialReserve * 0.1);  // 最低保留 10% 初始储备
   });
 
   // 计算价格
@@ -318,8 +325,7 @@ export function formatOdds(odds: number | null, defaultValue = '-'): string {
     return defaultValue;
   }
 
-  // 限制赔率范围
-  if (odds < 1.01) return '1.01';
+  // 限制赔率上限
   if (odds > 999) return '999+';
 
   return odds.toFixed(2);

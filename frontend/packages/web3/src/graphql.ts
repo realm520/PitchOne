@@ -263,9 +263,12 @@ export const USER_POSITIONS_QUERY = `
         totalVolume
         feeAccrued
         cancelReason
+        pricingType
+        initialLiquidity
         outcomeVolumes {
           outcomeId
           volume
+          shares
         }
       }
       outcome
@@ -308,9 +311,12 @@ export const USER_POSITIONS_PAGINATED_QUERY = `
         totalVolume
         feeAccrued
         cancelReason
+        pricingType
+        initialLiquidity
         outcomeVolumes {
           outcomeId
           volume
+          shares
         }
       }
       outcome

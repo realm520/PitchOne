@@ -80,8 +80,9 @@ export default function MyPositions() {
             const payout = calculateExpectedPayout(pos);
             totalPayout += payout;
 
-            // 计算原始支付金额（Payment）- 使用 totalPayment 字段（已是 USDC 单位）
-            const payment = parseFloat(pos.totalPayment || pos.totalInvested || '0');
+            // 计算原始支付金额（Payment）- 优先使用 totalPayment，如果为 0 则使用 totalInvested
+            const paymentValue = parseFloat(pos.totalPayment || '0');
+            const payment = paymentValue > 0 ? paymentValue : parseFloat(pos.totalInvested || '0');
             totalPayment += payment;
         });
 

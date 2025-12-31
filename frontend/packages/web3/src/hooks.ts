@@ -70,6 +70,7 @@ export interface Market {
 export interface OutcomeVolumeInfo {
   outcomeId: number;
   volume: string;
+  shares?: string;  // 份额（用于 CPMM/LMSR 计算）
 }
 
 export interface Position {
@@ -82,12 +83,15 @@ export interface Position {
     awayTeam: string;
     kickoffTime: string;
     state: MarketStatus;
+    paused?: boolean;
     winnerOutcome?: number;
     line?: string;
     lines?: string[];
     // 用于计算预期收益的字段
     totalVolume?: string;
     feeAccrued?: string;
+    pricingType?: string;      // 定价类型: PARIMUTUEL, CPMM, LMSR
+    initialLiquidity?: string; // 初始流动性
     outcomeVolumes?: OutcomeVolumeInfo[];
     // 取消原因（市场被取消时）
     cancelReason?: string;
@@ -116,12 +120,15 @@ interface PositionRaw {
     awayTeam: string;
     kickoffTime: string;
     state: MarketStatus;
+    paused?: boolean;
     winnerOutcome?: number;
     line?: string;
     lines?: string[];
     // 用于计算预期收益的字段
     totalVolume?: string;
     feeAccrued?: string;
+    pricingType?: string;      // 定价类型: PARIMUTUEL, CPMM, LMSR
+    initialLiquidity?: string; // 初始流动性
     outcomeVolumes?: OutcomeVolumeInfo[];
     // 取消原因（市场被取消时）
     cancelReason?: string;

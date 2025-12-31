@@ -1,4 +1,4 @@
-import { Position, MarketStatus, TOKEN_DECIMALS, getOutcomeName } from "@pitchone/web3";
+import { Position, MarketStatus, TOKEN_DECIMALS, getOutcomeName, calculateOddsFromSubgraph, formatOdds } from "@pitchone/web3";
 import { formatUnits } from "viem/utils";
 
 /**
@@ -85,56 +85,47 @@ export const getClaimStatus = (position: Position): ClaimStatus => {
 };
 
 /**
- * 计算预期赔付金额（Pari-mutuel 模式）
+ * 计算预期赔付金额
  *
  * Payout = 如果该结果胜出，用户能获得的金额
+ * 公式: payout = 原始投注额（含手续费）× 赔率
  *
  * 市场 Cancelled 状态：显示 0
  *
- * 其他状态（Open/Locked/Resolved/Finalized）：
- *   预期赔付 = 净池子 × (用户投注额 / 该结果总投注)
- *   - 净池子 = totalVolume - feeAccrued
- *   - 用户投注额 = totalInvested（已扣手续费）
- *   - 该结果总投注 = outcomeVolume
- *
- * 注意：Subgraph 返回的金额字段（totalVolume, feeAccrued, outcomeVolume, totalInvested）
- * 已经是 USDC 单位（如 "6.86"），不是链上原始值（wei）。
+ * 注意：使用原始投注额（totalPayment 或通过 totalInvested 反推）而非净额，
+ * 这样 Payout 和 Payment 列使用一致的金额基础。
  */
 export const calculateExpectedPayout = (position: Position): number => {
     try {
-        const { state, totalVolume, feeAccrued, outcomeVolumes } = position.market;
+        const { state } = position.market;
 
         // 市场已取消：显示 0
         if (state === MarketStatus.Cancelled) {
             return 0;
         }
 
-        // 其他状态：计算预期赔付
-        // Subgraph 返回的金额已是 USDC 单位，直接使用
-        const userInvestment = parseFloat(position.totalInvested || '0');
-        if (userInvestment <= 0) {
+        // 获取原始投注金额（链上原始值）
+        const originalPaymentRaw = getOriginalPayment(position);
+        // 转换为 USDC 单位
+        const originalPayment = parseFloat(originalPaymentRaw) / 1_000_000;
+
+        if (originalPayment <= 0) {
             return 0;
         }
 
-        const totalVolumeNum = parseFloat(totalVolume || '0');
-        const feeAccruedNum = parseFloat(feeAccrued || '0');
-
-        // 净池子 = 总投注 - 手续费
-        const netPool = totalVolumeNum - feeAccruedNum;
-        if (netPool <= 0) {
+        // 使用统一的赔率计算函数获取赔率
+        const oddsStr = calculateOdds(position);
+        if (oddsStr === '-') {
             return 0;
         }
 
-        // 获取该结果的总投注额
-        const outcomeVolume = outcomeVolumes?.find(ov => ov.outcomeId === position.outcome);
-        const outcomeVolumeNum = parseFloat(outcomeVolume?.volume || '0');
-        if (outcomeVolumeNum <= 0) {
+        const odds = parseFloat(oddsStr);
+        if (isNaN(odds) || odds <= 0) {
             return 0;
         }
 
-        // 预期赔付 = 净池子 × (用户投注额 / 该结果总投注)
-        // 所有金额已是 USDC 单位，不需要再转换
-        const expectedPayout = (netPool * userInvestment) / outcomeVolumeNum;
+        // 预期赔付 = 原始投注额 × 赔率
+        const expectedPayout = originalPayment * odds;
 
         return expectedPayout;
     } catch (error) {
@@ -347,44 +338,79 @@ export const getOriginalPayment = (position: Position): string => {
 export const calculateOriginalPayment = getOriginalPayment;
 
 /**
- * 计算投注赔率（Parimutuel 模式）
- * 公式: odds = totalPool * (1 - fee) / outcomePool
- *      = (totalVolume - feeAccrued) / outcomeVolume
+ * 根据市场模板类型获取预期的 outcome 数量
+ */
+function getExpectedOutcomeCount(templateType: string): number | null {
+    switch (templateType) {
+        case 'WDL':
+        case 'WDL_Pari':
+            return 3;      // 胜平负：主胜、平局、客胜
+        case 'OU':
+        case 'OU_Pari':
+            return 2;       // 大小球：大、小
+        case 'OU_MULTI':
+            return null; // 多线大小球：由线数决定
+        case 'AH':
+        case 'AH_Pari':
+            return 3;       // 让球：主队赢盘、客队赢盘、走盘
+        case 'OddEven':
+        case 'OddEven_Pari':
+            return 2;  // 单双：单、双
+        case 'Score':
+        case 'Score_Pari':
+            return null; // 精确比分：不限制
+        case 'PlayerProps':
+        case 'FGS':
+            return null; // 球员道具/首位进球：不限制
+        default:
+            return 3;         // 默认返回 3（WDL 最常见）
+    }
+}
+
+/**
+ * 计算投注赔率
  *
- * 与 markets 列表使用相同的计算方式
+ * 使用与 markets 列表相同的 calculateOddsFromSubgraph 函数
+ * 支持 PARIMUTUEL、CPMM、LMSR 三种定价类型
  *
  * @param position - 用户头寸
  * @returns 赔率字符串（如 "1.85"）
  */
 export const calculateOdds = (position: Position): string => {
     try {
-        const { totalVolume, feeAccrued, outcomeVolumes } = position.market;
+        const { pricingType, initialLiquidity, totalVolume, outcomeVolumes, templateId } = position.market;
 
-        // 获取市场总投注额和手续费
-        const totalVolumeNum = parseFloat(totalVolume || '0');
-        const feeAccruedNum = parseFloat(feeAccrued || '0');
+        // 根据模板类型确定预期的 outcome 数量
+        const expectedCount = getExpectedOutcomeCount(templateId || 'WDL');
 
-        // 净池子 = 总投注 - 手续费
-        const netPool = totalVolumeNum - feeAccruedNum;
-        if (netPool <= 0) {
+        // 构建 MarketOddsData
+        const marketOddsData = {
+            pricingType: pricingType || 'PARIMUTUEL',
+            initialLiquidity: initialLiquidity || '0',
+            lmsrB: null,  // LMSR 参数，目前 Subgraph 未提供
+            totalVolume: totalVolume || '0',
+            outcomeVolumes: (outcomeVolumes || []).map(ov => ({
+                id: `${position.market.id}-${ov.outcomeId}`,
+                outcomeId: ov.outcomeId,
+                volume: ov.volume,
+                shares: ov.shares || '0',
+                betCount: 0,
+            })),
+            feeRate: 0.02,  // 默认 2% 手续费
+            expectedOutcomeCount: expectedCount || 3,  // 关键：传入预期 outcome 数量
+        };
+
+        // 使用统一的赔率计算函数
+        const allOdds = calculateOddsFromSubgraph(marketOddsData);
+
+        // 找到用户选择的 outcome 的赔率
+        const userOutcomeOdds = allOdds.find(o => o.outcomeId === position.outcome);
+
+        if (!userOutcomeOdds || userOutcomeOdds.odds === null) {
             return '-';
         }
 
-        // 获取该结果的总投注额
-        const outcomeVolume = outcomeVolumes?.find(ov => ov.outcomeId === position.outcome);
-        const outcomeVolumeNum = parseFloat(outcomeVolume?.volume || '0');
-        if (outcomeVolumeNum <= 0) {
-            return '-';
-        }
-
-        // 赔率 = 净池子 / 该结果投注额
-        const odds = netPool / outcomeVolumeNum;
-
-        // 限制赔率范围
-        if (odds < 1.01) return '1.01';
-        if (odds > 999) return '999+';
-
-        return odds.toFixed(2);
+        return formatOdds(userOutcomeOdds.odds);
     } catch (error) {
         console.error('[Portfolio] 计算赔率失败:', error, position);
         return '-';
