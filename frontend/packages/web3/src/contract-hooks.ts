@@ -186,6 +186,91 @@ export function usePlaceBet(marketAddress?: Address) {
 }
 
 /**
+ * 批量下注参数
+ */
+export interface BetParams {
+  market: Address;      // 市场地址
+  outcomeId: number;    // 结果 ID
+  amount: string;       // 下注金额（USDC 单位，如 "10"）
+  minShares?: bigint;   // 最小获得份额（滑点保护）
+}
+
+/**
+ * 批量下注 hook (V3 架构通过 BettingRouter)
+ * 支持同一市场多个 outcome 或不同市场的批量下注
+ */
+export function usePlaceBetBatch() {
+  const { chainId } = useAccount();
+  const addresses = chainId ? getContractAddresses(chainId) : null;
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError,
+    data: receipt
+  } = useWaitForTransactionReceipt({
+    hash,
+    chainId,
+    query: {
+      enabled: !!hash,
+    }
+  });
+
+  // 调试日志
+  console.log('[usePlaceBetBatch]:', {
+    chainId,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    receiptStatus: receipt?.status,
+    writeError: writeError?.message,
+    receiptError: receiptError?.message
+  });
+
+  const placeBetBatch = async (bets: BetParams[]) => {
+    if (!addresses) throw new Error('Chain not supported');
+    if (bets.length === 0) throw new Error('At least one bet required');
+
+    // 转换参数格式
+    const betsForContract = bets.map(bet => ({
+      market: bet.market,
+      outcomeId: BigInt(bet.outcomeId),
+      amount: parseUnits(bet.amount, TOKEN_DECIMALS.USDC),
+      minShares: bet.minShares ?? 0n,
+    }));
+
+    console.log('[usePlaceBetBatch] 发起批量下注:', {
+      router: addresses.bettingRouter,
+      betsCount: bets.length,
+      bets: betsForContract.map(b => ({
+        market: b.market,
+        outcomeId: b.outcomeId.toString(),
+        amount: b.amount.toString(),
+        minShares: b.minShares.toString()
+      }))
+    });
+
+    // V3: 通过 BettingRouter 批量下注
+    return writeContract({
+      address: addresses.bettingRouter,
+      abi: BettingRouter_V3_ABI,
+      functionName: 'placeBetBatch',
+      args: [betsForContract],
+    });
+  };
+
+  return {
+    placeBetBatch,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: writeError || receiptError,
+    hash,
+  };
+}
+
+/**
  * 赎回赢得的份额 hook (V3)
  * @param marketAddress 市场合约地址
  */

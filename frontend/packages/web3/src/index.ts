@@ -83,6 +83,7 @@ export {
   useUSDCAllowance,
   useUSDCBalance,
   usePlaceBet,
+  usePlaceBetBatch,    // V3: 批量下注
   useRedeem,
   useRefund,
   useRedeemBatch,
@@ -93,6 +94,7 @@ export {
   useAllPrices,        // V3: 获取所有结果价格
   useQuote,
   useIsMarketLocked,
+  type BetParams,      // 批量下注参数类型
 } from './contract-hooks';
 
 // Contract Interaction Hooks (Admin)
