@@ -282,6 +282,7 @@
       "locked": "잠김",
       "resolved": "청구 가능",
       "finalized": "완료",
+      "refunded": "환불 완료",
       "claimable": "청구 가능",
       "refundable": "환불 가능",
       "claimed": "청구 완료",

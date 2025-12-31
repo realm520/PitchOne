@@ -282,6 +282,7 @@
       "locked": "ロック",
       "resolved": "請求可能",
       "finalized": "完了",
+      "refunded": "返金済み",
       "claimable": "請求可能",
       "refundable": "返金可能",
       "claimed": "請求済み",
