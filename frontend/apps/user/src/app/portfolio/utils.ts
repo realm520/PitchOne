@@ -12,23 +12,37 @@ import { formatUnits } from "viem/utils";
 export type ClaimStatus = 'claimable' | 'refundable' | 'claimed' | 'lost' | 'pending';
 
 /**
- * 获取头寸状态的显示信息（颜色和文本）
+ * 获取市场状态的显示信息（颜色和文本）
+ *
+ * 状态说明：
+ * - Open：市场创建完后自动变为Open，此时市场可以接受下注
+ * - Open + paused：市场已暂停，显示为 Locked
+ * - Locked：市场达到开赛时间后，市场自动变为Locked，停止接受下注
+ * - Resolved：已提交结算结果
+ * - Finalized：结算已通过挑战期，获胜玩家可以领取获胜奖金
+ * - Refunded：市场取消，可以发起退款
  */
 export const getStatusDisplay = (position: Position): { color: string; textKey: string } => {
-    const status = getClaimStatus(position);
+    const { state, paused } = position.market;
 
-    switch (status) {
-        case 'claimable':
-            return { color: 'bg-green-500/20 text-green-400 border-green-500/30', textKey: 'portfolio.status.claimable' };
-        case 'refundable':
-            return { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', textKey: 'portfolio.status.refundable' };
-        case 'claimed':
-            return { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', textKey: 'portfolio.status.claimed' };
-        case 'lost':
-            return { color: 'bg-red-500/20 text-red-400 border-red-500/30', textKey: 'portfolio.status.lost' };
-        case 'pending':
+    // 如果市场是 Open 但已暂停，显示为 Locked
+    if (state === MarketStatus.Open && paused) {
+        return { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', textKey: 'portfolio.status.locked' };
+    }
+
+    switch (state) {
+        case MarketStatus.Open:
+            return { color: 'bg-green-500/20 text-green-400 border-green-500/30', textKey: 'portfolio.status.open' };
+        case MarketStatus.Locked:
+            return { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', textKey: 'portfolio.status.locked' };
+        case MarketStatus.Resolved:
+            return { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', textKey: 'portfolio.status.resolved' };
+        case MarketStatus.Finalized:
+            return { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', textKey: 'portfolio.status.finalized' };
+        case MarketStatus.Cancelled:
+            return { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', textKey: 'portfolio.status.refunded' };
         default:
-            return { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', textKey: 'portfolio.status.pending' };
+            return { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', textKey: 'portfolio.status.open' };
     }
 };
 

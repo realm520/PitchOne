@@ -99,8 +99,6 @@ export default function MyPositions() {
         totalMarkets: userStats?.marketsParticipated || 0,
         // 总投注次数
         totalBets: userStats?.totalBets || 0,
-        // 净盈亏 = 总赎回金额 - 总投注额
-        totalProfit: userStats?.netProfit || 0,
         // Active Tickets = pending 状态的投注单数量
         activeTickets,
         // Potential Profit = pending 状态的投注预期盈利
@@ -113,7 +111,6 @@ export default function MyPositions() {
                 totalBetAmount={stats.totalBetAmount}
                 totalMarkets={stats.totalMarkets}
                 totalBets={stats.totalBets}
-                totalProfit={stats.totalProfit}
                 activeTickets={stats.activeTickets}
                 potentialProfit={stats.potentialProfit}
             />

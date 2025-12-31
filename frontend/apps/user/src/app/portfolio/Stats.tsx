@@ -7,14 +7,12 @@ export default function Stats({
     totalBetAmount,
     totalMarkets,
     totalBets,
-    totalProfit,
     activeTickets,
     potentialProfit,
 }: {
     totalBetAmount: number;
     totalMarkets: number;
     totalBets: number;
-    totalProfit: number;
     activeTickets: number;
     potentialProfit: number;
 }) {
@@ -42,15 +40,6 @@ export default function Stats({
                             <h6>{t("portfolio.totalBet")}</h6>
                             <div className="flex items-baseline gap-1">
                                 <span className="font-bold text-3xl">{totalBetAmount.toFixed(2)}</span>
-                                <span>USDC</span>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card className="py-2 px-4">
-                        <div className="flex flex-col items-center">
-                            <h6>{t("portfolio.totalProfit")}</h6>
-                            <div className={`flex items-baseline gap-1 ${totalProfit < 0 ? 'text-red-500' : 'text-[#17AD70]'}`}>
-                                <span className="font-bold text-3xl">{totalProfit.toFixed(2)}</span>
                                 <span>USDC</span>
                             </div>
                         </div>
