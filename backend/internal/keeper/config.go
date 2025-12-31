@@ -42,6 +42,55 @@ type Config struct {
 
 	// Webhook alerts (optional)
 	WebhookURL string `mapstructure:"webhook_url"`
+
+	// API-Football configuration for fixtures fetching
+	APIFootball APIFootballConfig `mapstructure:"api_football"`
+
+	// Rewards distribution configuration
+	Rewards RewardsConfig `mapstructure:"rewards"`
+}
+
+// APIFootballConfig holds configuration for API-Football integration
+type APIFootballConfig struct {
+	// API credentials
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+
+	// Rate limiting
+	RequestsPerSecond float64 `mapstructure:"requests_per_second"`
+
+	// Task settings
+	FetchInterval int `mapstructure:"fetch_interval"` // Seconds between fetches (default 3600 = 1 hour)
+	DaysAhead     int `mapstructure:"days_ahead"`     // Fetch fixtures N days ahead (default 30)
+
+	// Leagues to fetch
+	Leagues []LeagueConfig `mapstructure:"leagues"`
+}
+
+// LeagueConfig holds configuration for a single league
+type LeagueConfig struct {
+	ID     int    `mapstructure:"id"`     // API-Football league ID
+	Code   string `mapstructure:"code"`   // League code (e.g., "EPL", "SerieA")
+	Season int    `mapstructure:"season"` // Season year (e.g., 2025)
+}
+
+// RewardsConfig holds configuration for weekly rewards distribution
+type RewardsConfig struct {
+	// Enable/disable rewards distribution
+	Enabled bool `mapstructure:"enabled"`
+
+	// Task interval in seconds (default: 3600 = 1 hour)
+	// Task will only actually run on Sunday 23:00-23:59 UTC
+	TaskInterval int `mapstructure:"task_interval"`
+
+	// RewardsDistributor contract address
+	DistributorAddress string `mapstructure:"distributor_address"`
+
+	// RPC endpoint for publishing (can reuse keeper's RPC)
+	RPCEndpoint string `mapstructure:"rpc_endpoint"`
+
+	// Private key for signing transactions (can reuse keeper's key)
+	PrivateKey string `mapstructure:"private_key"`
 }
 
 // Validate validates the configuration
@@ -105,6 +154,32 @@ func (c *Config) Validate() error {
 
 	if c.MetricsPort == 0 {
 		c.MetricsPort = 9091 // Default port
+	}
+
+	// API-Football defaults
+	if c.APIFootball.BaseURL == "" {
+		c.APIFootball.BaseURL = "https://v3.football.api-sports.io"
+	}
+	if c.APIFootball.RequestsPerSecond == 0 {
+		c.APIFootball.RequestsPerSecond = 0.15 // Conservative rate limit
+	}
+	if c.APIFootball.FetchInterval == 0 {
+		c.APIFootball.FetchInterval = 3600 // Default 1 hour
+	}
+	if c.APIFootball.DaysAhead == 0 {
+		c.APIFootball.DaysAhead = 30 // Default 30 days
+	}
+
+	// Rewards defaults
+	if c.Rewards.TaskInterval == 0 {
+		c.Rewards.TaskInterval = 3600 // Default 1 hour
+	}
+	// Use keeper's RPC and private key if not specified
+	if c.Rewards.RPCEndpoint == "" {
+		c.Rewards.RPCEndpoint = c.RPCEndpoint
+	}
+	if c.Rewards.PrivateKey == "" {
+		c.Rewards.PrivateKey = c.PrivateKey
 	}
 
 	return nil

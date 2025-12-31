@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"os"
@@ -10,7 +11,11 @@ import (
 
 	"github.com/pitchone/sportsbook/internal/datasource"
 	"github.com/pitchone/sportsbook/internal/graphql"
+	"github.com/pitchone/sportsbook/internal/repository"
+	"github.com/pitchone/sportsbook/internal/rewards"
 	"go.uber.org/zap"
+
+	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 const version = "0.1.0"
@@ -25,6 +30,15 @@ type Keeper struct {
 	maxGasPrice  *big.Int
 	dataSource   datasource.ResultProvider
 	alertManager *AlertManager
+
+	// Database for fixtures and rewards
+	db              *sql.DB
+	fixturesRepo    *repository.FixturesRepository
+	apiFootballClient *datasource.APIFootballClient
+
+	// Rewards distribution (optional)
+	rewardsAggregator *rewards.Aggregator
+	rewardsPublisher  *rewards.Publisher
 
 	// Internal state
 	running      bool
@@ -129,17 +143,107 @@ func NewKeeper(cfg *Config) (*Keeper, error) {
 	// Initialize alert manager with notifiers from environment
 	alertManager := NewAlertManagerFromEnv(logger)
 
+	// Initialize database and API-Football client (optional, only if configured)
+	var db *sql.DB
+	var fixturesRepo *repository.FixturesRepository
+	var apiFootballClient *datasource.APIFootballClient
+
+	if cfg.APIFootball.APIKey != "" && cfg.DatabaseURL != "" {
+		logger.Info("initializing database for fixtures storage")
+
+		var err error
+		db, err = sql.Open("postgres", cfg.DatabaseURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open database connection: %w", err)
+		}
+
+		// Test database connection
+		ctx3, cancel3 := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel3()
+		if err := db.PingContext(ctx3); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to ping database: %w", err)
+		}
+
+		logger.Info("database connected for fixtures")
+
+		fixturesRepo = repository.NewFixturesRepository(db)
+
+		// Initialize API-Football client
+		apiFootballClient = datasource.NewAPIFootballClient(
+			datasource.APIFootballConfig{
+				APIKey:         cfg.APIFootball.APIKey,
+				BaseURL:        cfg.APIFootball.BaseURL,
+				RequestsPerSec: cfg.APIFootball.RequestsPerSecond,
+			},
+			logger,
+		)
+
+		logger.Info("API-Football client initialized",
+			zap.Int("leagues", len(cfg.APIFootball.Leagues)),
+		)
+	} else if cfg.APIFootball.APIKey != "" {
+		logger.Warn("API-Football API key configured but DatabaseURL is missing, fixtures task will be disabled")
+	}
+
+	// Initialize rewards aggregator and publisher (optional)
+	var rewardsAggregator *rewards.Aggregator
+	var rewardsPublisher *rewards.Publisher
+
+	if cfg.Rewards.Enabled {
+		// Rewards requires database connection
+		if db == nil && cfg.DatabaseURL != "" {
+			logger.Info("initializing database for rewards")
+			var err error
+			db, err = sql.Open("postgres", cfg.DatabaseURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open database for rewards: %w", err)
+			}
+
+			ctx4, cancel4 := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel4()
+			if err := db.PingContext(ctx4); err != nil {
+				db.Close()
+				return nil, fmt.Errorf("failed to ping database for rewards: %w", err)
+			}
+			logger.Info("database connected for rewards")
+		}
+
+		if db != nil {
+			rewardsAggregator = rewards.NewAggregator(graphClient, db)
+			logger.Info("rewards aggregator initialized")
+
+			// Initialize publisher if distributor address is configured
+			if cfg.Rewards.DistributorAddress != "" {
+				var err error
+				rewardsPublisher, err = CreateRewardsPublisher(cfg.Rewards, logger)
+				if err != nil {
+					logger.Warn("failed to create rewards publisher, will aggregate but not publish",
+						zap.Error(err),
+					)
+				}
+			}
+		} else {
+			logger.Warn("rewards enabled but DatabaseURL is missing, rewards task will be disabled")
+		}
+	}
+
 	keeper := &Keeper{
-		config:       cfg,
-		web3Client:   web3Client,
-		graphClient:  graphClient, // 使用 Subgraph 替代数据库
-		logger:       logger,
-		chainID:      cfg.ChainID,
-		maxGasPrice:  maxGasPrice,
-		dataSource:   dataSource,
-		alertManager: alertManager,
-		stopChan:     make(chan struct{}),
-		doneChan:     make(chan struct{}),
+		config:            cfg,
+		web3Client:        web3Client,
+		graphClient:       graphClient,
+		logger:            logger,
+		chainID:           cfg.ChainID,
+		maxGasPrice:       maxGasPrice,
+		dataSource:        dataSource,
+		alertManager:      alertManager,
+		db:                db,
+		fixturesRepo:      fixturesRepo,
+		apiFootballClient: apiFootballClient,
+		rewardsAggregator: rewardsAggregator,
+		rewardsPublisher:  rewardsPublisher,
+		stopChan:          make(chan struct{}),
+		doneChan:          make(chan struct{}),
 	}
 
 	return keeper, nil
@@ -233,6 +337,18 @@ func (k *Keeper) Shutdown(ctx context.Context) error {
 
 	if k.web3Client != nil {
 		k.web3Client.Close()
+	}
+
+	// Close database connection if present
+	if k.db != nil {
+		if err := k.db.Close(); err != nil {
+			k.logger.Error("failed to close database connection", zap.Error(err))
+		}
+	}
+
+	// Close rewards publisher if present
+	if k.rewardsPublisher != nil {
+		k.rewardsPublisher.Close()
 	}
 
 	// GraphQL 客户端不需要显式关闭（使用 HTTP 连接池）
@@ -329,6 +445,28 @@ func (k *Keeper) runTaskScheduler(ctx context.Context) {
 	// Register SettleTask
 	settleTask := NewSettleTask(k, k.dataSource)
 	scheduler.RegisterTask("settle", settleTask, time.Duration(k.config.TaskInterval)*time.Second)
+
+	// Register FixturesTask (if API-Football is configured)
+	if k.apiFootballClient != nil && k.fixturesRepo != nil {
+		fixturesTask := NewFixturesTask(k, k.apiFootballClient, k.fixturesRepo, k.config.APIFootball)
+		interval := time.Duration(k.config.APIFootball.FetchInterval) * time.Second
+		scheduler.RegisterTask("fixtures", fixturesTask, interval)
+		k.logger.Info("fixtures task registered",
+			zap.Duration("interval", interval),
+			zap.Int("leagues", len(k.config.APIFootball.Leagues)),
+		)
+	}
+
+	// Register RewardsTask (if rewards is enabled and aggregator is configured)
+	if k.config.Rewards.Enabled && k.rewardsAggregator != nil {
+		rewardsTask := NewRewardsTask(k, k.rewardsAggregator, k.rewardsPublisher, k.config.Rewards)
+		interval := time.Duration(k.config.Rewards.TaskInterval) * time.Second
+		scheduler.RegisterTask("rewards", rewardsTask, interval)
+		k.logger.Info("rewards task registered",
+			zap.Duration("interval", interval),
+			zap.Bool("publisherEnabled", k.rewardsPublisher != nil),
+		)
+	}
 
 	// Start scheduler
 	if err := scheduler.Start(ctx); err != nil {

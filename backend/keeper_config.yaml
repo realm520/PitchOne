@@ -1,0 +1,61 @@
+# Keeper Service Configuration
+environment: production
+
+logging:
+  level: info
+  format: console
+
+keeper:
+  chain_id: 31337
+  rpc_endpoint: "http://localhost:8545"
+  private_key: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  database_url: "postgresql://p1:PitchOne2025@localhost:5432/p1?sslmode=disable"
+  subgraph_endpoint: "http://localhost:8010/subgraphs/name/pitchone-sportsbook"
+  gas_limit: 500000
+  max_gas_price: "100"
+  task_interval: 60
+  lock_lead_time: 300
+  finalize_delay: 7200
+  max_concurrent: 10
+  retry_attempts: 3
+  retry_delay: 5
+  health_check_port: 8081
+  metrics_port: 9091
+  alerts_enabled: false
+
+  # API-Football Configuration (for fixtures fetching)
+  api_football:
+    api_key: ""  # Set via environment variable: API_FOOTBALL_KEY
+    base_url: "https://v3.football.api-sports.io"
+    requests_per_second: 0.15  # Conservative rate limit
+    fetch_interval: 3600  # 1 hour
+    days_ahead: 30
+    leagues:
+      - id: 39
+        code: "EPL"
+        season: 2025
+      - id: 140
+        code: "LaLiga"
+        season: 2025
+      - id: 78
+        code: "BL"
+        season: 2025
+      - id: 135
+        code: "SerieA"
+        season: 2025
+      - id: 61
+        code: "L1"
+        season: 2025
+
+sportradar:
+  api_key: ""
+  base_url: ""
+  timeout: 30
+  requests_per_sec: 1.0
+
+# Weekly Rewards Distribution Configuration
+rewards:
+  enabled: false  # Set to true to enable weekly rewards distribution
+  task_interval: 3600  # Check every hour (only runs on Sunday 23:00-23:59 UTC)
+  distributor_address: ""  # RewardsDistributor contract address
+  # rpc_endpoint and private_key default to keeper's settings if not specified
