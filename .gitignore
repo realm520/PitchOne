@@ -43,6 +43,7 @@ subgraph/build/
 subgraph/generated/
 subgraph/node_modules/
 subgraph/package-lock.json
+subgraph/subgraph.yaml
 
 # Subgraph 备份文件
 subgraph/*.backup
