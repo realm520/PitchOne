@@ -88,6 +88,8 @@ cmd_pull() {
 
 # 构建前端
 cmd_frontend_build() {
+    print_info "同步合约地址..."
+    ssh_cmd "cd $PROJECT_PATH/frontend && pnpm sync-local"
     print_info "构建前端..."
     ssh_cmd "cd $PROJECT_PATH/frontend && pnpm install && pnpm build"
     print_success "前端构建完成"

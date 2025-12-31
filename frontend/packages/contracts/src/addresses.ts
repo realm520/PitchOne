@@ -56,27 +56,28 @@ export interface ContractAddresses {
 }
 
 // Localhost (Anvil) - Chain ID 31337
+// 自动生成时间: 2025-12-31 (来源: contracts/deployments/localhost_v3.json)
 const localhost: ContractAddresses = {
-  factory: '0xcC4c41415fc68B2fBf70102742A83cDe435e0Ca7',
-  vault: '0x162700d1613DfEC978032A909DE02643bC55df1A',
-  bettingRouter: '0x0fe4223AD99dF788A6Dcad148eB4086E6389cEB6',
-  feeRouter: '0x114e375B6FCC6d6fCb68c7A1d407E652C54F25FB',
-  referralRegistry: '0x67aD6EA566BA6B0fC52e97Bc25CE46120fdAc04c',
-  paramController: '0x976C214741b4657bd99DFD38a5c0E3ac5C99D903',
-  usdc: '0x9385556B571ab92bf6dC9a0DbD75429Dd4d56F91',
-  marketImplementation: '0xa722bdA6968F50778B973Ae2701e90200C564B49',
+  factory: '0xE3011A37A904aB90C8881a99BD1F6E21401f1522',
+  vault: '0xfaAddC93baf78e89DCf37bA67943E1bE8F37Bb8c',
+  bettingRouter: '0xd6e1afe5cA8D00A2EFC01B89997abE2De47fdfAf',
+  feeRouter: '0x3347B4d90ebe72BeFb30444C9966B2B990aE9FcB',
+  referralRegistry: '0x276C216D241856199A83bf27b2286659e5b877D3',
+  paramController: '0x5bf5b11053e734690269C6B9D438F8C9d48F528A',
+  usdc: '0xA7c59f010700930003b33aB25a7a0679C860f29c',
+  marketImplementation: '0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82',
   strategies: {
-    cpmm: '0x967AB65ef14c58bD4DcfFeaAA1ADb40a022140E5',
-    lmsr: '0xe1708FA6bb2844D5384613ef0846F9Bc1e8eC55E',
-    parimutuel: '0x0aec7c174554AF8aEc3680BB58431F6618311510',
+    cpmm: '0x525C7063E7C20997BaaE9bDa922159152D0e8417',
+    lmsr: '0x38a024C0b412B9d1db8BC398140D00F5Af3093D4',
+    parimutuel: '0x5fc748f1FEb28d7b76fa1c6B07D8ba2d5535177c',
   },
   mappers: {
-    wdl: '0x8e264821AFa98DD104eEcfcfa7FD9f8D8B320adA',
-    ou: '0x871ACbEabBaf8Bed65c22ba7132beCFaBf8c27B5',
-    ah: '0x6A59CC73e334b018C9922793d96Df84B538E6fD5',
-    oddEven: '0xC1e0A9DB9eA830c52603798481045688c8AE99C2',
-    score: '0x683d9CDD3239E0e01E8dC6315fA50AD92aB71D2d',
-    identity: '0x1c9fD50dF7a4f066884b58A05D91e4b55005876A',
+    wdl: '0xB82008565FdC7e44609fA118A4a681E92581e680',
+    ou: '0x2a810409872AfC346F9B5b26571Fd6eC42EA4849',
+    ah: '0xb9bEECD1A582768711dE1EE7B0A1d582D9d72a6C',
+    oddEven: '0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8',
+    score: '0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849',
+    identity: '0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55',
   },
   templateIds: {
     wdl: '0x850ca3b5a2939c6d60042c83f2b881cb9112b18403eff8ca6bdf8643f6929255',
@@ -89,7 +90,7 @@ const localhost: ContractAddresses = {
     firstGoalscorer: '0xf44ca50923fd3146c0ae29ba2693c48afd11abbeebce7c5c9a714f7a46e85b73',
   },
   // 兼容旧代码
-  marketTemplateRegistry: '0xcC4c41415fc68B2fBf70102742A83cDe435e0Ca7',
+  marketTemplateRegistry: '0xE3011A37A904aB90C8881a99BD1F6E21401f1522',
 };
 
 // 地址映射表
