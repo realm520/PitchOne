@@ -14,6 +14,7 @@ import "../interfaces/IPricingStrategy.sol";
 import "../interfaces/IResultMapper.sol";
 import "../interfaces/ILiquidityVault_V3.sol";
 import "../interfaces/IParamController.sol";
+import "../interfaces/IMarketFactory_V3.sol";
 import "../governance/ParamKeys.sol";
 
 /**
@@ -141,6 +142,19 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
     error UserExposureLimitExceeded(address user, uint256 currentExposure, uint256 limit);
     error MarketPayoutCapExceeded(uint256 totalExposure, uint256 cap);
     error NotAuthorized(address caller);
+
+    // ============ Modifier ============
+
+    /**
+     * @notice 检查调用者是否为 Factory 注册的 Keeper
+     * @dev 通过 Factory.isKeeper() 进行全局检查，无需在每个市场单独授权
+     */
+    modifier onlyFactoryKeeper() {
+        if (!IMarketFactory_V3(factory).isKeeper(msg.sender)) {
+            revert AccessControlUnauthorizedAccount(msg.sender, KEEPER_ROLE);
+        }
+        _;
+    }
 
     // ============ 构造函数 ============
 
@@ -340,8 +354,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
 
     /**
      * @notice 锁盘（开赛前调用）
+     * @dev 使用 onlyFactoryKeeper 检查 Factory 注册的 Keeper
      */
-    function lock() external onlyRole(KEEPER_ROLE) {
+    function lock() external onlyFactoryKeeper {
         if (status != MarketStatus.Open) {
             revert InvalidStatus(MarketStatus.Open, status);
         }
@@ -414,8 +429,9 @@ contract Market_V3 is IMarket_V3, ERC1155, AccessControl, Initializable, Reentra
      *        - 0: 正常结算，超限时 revert
      *        - 1-10000: 按比例缩减赔付 + 储备金兜底
      * @dev 如果配置了 Vault，会计算 PnL 并结算
+     *      使用 onlyFactoryKeeper 检查 Factory 注册的 Keeper
      */
-    function finalize(uint256 scaleBps) external onlyRole(KEEPER_ROLE) {
+    function finalize(uint256 scaleBps) external onlyFactoryKeeper {
         require(scaleBps <= 10000, "Market: Invalid scale");
         if (status != MarketStatus.Resolved) {
             revert InvalidStatus(MarketStatus.Resolved, status);

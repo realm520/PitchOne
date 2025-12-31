@@ -150,14 +150,31 @@ cast send $FACTORY "setRouter(address)" \
   --rpc-url $RPC_URL
 ```
 
-### 5.2 设置全局 Keeper
+### 5.2 添加全局 Keeper
+
+支持多个 Keeper，通过 Factory 的 `addKeeper`/`removeKeeper` 管理。
 
 ```bash
-cast send $FACTORY "setKeeper(address)" \
+# 添加 Keeper
+cast send $FACTORY "addKeeper(address)" \
   $KEEPER_ADDRESS \
   --private-key $ADMIN_PRIVATE_KEY \
   --rpc-url $RPC_URL
+
+# 移除 Keeper
+cast send $FACTORY "removeKeeper(address)" \
+  $KEEPER_ADDRESS \
+  --private-key $ADMIN_PRIVATE_KEY \
+  --rpc-url $RPC_URL
+
+# 查询所有 Keeper
+cast call $FACTORY "getKeepers()" --rpc-url $RPC_URL
+
+# 检查某地址是否为 Keeper
+cast call $FACTORY "isKeeper(address)" $ADDRESS --rpc-url $RPC_URL
 ```
+
+**注意**：Keeper 权限现在通过 Factory 全局管理，添加/移除 Keeper 会立即对所有市场生效。
 
 ### 5.3 设置全局 Oracle
 
@@ -212,58 +229,48 @@ cast send $ROUTER "transferOwnership(address)" \
 
 ### 7.1 更换 Keeper（所有市场）
 
+**新版本**：Keeper 现在通过 Factory 全局管理，更换 Keeper 只需一步操作：
+
+```bash
+# 添加新 Keeper
+cast send $FACTORY "addKeeper(address)" $NEW_KEEPER_ADDRESS \
+  --private-key $ADMIN_PRIVATE_KEY --rpc-url $RPC_URL
+
+# 移除旧 Keeper（可选）
+cast send $FACTORY "removeKeeper(address)" $OLD_KEEPER_ADDRESS \
+  --private-key $ADMIN_PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+**优势**：
+- 无需遍历所有市场单独授权
+- 更改立即对所有市场（包括已创建的市场）生效
+- 支持多个 Keeper 同时运行
+
+**旧版本脚本**（仅供参考，已废弃）：
+
 ```solidity
-// script/UpdateKeeper.s.sol
+// script/UpdateKeeper.s.sol (已废弃 - 现在使用 addKeeper/removeKeeper)
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "../src/core/MarketFactory_V3.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract UpdateKeeper is Script {
-    bytes32 constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
-
     function run() external {
         address factory = vm.envAddress("FACTORY");
-        address oldKeeper = vm.envAddress("OLD_KEEPER");
         address newKeeper = vm.envAddress("NEW_KEEPER");
         uint256 adminKey = vm.envUint("ADMIN_PRIVATE_KEY");
 
         MarketFactory_V3 f = MarketFactory_V3(factory);
-        uint256 count = f.marketCount();
 
         vm.startBroadcast(adminKey);
 
-        // 更新工厂配置（影响新市场）
-        f.setKeeper(newKeeper);
-
-        // 更新现有市场
-        for (uint256 i = 0; i < count; i++) {
-            address market = f.markets(i);
-
-            // 撤销旧 Keeper
-            if (AccessControl(market).hasRole(KEEPER_ROLE, oldKeeper)) {
-                AccessControl(market).revokeRole(KEEPER_ROLE, oldKeeper);
-            }
-
-            // 授予新 Keeper
-            AccessControl(market).grantRole(KEEPER_ROLE, newKeeper);
-        }
+        // 一步完成：添加新 Keeper，立即对所有市场生效
+        f.addKeeper(newKeeper);
 
         vm.stopBroadcast();
     }
 }
-```
-
-执行：
-```bash
-FACTORY=0x... \
-OLD_KEEPER=0x... \
-NEW_KEEPER=0x... \
-ADMIN_PRIVATE_KEY=0x... \
-forge script script/UpdateKeeper.s.sol:UpdateKeeper \
-  --rpc-url $RPC_URL \
-  --broadcast
 ```
 
 ### 7.2 紧急暂停所有市场

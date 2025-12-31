@@ -10,6 +10,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {IBettingRouter_V3} from "../interfaces/IBettingRouter_V3.sol";
 import {IMarket_V3} from "../interfaces/IMarket_V3.sol";
+import {IMarketFactory_V3} from "../interfaces/IMarketFactory_V3.sol";
 import {IParamController} from "../interfaces/IParamController.sol";
 import {ParamKeys} from "../governance/ParamKeys.sol";
 
@@ -810,8 +811,3 @@ contract BettingRouter_V3 is IBettingRouter_V3, Ownable, ReentrancyGuard {
     }
 }
 
-// ============ 辅助接口 ============
-
-interface IMarketFactory_V3 {
-    function isMarket(address market) external view returns (bool);
-}

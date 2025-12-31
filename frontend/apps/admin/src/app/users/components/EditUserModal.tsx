@@ -6,6 +6,28 @@ import { Button, LoadingSpinner } from '@pitchone/ui';
 import { MarketFactory_V3_ABI } from '@pitchone/contracts';
 import { ROLES } from '@/constants/roles';
 
+// Keeper 角色哈希（与 roles.ts 中 KEEPER_ROLE 的 hash 一致）
+const KEEPER_ROLE_HASH = '0xfc8737ab85eb45125971625a9ebdb75cc78e01d5c1fa80c4c6e5203f47bc4fab' as `0x${string}`;
+
+/**
+ * 根据角色和操作获取合约函数名
+ * - KEEPER_ROLE: 使用 addKeeper/removeKeeper
+ * - 其他角色: 使用 grantRole/revokeRole
+ */
+function getContractCall(roleHash: `0x${string}`, action: 'grant' | 'revoke', userAddress: `0x${string}`) {
+    if (roleHash === KEEPER_ROLE_HASH) {
+        return {
+            functionName: action === 'grant' ? 'addKeeper' as const : 'removeKeeper' as const,
+            args: [userAddress] as const,
+        };
+    } else {
+        return {
+            functionName: action === 'grant' ? 'grantRole' as const : 'revokeRole' as const,
+            args: [roleHash, userAddress] as const,
+        };
+    }
+}
+
 export interface EditUserModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -103,11 +125,12 @@ export function EditUserModal({
                     action: nextChange.action,
                     progress: `${nextIndex + 1}/${pendingChanges.length}`,
                 });
+                const contractCall = getContractCall(nextChange.roleHash, nextChange.action, address);
                 writeContract({
                     address: factoryAddress,
                     abi: MarketFactory_V3_ABI,
-                    functionName: nextChange.action === 'grant' ? 'grantRole' : 'revokeRole',
-                    args: [nextChange.roleHash, address],
+                    functionName: contractCall.functionName,
+                    args: contractCall.args,
                 });
             } else {
                 console.log(`[EditUserModal] 角色变更完成`, {
@@ -156,11 +179,12 @@ export function EditUserModal({
             action: firstChange.action,
             totalChanges: changesToApply.length,
         });
+        const contractCall = getContractCall(firstChange.roleHash, firstChange.action, address);
         writeContract({
             address: factoryAddress,
             abi: MarketFactory_V3_ABI,
-            functionName: firstChange.action === 'grant' ? 'grantRole' : 'revokeRole',
-            args: [firstChange.roleHash, address],
+            functionName: contractCall.functionName,
+            args: contractCall.args,
         });
     };
 

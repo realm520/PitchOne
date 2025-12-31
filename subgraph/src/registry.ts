@@ -10,6 +10,8 @@ import {
   TemplateUpdated as TemplateUpdatedEvent,
   RoleGranted as RoleGrantedEvent,
   RoleRevoked as RoleRevokedEvent,
+  KeeperAdded as KeeperAddedEvent,
+  KeeperRemoved as KeeperRemovedEvent,
 } from '../generated/MarketFactory/MarketFactory_V3';
 import { Market_V3 as Market_V3Template } from '../generated/templates';
 import { Market_V3 } from '../generated/templates/Market_V3/Market_V3';
@@ -19,10 +21,10 @@ import { IPricingStrategy } from '../generated/MarketFactory/IPricingStrategy';
 
 // 角色哈希常量
 const DEFAULT_ADMIN_ROLE = Bytes.fromHexString('0x0000000000000000000000000000000000000000000000000000000000000000');
-const OPERATOR_ROLE = crypto.keccak256(Bytes.fromUTF8('OPERATOR_ROLE'));
-const ROUTER_ROLE = crypto.keccak256(Bytes.fromUTF8('ROUTER_ROLE'));
-const KEEPER_ROLE = crypto.keccak256(Bytes.fromUTF8('KEEPER_ROLE'));
-const ORACLE_ROLE = crypto.keccak256(Bytes.fromUTF8('ORACLE_ROLE'));
+const OPERATOR_ROLE = Bytes.fromByteArray(crypto.keccak256(Bytes.fromUTF8('OPERATOR_ROLE')));
+const ROUTER_ROLE = Bytes.fromByteArray(crypto.keccak256(Bytes.fromUTF8('ROUTER_ROLE')));
+const KEEPER_ROLE = Bytes.fromByteArray(crypto.keccak256(Bytes.fromUTF8('KEEPER_ROLE')));
+const ORACLE_ROLE = Bytes.fromByteArray(crypto.keccak256(Bytes.fromUTF8('ORACLE_ROLE')));
 
 /**
  * 根据角色哈希返回角色名称
@@ -318,6 +320,68 @@ export function handleRoleRevoked(event: RoleRevokedEvent): void {
   roleChange.roleName = roleName;
   roleChange.action = 'Revoke';
   roleChange.sender = sender;
+  roleChange.timestamp = event.block.timestamp;
+  roleChange.blockNumber = event.block.number;
+  roleChange.transactionHash = event.transaction.hash;
+  roleChange.save();
+}
+
+/**
+ * 处理 KeeperAdded 事件
+ * 当通过 addKeeper() 添加新 Keeper 时触发
+ */
+export function handleKeeperAdded(event: KeeperAddedEvent): void {
+  const keeper = event.params.keeper;
+
+  log.info('MarketFactory_V3: Keeper added: {}', [keeper.toHexString()]);
+
+  // 加载或创建 Admin 实体
+  let admin = loadOrCreateAdmin(keeper, event.block.timestamp);
+
+  // 设置 Keeper 角色
+  admin.hasKeeperRole = true;
+  admin.lastUpdatedAt = event.block.timestamp;
+  admin.save();
+
+  // 创建 RoleChange 记录
+  const changeId = event.transaction.hash.toHexString() + '-' + event.logIndex.toString();
+  let roleChange = new RoleChange(changeId);
+  roleChange.admin = admin.id;
+  roleChange.role = KEEPER_ROLE;
+  roleChange.roleName = 'KEEPER_ROLE';
+  roleChange.action = 'Grant';
+  roleChange.sender = event.transaction.from;
+  roleChange.timestamp = event.block.timestamp;
+  roleChange.blockNumber = event.block.number;
+  roleChange.transactionHash = event.transaction.hash;
+  roleChange.save();
+}
+
+/**
+ * 处理 KeeperRemoved 事件
+ * 当通过 removeKeeper() 移除 Keeper 时触发
+ */
+export function handleKeeperRemoved(event: KeeperRemovedEvent): void {
+  const keeper = event.params.keeper;
+
+  log.info('MarketFactory_V3: Keeper removed: {}', [keeper.toHexString()]);
+
+  // 加载 Admin 实体
+  let admin = Admin.load(keeper.toHexString());
+  if (admin !== null) {
+    admin.hasKeeperRole = false;
+    admin.lastUpdatedAt = event.block.timestamp;
+    admin.save();
+  }
+
+  // 创建 RoleChange 记录
+  const changeId = event.transaction.hash.toHexString() + '-' + event.logIndex.toString();
+  let roleChange = new RoleChange(changeId);
+  roleChange.admin = keeper.toHexString();
+  roleChange.role = KEEPER_ROLE;
+  roleChange.roleName = 'KEEPER_ROLE';
+  roleChange.action = 'Revoke';
+  roleChange.sender = event.transaction.from;
   roleChange.timestamp = event.block.timestamp;
   roleChange.blockNumber = event.block.number;
   roleChange.transactionHash = event.transaction.hash;

@@ -81,7 +81,7 @@ contract Market_V3_Test is Test {
 
         // 设置 Factory 配置
         factory.setRouter(router);
-        factory.setKeeper(keeper);
+        factory.addKeeper(keeper);
         factory.setOracle(oracle);
 
         // 准备 outcome 规则
@@ -684,7 +684,7 @@ contract Market_V3_ParamController_Test is Test {
         // 更新 Factory 配置
         factory.setImplementation(address(marketImpl));
         factory.setRouter(router);
-        factory.setKeeper(keeper);
+        factory.addKeeper(keeper);
         factory.setOracle(oracle);
         factory.setParamController(address(paramController));
 

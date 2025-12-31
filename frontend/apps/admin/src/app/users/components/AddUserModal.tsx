@@ -7,6 +7,9 @@ import { Button, LoadingSpinner, Input } from '@pitchone/ui';
 import { MarketFactory_V3_ABI } from '@pitchone/contracts';
 import { ROLES } from '@/constants/roles';
 
+// Keeper 角色哈希（与 roles.ts 中 KEEPER_ROLE 的 hash 一致）
+const KEEPER_ROLE_HASH = '0xfc8737ab85eb45125971625a9ebdb75cc78e01d5c1fa80c4c6e5203f47bc4fab' as `0x${string}`;
+
 export interface AddUserModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -73,12 +76,22 @@ export function AddUserModal({
                     role: ROLES.find(r => r.hash === nextRole)?.name,
                     progress: `${nextIndex + 1}/${selectedRoles.length}`,
                 });
-                writeContract({
-                    address: factoryAddress,
-                    abi: MarketFactory_V3_ABI,
-                    functionName: 'grantRole',
-                    args: [nextRole, address as `0x${string}`],
-                });
+                // KEEPER_ROLE 使用 addKeeper，其他角色使用 grantRole
+                if (nextRole === KEEPER_ROLE_HASH) {
+                    writeContract({
+                        address: factoryAddress,
+                        abi: MarketFactory_V3_ABI,
+                        functionName: 'addKeeper',
+                        args: [address as `0x${string}`],
+                    });
+                } else {
+                    writeContract({
+                        address: factoryAddress,
+                        abi: MarketFactory_V3_ABI,
+                        functionName: 'grantRole',
+                        args: [nextRole, address as `0x${string}`],
+                    });
+                }
             } else {
                 // 所有角色都已授予成功
                 console.log(`[AddUserModal] 所有角色授予成功`, {
@@ -128,12 +141,22 @@ export function AddUserModal({
             role: ROLES.find(r => r.hash === firstRole)?.name,
             totalRoles: selectedRoles.length,
         });
-        writeContract({
-            address: factoryAddress,
-            abi: MarketFactory_V3_ABI,
-            functionName: 'grantRole',
-            args: [firstRole, address as `0x${string}`],
-        });
+        // KEEPER_ROLE 使用 addKeeper，其他角色使用 grantRole
+        if (firstRole === KEEPER_ROLE_HASH) {
+            writeContract({
+                address: factoryAddress,
+                abi: MarketFactory_V3_ABI,
+                functionName: 'addKeeper',
+                args: [address as `0x${string}`],
+            });
+        } else {
+            writeContract({
+                address: factoryAddress,
+                abi: MarketFactory_V3_ABI,
+                functionName: 'grantRole',
+                args: [firstRole, address as `0x${string}`],
+            });
+        }
     };
 
     if (!isOpen) return null;

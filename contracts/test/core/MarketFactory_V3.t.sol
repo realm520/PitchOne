@@ -478,11 +478,80 @@ contract MarketFactory_V3_Test is Test {
         factory.setRouter(router);
     }
 
-    function test_setKeeper_Success() public {
+    function test_addKeeper_Success() public {
         vm.prank(admin);
-        factory.setKeeper(keeper);
+        factory.addKeeper(keeper);
 
+        assertTrue(factory.isKeeper(keeper));
         assertEq(factory.keeper(), keeper);
+        assertEq(factory.getKeepers().length, 1);
+        assertEq(factory.getKeepers()[0], keeper);
+    }
+
+    function test_addKeeper_Multiple() public {
+        address keeper2 = makeAddr("keeper2");
+        address keeper3 = makeAddr("keeper3");
+
+        vm.startPrank(admin);
+        factory.addKeeper(keeper);
+        factory.addKeeper(keeper2);
+        factory.addKeeper(keeper3);
+        vm.stopPrank();
+
+        assertTrue(factory.isKeeper(keeper));
+        assertTrue(factory.isKeeper(keeper2));
+        assertTrue(factory.isKeeper(keeper3));
+        assertEq(factory.getKeepers().length, 3);
+    }
+
+    function test_addKeeper_ZeroAddress_Reverts() public {
+        vm.prank(admin);
+        vm.expectRevert(MarketFactory_V3.ZeroAddress.selector);
+        factory.addKeeper(address(0));
+    }
+
+    function test_addKeeper_AlreadyKeeper_Reverts() public {
+        vm.startPrank(admin);
+        factory.addKeeper(keeper);
+
+        vm.expectRevert(abi.encodeWithSelector(MarketFactory_V3.AlreadyKeeper.selector, keeper));
+        factory.addKeeper(keeper);
+        vm.stopPrank();
+    }
+
+    function test_removeKeeper_Success() public {
+        vm.startPrank(admin);
+        factory.addKeeper(keeper);
+        factory.removeKeeper(keeper);
+        vm.stopPrank();
+
+        assertFalse(factory.isKeeper(keeper));
+        assertEq(factory.getKeepers().length, 0);
+        assertEq(factory.keeper(), address(0));
+    }
+
+    function test_removeKeeper_NotKeeper_Reverts() public {
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(MarketFactory_V3.NotKeeper.selector, keeper));
+        factory.removeKeeper(keeper);
+    }
+
+    function test_removeKeeper_UpdatesKeeperVariable() public {
+        address keeper2 = makeAddr("keeper2");
+
+        vm.startPrank(admin);
+        factory.addKeeper(keeper);
+        factory.addKeeper(keeper2);
+
+        // keeper 是第一个，所以 factory.keeper() == keeper
+        assertEq(factory.keeper(), keeper);
+
+        // 移除第一个 keeper
+        factory.removeKeeper(keeper);
+
+        // factory.keeper() 应该更新为 keeper2
+        assertEq(factory.keeper(), keeper2);
+        vm.stopPrank();
     }
 
     function test_setOracle_Success() public {

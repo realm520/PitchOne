@@ -314,7 +314,7 @@ contract Deploy_V3 is Script {
 
         // 配置 Factory V4
         factoryV4.setRouter(address(router));
-        factoryV4.setKeeper(deployer); // 测试环境使用 deployer
+        factoryV4.addKeeper(deployer); // 测试环境使用 deployer 作为 Keeper
         factoryV4.setOracle(deployer); // 测试环境使用 deployer
         factoryV4.setVault(address(liquidityVault)); // 设置默认 Vault
         factoryV4.setParamController(address(paramController)); // 设置参数控制器

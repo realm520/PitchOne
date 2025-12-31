@@ -95,6 +95,12 @@ contract MarketFactory_V3 is AccessControl {
     /// @notice 市场计数器
     uint256 public marketCount;
 
+    /// @notice Keeper 映射（多 Keeper 支持）
+    mapping(address => bool) public isKeeper;
+
+    /// @notice Keeper 地址数组
+    address[] public keepers;
+
     // ============ 事件 ============
 
     event TemplateRegistered(bytes32 indexed templateId, string name, string strategyType);
@@ -109,6 +115,8 @@ contract MarketFactory_V3 is AccessControl {
     );
     event RouterUpdated(address indexed newRouter);
     event KeeperUpdated(address indexed newKeeper);
+    event KeeperAdded(address indexed keeper);
+    event KeeperRemoved(address indexed keeper);
     event OracleUpdated(address indexed newOracle);
     event VaultUpdated(address indexed newVault);
     event ParamControllerUpdated(address indexed newParamController);
@@ -119,6 +127,9 @@ contract MarketFactory_V3 is AccessControl {
     error TemplateNotActive();
     error InvalidImplementation();
     error InvalidParams();
+    error ZeroAddress();
+    error AlreadyKeeper(address keeper);
+    error NotKeeper(address keeper);
 
     // ============ 构造函数 ============
 
@@ -298,10 +309,8 @@ contract MarketFactory_V3 is AccessControl {
             AccessControl(market).grantRole(routerRole, trustedRouter);
         }
 
-        if (keeper != address(0)) {
-            bytes32 keeperRole = keccak256("KEEPER_ROLE");
-            AccessControl(market).grantRole(keeperRole, keeper);
-        }
+        // 注意：Keeper 权限现在通过 Factory.isKeeper() 全局检查
+        // 不再需要为每个市场单独授权 Keeper
 
         if (oracle != address(0)) {
             bytes32 oracleRole = keccak256("ORACLE_ROLE");
@@ -328,12 +337,63 @@ contract MarketFactory_V3 is AccessControl {
     }
 
     /**
-     * @notice 设置 Keeper
+     * @notice 添加 Keeper
+     * @param _keeper Keeper 地址
+     * @dev Keeper 可以调用所有市场的 lock/finalize
+     */
+    function addKeeper(address _keeper) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_keeper == address(0)) revert ZeroAddress();
+        if (isKeeper[_keeper]) revert AlreadyKeeper(_keeper);
+
+        isKeeper[_keeper] = true;
+        keepers.push(_keeper);
+
+        // 同时更新旧的 keeper 变量以保持向后兼容
+        if (keeper == address(0)) {
+            keeper = _keeper;
+        }
+
+        emit KeeperAdded(_keeper);
+    }
+
+    /**
+     * @notice 移除 Keeper
      * @param _keeper Keeper 地址
      */
-    function setKeeper(address _keeper) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        keeper = _keeper;
-        emit KeeperUpdated(_keeper);
+    function removeKeeper(address _keeper) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!isKeeper[_keeper]) revert NotKeeper(_keeper);
+
+        isKeeper[_keeper] = false;
+        _removeFromKeepersArray(_keeper);
+
+        // 如果移除的是当前的 keeper 变量，更新为数组中的第一个
+        if (keeper == _keeper) {
+            keeper = keepers.length > 0 ? keepers[0] : address(0);
+        }
+
+        emit KeeperRemoved(_keeper);
+    }
+
+    /**
+     * @notice 获取所有 Keeper 地址
+     * @return Keeper 地址数组
+     */
+    function getKeepers() external view returns (address[] memory) {
+        return keepers;
+    }
+
+    /**
+     * @notice 内部函数：从 keepers 数组中移除地址
+     */
+    function _removeFromKeepersArray(address _keeper) internal {
+        uint256 length = keepers.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (keepers[i] == _keeper) {
+                keepers[i] = keepers[length - 1];
+                keepers.pop();
+                break;
+            }
+        }
     }
 
     /**

@@ -83,7 +83,7 @@ contract BettingRouter_BatchRedeem_Test is Test {
 
         // 设置 Factory 配置
         factory.setRouter(address(router));
-        factory.setKeeper(keeper);
+        factory.addKeeper(keeper);
         factory.setOracle(oracle);
 
         // 准备 outcome 规则

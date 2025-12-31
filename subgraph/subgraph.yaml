@@ -11,7 +11,7 @@ dataSources:
     name: MarketFactory
     network: localhost
     source:
-      address: "0xcC4c41415fc68B2fBf70102742A83cDe435e0Ca7"
+      address: "0xE3011A37A904aB90C8881a99BD1F6E21401f1522"
       abi: MarketFactory_V3
       startBlock: 1
     mapping:
@@ -42,6 +42,10 @@ dataSources:
           handler: handleRoleGranted
         - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
           handler: handleRoleRevoked
+        - event: KeeperAdded(indexed address)
+          handler: handleKeeperAdded
+        - event: KeeperRemoved(indexed address)
+          handler: handleKeeperRemoved
       file: ./src/registry.ts
 
   # ============================================================================
@@ -51,7 +55,7 @@ dataSources:
     name: BettingRouter
     network: localhost
     source:
-      address: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823"
+      address: "0x3347B4d90ebe72BeFb30444C9966B2B990aE9FcB"
       abi: BettingRouter_V3
       startBlock: 1
     mapping:

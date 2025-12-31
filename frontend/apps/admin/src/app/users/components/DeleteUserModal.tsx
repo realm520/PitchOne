@@ -6,6 +6,28 @@ import { Button, LoadingSpinner } from '@pitchone/ui';
 import { MarketFactory_V3_ABI } from '@pitchone/contracts';
 import { ROLES } from '@/constants/roles';
 
+// Keeper 角色哈希（与 roles.ts 中 KEEPER_ROLE 的 hash 一致）
+const KEEPER_ROLE_HASH = '0xfc8737ab85eb45125971625a9ebdb75cc78e01d5c1fa80c4c6e5203f47bc4fab' as `0x${string}`;
+
+/**
+ * 根据角色获取撤销时的合约调用参数
+ * - KEEPER_ROLE: 使用 removeKeeper
+ * - 其他角色: 使用 revokeRole
+ */
+function getRevokeContractCall(roleHash: `0x${string}`, userAddress: `0x${string}`) {
+    if (roleHash === KEEPER_ROLE_HASH) {
+        return {
+            functionName: 'removeKeeper' as const,
+            args: [userAddress] as const,
+        };
+    } else {
+        return {
+            functionName: 'revokeRole' as const,
+            args: [roleHash, userAddress] as const,
+        };
+    }
+}
+
 export interface DeleteUserModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -53,11 +75,12 @@ export function DeleteUserModal({
                     role: ROLES.find(r => r.hash === nextRole)?.name,
                     progress: `${nextIndex + 1}/${currentRoles.length}`,
                 });
+                const contractCall = getRevokeContractCall(nextRole, address);
                 writeContract({
                     address: factoryAddress,
                     abi: MarketFactory_V3_ABI,
-                    functionName: 'revokeRole',
-                    args: [nextRole, address],
+                    functionName: contractCall.functionName,
+                    args: contractCall.args,
                 });
             } else {
                 console.log(`[DeleteUserModal] 删除用户成功`, {
@@ -98,11 +121,12 @@ export function DeleteUserModal({
             role: ROLES.find(r => r.hash === firstRole)?.name,
             totalRoles: currentRoles.length,
         });
+        const contractCall = getRevokeContractCall(firstRole, address);
         writeContract({
             address: factoryAddress,
             abi: MarketFactory_V3_ABI,
-            functionName: 'revokeRole',
-            args: [firstRole, address],
+            functionName: contractCall.functionName,
+            args: contractCall.args,
         });
     };
 
