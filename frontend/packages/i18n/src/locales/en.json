@@ -231,6 +231,8 @@
     "balance": "Balance",
     "totalBet": "Total Bet",
     "totalProfit": "Total Profit",
+    "activeTickets": "Active Tickets",
+    "potentialProfit": "Potential Profit",
     "myTickets": "My Tickets",
     "batchClaim": "Batch Claim",
     "claimingProgress": "Claiming {{current}}/{{total}}",
@@ -278,8 +280,9 @@
     "status": {
       "open": "Open",
       "locked": "Locked",
-      "resolved": "Claimable",
+      "resolved": "Resolved",
       "finalized": "Finalized",
+      "refunded": "Refunded",
       "claimable": "Claimable",
       "refundable": "Refundable",
       "claimed": "Claimed",
@@ -675,7 +678,7 @@
     },
     "enterAmount": "Enter amount...",
     "totalPayment": "Total Payment",
-    "totalPotentialWin": "Total Potential Win",
+    "totalPotentialWin": "Total Payout",
     "trade": "Buy",
     "trading": "Buying...",
     "approving": "Approving...",
@@ -684,7 +687,7 @@
     "termsText": "By buying, you agree to the",
     "termsLink": "Terms of Use",
     "liquidity": "Liq.",
-    "potentialWin": "Poten.Win",
+    "potentialWin": "Payout",
     "connectWallet": "Connect Wallet",
     "insufficientBalance": "Insufficient Balance"
   }

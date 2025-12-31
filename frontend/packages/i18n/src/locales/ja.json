@@ -231,6 +231,8 @@
     "balance": "アカウント残高",
     "totalBet": "総ベット額",
     "totalProfit": "総利益",
+    "activeTickets": "進行中チケット",
+    "potentialProfit": "予想利益",
     "myTickets": "マイチケット",
     "batchClaim": "一括請求",
     "claimingProgress": "請求中 {{current}}/{{total}}",

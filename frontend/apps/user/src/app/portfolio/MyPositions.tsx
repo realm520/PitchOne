@@ -1,11 +1,11 @@
 import { useTranslation } from "@pitchone/i18n";
 import { Button, Card, EmptyState, ErrorState, Input, Pagination } from "@pitchone/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PositionList from "./PositionList";
-import { Position, useAccount, useUserPositionsPaginated, useUserStats } from "@pitchone/web3";
+import { Position, useAccount, useUserPositions, useUserPositionsPaginated, useUserStats } from "@pitchone/web3";
 import Link from "next/link";
 import Stats from "./Stats";
-import { getClaimStatus } from "./utils";
+import { calculateExpectedPayout, getClaimStatus } from "./utils";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 type TabType = 'all' | 'claimable';
@@ -52,10 +52,44 @@ export default function MyPositions() {
     const pageSize = 10; // 每页显示条数
     const { data, isLoading, error } = useUserPositionsPaginated(address, currentPage, pageSize);
     const { data: userStats } = useUserStats(address);
+    // 获取所有头寸用于计算 Active Tickets 和 Potential Profit
+    const { data: allPositions } = useUserPositions(address);
     const positions = data?.positions;
     const totalCount = data?.total || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
     const { t } = useTranslation()
+
+    // 计算 Active Tickets 和 Potential Profit
+    const { activeTickets, potentialProfit } = useMemo(() => {
+        if (!allPositions || allPositions.length === 0) {
+            return { activeTickets: 0, potentialProfit: 0 };
+        }
+
+        // 过滤出"市场未结算状态"的头寸（pending 状态）
+        const pendingPositions = allPositions.filter(pos => getClaimStatus(pos) === 'pending');
+
+        // Active Tickets = pending 状态的投注单数量
+        const activeTickets = pendingPositions.length;
+
+        // Potential Profit = 累计 Payout - 累计 Payment
+        let totalPayout = 0;
+        let totalPayment = 0;
+
+        pendingPositions.forEach(pos => {
+            // 计算预期赔付（Payout）
+            const payout = calculateExpectedPayout(pos);
+            totalPayout += payout;
+
+            // 计算原始支付金额（Payment）- 使用 totalPayment 字段（已是 USDC 单位）
+            const payment = parseFloat(pos.totalPayment || pos.totalInvested || '0');
+            totalPayment += payment;
+        });
+
+        // Potential Profit = Payout - Payment，小于 0 则显示 0
+        const potentialProfit = Math.max(0, totalPayout - totalPayment);
+
+        return { activeTickets, potentialProfit };
+    }, [allPositions]);
 
     // 使用 Subgraph 的 User 实体统计数据
     const stats = {
@@ -67,6 +101,10 @@ export default function MyPositions() {
         totalBets: userStats?.totalBets || 0,
         // 净盈亏 = 总赎回金额 - 总投注额
         totalProfit: userStats?.netProfit || 0,
+        // Active Tickets = pending 状态的投注单数量
+        activeTickets,
+        // Potential Profit = pending 状态的投注预期盈利
+        potentialProfit,
     };
 
     return (
@@ -76,6 +114,8 @@ export default function MyPositions() {
                 totalMarkets={stats.totalMarkets}
                 totalBets={stats.totalBets}
                 totalProfit={stats.totalProfit}
+                activeTickets={stats.activeTickets}
+                potentialProfit={stats.potentialProfit}
             />
             <Card>
                 <div className=" flex flex-col gap-5">

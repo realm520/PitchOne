@@ -231,6 +231,8 @@
     "balance": "계정 잔액",
     "totalBet": "총 베팅",
     "totalProfit": "총 수익",
+    "activeTickets": "진행 중 티켓",
+    "potentialProfit": "예상 수익",
     "myTickets": "내 티켓",
     "batchClaim": "일괄 청구",
     "claimingProgress": "청구 중 {{current}}/{{total}}",
