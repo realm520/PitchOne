@@ -690,5 +690,13 @@
     "potentialWin": "预期收益",
     "connectWallet": "连接钱包",
     "insufficientBalance": "余额不足"
+  },
+  "marketPositions": {
+    "title": "我在该市场的持仓",
+    "empty": "暂无持仓记录",
+    "selection": "选择",
+    "odds": "赔率",
+    "payment": "支付",
+    "payout": "收益"
   }
 }

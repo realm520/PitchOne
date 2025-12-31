@@ -690,5 +690,13 @@
     "potentialWin": "予想獲得",
     "connectWallet": "ウォレットを接続",
     "insufficientBalance": "残高不足"
+  },
+  "marketPositions": {
+    "title": "このマーケットでのポジション",
+    "empty": "このマーケットにポジションはありません",
+    "selection": "選択",
+    "odds": "オッズ",
+    "payment": "支払い",
+    "payout": "獲得予定"
   }
 }

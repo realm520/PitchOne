@@ -24,13 +24,13 @@ import Link from 'next/link';
 import { ChevronLeft, ShieldCheck, BadgeCheck, Copy } from 'lucide-react';
 import { marketNotifications, notifySuccess } from '@/lib/notifications';
 import { OutcomeButton } from '@/components/betslip';
-import { useBetSlipStore, SelectedBet } from '@/lib/betslip-store';
+import { useBetSlipStore, SelectedBet, SelectedMarketInfo } from '@/lib/betslip-store';
 import { formatTxHash, getTxExplorerUrl } from '@/app/portfolio/utils';
 
 export function MarketDetailClient({ marketId }: { marketId: string }) {
   const { t, translateTeam, translateLeague } = useTranslation();
   const { address } = useAccount();
-  const { selectBet, isSelected, refreshCounter } = useBetSlipStore();
+  const { selectBet, isSelected, refreshCounter, selectMarket } = useBetSlipStore();
 
   const { data: market, isLoading, error, refetch: refetchMarket } = useMarket(marketId);
   const { refetch: refetchOrders } = useMarketOrders(address, marketId);
@@ -198,6 +198,19 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
       }
     }
   }, [refreshCounter, refetchMarket, refetchOutcomes, refetchAllOrders, refetchOrders, address]);
+
+  // 自动选中当前市场（用于在右侧栏显示持仓）
+  useEffect(() => {
+    if (market && market._displayInfo) {
+      const marketInfo: SelectedMarketInfo = {
+        marketId: market.id,
+        homeTeam: market._displayInfo.homeTeam || 'Home',
+        awayTeam: market._displayInfo.awayTeam || 'Away',
+        league: market._displayInfo.league || 'League',
+      };
+      selectMarket(marketInfo);
+    }
+  }, [market, selectMarket]);
 
   // 格式化日期为简短格式 (DEC 02 12:07)
   const formatShortDate = (timestamp: string | number) => {
@@ -417,25 +430,36 @@ export function MarketDetailClient({ marketId }: { marketId: string }) {
                 const isMarketSettled = market.state === MarketStatus.Resolved ||
                                         market.state === MarketStatus.Finalized;
 
-                return displayOutcomes.map((outcome) => (
-                  <OutcomeButton
-                    key={outcome.id}
-                    outcome={{
-                      id: outcome.id,
-                      name: outcome.name,
-                      odds: outcome.odds,
-                    }}
-                    isSelected={isSelected(marketId as `0x${string}`, outcome.id)}
-                    isDisabled={!canBet}
-                    isWinner={isMarketSettled && market.winnerOutcome === outcome.id}
-                    onClick={() => handleSelectOutcome({
-                      id: outcome.id,
-                      name: outcome.name,
-                      odds: outcome.odds,
-                    })}
-                    variant="detail"
-                  />
-                ));
+                return displayOutcomes.map((outcome) => {
+                  // WDL 市场：用球队名称替换"主胜"/"客胜"
+                  let displayName = outcome.name;
+                  if (templateType === 'WDL' || templateType === 'WDL_Pari') {
+                    if (outcome.name === 'outcomes.wdl.homeWin') {
+                      displayName = translateTeam(homeTeam);
+                    } else if (outcome.name === 'outcomes.wdl.awayWin') {
+                      displayName = translateTeam(awayTeam);
+                    }
+                  }
+                  return (
+                    <OutcomeButton
+                      key={outcome.id}
+                      outcome={{
+                        id: outcome.id,
+                        name: displayName,
+                        odds: outcome.odds,
+                      }}
+                      isSelected={isSelected(marketId as `0x${string}`, outcome.id)}
+                      isDisabled={!canBet}
+                      isWinner={isMarketSettled && market.winnerOutcome === outcome.id}
+                      onClick={() => handleSelectOutcome({
+                        id: outcome.id,
+                        name: outcome.name,  // 保留原始 i18n key 用于 BetSlip
+                        odds: outcome.odds,
+                      })}
+                      variant="detail"
+                    />
+                  );
+                });
               })()}
             </div>
           </Card>

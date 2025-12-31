@@ -21,6 +21,14 @@ export interface SelectedBet {
   line?: number; // For OU/AH markets
 }
 
+// 选中的市场信息（用于显示持仓）
+export interface SelectedMarketInfo {
+  marketId: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+}
+
 interface BetSlipStore {
   selectedBet: SelectedBet | null;
   selectBet: (bet: SelectedBet) => void;
@@ -30,6 +38,11 @@ interface BetSlipStore {
   // 刷新触发器：下注成功后递增，市场列表监听此值来触发刷新
   refreshCounter: number;
   triggerRefresh: () => void;
+  // 选中的市场（用于显示持仓）
+  selectedMarket: SelectedMarketInfo | null;
+  selectMarket: (market: SelectedMarketInfo) => void;
+  clearSelectedMarket: () => void;
+  isMarketSelected: (marketId: string) => boolean;
 }
 
 // ============================================================================
@@ -45,6 +58,7 @@ const BetSlipContext = createContext<BetSlipStore | undefined>(undefined);
 export function BetSlipProvider({ children }: { children: ReactNode }) {
   const [selectedBet, setSelectedBet] = useState<SelectedBet | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [selectedMarket, setSelectedMarket] = useState<SelectedMarketInfo | null>(null);
 
   // Select or replace bet
   const selectBet = useCallback((bet: SelectedBet) => {
@@ -90,6 +104,25 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  // 选中市场（用于显示持仓）
+  const selectMarket = useCallback((market: SelectedMarketInfo) => {
+    setSelectedMarket(market);
+  }, []);
+
+  // 清除选中的市场
+  const clearSelectedMarket = useCallback(() => {
+    setSelectedMarket(null);
+  }, []);
+
+  // 检查市场是否被选中
+  const isMarketSelected = useCallback(
+    (marketId: string) => {
+      if (!selectedMarket) return false;
+      return selectedMarket.marketId.toLowerCase() === marketId.toLowerCase();
+    },
+    [selectedMarket]
+  );
+
   const value: BetSlipStore = {
     selectedBet,
     selectBet,
@@ -98,6 +131,10 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     updateOdds,
     refreshCounter,
     triggerRefresh,
+    selectedMarket,
+    selectMarket,
+    clearSelectedMarket,
+    isMarketSelected,
   };
 
   return <BetSlipContext.Provider value={value}>{children}</BetSlipContext.Provider>;

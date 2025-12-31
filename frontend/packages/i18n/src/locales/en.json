@@ -690,5 +690,13 @@
     "potentialWin": "Payout",
     "connectWallet": "Connect Wallet",
     "insufficientBalance": "Insufficient Balance"
+  },
+  "marketPositions": {
+    "title": "YOUR POSITION ON THIS MARKET",
+    "empty": "No positions on this market",
+    "selection": "Selection",
+    "odds": "Odds",
+    "payment": "Payment",
+    "payout": "Payout"
   }
 }

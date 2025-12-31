@@ -2,7 +2,7 @@
 
 import { SidebarProvider } from "../../lib/sidebar-store";
 import { SidebarContent, MobileMenuButton, Sidebar } from "../../components/sidebar";
-import { BetSlip } from "../../components/betslip";
+import { BetSlip, MarketPositions } from "../../components/betslip";
 
 export default function MarketsLayout({
   children,
@@ -35,10 +35,11 @@ export default function MarketsLayout({
           {children}
         </main>
 
-        {/* 右栏: BetSlip - Sticky */}
+        {/* 右栏: BetSlip + MarketPositions - Sticky */}
         <aside className="hidden lg:block w-[360px] shrink-0 border-l border-dark-border bg-dark-bg">
-          <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4">
+          <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4 space-y-4">
             <BetSlip />
+            <MarketPositions />
           </div>
         </aside>
       </div>

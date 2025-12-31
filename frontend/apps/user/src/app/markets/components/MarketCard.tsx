@@ -11,7 +11,7 @@ import {
 } from '@pitchone/web3';
 import { Badge } from '@pitchone/ui';
 import { useTranslation } from '@pitchone/i18n';
-import { useBetSlipStore, SelectedBet } from '../../../lib/betslip-store';
+import { useBetSlipStore, SelectedBet, SelectedMarketInfo } from '../../../lib/betslip-store';
 import { OutcomeButton } from '../../../components/betslip';
 import { formatTxHash, getTxExplorerUrl } from '../../portfolio/utils';
 
@@ -22,8 +22,11 @@ interface MarketCardProps {
 
 export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
   const { t, translateTeam, translateLeague } = useTranslation();
-  const { selectBet, isSelected } = useBetSlipStore();
+  const { selectBet, isSelected, selectMarket, isMarketSelected } = useBetSlipStore();
   const { address } = useAccount();
+
+  // 检查当前市场是否被选中
+  const isCurrentMarketSelected = isMarketSelected(market.id);
 
   // 直接使用 market.outcomes（已在 useMarkets 中计算好）
   const outcomes = market.outcomes;
@@ -89,6 +92,17 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
   const awayTeam = market._displayInfo?.awayTeam || 'Team B';
   const league = market._displayInfo?.league || 'EPL';
 
+  // 处理市场选中（点击卡片主体区域）
+  const handleSelectMarket = () => {
+    const marketInfo: SelectedMarketInfo = {
+      marketId: market.id,
+      homeTeam,
+      awayTeam,
+      league,
+    };
+    selectMarket(marketInfo);
+  };
+
   const handleSelectOutcome = (outcome: { id: number; name: string; odds: string }) => {
     const bet: SelectedBet = {
       marketAddress: market.id as `0x${string}`,
@@ -103,10 +117,26 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
       line: market.line ? parseInt(market.line) : undefined,
     };
     selectBet(bet);
+
+    // 同时选中该市场（用于显示持仓）
+    const marketInfo: SelectedMarketInfo = {
+      marketId: market.id,
+      homeTeam,
+      awayTeam,
+      league,
+    };
+    selectMarket(marketInfo);
   };
 
   return (
-    <div className="group flex items-stretch bg-dark-card rounded-lg border border-dark-border hover:border-white/30 hover:bg-dark-card/80 transition-all">
+    <div
+      className={`group flex items-stretch bg-dark-card rounded-lg border transition-all cursor-pointer ${
+        isCurrentMarketSelected
+          ? 'border-accent bg-dark-card/90'
+          : 'border-dark-border hover:border-white/30 hover:bg-dark-card/80'
+      }`}
+      onClick={handleSelectMarket}
+    >
       {/* Left: Main content area */}
       <div className="flex-1 w-0 flex flex-col gap-3 pl-4 py-2">
         {/* Top row: Time/League | Market type/Status */}
@@ -174,21 +204,33 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
             {/* Buttons row - grid ensures fixed 33.33% width per button */}
             <div className="grid grid-cols-3 gap-2">
               {outcomes && outcomes.length > 0 ? (
-                outcomes.slice(0, 3).map((outcome) => (
-                  <OutcomeButton
-                    key={outcome.id}
-                    outcome={{
-                      id: outcome.id,
-                      name: outcome.name,
-                      odds: outcome.odds,
-                    }}
-                    isSelected={isSelected(market.id as `0x${string}`, outcome.id)}
-                    isDisabled={!canBet}
-                    isWinner={isMarketSettled && market.winnerOutcome === outcome.id}
-                    onClick={() => handleSelectOutcome(outcome)}
-                    variant="card"
-                  />
-                ))
+                outcomes.slice(0, 3).map((outcome) => {
+                  // WDL 市场：用球队名称替换"主胜"/"客胜"
+                  const templateType = market._displayInfo?.templateType;
+                  let displayName = outcome.name;
+                  if (templateType === 'WDL' || templateType === 'WDL_Pari') {
+                    if (outcome.name === 'outcomes.wdl.homeWin') {
+                      displayName = translateTeam(homeTeam);
+                    } else if (outcome.name === 'outcomes.wdl.awayWin') {
+                      displayName = translateTeam(awayTeam);
+                    }
+                  }
+                  return (
+                    <OutcomeButton
+                      key={outcome.id}
+                      outcome={{
+                        id: outcome.id,
+                        name: displayName,
+                        odds: outcome.odds,
+                      }}
+                      isSelected={isSelected(market.id as `0x${string}`, outcome.id)}
+                      isDisabled={!canBet}
+                      isWinner={isMarketSettled && market.winnerOutcome === outcome.id}
+                      onClick={() => handleSelectOutcome(outcome)}
+                      variant="card"
+                    />
+                  );
+                })
               ) : (
                 // 没有赔率数据时显示占位符
                 <>
@@ -228,6 +270,17 @@ export function MarketCard({ market, totalLiquidity }: MarketCardProps) {
       <Link
         href={`/markets/${market.id}`}
         className="flex-shrink-0 flex items-center px-2 text-gray-600 hover:text-white transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          // 点击详情时也选中该市场
+          const marketInfo: SelectedMarketInfo = {
+            marketId: market.id,
+            homeTeam,
+            awayTeam,
+            league,
+          };
+          selectMarket(marketInfo);
+        }}
       >
         <ChevronRight className="w-5 h-5" />
       </Link>

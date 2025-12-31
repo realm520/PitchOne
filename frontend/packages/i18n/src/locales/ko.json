@@ -690,5 +690,13 @@
     "potentialWin": "예상 수익",
     "connectWallet": "지갑 연결",
     "insufficientBalance": "잔액 부족"
+  },
+  "marketPositions": {
+    "title": "이 마켓에서의 포지션",
+    "empty": "이 마켓에 포지션이 없습니다",
+    "selection": "선택",
+    "odds": "배당률",
+    "payment": "지불",
+    "payout": "예상 수익"
   }
 }

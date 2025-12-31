@@ -24,7 +24,7 @@ interface BetSlipProps {
 }
 
 export function BetSlip({ className }: BetSlipProps) {
-  const { t } = useTranslation();
+  const { t, translateTeam } = useTranslation();
   const { selectedBet, clearBet, triggerRefresh } = useBetSlipStore();
   const { address, isConnected, chainId } = useAccount();
   const addresses = chainId ? getContractAddresses(chainId) : null;
@@ -391,27 +391,42 @@ export function BetSlip({ className }: BetSlipProps) {
                 </button>
               </div>
 
-              {/* 卡片第2行：选中结果徽章 + 金额输入（并排） */}
-              <div className="flex items-center gap-2 mb-3">
-                {/* 结果徽章 */}
-                <div className="flex-shrink-0 px-3 py-1.5 bg-zinc-700 rounded">
-                  <span className="text-sm font-semibold text-white whitespace-nowrap">
-                    {selectedBet.outcomeName.startsWith('outcomes.')
-                      ? t(selectedBet.outcomeName, { id: selectedBet.outcomeId })
-                      : selectedBet.outcomeName} {selectedBet.odds}
+              {/* 选中结果徽章 - 左右布局与赔率按钮一致 */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between px-3 py-2 bg-zinc-700 rounded-md">
+                  <span className="text-xs text-zinc-300">
+                    {(() => {
+                      // WDL 市场：用球队名称替换"主胜"/"客胜"
+                      const templateType = selectedBet.templateType;
+                      if (templateType === 'WDL' || templateType === 'WDL_Pari') {
+                        if (selectedBet.outcomeName === 'outcomes.wdl.homeWin') {
+                          return translateTeam(selectedBet.homeTeam);
+                        } else if (selectedBet.outcomeName === 'outcomes.wdl.awayWin') {
+                          return translateTeam(selectedBet.awayTeam);
+                        }
+                      }
+                      // 其他市场：翻译 i18n key 或直接显示
+                      return selectedBet.outcomeName.startsWith('outcomes.')
+                        ? t(selectedBet.outcomeName, { id: selectedBet.outcomeId })
+                        : selectedBet.outcomeName;
+                    })()}
+                  </span>
+                  <span className="text-sm font-bold text-white">
+                    {selectedBet.odds}
                   </span>
                 </div>
-                {/* 金额输入 */}
-                <div className="flex-1 min-w-0">
-                  <AmountInput
-                    value={betAmount}
-                    onChange={setBetAmount}
-                    min={1}
-                    max={100000}
-                    placeholder={t("betslip.enterAmount")}
-                    suffix="USDC"
-                  />
-                </div>
+              </div>
+
+              {/* 金额输入 */}
+              <div className="mb-3">
+                <AmountInput
+                  value={betAmount}
+                  onChange={setBetAmount}
+                  min={1}
+                  max={100000}
+                  placeholder={t("betslip.enterAmount")}
+                  suffix="USDC"
+                />
               </div>
 
               {/* 卡片第3行：流动性 + 潜在收益 */}

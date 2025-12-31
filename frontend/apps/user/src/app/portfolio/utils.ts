@@ -160,10 +160,14 @@ export const getResultKey = (position: Position): string => {
 
 /**
  * 获取用户选择的投注内容（显示具体队伍名称）
+ * @param position - 用户头寸
+ * @param translateTeam - 球队名翻译函数
+ * @param t - i18n 翻译函数（可选，用于翻译 Draw/Over/Under 等）
  */
 export const getSelection = (
     position: Position,
-    translateTeam: (team: string) => string
+    translateTeam: (team: string) => string,
+    t?: (key: string, params?: Record<string, string | number>) => string
 ): string => {
     const { templateId, line, homeTeam, awayTeam } = position.market;
     const outcomeId = position.outcome;
@@ -171,15 +175,15 @@ export const getSelection = (
     // WDL (胜平负): 显示押注的队伍名称 - 包括 WDL 和 WDL_Pari
     if (templateId === '1' || templateId === 'WDL' || templateId === 'WDL_Pari' || templateId === '0x00000000') {
         if (outcomeId === 0) return translateTeam(homeTeam); // 主队胜
-        if (outcomeId === 1) return 'Draw'; // 平局
+        if (outcomeId === 1) return t ? t('outcomes.wdl.draw') : 'Draw'; // 平局
         if (outcomeId === 2) return translateTeam(awayTeam); // 客队胜
     }
 
     // OU (大小球): 显示大球/小球 + 盘口
     if (templateId === '2' || templateId === 'OU' || templateId?.includes('OU')) {
         const lineValue = line ? parseFloat(line) / 1000000 : 0;
-        if (outcomeId === 0) return `Over ${lineValue}`;
-        if (outcomeId === 1) return `Under ${lineValue}`;
+        if (outcomeId === 0) return t ? t('outcomes.ou.overLine', { line: lineValue }) : `Over ${lineValue}`;
+        if (outcomeId === 1) return t ? t('outcomes.ou.underLine', { line: lineValue }) : `Under ${lineValue}`;
     }
 
     // AH (让球): 显示队伍名 + 让球数
@@ -188,25 +192,34 @@ export const getSelection = (
         const sign = lineValue >= 0 ? '+' : '';
         if (outcomeId === 0) return `${translateTeam(homeTeam)} (${sign}${lineValue})`;
         if (outcomeId === 1) return `${translateTeam(awayTeam)} (${sign}${-lineValue})`;
-        if (outcomeId === 2) return 'Push';
+        if (outcomeId === 2) return t ? t('outcomes.ah.push') : 'Push';
     }
 
     // OddEven (单双)
     if (templateId === '4' || templateId === 'OddEven') {
-        if (outcomeId === 0) return 'Odd';
-        if (outcomeId === 1) return 'Even';
+        if (outcomeId === 0) return t ? t('outcomes.oddEven.odd') : 'Odd';
+        if (outcomeId === 1) return t ? t('outcomes.oddEven.even') : 'Even';
     }
 
     // Score (精确比分) - 包括 Score 和 Score_Pari
     if (templateId === '5' || templateId === 'Score' || templateId === 'Score_Pari') {
-        if (outcomeId === 999) return 'Other';
+        if (outcomeId === 999) return t ? t('outcomes.score.other') : 'Other';
         const homeGoals = Math.floor(outcomeId / 10);
         const awayGoals = outcomeId % 10;
         return `${homeGoals}-${awayGoals}`;
     }
 
-    // 默认使用 getOutcomeName
-    return getOutcomeName(templateId, outcomeId);
+    // 默认使用 getOutcomeName 返回的 i18n key
+    const fallbackKey = getOutcomeName(templateId, outcomeId);
+    // getOutcomeName 返回的是 i18n key，需要翻译
+    if (t) {
+        // outcomes.fallback 需要 id 参数
+        if (fallbackKey === 'outcomes.fallback') {
+            return t(fallbackKey, { id: outcomeId });
+        }
+        return t(fallbackKey);
+    }
+    return fallbackKey;
 };
 
 /**

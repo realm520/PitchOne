@@ -66,7 +66,7 @@ export default function PositionList({ positions }: { positions?: Position[] }) 
                                         <div className="text-[10px] text-gray-400">{formatDate(position.createdAt)}</div>
                                     </div>
                                 </Td>
-                                <Td>{getSelection(position, translateTeam)}</Td>
+                                <Td>{getSelection(position, translateTeam, t)}</Td>
                                 <Td>{formatUSDC(getOriginalPayment(position))} USDC</Td>
                                 <Td>{calculateOdds(position)}</Td>
                                 <Td>{calculateExpectedPayout(position).toFixed(2)} USDC</Td>
