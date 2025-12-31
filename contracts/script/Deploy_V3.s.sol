@@ -808,6 +808,8 @@ contract Deploy_V3 is Script {
             networkName = "arbitrum_v3";
         } else if (block.chainid == 8453) {
             networkName = "base_v3";
+        } else if (block.chainid == 84532) {
+            networkName = "base_sepolia_v3";
         } else if (block.chainid == 56) {
             networkName = "bsc_v3";
         } else {
