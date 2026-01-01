@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -153,6 +154,41 @@ func loadConfig() error {
 	// 环境变量绑定
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("SPORTSBOOK")
+
+	// 设置环境变量键名替换规则（将 . 替换为 _）
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+
+	// 显式绑定必需的环境变量（解决嵌套配置问题）
+	// keeper.* 配置项
+	viper.BindEnv("keeper.chain_id")
+	viper.BindEnv("keeper.rpc_endpoint")
+	viper.BindEnv("keeper.private_key")
+	viper.BindEnv("keeper.gas_limit")
+	viper.BindEnv("keeper.max_gas_price")
+	viper.BindEnv("keeper.task_interval")
+	viper.BindEnv("keeper.lock_lead_time")
+	viper.BindEnv("keeper.finalize_delay")
+	viper.BindEnv("keeper.max_concurrent")
+	viper.BindEnv("keeper.retry_attempts")
+	viper.BindEnv("keeper.retry_delay")
+	viper.BindEnv("keeper.database_url")
+	viper.BindEnv("keeper.health_check_port")
+	viper.BindEnv("keeper.metrics_port")
+	viper.BindEnv("keeper.alerts_enabled")
+
+	// sportradar.* 配置项
+	viper.BindEnv("sportradar.api_key")
+	viper.BindEnv("sportradar.base_url")
+	viper.BindEnv("sportradar.timeout")
+	viper.BindEnv("sportradar.requests_per_sec")
+
+	// logging.* 配置项
+	viper.BindEnv("logging.level")
+	viper.BindEnv("logging.format")
+
+	// 其他配置项
+	viper.BindEnv("environment")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// 配置文件不存在不是致命错误，可以完全依赖环境变量
