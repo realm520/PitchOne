@@ -9,6 +9,7 @@ frontend/build/
 frontend/out/
 frontend/*.tsbuildinfo
 frontend/.env*.local
+frontend/packages/contracts/src/addresses/
 
 # ============================================
 # 后端 Go 服务
@@ -56,6 +57,7 @@ subgraph/*.yaml.backup
 .env
 .env.*
 !.env.example
+!.env.prod.example
 !.env.development
 !frontend/.env.web
 

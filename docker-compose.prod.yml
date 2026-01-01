@@ -1,0 +1,277 @@
+# PitchOne VPS Docker Compose - 生产环境一体化部署
+#
+# 包含服务:
+#   - postgres: Backend 数据库
+#   - graph-postgres: Graph Node 专用数据库
+#   - ipfs: IPFS 节点
+#   - graph-node: The Graph 索引服务
+#   - backend-api: Go API 服务
+#   - backend-keeper: Go Keeper 服务
+#   - nginx: 反向代理 + SSL
+#
+# 使用方法:
+#   1. 复制 .env.prod.example 到 .env.prod 并填写配置
+#   2. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# 端口暴露 (通过 Nginx):
+#   - 80/443: HTTP/HTTPS (Nginx)
+#   - API: /api/* -> backend-api:8080
+#   - GraphQL: /subgraphs/* -> graph-node:8000
+#   - WebSocket: /ws/* -> graph-node:8001
+
+services:
+  # ============================================================================
+  # PostgreSQL - Backend 数据库
+  # ============================================================================
+  postgres:
+    image: postgres:14-alpine
+    container_name: pitchone-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pitchone}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-pitchone}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pitchone}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "log_statement=mod"
+    networks:
+      - pitchone-network
+    # 不对外暴露端口，仅内部访问
+
+  # ============================================================================
+  # PostgreSQL - Graph Node 专用数据库
+  # ============================================================================
+  graph-postgres:
+    image: postgres:14-alpine
+    container_name: pitchone-graph-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${GRAPH_POSTGRES_USER:-graph-node}
+      POSTGRES_PASSWORD: ${GRAPH_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${GRAPH_POSTGRES_DB:-graph-node}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - graph_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GRAPH_POSTGRES_USER:-graph-node}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "effective_cache_size=1536MB"
+    networks:
+      - pitchone-network
+
+  # ============================================================================
+  # IPFS - Graph Node 存储
+  # ============================================================================
+  ipfs:
+    image: ipfs/kubo:v0.22.0
+    container_name: pitchone-ipfs
+    restart: unless-stopped
+    environment:
+      IPFS_PROFILE: server
+      IPFS_PATH: /data/ipfs
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - pitchone-network
+    # 不对外暴露端口
+
+  # ============================================================================
+  # Graph Node - The Graph 索引服务
+  # ============================================================================
+  graph-node:
+    image: graphprotocol/graph-node:v0.34.1
+    container_name: pitchone-graph-node
+    restart: unless-stopped
+    depends_on:
+      graph-postgres:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+    environment:
+      # PostgreSQL 连接
+      postgres_host: graph-postgres
+      postgres_port: 5432
+      postgres_user: ${GRAPH_POSTGRES_USER:-graph-node}
+      postgres_pass: ${GRAPH_POSTGRES_PASSWORD}
+      postgres_db: ${GRAPH_POSTGRES_DB:-graph-node}
+      # IPFS
+      ipfs: 'ipfs:5001'
+      # Ethereum 网络
+      ethereum: '${GRAPH_ETHEREUM_NETWORK:-base-sepolia}:${ETHEREUM_RPC_URL}'
+      # 日志
+      GRAPH_LOG: ${GRAPH_LOG_LEVEL:-info}
+      # 性能调优
+      ETHEREUM_POLLING_INTERVAL: ${ETHEREUM_POLLING_INTERVAL:-1000}
+      GRAPH_ETHEREUM_TARGET_TRIGGERS_PER_BLOCK_RANGE: 200
+      GRAPH_ETHEREUM_MAX_BLOCK_RANGE_SIZE: 500
+      # 允许非确定性 IPFS（开发用）
+      GRAPH_ALLOW_NON_DETERMINISTIC_IPFS: 'true'
+    networks:
+      - pitchone-network
+    # 内部端口: 8000(HTTP), 8001(WS), 8020(Admin), 8030(Status), 8040(Metrics)
+
+  # ============================================================================
+  # Backend API - Go API 服务
+  # ============================================================================
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pitchone/backend:${VERSION:-latest}
+    container_name: pitchone-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # 环境
+      ENVIRONMENT: production
+      # 数据库
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pitchone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pitchone}?sslmode=disable
+      # 区块链
+      RPC_URL: ${ETHEREUM_RPC_URL}
+      CHAIN_ID: ${CHAIN_ID:-84532}
+      # Subgraph
+      SUBGRAPH_ENDPOINT: http://graph-node:8000/subgraphs/name/pitchone-sportsbook
+      # 服务端口
+      API_PORT: 8080
+      # 日志
+      SPORTSBOOK_LOGGING_LEVEL: ${LOG_LEVEL:-info}
+      SPORTSBOOK_LOGGING_FORMAT: json
+    command: ["/bin/api"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pitchone-network
+
+  # ============================================================================
+  # Backend Keeper - 自动化任务服务
+  # ============================================================================
+  backend-keeper:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pitchone/backend:${VERSION:-latest}
+    container_name: pitchone-keeper
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # 环境
+      ENVIRONMENT: production
+      # 数据库
+      SPORTSBOOK_KEEPER_DATABASE_URL: postgresql://${POSTGRES_USER:-pitchone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pitchone}?sslmode=disable
+      # 区块链
+      SPORTSBOOK_KEEPER_RPC_ENDPOINT: ${ETHEREUM_RPC_URL}
+      SPORTSBOOK_KEEPER_CHAIN_ID: ${CHAIN_ID:-84532}
+      SPORTSBOOK_KEEPER_PRIVATE_KEY: ${KEEPER_PRIVATE_KEY}
+      # 合约地址
+      SPORTSBOOK_KEEPER_FACTORY_ADDRESS: ${FACTORY_ADDRESS}
+      SPORTSBOOK_KEEPER_VAULT_ADDRESS: ${VAULT_ADDRESS}
+      SPORTSBOOK_KEEPER_FEE_ROUTER_ADDRESS: ${FEE_ROUTER_ADDRESS}
+      SPORTSBOOK_KEEPER_BETTING_ROUTER_ADDRESS: ${BETTING_ROUTER_ADDRESS}
+      SPORTSBOOK_KEEPER_REFERRAL_REGISTRY_ADDRESS: ${REFERRAL_REGISTRY_ADDRESS}
+      SPORTSBOOK_KEEPER_USDC_ADDRESS: ${USDC_ADDRESS}
+      # 任务配置
+      SPORTSBOOK_KEEPER_TASK_INTERVAL: ${KEEPER_TASK_INTERVAL:-60}
+      SPORTSBOOK_KEEPER_LOCK_LEAD_TIME: ${KEEPER_LOCK_LEAD_TIME:-300}
+      SPORTSBOOK_KEEPER_FINALIZE_DELAY: ${KEEPER_FINALIZE_DELAY:-7200}
+      # Gas 配置
+      SPORTSBOOK_KEEPER_GAS_LIMIT: ${KEEPER_GAS_LIMIT:-500000}
+      SPORTSBOOK_KEEPER_MAX_GAS_PRICE: ${KEEPER_MAX_GAS_PRICE:-100}
+      # 服务端口
+      SPORTSBOOK_KEEPER_HEALTH_CHECK_PORT: 8081
+      SPORTSBOOK_KEEPER_METRICS_PORT: 9090
+      # Sportradar API
+      SPORTSBOOK_SPORTRADAR_API_KEY: ${SPORTRADAR_API_KEY:-}
+      SPORTSBOOK_SPORTRADAR_BASE_URL: https://api.sportradar.us/soccer/trial/v4/en
+      # 日志
+      SPORTSBOOK_LOGGING_LEVEL: ${LOG_LEVEL:-info}
+      SPORTSBOOK_LOGGING_FORMAT: json
+    command: ["/bin/keeper"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pitchone-network
+
+  # ============================================================================
+  # Nginx - 反向代理 + SSL
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: pitchone-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend-api
+      - graph-node
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - pitchone-network
+
+# ============================================================================
+# 网络配置
+# ============================================================================
+networks:
+  pitchone-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================================================
+# 数据卷
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  graph_postgres_data:
+    driver: local
+  ipfs_data:
+    driver: local
+  nginx_logs:
+    driver: local

@@ -1,0 +1,8 @@
+# 此目录用于存放 SSL 证书
+# 请勿将实际证书提交到 Git
+#
+# 获取证书方法：
+# 1. Let's Encrypt: certbot certonly --standalone -d your-domain.com
+# 2. 复制证书到此目录:
+#    - fullchain.pem
+#    - privkey.pem
